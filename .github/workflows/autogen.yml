@@ -1,0 +1,58 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Build Go Application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Install Protoc
+      uses: arduino/setup-protoc@v2
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Install NPM
+      uses: actions/setup-node@v4
+    
+    - name: Update Protobuf
+      run: |
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        npm install google-protobuf
+        npm install -g protoc-gen-js
+        npm install -g browserify
+        protoc --go_out=. --go_opt=paths=source_relative pkg/protobufs/protobufs.proto
+        protoc --js_out=import_style=commonjs,binary:. pkg/protobufs/protobufs.proto
+        mkdir -p web_build/
+        echo "const pb = require('./protobufs_pb');" >  web_build/entrypoint.js
+        echo "main();" >>  web_build/entrypoint.js
+        mv pkg/protobufs/protobufs_pb.js web_build/
+        browserify web_build/entrypoint.js > pkg/web/js/app.js
+        rm -rf web_build
+        git config --global user.name 'Git bot'
+        git config --global user.email 'bot@noreply.github.com'
+        git remote set-url origin https://x-access-token:${{ secrets.CI_TOKEN }}@github.com/${{ github.repository }}
+        git commit -am "Auto updated submodule references" && git push || echo "No changes to commit"
+
+    - name: Generate Web Handlers
+      run: |
+          ./pkg/web/gen_web_handlers.sh
+          git config --global user.name 'Git bot'
+          git config --global user.email 'bot@noreply.github.com'
+          git remote set-url origin https://x-access-token:${{ secrets.CI_TOKEN }}@github.com/${{ github.repository }}
+          git add pkg/web/js/app.js pkg/web/handlers/*.go
+          git commit -am "Generate web handlers" && git push || echo "No changes to commit"
