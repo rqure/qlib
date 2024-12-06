@@ -1,4 +1,4 @@
-package qdatabase
+package entity
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/d5/tengo/v2"
-	"github.com/d5/tengo/v2/stdlib"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/proto"
@@ -18,22 +16,17 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type SortedSetMember struct {
-	Score  float64
-	Member string
-}
-
 type IDatabase interface {
 	Connect()
 	Disconnect()
 	IsConnected() bool
 
-	CreateSnapshot() *DatabaseSnapshot
-	RestoreSnapshot(snapshot *DatabaseSnapshot)
+	CreateSnapshot() *pb.DatabaseSnapshot
+	RestoreSnapshot(snapshot *pb.DatabaseSnapshot)
 
 	CreateEntity(entityType, parentId, name string)
-	GetEntity(entityId string) *DatabaseEntity
-	SetEntity(entityId string, value *DatabaseEntity)
+	GetEntity(entityId string) *pb.DatabaseEntity
+	SetEntity(entityId string, value *pb.DatabaseEntity)
 	DeleteEntity(entityId string)
 
 	FindEntities(entityType string) []string
@@ -42,109 +35,20 @@ type IDatabase interface {
 	EntityExists(entityId string) bool
 	FieldExists(fieldName, entityType string) bool
 
-	GetFieldSchemas() []*DatabaseFieldSchema
-	GetFieldSchema(fieldName string) *DatabaseFieldSchema
-	SetFieldSchema(fieldName string, value *DatabaseFieldSchema)
+	GetFieldSchemas() []*pb.DatabaseFieldSchema
+	GetFieldSchema(fieldName string) *pb.DatabaseFieldSchema
+	SetFieldSchema(fieldName string, value *pb.DatabaseFieldSchema)
 
-	GetEntitySchema(entityType string) *DatabaseEntitySchema
-	SetEntitySchema(entityType string, value *DatabaseEntitySchema)
+	GetEntitySchema(entityType string) *pb.DatabaseEntitySchema
+	SetEntitySchema(entityType string, value *pb.DatabaseEntitySchema)
 
-	Read(requests []*DatabaseRequest)
-	Write(requests []*DatabaseRequest)
+	Read(requests []*pb.DatabaseRequest)
+	Write(requests []*pb.DatabaseRequest)
 
-	Notify(config *DatabaseNotificationConfig, callback INotificationCallback) INotificationToken
+	Notify(config *pb.DatabaseNotificationConfig, callback INotificationCallback) INotificationToken
 	Unnotify(subscriptionId string)
 	UnnotifyCallback(subscriptionId string, callback INotificationCallback)
 	ProcessNotifications()
-}
-
-type INotificationCallback interface {
-	Fn(*DatabaseNotification)
-	Id() string
-}
-
-type NotificationCallback struct {
-	fn func(*DatabaseNotification)
-	id string
-}
-
-type INotificationToken interface {
-	Id() string
-	Unbind()
-}
-
-type NotificationToken struct {
-	db             IDatabase
-	subscriptionId string
-	callback       INotificationCallback
-}
-
-func (t *NotificationToken) Id() string {
-	return t.subscriptionId
-}
-
-func (t *NotificationToken) Unbind() {
-	if t.callback != nil {
-		t.db.UnnotifyCallback(t.subscriptionId, t.callback)
-	} else {
-		t.db.Unnotify(t.subscriptionId)
-	}
-}
-
-func NewNotificationCallback(fn func(*DatabaseNotification)) INotificationCallback {
-	return &NotificationCallback{
-		fn: fn,
-		id: uuid.New().String(),
-	}
-}
-
-func (c *NotificationCallback) Fn(n *DatabaseNotification) {
-	c.fn(n)
-}
-
-func (c *NotificationCallback) Id() string {
-	return c.id
-}
-
-type ITransformer interface {
-	Transform(*Transformation, IField)
-	ProcessPending()
-}
-
-type TengoTransformer struct {
-	db ITengoDatabase
-}
-
-func NewTransformer(db IDatabase) ITransformer {
-	return &TengoTransformer{
-		db: NewTengoDatabase(db),
-	}
-}
-
-func (t *TengoTransformer) Transform(transformation *Transformation, field IField) {
-	// Check if there is a script to execute
-	if len(transformation.Raw) == 0 {
-		return
-	}
-
-	script := tengo.NewScript([]byte(transformation.Raw))
-	script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
-	script.Add("qdb", t.db.ToTengoMap())
-	script.Add("field", NewTengoField(field).ToTengoMap())
-
-	_, err := script.Run()
-	if err != nil {
-		Error("[Transformer::Transform] Failed to execute script: %v", err)
-	}
-}
-
-func (t *TengoTransformer) ProcessPending() {
-	for _, pending := range t.db.PopAvailableJobs() {
-		_, err := pending.task.Call()
-		if err != nil {
-			Error("[Transformer::ProcessPending] Failed to execute script: %v", err)
-		}
-	}
 }
 
 type RedisDatabaseConfig struct {
@@ -153,25 +57,25 @@ type RedisDatabaseConfig struct {
 	ServiceID func() string
 }
 
-func (r *DatabaseRequest) FromField(field *DatabaseField) *DatabaseRequest {
+func (r *pb.DatabaseRequest) FromField(field *pb.DatabaseField) *pb.DatabaseRequest {
 	r.Id = field.Id
 	r.Field = field.Name
 	r.Value = field.Value
 
 	if r.WriteTime == nil {
-		r.WriteTime = &Timestamp{Raw: timestamppb.Now()}
+		r.WriteTime = &pb.Timestamp{Raw: timestamppb.Now()}
 	}
 	r.WriteTime.Raw = field.WriteTime
 
 	if r.WriterId == nil {
-		r.WriterId = &String{Raw: ""}
+		r.WriterId = &pb.String{Raw: ""}
 	}
 	r.WriterId.Raw = field.WriterId
 
 	return r
 }
 
-func (f *DatabaseField) FromRequest(request *DatabaseRequest) *DatabaseField {
+func (f *pb.DatabaseField) FromRequest(request *pb.DatabaseRequest) *pb.DatabaseField {
 	f.Name = request.Field
 	f.Id = request.Id
 	f.Value = request.Value
@@ -260,7 +164,7 @@ func NewRedisDatabase(config RedisDatabaseConfig) IDatabase {
 func (db *RedisDatabase) Connect() {
 	db.Disconnect()
 
-	Info("[RedisDatabase::Connect] Connecting to %v", db.config.Address)
+	qlog.Info("[RedisDatabase::Connect] Connecting to %v", db.config.Address)
 	db.client = redis.NewClient(&redis.Options{
 		Addr:     db.config.Address,
 		Password: db.config.Password,
@@ -281,8 +185,8 @@ func (db *RedisDatabase) IsConnected() bool {
 	return db.client != nil && db.client.Ping(context.Background()).Err() == nil
 }
 
-func (db *RedisDatabase) CreateSnapshot() *DatabaseSnapshot {
-	snapshot := &DatabaseSnapshot{}
+func (db *RedisDatabase) CreateSnapshot() *pb.DatabaseSnapshot {
+	snapshot := &pb.DatabaseSnapshot{}
 
 	usedEntityType := map[string]bool{}
 	usedFields := map[string]bool{}
@@ -292,13 +196,13 @@ func (db *RedisDatabase) CreateSnapshot() *DatabaseSnapshot {
 			usedEntityType[entityType] = true
 			snapshot.Entities = append(snapshot.Entities, db.GetEntity(entityId))
 			for _, fieldName := range entitySchema.Fields {
-				request := &DatabaseRequest{
+				request := &pb.DatabaseRequest{
 					Id:    entityId,
 					Field: fieldName,
 				}
-				db.Read([]*DatabaseRequest{request})
+				db.Read([]*pb.DatabaseRequest{request})
 				if request.Success {
-					snapshot.Fields = append(snapshot.Fields, new(DatabaseField).FromRequest(request))
+					snapshot.Fields = append(snapshot.Fields, new(pb.DatabaseField).FromRequest(request))
 				}
 				usedFields[fieldName] = true
 			}
@@ -318,45 +222,45 @@ func (db *RedisDatabase) CreateSnapshot() *DatabaseSnapshot {
 	return snapshot
 }
 
-func (db *RedisDatabase) RestoreSnapshot(snapshot *DatabaseSnapshot) {
-	Info("[RedisDatabase::RestoreSnapshot] Restoring snapshot...")
+func (db *RedisDatabase) RestoreSnapshot(snapshot *pb.DatabaseSnapshot) {
+	qlog.Info("[RedisDatabase::RestoreSnapshot] Restoring snapshot...")
 
 	err := db.client.FlushDB(context.Background()).Err()
 	if err != nil {
-		Error("[RedisDatabase::RestoreSnapshot] Failed to flush database: %v", err)
+		qlog.Error("[RedisDatabase::RestoreSnapshot] Failed to flush database: %v", err)
 		return
 	}
 
 	for _, schema := range snapshot.EntitySchemas {
 		db.SetEntitySchema(schema.Name, schema)
-		Debug("[RedisDatabase::RestoreSnapshot] Restored entity schema: %v", schema)
+		qlog.Debug("[RedisDatabase::RestoreSnapshot] Restored entity schema: %v", schema)
 	}
 
 	for _, schema := range snapshot.FieldSchemas {
 		db.SetFieldSchema(schema.Name, schema)
-		Debug("[RedisDatabase::RestoreSnapshot] Restored field schema: %v", schema)
+		qlog.Debug("[RedisDatabase::RestoreSnapshot] Restored field schema: %v", schema)
 	}
 
 	for _, entity := range snapshot.Entities {
 		db.SetEntity(entity.Id, entity)
 		db.client.SAdd(context.Background(), db.keygen.GetEntityTypeKey(entity.Type), entity.Id)
-		Debug("[RedisDatabase::RestoreSnapshot] Restored entity: %v", entity)
+		qlog.Debug("[RedisDatabase::RestoreSnapshot] Restored entity: %v", entity)
 	}
 
 	for _, field := range snapshot.Fields {
-		db.Write([]*DatabaseRequest{
+		db.Write([]*pb.DatabaseRequest{
 			{
 				Id:        field.Id,
 				Field:     field.Name,
 				Value:     field.Value,
-				WriteTime: &Timestamp{Raw: field.WriteTime},
-				WriterId:  &String{Raw: field.WriterId},
+				WriteTime: &pb.Timestamp{Raw: field.WriteTime},
+				WriterId:  &pb.String{Raw: field.WriterId},
 			},
 		})
-		Debug("[RedisDatabase::RestoreSnapshot] Restored field: %v", field)
+		qlog.Debug("[RedisDatabase::RestoreSnapshot] Restored field: %v", field)
 	}
 
-	Info("[RedisDatabase::RestoreSnapshot] Snapshot restored.")
+	qlog.Info("[RedisDatabase::RestoreSnapshot] Snapshot restored.")
 }
 
 func (db *RedisDatabase) CreateEntity(entityType, parentId, name string) {
@@ -364,20 +268,20 @@ func (db *RedisDatabase) CreateEntity(entityType, parentId, name string) {
 
 	schema := db.GetEntitySchema(entityType)
 	if schema == nil {
-		Error("[RedisDatabase::CreateEntity] Failed to get entity schema for type %s", entityType)
+		qlog.Error("[RedisDatabase::CreateEntity] Failed to get entity schema for type %s", entityType)
 		return
 	}
 
 	// Initialize empty fields
-	requests := []*DatabaseRequest{}
+	requests := []*pb.DatabaseRequest{}
 	for _, fieldName := range schema.Fields {
 		fieldSchema := db.GetFieldSchema(fieldName)
 		if fieldSchema == nil {
-			Error("[RedisDatabase::CreateEntity] Failed to get field schema for %s", fieldName)
+			qlog.Error("[RedisDatabase::CreateEntity] Failed to get field schema for %s", fieldName)
 			continue
 		}
 
-		requests = append(requests, &DatabaseRequest{
+		requests = append(requests, &pb.DatabaseRequest{
 			Id:    entityId,
 			Field: fieldName,
 		})
@@ -387,16 +291,16 @@ func (db *RedisDatabase) CreateEntity(entityType, parentId, name string) {
 		db.Write(requests)
 	}
 
-	p := &DatabaseEntity{
+	p := &pb.DatabaseEntity{
 		Id:       entityId,
 		Name:     name,
-		Parent:   &EntityReference{Raw: parentId},
+		Parent:   &pb.EntityReference{Raw: parentId},
 		Type:     entityType,
-		Children: []*EntityReference{},
+		Children: []*pb.EntityReference{},
 	}
 	b, err := proto.Marshal(p)
 	if err != nil {
-		Error("[RedisDatabase::CreateEntity] Failed to marshal entity: %v", err)
+		qlog.Error("[RedisDatabase::CreateEntity] Failed to marshal entity: %v", err)
 		return
 	}
 
@@ -406,47 +310,47 @@ func (db *RedisDatabase) CreateEntity(entityType, parentId, name string) {
 	if parentId != "" {
 		parent := db.GetEntity(parentId)
 		if parent != nil {
-			parent.Children = append(parent.Children, &EntityReference{Raw: entityId})
+			parent.Children = append(parent.Children, &pb.EntityReference{Raw: entityId})
 			db.SetEntity(parentId, parent)
 		} else {
-			Error("[RedisDatabase::CreateEntity] Failed to get parent entity: %v", parentId)
+			qlog.Error("[RedisDatabase::CreateEntity] Failed to get parent entity: %v", parentId)
 		}
 	}
 }
 
-func (db *RedisDatabase) GetEntity(entityId string) *DatabaseEntity {
+func (db *RedisDatabase) GetEntity(entityId string) *pb.DatabaseEntity {
 	e, err := db.client.Get(context.Background(), db.keygen.GetEntityKey(entityId)).Result()
 	if err != nil {
-		Error("[RedisDatabase::GetEntity] Failed to get entity: %v", err)
+		qlog.Error("[RedisDatabase::GetEntity] Failed to get entity: %v", err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		Error("[RedisDatabase::GetEntity] Failed to decode entity: %v", err)
+		qlog.Error("[RedisDatabase::GetEntity] Failed to decode entity: %v", err)
 		return nil
 	}
 
-	p := &DatabaseEntity{}
+	p := &pb.DatabaseEntity{}
 	err = proto.Unmarshal(b, p)
 	if err != nil {
-		Error("[RedisDatabase::GetEntity] Failed to unmarshal entity: %v", err)
+		qlog.Error("[RedisDatabase::GetEntity] Failed to unmarshal entity: %v", err)
 		return nil
 	}
 
 	return p
 }
 
-func (db *RedisDatabase) SetEntity(entityId string, value *DatabaseEntity) {
+func (db *RedisDatabase) SetEntity(entityId string, value *pb.DatabaseEntity) {
 	b, err := proto.Marshal(value)
 	if err != nil {
-		Error("[RedisDatabase::SetEntity] Failed to marshal entity: %v", err)
+		qlog.Error("[RedisDatabase::SetEntity] Failed to marshal entity: %v", err)
 		return
 	}
 
 	err = db.client.Set(context.Background(), db.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0).Err()
 	if err != nil {
-		Error("[RedisDatabase::SetEntity] Failed to set entity '%s': %v", entityId, err)
+		qlog.Error("[RedisDatabase::SetEntity] Failed to set entity '%s': %v", entityId, err)
 		return
 	}
 }
@@ -454,13 +358,13 @@ func (db *RedisDatabase) SetEntity(entityId string, value *DatabaseEntity) {
 func (db *RedisDatabase) DeleteEntity(entityId string) {
 	p := db.GetEntity(entityId)
 	if p == nil {
-		Error("[RedisDatabase::DeleteEntity] Failed to get entity: %v", entityId)
+		qlog.Error("[RedisDatabase::DeleteEntity] Failed to get entity: %v", entityId)
 		return
 	}
 
 	parent := db.GetEntity(p.Parent.Raw)
 	if parent != nil {
-		newChildren := []*EntityReference{}
+		newChildren := []*pb.EntityReference{}
 		for _, child := range parent.Children {
 			if child.Raw != entityId {
 				newChildren = append(newChildren, child)
@@ -508,36 +412,36 @@ func (db *RedisDatabase) FieldExists(fieldName, entityType string) bool {
 		}
 	}
 
-	request := &DatabaseRequest{
+	request := &pb.DatabaseRequest{
 		Id:    entityType,
 		Field: fieldName,
 	}
-	db.Read([]*DatabaseRequest{request})
+	db.Read([]*pb.DatabaseRequest{request})
 
 	return request.Success
 }
 
-func (db *RedisDatabase) GetFieldSchemas() []*DatabaseFieldSchema {
+func (db *RedisDatabase) GetFieldSchemas() []*pb.DatabaseFieldSchema {
 	it := db.client.Scan(context.Background(), 0, db.keygen.GetFieldSchemaKey("*"), 0).Iterator()
-	schemas := []*DatabaseFieldSchema{}
+	schemas := []*pb.DatabaseFieldSchema{}
 
 	for it.Next(context.Background()) {
 		e, err := db.client.Get(context.Background(), it.Val()).Result()
 		if err != nil {
-			Error("[RedisDatabase::GetFieldSchemas] Failed to get field schema: %v", err)
+			qlog.Error("[RedisDatabase::GetFieldSchemas] Failed to get field schema: %v", err)
 			continue
 		}
 
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			Error("[RedisDatabase::GetFieldSchemas] Failed to decode field schema: %v", err)
+			qlog.Error("[RedisDatabase::GetFieldSchemas] Failed to decode field schema: %v", err)
 			continue
 		}
 
-		p := &DatabaseFieldSchema{}
+		p := &pb.DatabaseFieldSchema{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			Error("[RedisDatabase::GetFieldSchemas] Failed to unmarshal field schema: %v", err)
+			qlog.Error("[RedisDatabase::GetFieldSchemas] Failed to unmarshal field schema: %v", err)
 			continue
 		}
 
@@ -548,33 +452,33 @@ func (db *RedisDatabase) GetFieldSchemas() []*DatabaseFieldSchema {
 
 }
 
-func (db *RedisDatabase) GetFieldSchema(fieldName string) *DatabaseFieldSchema {
+func (db *RedisDatabase) GetFieldSchema(fieldName string) *pb.DatabaseFieldSchema {
 	e, err := db.client.Get(context.Background(), db.keygen.GetFieldSchemaKey(fieldName)).Result()
 	if err != nil {
-		Error("[RedisDatabase::GetFieldSchema] Failed to get field schema: %v", err)
+		qlog.Error("[RedisDatabase::GetFieldSchema] Failed to get field schema: %v", err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		Error("[RedisDatabase::GetFieldSchema] Failed to decode field schema: %v", err)
+		qlog.Error("[RedisDatabase::GetFieldSchema] Failed to decode field schema: %v", err)
 		return nil
 	}
 
-	a := &DatabaseFieldSchema{}
+	a := &pb.DatabaseFieldSchema{}
 	err = proto.Unmarshal(b, a)
 	if err != nil {
-		Error("[RedisDatabase::GetFieldSchema] Failed to unmarshal field schema: %v", err)
+		qlog.Error("[RedisDatabase::GetFieldSchema] Failed to unmarshal field schema: %v", err)
 		return nil
 	}
 
 	return a
 }
 
-func (db *RedisDatabase) SetFieldSchema(fieldName string, value *DatabaseFieldSchema) {
+func (db *RedisDatabase) SetFieldSchema(fieldName string, value *pb.DatabaseFieldSchema) {
 	b, err := proto.Marshal(value)
 	if err != nil {
-		Error("[RedisDatabase::SetFieldSchema] Failed to marshal field schema: %v", err)
+		qlog.Error("[RedisDatabase::SetFieldSchema] Failed to marshal field schema: %v", err)
 		return
 	}
 
@@ -592,33 +496,33 @@ func (db *RedisDatabase) GetEntityTypes() []string {
 	return types
 }
 
-func (db *RedisDatabase) GetEntitySchema(entityType string) *DatabaseEntitySchema {
+func (db *RedisDatabase) GetEntitySchema(entityType string) *pb.DatabaseEntitySchema {
 	e, err := db.client.Get(context.Background(), db.keygen.GetEntitySchemaKey(entityType)).Result()
 	if err != nil {
-		Error("[RedisDatabase::GetEntitySchema] Failed to get entity schema (%v): %v", entityType, err)
+		qlog.Error("[RedisDatabase::GetEntitySchema] Failed to get entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		Error("[RedisDatabase::GetEntitySchema] Failed to decode entity schema (%v): %v", entityType, err)
+		qlog.Error("[RedisDatabase::GetEntitySchema] Failed to decode entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
-	p := &DatabaseEntitySchema{}
+	p := &pb.DatabaseEntitySchema{}
 	err = proto.Unmarshal(b, p)
 	if err != nil {
-		Error("[RedisDatabase::GetEntitySchema] Failed to unmarshal entity schema (%v): %v", entityType, err)
+		qlog.Error("[RedisDatabase::GetEntitySchema] Failed to unmarshal entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
 	return p
 }
 
-func (db *RedisDatabase) SetEntitySchema(entityType string, value *DatabaseEntitySchema) {
+func (db *RedisDatabase) SetEntitySchema(entityType string, value *pb.DatabaseEntitySchema) {
 	b, err := proto.Marshal(value)
 	if err != nil {
-		Error("[RedisDatabase::SetEntitySchema] Failed to marshal entity schema: %v", err)
+		qlog.Error("[RedisDatabase::SetEntitySchema] Failed to marshal entity schema: %v", err)
 		return
 	}
 
@@ -645,11 +549,11 @@ func (db *RedisDatabase) SetEntitySchema(entityType string, value *DatabaseEntit
 			}
 
 			for _, field := range newFields {
-				request := &DatabaseRequest{
+				request := &pb.DatabaseRequest{
 					Id:    entityId,
 					Field: field,
 				}
-				db.Write([]*DatabaseRequest{request})
+				db.Write([]*pb.DatabaseRequest{request})
 			}
 		}
 	}
@@ -657,51 +561,51 @@ func (db *RedisDatabase) SetEntitySchema(entityType string, value *DatabaseEntit
 	db.client.Set(context.Background(), db.keygen.GetEntitySchemaKey(entityType), base64.StdEncoding.EncodeToString(b), 0)
 }
 
-func (db *RedisDatabase) Read(requests []*DatabaseRequest) {
+func (db *RedisDatabase) Read(requests []*pb.DatabaseRequest) {
 	for _, request := range requests {
 		request.Success = false
 
 		indirectField, indirectEntity := db.ResolveIndirection(request.Field, request.Id)
 
 		if indirectField == "" || indirectEntity == "" {
-			Error("[RedisDatabase::Read] Failed to resolve indirection: %v", request)
+			qlog.Error("[RedisDatabase::Read] Failed to resolve indirection: %v", request)
 			continue
 		}
 
 		e, err := db.client.Get(context.Background(), db.keygen.GetFieldKey(indirectField, indirectEntity)).Result()
 		if err != nil {
 			if err != redis.Nil {
-				Error("[RedisDatabase::Read] Failed to read field: %v", err)
+				qlog.Error("[RedisDatabase::Read] Failed to read field: %v", err)
 			} else {
 				// If we can't read because the key doesn't exist, it's not a necessarily an issue.
 				// It would be good to know from a troubleshooting aspect though.
-				Trace("[RedisDatabase::Read] Failed to read field: %v", err)
+				qlog.Trace("[RedisDatabase::Read] Failed to read field: %v", err)
 			}
 			continue
 		}
 
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			Error("[RedisDatabase::Read] Failed to decode field: %v", err)
+			qlog.Error("[RedisDatabase::Read] Failed to decode field: %v", err)
 			continue
 		}
 
-		p := &DatabaseField{}
+		p := &pb.DatabaseField{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			Error("[RedisDatabase::Read] Failed to unmarshal field: %v", err)
+			qlog.Error("[RedisDatabase::Read] Failed to unmarshal field: %v", err)
 			continue
 		}
 
 		request.Value = p.Value
 
 		if request.WriteTime == nil {
-			request.WriteTime = &Timestamp{Raw: timestamppb.Now()}
+			request.WriteTime = &pb.Timestamp{Raw: timestamppb.Now()}
 		}
 		request.WriteTime.Raw = p.WriteTime
 
 		if request.WriterId == nil {
-			request.WriterId = &String{Raw: ""}
+			request.WriterId = &pb.String{Raw: ""}
 		}
 		request.WriterId.Raw = p.WriterId
 
@@ -709,68 +613,68 @@ func (db *RedisDatabase) Read(requests []*DatabaseRequest) {
 	}
 }
 
-func (db *RedisDatabase) Write(requests []*DatabaseRequest) {
+func (db *RedisDatabase) Write(requests []*pb.DatabaseRequest) {
 	for _, request := range requests {
 		request.Success = false
 
 		indirectField, indirectEntity := db.ResolveIndirection(request.Field, request.Id)
 		if indirectField == "" || indirectEntity == "" {
-			Error("[RedisDatabase::Write] Failed to resolve indirection: %v", request)
+			qlog.Error("[RedisDatabase::Write] Failed to resolve indirection: %v", request)
 			continue
 		}
 
 		schema := db.GetFieldSchema(indirectField)
 		if schema == nil {
-			Error("[RedisDatabase::Write] Failed to get field schema for %s", indirectField)
+			qlog.Error("[RedisDatabase::Write] Failed to get field schema for %s", indirectField)
 			continue
 		}
 
 		actualFieldType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(schema.Type))
 		if err != nil {
-			Error("[RedisDatabase::Write] Failed to find message type %s: %v", schema.Type, err)
+			qlog.Error("[RedisDatabase::Write] Failed to find message type %s: %v", schema.Type, err)
 			continue
 		}
 
 		if request.Value == nil {
 			if request.Value, err = anypb.New(actualFieldType.New().Interface()); err != nil {
-				Error("[RedisDatabase::Write] Failed to create anypb: %v", err)
+				qlog.Error("[RedisDatabase::Write] Failed to create anypb: %v", err)
 				continue
 			}
 		} else {
 			sampleAnyType, err := anypb.New(actualFieldType.New().Interface())
 			if err != nil {
-				Error("[RedisDatabase::Write] Failed to create anypb: %v", err)
+				qlog.Error("[RedisDatabase::Write] Failed to create anypb: %v", err)
 				continue
 			}
 
-			if request.Value.TypeUrl != sampleAnyType.TypeUrl && !sampleAnyType.MessageIs(&Transformation{}) {
+			if request.Value.TypeUrl != sampleAnyType.TypeUrl && !sampleAnyType.MessageIs(&pb.Transformation{}) {
 				Warn("[RedisDatabase::Write] Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", request.Id, request.Field, request.Value.TypeUrl, sampleAnyType.TypeUrl)
 				request.Value = sampleAnyType
 			}
 		}
 
 		if request.WriteTime == nil {
-			request.WriteTime = &Timestamp{Raw: timestamppb.Now()}
+			request.WriteTime = &pb.Timestamp{Raw: timestamppb.Now()}
 		}
 
 		if request.WriterId == nil {
-			request.WriterId = &String{Raw: ""}
+			request.WriterId = &pb.String{Raw: ""}
 		}
 
-		oldRequest := &DatabaseRequest{
+		oldRequest := &pb.DatabaseRequest{
 			Id:    request.Id,
 			Field: request.Field,
 		}
-		db.Read([]*DatabaseRequest{oldRequest})
+		db.Read([]*pb.DatabaseRequest{oldRequest})
 
 		// Set the value in the database
 		// Note that for a transformation, we don't actually write the value to the database
 		// unless the new value is a transformation. This is because the transformation is
 		// executed by the transformer, which will write the result to the database.
-		if oldRequest.Success && oldRequest.Value.MessageIs(&Transformation{}) && !request.Value.MessageIs(&Transformation{}) {
-			transformation := ValueCast[*Transformation](oldRequest.Value)
+		if oldRequest.Success && oldRequest.Value.MessageIs(&pb.Transformation{}) && !request.Value.MessageIs(&pb.Transformation{}) {
+			transformation := ValueCast[*pb.Transformation](oldRequest.Value)
 			field := NewField(db, request.Id, request.Field)
-			field.req = &DatabaseRequest{
+			field.req = &pb.DatabaseRequest{
 				Id:      request.Id,
 				Field:   request.Field,
 				Value:   request.Value,
@@ -780,11 +684,11 @@ func (db *RedisDatabase) Write(requests []*DatabaseRequest) {
 			request.Value = oldRequest.Value
 		}
 
-		p := new(DatabaseField).FromRequest(request)
+		p := new(pb.DatabaseField).FromRequest(request)
 
 		b, err := proto.Marshal(p)
 		if err != nil {
-			Error("[RedisDatabase::Write] Failed to marshal field: %v", err)
+			qlog.Error("[RedisDatabase::Write] Failed to marshal field: %v", err)
 			continue
 		}
 
@@ -797,21 +701,21 @@ func (db *RedisDatabase) Write(requests []*DatabaseRequest) {
 		db.triggerNotifications(request, oldRequest)
 
 		if err != nil {
-			Error("[RedisDatabase::Write] Failed to write field: %v", err)
+			qlog.Error("[RedisDatabase::Write] Failed to write field: %v", err)
 			continue
 		}
 		request.Success = true
 	}
 }
 
-func (db *RedisDatabase) Notify(notification *DatabaseNotificationConfig, callback INotificationCallback) INotificationToken {
+func (db *RedisDatabase) Notify(notification *pb.DatabaseNotificationConfig, callback INotificationCallback) INotificationToken {
 	if notification.ServiceId == "" {
 		notification.ServiceId = db.getServiceId()
 	}
 
 	b, err := proto.Marshal(notification)
 	if err != nil {
-		Error("[RedisDatabase::Notify] Failed to marshal notification config: %v", err)
+		qlog.Error("[RedisDatabase::Notify] Failed to marshal notification config: %v", err)
 		return &NotificationToken{
 			db:             db,
 			subscriptionId: "",
@@ -850,7 +754,7 @@ func (db *RedisDatabase) Notify(notification *DatabaseNotificationConfig, callba
 		}
 	}
 
-	Warn("[RedisDatabase::Notify] Failed to find field: %v", notification)
+	qlog.Warn("[RedisDatabase::Notify] Failed to find field: %v", notification)
 	return &NotificationToken{
 		db:             db,
 		subscriptionId: "",
@@ -860,7 +764,7 @@ func (db *RedisDatabase) Notify(notification *DatabaseNotificationConfig, callba
 
 func (db *RedisDatabase) Unnotify(e string) {
 	if db.callbacks[e] == nil {
-		Warn("[RedisDatabase::Unnotify] Failed to find callback: %v", e)
+		qlog.Warn("[RedisDatabase::Unnotify] Failed to find callback: %v", e)
 		return
 	}
 
@@ -869,7 +773,7 @@ func (db *RedisDatabase) Unnotify(e string) {
 
 func (db *RedisDatabase) UnnotifyCallback(e string, c INotificationCallback) {
 	if db.callbacks[e] == nil {
-		Warn("[RedisDatabase::UnnotifyCallback] Failed to find callback: %v", e)
+		qlog.Warn("[RedisDatabase::UnnotifyCallback] Failed to find callback: %v", e)
 		return
 	}
 
@@ -893,7 +797,7 @@ func (db *RedisDatabase) ProcessNotifications() {
 	}).Result()
 
 	if err != nil && err != redis.Nil {
-		Error("[RedisDatabase::ProcessNotifications] Failed to read stream %v: %v", db.keygen.GetNotificationChannelKey(db.getServiceId()), err)
+		qlog.Error("[RedisDatabase::ProcessNotifications] Failed to read stream %v: %v", db.keygen.GetNotificationChannelKey(db.getServiceId()), err)
 		return
 	}
 
@@ -906,7 +810,7 @@ func (db *RedisDatabase) ProcessNotifications() {
 				if castedValue, ok := value.(string); ok {
 					decodedMessage[key] = castedValue
 				} else {
-					Error("[RedisDatabase::ProcessNotifications] Failed to cast value: %v", value)
+					qlog.Error("[RedisDatabase::ProcessNotifications] Failed to cast value: %v", value)
 					continue
 				}
 			}
@@ -914,14 +818,14 @@ func (db *RedisDatabase) ProcessNotifications() {
 			if data, ok := decodedMessage["data"]; ok {
 				p, err := base64.StdEncoding.DecodeString(data)
 				if err != nil {
-					Error("[RedisDatabase::ProcessNotifications] Failed to decode notification: %v", err)
+					qlog.Error("[RedisDatabase::ProcessNotifications] Failed to decode notification: %v", err)
 					continue
 				}
 
-				n := &DatabaseNotification{}
+				n := &pb.DatabaseNotification{}
 				err = proto.Unmarshal(p, n)
 				if err != nil {
-					Error("[RedisDatabase::ProcessNotifications] Failed to unmarshal notification: %v", err)
+					qlog.Error("[RedisDatabase::ProcessNotifications] Failed to unmarshal notification: %v", err)
 					continue
 				}
 
@@ -941,19 +845,19 @@ func (db *RedisDatabase) ResolveIndirection(indirectField, entityId string) (str
 	}
 
 	for _, field := range fields[:len(fields)-1] {
-		request := &DatabaseRequest{
+		request := &pb.DatabaseRequest{
 			Id:    entityId,
 			Field: field,
 		}
 
-		db.Read([]*DatabaseRequest{request})
+		db.Read([]*pb.DatabaseRequest{request})
 
 		if request.Success {
-			entityReference := &EntityReference{}
+			entityReference := &pb.EntityReference{}
 			if request.Value.MessageIs(entityReference) {
 				err := request.Value.UnmarshalTo(entityReference)
 				if err != nil {
-					Error("[RedisDatabase::ResolveIndirection] Failed to unmarshal entity reference: %v", err)
+					qlog.Error("[RedisDatabase::ResolveIndirection] Failed to unmarshal entity reference: %v", err)
 					return "", ""
 				}
 
@@ -961,14 +865,14 @@ func (db *RedisDatabase) ResolveIndirection(indirectField, entityId string) (str
 				continue
 			}
 
-			Error("[RedisDatabase::ResolveIndirection] Field is not an entity reference: %v", request)
+			qlog.Error("[RedisDatabase::ResolveIndirection] Field is not an entity reference: %v", request)
 			return "", ""
 		}
 
 		// Fallback to parent entity reference by name
 		entity := db.GetEntity(entityId)
 		if entity == nil {
-			Error("[RedisDatabase::ResolveIndirection] Failed to get entity: %v", entityId)
+			qlog.Error("[RedisDatabase::ResolveIndirection] Failed to get entity: %v", entityId)
 			return "", ""
 		}
 
@@ -986,7 +890,7 @@ func (db *RedisDatabase) ResolveIndirection(indirectField, entityId string) (str
 		for _, child := range entity.Children {
 			childEntity := db.GetEntity(child.Raw)
 			if childEntity == nil {
-				Error("[RedisDatabase::ResolveIndirection] Failed to get child entity: %v", child.Raw)
+				qlog.Error("[RedisDatabase::ResolveIndirection] Failed to get child entity: %v", child.Raw)
 				continue
 			}
 
@@ -998,7 +902,7 @@ func (db *RedisDatabase) ResolveIndirection(indirectField, entityId string) (str
 		}
 
 		if !foundChild {
-			Error("[RedisDatabase::ResolveIndirection] Failed to find child entity: %v", field)
+			qlog.Error("[RedisDatabase::ResolveIndirection] Failed to find child entity: %v", field)
 			return "", ""
 		}
 	}
@@ -1006,10 +910,10 @@ func (db *RedisDatabase) ResolveIndirection(indirectField, entityId string) (str
 	return fields[len(fields)-1], entityId
 }
 
-func (db *RedisDatabase) triggerNotifications(request *DatabaseRequest, oldRequest *DatabaseRequest) {
+func (db *RedisDatabase) triggerNotifications(request *pb.DatabaseRequest, oldRequest *pb.DatabaseRequest) {
 	// failed to read old value (it may not exist initially)
 	if !oldRequest.Success {
-		Warn("[RedisDatabase::triggerNotifications] Failed to read old value: %v", oldRequest)
+		qlog.Warn("[RedisDatabase::triggerNotifications] Failed to read old value: %v", oldRequest)
 		return
 	}
 
@@ -1018,27 +922,27 @@ func (db *RedisDatabase) triggerNotifications(request *DatabaseRequest, oldReque
 	indirectField, indirectEntity := db.ResolveIndirection(request.Field, request.Id)
 
 	if indirectField == "" || indirectEntity == "" {
-		Error("[RedisDatabase::triggerNotifications] Failed to resolve indirection: %v", request)
+		qlog.Error("[RedisDatabase::triggerNotifications] Failed to resolve indirection: %v", request)
 		return
 	}
 
 	m, err := db.client.SMembers(context.Background(), db.keygen.GetEntityIdNotificationConfigKey(indirectEntity, indirectField)).Result()
 	if err != nil {
-		Error("[RedisDatabase::triggerNotifications] Failed to get notification config: %v", err)
+		qlog.Error("[RedisDatabase::triggerNotifications] Failed to get notification config: %v", err)
 		return
 	}
 
 	for _, e := range m {
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to decode notification config: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to decode notification config: %v", err)
 			continue
 		}
 
-		p := &DatabaseNotificationConfig{}
+		p := &pb.DatabaseNotificationConfig{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to unmarshal notification config: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to unmarshal notification config: %v", err)
 			continue
 		}
 
@@ -1046,27 +950,27 @@ func (db *RedisDatabase) triggerNotifications(request *DatabaseRequest, oldReque
 			continue
 		}
 
-		n := &DatabaseNotification{
+		n := &pb.DatabaseNotification{
 			Token:    e,
-			Current:  new(DatabaseField).FromRequest(request),
-			Previous: new(DatabaseField).FromRequest(oldRequest),
-			Context:  []*DatabaseField{},
+			Current:  new(pb.DatabaseField).FromRequest(request),
+			Previous: new(pb.DatabaseField).FromRequest(oldRequest),
+			Context:  []*pb.DatabaseField{},
 		}
 
 		for _, context := range p.ContextFields {
-			contextRequest := &DatabaseRequest{
+			contextRequest := &pb.DatabaseRequest{
 				Id:    indirectEntity,
 				Field: context,
 			}
-			db.Read([]*DatabaseRequest{contextRequest})
+			db.Read([]*pb.DatabaseRequest{contextRequest})
 			if contextRequest.Success {
-				n.Context = append(n.Context, new(DatabaseField).FromRequest(contextRequest))
+				n.Context = append(n.Context, new(pb.DatabaseField).FromRequest(contextRequest))
 			}
 		}
 
 		b, err = proto.Marshal(n)
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to marshal notification: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to marshal notification: %v", err)
 			continue
 		}
 
@@ -1077,34 +981,34 @@ func (db *RedisDatabase) triggerNotifications(request *DatabaseRequest, oldReque
 			Approx: true,
 		}).Result()
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to add notification: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to add notification: %v", err)
 			continue
 		}
 	}
 
 	entity := db.GetEntity(indirectEntity)
 	if entity == nil {
-		Error("[RedisDatabase::triggerNotifications] Failed to get entity: %v (indirect=%v)", request.Id, indirectEntity)
+		qlog.Error("[RedisDatabase::triggerNotifications] Failed to get entity: %v (indirect=%v)", request.Id, indirectEntity)
 		return
 	}
 
 	m, err = db.client.SMembers(context.Background(), db.keygen.GetEntityTypeNotificationConfigKey(entity.Type, indirectField)).Result()
 	if err != nil {
-		Error("[RedisDatabase::triggerNotifications] Failed to get notification config: %v", err)
+		qlog.Error("[RedisDatabase::triggerNotifications] Failed to get notification config: %v", err)
 		return
 	}
 
 	for _, e := range m {
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to decode notification config: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to decode notification config: %v", err)
 			continue
 		}
 
-		p := &DatabaseNotificationConfig{}
+		p := &pb.DatabaseNotificationConfig{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to unmarshal notification config: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to unmarshal notification config: %v", err)
 			continue
 		}
 
@@ -1112,27 +1016,27 @@ func (db *RedisDatabase) triggerNotifications(request *DatabaseRequest, oldReque
 			continue
 		}
 
-		n := &DatabaseNotification{
+		n := &pb.DatabaseNotification{
 			Token:    e,
-			Current:  new(DatabaseField).FromRequest(request),
-			Previous: new(DatabaseField).FromRequest(oldRequest),
-			Context:  []*DatabaseField{},
+			Current:  new(pb.DatabaseField).FromRequest(request),
+			Previous: new(pb.DatabaseField).FromRequest(oldRequest),
+			Context:  []*pb.DatabaseField{},
 		}
 
 		for _, context := range p.ContextFields {
-			contextRequest := &DatabaseRequest{
+			contextRequest := &pb.DatabaseRequest{
 				Id:    indirectEntity,
 				Field: context,
 			}
-			db.Read([]*DatabaseRequest{contextRequest})
+			db.Read([]*pb.DatabaseRequest{contextRequest})
 			if contextRequest.Success {
-				n.Context = append(n.Context, new(DatabaseField).FromRequest(contextRequest))
+				n.Context = append(n.Context, new(pb.DatabaseField).FromRequest(contextRequest))
 			}
 		}
 
 		b, err = proto.Marshal(n)
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to marshal notification: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to marshal notification: %v", err)
 			continue
 		}
 
@@ -1143,7 +1047,7 @@ func (db *RedisDatabase) triggerNotifications(request *DatabaseRequest, oldReque
 			Approx: true,
 		}).Result()
 		if err != nil {
-			Error("[RedisDatabase::triggerNotifications] Failed to add notification: %v", err)
+			qlog.Error("[RedisDatabase::triggerNotifications] Failed to add notification: %v", err)
 			continue
 		}
 	}
@@ -1181,7 +1085,7 @@ func (db *RedisDatabase) SortedSetAdd(key string, member string, score float64) 
 		Member: member,
 	}).Result()
 	if err != nil {
-		Error("[RedisDatabase::SortedSetAdd] Failed to add member to sorted set: %v", err)
+		qlog.Error("[RedisDatabase::SortedSetAdd] Failed to add member to sorted set: %v", err)
 		return 0
 	}
 	return result
@@ -1190,7 +1094,7 @@ func (db *RedisDatabase) SortedSetAdd(key string, member string, score float64) 
 func (db *RedisDatabase) SortedSetRemove(key string, member string) int64 {
 	result, err := db.client.ZRem(context.Background(), key, member).Result()
 	if err != nil {
-		Error("[RedisDatabase::SortedSetRemove] Failed to remove member from sorted set: %v", err)
+		qlog.Error("[RedisDatabase::SortedSetRemove] Failed to remove member from sorted set: %v", err)
 		return 0
 	}
 	return result
@@ -1199,7 +1103,7 @@ func (db *RedisDatabase) SortedSetRemove(key string, member string) int64 {
 func (db *RedisDatabase) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 	result, err := db.client.ZRemRangeByRank(context.Background(), key, start, stop).Result()
 	if err != nil {
-		Error("[RedisDatabase::SortedSetRemoveRangeByRank] Failed to remove range from sorted set: %v", err)
+		qlog.Error("[RedisDatabase::SortedSetRemoveRangeByRank] Failed to remove range from sorted set: %v", err)
 		return 0
 	}
 	return result
@@ -1211,7 +1115,7 @@ func (db *RedisDatabase) SortedSetRangeByScoreWithScores(key string, min, max st
 		Max: max,
 	}).Result()
 	if err != nil {
-		Error("[RedisDatabase::SortedSetRangeByScoreWithScores] Failed to get range from sorted set: %v", err)
+		qlog.Error("[RedisDatabase::SortedSetRangeByScoreWithScores] Failed to get range from sorted set: %v", err)
 		return nil
 	}
 	members := make([]SortedSetMember, len(result))

@@ -1,8 +1,13 @@
-package qleadership
+package leadership
 
 import "time"
 
-type ILeaderElectionStore interface {
+type SortedSetMember struct {
+	Score  float64
+	Member string
+}
+
+type Store interface {
 	TempSet(key string, value string, expiration time.Duration) bool
 	TempGet(key string) string
 	TempExpire(key string, expiration time.Duration)

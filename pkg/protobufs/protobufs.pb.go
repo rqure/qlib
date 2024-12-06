@@ -4,7 +4,7 @@
 // 	protoc        v4.23.4
 // source: pkg/protobufs/protobufs.proto
 
-package qprotobufs
+package pb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -678,7 +678,7 @@ type WebHeader struct {
 
 	Id                   string                             `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Timestamp            *timestamppb.Timestamp             `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	AuthenticationStatus WebHeader_AuthenticationStatusEnum `protobuf:"varint,3,opt,name=authenticationStatus,proto3,enum=qprotobufs.WebHeader_AuthenticationStatusEnum" json:"authenticationStatus,omitempty"`
+	AuthenticationStatus WebHeader_AuthenticationStatusEnum `protobuf:"varint,3,opt,name=authenticationStatus,proto3,enum=pb.WebHeader_AuthenticationStatusEnum" json:"authenticationStatus,omitempty"`
 }
 
 func (x *WebHeader) Reset() {
@@ -851,7 +851,7 @@ type WebConfigCreateEntityResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigCreateEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigCreateEntityResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigCreateEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigCreateEntityResponse_StatusEnum" json:"status,omitempty"`
 	Id     string                                   `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 }
 
@@ -949,7 +949,7 @@ type WebConfigDeleteEntityResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigDeleteEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigDeleteEntityResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigDeleteEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigDeleteEntityResponse_StatusEnum" json:"status,omitempty"`
 }
 
 func (x *WebConfigDeleteEntityResponse) Reset() {
@@ -1120,7 +1120,7 @@ type WebConfigGetEntityResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigGetEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigGetEntityResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigGetEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigGetEntityResponse_StatusEnum" json:"status,omitempty"`
 	Entity *DatabaseEntity                       `protobuf:"bytes,2,opt,name=entity,proto3" json:"entity,omitempty"`
 }
 
@@ -1218,7 +1218,7 @@ type WebConfigGetFieldSchemaResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigGetFieldSchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigGetFieldSchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigGetFieldSchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigGetFieldSchemaResponse_StatusEnum" json:"status,omitempty"`
 	Schema *DatabaseFieldSchema                       `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 }
 
@@ -1324,7 +1324,7 @@ type WebConfigSetFieldSchemaResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigSetFieldSchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigSetFieldSchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigSetFieldSchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigSetFieldSchemaResponse_StatusEnum" json:"status,omitempty"`
 }
 
 func (x *WebConfigSetFieldSchemaResponse) Reset() {
@@ -1414,7 +1414,7 @@ type WebConfigGetEntitySchemaResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigGetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigGetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigGetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigGetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
 	Schema *DatabaseEntitySchema                       `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 }
 
@@ -1520,7 +1520,7 @@ type WebConfigSetEntitySchemaResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigSetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigSetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigSetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigSetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
 }
 
 func (x *WebConfigSetEntitySchemaResponse) Reset() {
@@ -1601,7 +1601,7 @@ type WebConfigCreateSnapshotResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status   WebConfigCreateSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigCreateSnapshotResponse_StatusEnum" json:"status,omitempty"`
+	Status   WebConfigCreateSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigCreateSnapshotResponse_StatusEnum" json:"status,omitempty"`
 	Snapshot *DatabaseSnapshot                          `protobuf:"bytes,2,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 }
 
@@ -1699,7 +1699,7 @@ type WebConfigRestoreSnapshotResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebConfigRestoreSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebConfigRestoreSnapshotResponse_StatusEnum" json:"status,omitempty"`
+	Status WebConfigRestoreSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebConfigRestoreSnapshotResponse_StatusEnum" json:"status,omitempty"`
 }
 
 func (x *WebConfigRestoreSnapshotResponse) Reset() {
@@ -1906,7 +1906,7 @@ type WebRuntimeDatabaseRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	RequestType WebRuntimeDatabaseRequest_RequestTypeEnum `protobuf:"varint,1,opt,name=requestType,proto3,enum=qprotobufs.WebRuntimeDatabaseRequest_RequestTypeEnum" json:"requestType,omitempty"`
+	RequestType WebRuntimeDatabaseRequest_RequestTypeEnum `protobuf:"varint,1,opt,name=requestType,proto3,enum=pb.WebRuntimeDatabaseRequest_RequestTypeEnum" json:"requestType,omitempty"`
 	Requests    []*DatabaseRequest                        `protobuf:"bytes,2,rep,name=requests,proto3" json:"requests,omitempty"`
 }
 
@@ -2220,7 +2220,7 @@ type WebRuntimeUnregisterNotificationResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Status WebRuntimeUnregisterNotificationResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=qprotobufs.WebRuntimeUnregisterNotificationResponse_StatusEnum" json:"status,omitempty"`
+	Status WebRuntimeUnregisterNotificationResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=pb.WebRuntimeUnregisterNotificationResponse_StatusEnum" json:"status,omitempty"`
 }
 
 func (x *WebRuntimeUnregisterNotificationResponse) Reset() {
@@ -3357,7 +3357,7 @@ type LogMessage struct {
 	unknownFields protoimpl.UnknownFields
 
 	Application string                  `protobuf:"bytes,1,opt,name=application,proto3" json:"application,omitempty"`
-	Level       LogMessage_LogLevelEnum `protobuf:"varint,2,opt,name=level,proto3,enum=qprotobufs.LogMessage_LogLevelEnum" json:"level,omitempty"`
+	Level       LogMessage_LogLevelEnum `protobuf:"varint,2,opt,name=level,proto3,enum=pb.LogMessage_LogLevelEnum" json:"level,omitempty"`
 	Message     string                  `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	Timestamp   *timestamppb.Timestamp  `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 }
@@ -3833,121 +3833,121 @@ func file_pkg_protobufs_protobufs_proto_rawDescGZIP() []byte {
 var file_pkg_protobufs_protobufs_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
 var file_pkg_protobufs_protobufs_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
 var file_pkg_protobufs_protobufs_proto_goTypes = []any{
-	(WebHeader_AuthenticationStatusEnum)(0),                  // 0: qprotobufs.WebHeader.AuthenticationStatusEnum
-	(WebConfigCreateEntityResponse_StatusEnum)(0),            // 1: qprotobufs.WebConfigCreateEntityResponse.StatusEnum
-	(WebConfigDeleteEntityResponse_StatusEnum)(0),            // 2: qprotobufs.WebConfigDeleteEntityResponse.StatusEnum
-	(WebConfigGetEntityResponse_StatusEnum)(0),               // 3: qprotobufs.WebConfigGetEntityResponse.StatusEnum
-	(WebConfigGetFieldSchemaResponse_StatusEnum)(0),          // 4: qprotobufs.WebConfigGetFieldSchemaResponse.StatusEnum
-	(WebConfigSetFieldSchemaResponse_StatusEnum)(0),          // 5: qprotobufs.WebConfigSetFieldSchemaResponse.StatusEnum
-	(WebConfigGetEntitySchemaResponse_StatusEnum)(0),         // 6: qprotobufs.WebConfigGetEntitySchemaResponse.StatusEnum
-	(WebConfigSetEntitySchemaResponse_StatusEnum)(0),         // 7: qprotobufs.WebConfigSetEntitySchemaResponse.StatusEnum
-	(WebConfigCreateSnapshotResponse_StatusEnum)(0),          // 8: qprotobufs.WebConfigCreateSnapshotResponse.StatusEnum
-	(WebConfigRestoreSnapshotResponse_StatusEnum)(0),         // 9: qprotobufs.WebConfigRestoreSnapshotResponse.StatusEnum
-	(WebRuntimeDatabaseRequest_RequestTypeEnum)(0),           // 10: qprotobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
-	(WebRuntimeUnregisterNotificationResponse_StatusEnum)(0), // 11: qprotobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
-	(LogMessage_LogLevelEnum)(0),                             // 12: qprotobufs.LogMessage.LogLevelEnum
-	(*WebHeader)(nil),                                        // 13: qprotobufs.WebHeader
-	(*WebMessage)(nil),                                       // 14: qprotobufs.WebMessage
-	(*WebConfigCreateEntityRequest)(nil),                     // 15: qprotobufs.WebConfigCreateEntityRequest
-	(*WebConfigCreateEntityResponse)(nil),                    // 16: qprotobufs.WebConfigCreateEntityResponse
-	(*WebConfigDeleteEntityRequest)(nil),                     // 17: qprotobufs.WebConfigDeleteEntityRequest
-	(*WebConfigDeleteEntityResponse)(nil),                    // 18: qprotobufs.WebConfigDeleteEntityResponse
-	(*WebConfigGetEntityTypesRequest)(nil),                   // 19: qprotobufs.WebConfigGetEntityTypesRequest
-	(*WebConfigGetEntityTypesResponse)(nil),                  // 20: qprotobufs.WebConfigGetEntityTypesResponse
-	(*WebConfigGetEntityRequest)(nil),                        // 21: qprotobufs.WebConfigGetEntityRequest
-	(*WebConfigGetEntityResponse)(nil),                       // 22: qprotobufs.WebConfigGetEntityResponse
-	(*WebConfigGetFieldSchemaRequest)(nil),                   // 23: qprotobufs.WebConfigGetFieldSchemaRequest
-	(*WebConfigGetFieldSchemaResponse)(nil),                  // 24: qprotobufs.WebConfigGetFieldSchemaResponse
-	(*WebConfigSetFieldSchemaRequest)(nil),                   // 25: qprotobufs.WebConfigSetFieldSchemaRequest
-	(*WebConfigSetFieldSchemaResponse)(nil),                  // 26: qprotobufs.WebConfigSetFieldSchemaResponse
-	(*WebConfigGetEntitySchemaRequest)(nil),                  // 27: qprotobufs.WebConfigGetEntitySchemaRequest
-	(*WebConfigGetEntitySchemaResponse)(nil),                 // 28: qprotobufs.WebConfigGetEntitySchemaResponse
-	(*WebConfigSetEntitySchemaRequest)(nil),                  // 29: qprotobufs.WebConfigSetEntitySchemaRequest
-	(*WebConfigSetEntitySchemaResponse)(nil),                 // 30: qprotobufs.WebConfigSetEntitySchemaResponse
-	(*WebConfigCreateSnapshotRequest)(nil),                   // 31: qprotobufs.WebConfigCreateSnapshotRequest
-	(*WebConfigCreateSnapshotResponse)(nil),                  // 32: qprotobufs.WebConfigCreateSnapshotResponse
-	(*WebConfigRestoreSnapshotRequest)(nil),                  // 33: qprotobufs.WebConfigRestoreSnapshotRequest
-	(*WebConfigRestoreSnapshotResponse)(nil),                 // 34: qprotobufs.WebConfigRestoreSnapshotResponse
-	(*WebConfigGetRootRequest)(nil),                          // 35: qprotobufs.WebConfigGetRootRequest
-	(*WebConfigGetRootResponse)(nil),                         // 36: qprotobufs.WebConfigGetRootResponse
-	(*WebConfigGetAllFieldsRequest)(nil),                     // 37: qprotobufs.WebConfigGetAllFieldsRequest
-	(*WebConfigGetAllFieldsResponse)(nil),                    // 38: qprotobufs.WebConfigGetAllFieldsResponse
-	(*WebRuntimeDatabaseRequest)(nil),                        // 39: qprotobufs.WebRuntimeDatabaseRequest
-	(*WebRuntimeDatabaseResponse)(nil),                       // 40: qprotobufs.WebRuntimeDatabaseResponse
-	(*WebRuntimeRegisterNotificationRequest)(nil),            // 41: qprotobufs.WebRuntimeRegisterNotificationRequest
-	(*WebRuntimeRegisterNotificationResponse)(nil),           // 42: qprotobufs.WebRuntimeRegisterNotificationResponse
-	(*WebRuntimeGetNotificationsRequest)(nil),                // 43: qprotobufs.WebRuntimeGetNotificationsRequest
-	(*WebRuntimeGetNotificationsResponse)(nil),               // 44: qprotobufs.WebRuntimeGetNotificationsResponse
-	(*WebRuntimeUnregisterNotificationRequest)(nil),          // 45: qprotobufs.WebRuntimeUnregisterNotificationRequest
-	(*WebRuntimeUnregisterNotificationResponse)(nil),         // 46: qprotobufs.WebRuntimeUnregisterNotificationResponse
-	(*WebRuntimeGetDatabaseConnectionStatusRequest)(nil),     // 47: qprotobufs.WebRuntimeGetDatabaseConnectionStatusRequest
-	(*WebRuntimeGetDatabaseConnectionStatusResponse)(nil),    // 48: qprotobufs.WebRuntimeGetDatabaseConnectionStatusResponse
-	(*WebRuntimeGetEntitiesRequest)(nil),                     // 49: qprotobufs.WebRuntimeGetEntitiesRequest
-	(*WebRuntimeGetEntitiesResponse)(nil),                    // 50: qprotobufs.WebRuntimeGetEntitiesResponse
-	(*DatabaseEntity)(nil),                                   // 51: qprotobufs.DatabaseEntity
-	(*DatabaseField)(nil),                                    // 52: qprotobufs.DatabaseField
-	(*DatabaseNotificationConfig)(nil),                       // 53: qprotobufs.DatabaseNotificationConfig
-	(*DatabaseNotification)(nil),                             // 54: qprotobufs.DatabaseNotification
-	(*DatabaseEntitySchema)(nil),                             // 55: qprotobufs.DatabaseEntitySchema
-	(*DatabaseFieldSchema)(nil),                              // 56: qprotobufs.DatabaseFieldSchema
-	(*DatabaseRequest)(nil),                                  // 57: qprotobufs.DatabaseRequest
-	(*DatabaseSnapshot)(nil),                                 // 58: qprotobufs.DatabaseSnapshot
-	(*Int)(nil),                                              // 59: qprotobufs.Int
-	(*String)(nil),                                           // 60: qprotobufs.String
-	(*Timestamp)(nil),                                        // 61: qprotobufs.Timestamp
-	(*Float)(nil),                                            // 62: qprotobufs.Float
-	(*Bool)(nil),                                             // 63: qprotobufs.Bool
-	(*EntityReference)(nil),                                  // 64: qprotobufs.EntityReference
-	(*BinaryFile)(nil),                                       // 65: qprotobufs.BinaryFile
-	(*Transformation)(nil),                                   // 66: qprotobufs.Transformation
-	(*LogMessage)(nil),                                       // 67: qprotobufs.LogMessage
+	(WebHeader_AuthenticationStatusEnum)(0),                  // 0: pb.WebHeader.AuthenticationStatusEnum
+	(WebConfigCreateEntityResponse_StatusEnum)(0),            // 1: pb.WebConfigCreateEntityResponse.StatusEnum
+	(WebConfigDeleteEntityResponse_StatusEnum)(0),            // 2: pb.WebConfigDeleteEntityResponse.StatusEnum
+	(WebConfigGetEntityResponse_StatusEnum)(0),               // 3: pb.WebConfigGetEntityResponse.StatusEnum
+	(WebConfigGetFieldSchemaResponse_StatusEnum)(0),          // 4: pb.WebConfigGetFieldSchemaResponse.StatusEnum
+	(WebConfigSetFieldSchemaResponse_StatusEnum)(0),          // 5: pb.WebConfigSetFieldSchemaResponse.StatusEnum
+	(WebConfigGetEntitySchemaResponse_StatusEnum)(0),         // 6: pb.WebConfigGetEntitySchemaResponse.StatusEnum
+	(WebConfigSetEntitySchemaResponse_StatusEnum)(0),         // 7: pb.WebConfigSetEntitySchemaResponse.StatusEnum
+	(WebConfigCreateSnapshotResponse_StatusEnum)(0),          // 8: pb.WebConfigCreateSnapshotResponse.StatusEnum
+	(WebConfigRestoreSnapshotResponse_StatusEnum)(0),         // 9: pb.WebConfigRestoreSnapshotResponse.StatusEnum
+	(WebRuntimeDatabaseRequest_RequestTypeEnum)(0),           // 10: pb.WebRuntimeDatabaseRequest.RequestTypeEnum
+	(WebRuntimeUnregisterNotificationResponse_StatusEnum)(0), // 11: pb.WebRuntimeUnregisterNotificationResponse.StatusEnum
+	(LogMessage_LogLevelEnum)(0),                             // 12: pb.LogMessage.LogLevelEnum
+	(*WebHeader)(nil),                                        // 13: pb.WebHeader
+	(*WebMessage)(nil),                                       // 14: pb.WebMessage
+	(*WebConfigCreateEntityRequest)(nil),                     // 15: pb.WebConfigCreateEntityRequest
+	(*WebConfigCreateEntityResponse)(nil),                    // 16: pb.WebConfigCreateEntityResponse
+	(*WebConfigDeleteEntityRequest)(nil),                     // 17: pb.WebConfigDeleteEntityRequest
+	(*WebConfigDeleteEntityResponse)(nil),                    // 18: pb.WebConfigDeleteEntityResponse
+	(*WebConfigGetEntityTypesRequest)(nil),                   // 19: pb.WebConfigGetEntityTypesRequest
+	(*WebConfigGetEntityTypesResponse)(nil),                  // 20: pb.WebConfigGetEntityTypesResponse
+	(*WebConfigGetEntityRequest)(nil),                        // 21: pb.WebConfigGetEntityRequest
+	(*WebConfigGetEntityResponse)(nil),                       // 22: pb.WebConfigGetEntityResponse
+	(*WebConfigGetFieldSchemaRequest)(nil),                   // 23: pb.WebConfigGetFieldSchemaRequest
+	(*WebConfigGetFieldSchemaResponse)(nil),                  // 24: pb.WebConfigGetFieldSchemaResponse
+	(*WebConfigSetFieldSchemaRequest)(nil),                   // 25: pb.WebConfigSetFieldSchemaRequest
+	(*WebConfigSetFieldSchemaResponse)(nil),                  // 26: pb.WebConfigSetFieldSchemaResponse
+	(*WebConfigGetEntitySchemaRequest)(nil),                  // 27: pb.WebConfigGetEntitySchemaRequest
+	(*WebConfigGetEntitySchemaResponse)(nil),                 // 28: pb.WebConfigGetEntitySchemaResponse
+	(*WebConfigSetEntitySchemaRequest)(nil),                  // 29: pb.WebConfigSetEntitySchemaRequest
+	(*WebConfigSetEntitySchemaResponse)(nil),                 // 30: pb.WebConfigSetEntitySchemaResponse
+	(*WebConfigCreateSnapshotRequest)(nil),                   // 31: pb.WebConfigCreateSnapshotRequest
+	(*WebConfigCreateSnapshotResponse)(nil),                  // 32: pb.WebConfigCreateSnapshotResponse
+	(*WebConfigRestoreSnapshotRequest)(nil),                  // 33: pb.WebConfigRestoreSnapshotRequest
+	(*WebConfigRestoreSnapshotResponse)(nil),                 // 34: pb.WebConfigRestoreSnapshotResponse
+	(*WebConfigGetRootRequest)(nil),                          // 35: pb.WebConfigGetRootRequest
+	(*WebConfigGetRootResponse)(nil),                         // 36: pb.WebConfigGetRootResponse
+	(*WebConfigGetAllFieldsRequest)(nil),                     // 37: pb.WebConfigGetAllFieldsRequest
+	(*WebConfigGetAllFieldsResponse)(nil),                    // 38: pb.WebConfigGetAllFieldsResponse
+	(*WebRuntimeDatabaseRequest)(nil),                        // 39: pb.WebRuntimeDatabaseRequest
+	(*WebRuntimeDatabaseResponse)(nil),                       // 40: pb.WebRuntimeDatabaseResponse
+	(*WebRuntimeRegisterNotificationRequest)(nil),            // 41: pb.WebRuntimeRegisterNotificationRequest
+	(*WebRuntimeRegisterNotificationResponse)(nil),           // 42: pb.WebRuntimeRegisterNotificationResponse
+	(*WebRuntimeGetNotificationsRequest)(nil),                // 43: pb.WebRuntimeGetNotificationsRequest
+	(*WebRuntimeGetNotificationsResponse)(nil),               // 44: pb.WebRuntimeGetNotificationsResponse
+	(*WebRuntimeUnregisterNotificationRequest)(nil),          // 45: pb.WebRuntimeUnregisterNotificationRequest
+	(*WebRuntimeUnregisterNotificationResponse)(nil),         // 46: pb.WebRuntimeUnregisterNotificationResponse
+	(*WebRuntimeGetDatabaseConnectionStatusRequest)(nil),     // 47: pb.WebRuntimeGetDatabaseConnectionStatusRequest
+	(*WebRuntimeGetDatabaseConnectionStatusResponse)(nil),    // 48: pb.WebRuntimeGetDatabaseConnectionStatusResponse
+	(*WebRuntimeGetEntitiesRequest)(nil),                     // 49: pb.WebRuntimeGetEntitiesRequest
+	(*WebRuntimeGetEntitiesResponse)(nil),                    // 50: pb.WebRuntimeGetEntitiesResponse
+	(*DatabaseEntity)(nil),                                   // 51: pb.DatabaseEntity
+	(*DatabaseField)(nil),                                    // 52: pb.DatabaseField
+	(*DatabaseNotificationConfig)(nil),                       // 53: pb.DatabaseNotificationConfig
+	(*DatabaseNotification)(nil),                             // 54: pb.DatabaseNotification
+	(*DatabaseEntitySchema)(nil),                             // 55: pb.DatabaseEntitySchema
+	(*DatabaseFieldSchema)(nil),                              // 56: pb.DatabaseFieldSchema
+	(*DatabaseRequest)(nil),                                  // 57: pb.DatabaseRequest
+	(*DatabaseSnapshot)(nil),                                 // 58: pb.DatabaseSnapshot
+	(*Int)(nil),                                              // 59: pb.Int
+	(*String)(nil),                                           // 60: pb.String
+	(*Timestamp)(nil),                                        // 61: pb.Timestamp
+	(*Float)(nil),                                            // 62: pb.Float
+	(*Bool)(nil),                                             // 63: pb.Bool
+	(*EntityReference)(nil),                                  // 64: pb.EntityReference
+	(*BinaryFile)(nil),                                       // 65: pb.BinaryFile
+	(*Transformation)(nil),                                   // 66: pb.Transformation
+	(*LogMessage)(nil),                                       // 67: pb.LogMessage
 	(*timestamppb.Timestamp)(nil),                            // 68: google.protobuf.Timestamp
 	(*anypb.Any)(nil),                                        // 69: google.protobuf.Any
 }
 var file_pkg_protobufs_protobufs_proto_depIdxs = []int32{
-	68, // 0: qprotobufs.WebHeader.timestamp:type_name -> google.protobuf.Timestamp
-	0,  // 1: qprotobufs.WebHeader.authenticationStatus:type_name -> qprotobufs.WebHeader.AuthenticationStatusEnum
-	13, // 2: qprotobufs.WebMessage.header:type_name -> qprotobufs.WebHeader
-	69, // 3: qprotobufs.WebMessage.payload:type_name -> google.protobuf.Any
-	1,  // 4: qprotobufs.WebConfigCreateEntityResponse.status:type_name -> qprotobufs.WebConfigCreateEntityResponse.StatusEnum
-	2,  // 5: qprotobufs.WebConfigDeleteEntityResponse.status:type_name -> qprotobufs.WebConfigDeleteEntityResponse.StatusEnum
-	3,  // 6: qprotobufs.WebConfigGetEntityResponse.status:type_name -> qprotobufs.WebConfigGetEntityResponse.StatusEnum
-	51, // 7: qprotobufs.WebConfigGetEntityResponse.entity:type_name -> qprotobufs.DatabaseEntity
-	4,  // 8: qprotobufs.WebConfigGetFieldSchemaResponse.status:type_name -> qprotobufs.WebConfigGetFieldSchemaResponse.StatusEnum
-	56, // 9: qprotobufs.WebConfigGetFieldSchemaResponse.schema:type_name -> qprotobufs.DatabaseFieldSchema
-	56, // 10: qprotobufs.WebConfigSetFieldSchemaRequest.schema:type_name -> qprotobufs.DatabaseFieldSchema
-	5,  // 11: qprotobufs.WebConfigSetFieldSchemaResponse.status:type_name -> qprotobufs.WebConfigSetFieldSchemaResponse.StatusEnum
-	6,  // 12: qprotobufs.WebConfigGetEntitySchemaResponse.status:type_name -> qprotobufs.WebConfigGetEntitySchemaResponse.StatusEnum
-	55, // 13: qprotobufs.WebConfigGetEntitySchemaResponse.schema:type_name -> qprotobufs.DatabaseEntitySchema
-	7,  // 14: qprotobufs.WebConfigSetEntitySchemaResponse.status:type_name -> qprotobufs.WebConfigSetEntitySchemaResponse.StatusEnum
-	8,  // 15: qprotobufs.WebConfigCreateSnapshotResponse.status:type_name -> qprotobufs.WebConfigCreateSnapshotResponse.StatusEnum
-	58, // 16: qprotobufs.WebConfigCreateSnapshotResponse.snapshot:type_name -> qprotobufs.DatabaseSnapshot
-	58, // 17: qprotobufs.WebConfigRestoreSnapshotRequest.snapshot:type_name -> qprotobufs.DatabaseSnapshot
-	9,  // 18: qprotobufs.WebConfigRestoreSnapshotResponse.status:type_name -> qprotobufs.WebConfigRestoreSnapshotResponse.StatusEnum
-	10, // 19: qprotobufs.WebRuntimeDatabaseRequest.requestType:type_name -> qprotobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
-	57, // 20: qprotobufs.WebRuntimeDatabaseRequest.requests:type_name -> qprotobufs.DatabaseRequest
-	57, // 21: qprotobufs.WebRuntimeDatabaseResponse.response:type_name -> qprotobufs.DatabaseRequest
-	53, // 22: qprotobufs.WebRuntimeRegisterNotificationRequest.requests:type_name -> qprotobufs.DatabaseNotificationConfig
-	54, // 23: qprotobufs.WebRuntimeGetNotificationsResponse.notifications:type_name -> qprotobufs.DatabaseNotification
-	11, // 24: qprotobufs.WebRuntimeUnregisterNotificationResponse.status:type_name -> qprotobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
-	51, // 25: qprotobufs.WebRuntimeGetEntitiesResponse.entities:type_name -> qprotobufs.DatabaseEntity
-	64, // 26: qprotobufs.DatabaseEntity.parent:type_name -> qprotobufs.EntityReference
-	64, // 27: qprotobufs.DatabaseEntity.children:type_name -> qprotobufs.EntityReference
-	69, // 28: qprotobufs.DatabaseField.value:type_name -> google.protobuf.Any
-	68, // 29: qprotobufs.DatabaseField.writeTime:type_name -> google.protobuf.Timestamp
-	52, // 30: qprotobufs.DatabaseNotification.current:type_name -> qprotobufs.DatabaseField
-	52, // 31: qprotobufs.DatabaseNotification.previous:type_name -> qprotobufs.DatabaseField
-	52, // 32: qprotobufs.DatabaseNotification.context:type_name -> qprotobufs.DatabaseField
-	56, // 33: qprotobufs.DatabaseEntitySchema.fields:type_name -> qprotobufs.DatabaseFieldSchema
-	69, // 34: qprotobufs.DatabaseRequest.value:type_name -> google.protobuf.Any
-	61, // 35: qprotobufs.DatabaseRequest.writeTime:type_name -> qprotobufs.Timestamp
-	60, // 36: qprotobufs.DatabaseRequest.writerId:type_name -> qprotobufs.String
-	51, // 37: qprotobufs.DatabaseSnapshot.entities:type_name -> qprotobufs.DatabaseEntity
-	52, // 38: qprotobufs.DatabaseSnapshot.fields:type_name -> qprotobufs.DatabaseField
-	55, // 39: qprotobufs.DatabaseSnapshot.entitySchemas:type_name -> qprotobufs.DatabaseEntitySchema
-	68, // 40: qprotobufs.Timestamp.raw:type_name -> google.protobuf.Timestamp
-	12, // 41: qprotobufs.LogMessage.level:type_name -> qprotobufs.LogMessage.LogLevelEnum
-	68, // 42: qprotobufs.LogMessage.timestamp:type_name -> google.protobuf.Timestamp
+	68, // 0: pb.WebHeader.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 1: pb.WebHeader.authenticationStatus:type_name -> pb.WebHeader.AuthenticationStatusEnum
+	13, // 2: pb.WebMessage.header:type_name -> pb.WebHeader
+	69, // 3: pb.WebMessage.payload:type_name -> google.protobuf.Any
+	1,  // 4: pb.WebConfigCreateEntityResponse.status:type_name -> pb.WebConfigCreateEntityResponse.StatusEnum
+	2,  // 5: pb.WebConfigDeleteEntityResponse.status:type_name -> pb.WebConfigDeleteEntityResponse.StatusEnum
+	3,  // 6: pb.WebConfigGetEntityResponse.status:type_name -> pb.WebConfigGetEntityResponse.StatusEnum
+	51, // 7: pb.WebConfigGetEntityResponse.entity:type_name -> pb.DatabaseEntity
+	4,  // 8: pb.WebConfigGetFieldSchemaResponse.status:type_name -> pb.WebConfigGetFieldSchemaResponse.StatusEnum
+	56, // 9: pb.WebConfigGetFieldSchemaResponse.schema:type_name -> pb.DatabaseFieldSchema
+	56, // 10: pb.WebConfigSetFieldSchemaRequest.schema:type_name -> pb.DatabaseFieldSchema
+	5,  // 11: pb.WebConfigSetFieldSchemaResponse.status:type_name -> pb.WebConfigSetFieldSchemaResponse.StatusEnum
+	6,  // 12: pb.WebConfigGetEntitySchemaResponse.status:type_name -> pb.WebConfigGetEntitySchemaResponse.StatusEnum
+	55, // 13: pb.WebConfigGetEntitySchemaResponse.schema:type_name -> pb.DatabaseEntitySchema
+	7,  // 14: pb.WebConfigSetEntitySchemaResponse.status:type_name -> pb.WebConfigSetEntitySchemaResponse.StatusEnum
+	8,  // 15: pb.WebConfigCreateSnapshotResponse.status:type_name -> pb.WebConfigCreateSnapshotResponse.StatusEnum
+	58, // 16: pb.WebConfigCreateSnapshotResponse.snapshot:type_name -> pb.DatabaseSnapshot
+	58, // 17: pb.WebConfigRestoreSnapshotRequest.snapshot:type_name -> pb.DatabaseSnapshot
+	9,  // 18: pb.WebConfigRestoreSnapshotResponse.status:type_name -> pb.WebConfigRestoreSnapshotResponse.StatusEnum
+	10, // 19: pb.WebRuntimeDatabaseRequest.requestType:type_name -> pb.WebRuntimeDatabaseRequest.RequestTypeEnum
+	57, // 20: pb.WebRuntimeDatabaseRequest.requests:type_name -> pb.DatabaseRequest
+	57, // 21: pb.WebRuntimeDatabaseResponse.response:type_name -> pb.DatabaseRequest
+	53, // 22: pb.WebRuntimeRegisterNotificationRequest.requests:type_name -> pb.DatabaseNotificationConfig
+	54, // 23: pb.WebRuntimeGetNotificationsResponse.notifications:type_name -> pb.DatabaseNotification
+	11, // 24: pb.WebRuntimeUnregisterNotificationResponse.status:type_name -> pb.WebRuntimeUnregisterNotificationResponse.StatusEnum
+	51, // 25: pb.WebRuntimeGetEntitiesResponse.entities:type_name -> pb.DatabaseEntity
+	64, // 26: pb.DatabaseEntity.parent:type_name -> pb.EntityReference
+	64, // 27: pb.DatabaseEntity.children:type_name -> pb.EntityReference
+	69, // 28: pb.DatabaseField.value:type_name -> google.protobuf.Any
+	68, // 29: pb.DatabaseField.writeTime:type_name -> google.protobuf.Timestamp
+	52, // 30: pb.DatabaseNotification.current:type_name -> pb.DatabaseField
+	52, // 31: pb.DatabaseNotification.previous:type_name -> pb.DatabaseField
+	52, // 32: pb.DatabaseNotification.context:type_name -> pb.DatabaseField
+	56, // 33: pb.DatabaseEntitySchema.fields:type_name -> pb.DatabaseFieldSchema
+	69, // 34: pb.DatabaseRequest.value:type_name -> google.protobuf.Any
+	61, // 35: pb.DatabaseRequest.writeTime:type_name -> pb.Timestamp
+	60, // 36: pb.DatabaseRequest.writerId:type_name -> pb.String
+	51, // 37: pb.DatabaseSnapshot.entities:type_name -> pb.DatabaseEntity
+	52, // 38: pb.DatabaseSnapshot.fields:type_name -> pb.DatabaseField
+	55, // 39: pb.DatabaseSnapshot.entitySchemas:type_name -> pb.DatabaseEntitySchema
+	68, // 40: pb.Timestamp.raw:type_name -> google.protobuf.Timestamp
+	12, // 41: pb.LogMessage.level:type_name -> pb.LogMessage.LogLevelEnum
+	68, // 42: pb.LogMessage.timestamp:type_name -> google.protobuf.Timestamp
 	43, // [43:43] is the sub-list for method output_type
 	43, // [43:43] is the sub-list for method input_type
 	43, // [43:43] is the sub-list for extension type_name

@@ -5,7 +5,7 @@ SERVER_INTERACTOR_CONNECTION_STATES = {
     DISCONNECTING: 3
 };
 
-class ServerInteractor {
+class QServer {
     constructor(url) {
         this._url = url;
         this._ws = null;
@@ -22,11 +22,11 @@ class ServerInteractor {
         const fileReader = new FileReader();
 
         fileReader.onload = function(event) {
-            const message = proto.qdb.WebMessage.deserializeBinary(new Uint8Array(event.target.result));
+            const message = proto.db.WebMessage.deserializeBinary(new Uint8Array(event.target.result));
             const requestId = message.getHeader().getId();
 
             if (!me._waitingResponses[requestId]) {
-                qWarn("[ServerInteractor::onMessage] Received response for unknown request '" + requestId + "'");
+                qWarn("[QServer::onMessage] Received response for unknown request '" + requestId + "'");
                 return;
             }
 
@@ -42,12 +42,12 @@ class ServerInteractor {
     }
 
     onOpen(event) {
-        qInfo("[ServerInteractor::onOpen] Connection established with '" + this._url + "'");
+        qInfo("[QServer::onOpen] Connection established with '" + this._url + "'");
         this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.CONNECTED;
     }
 
     onClose(event) {
-        qWarn("[ServerInteractor::onClose] Connection closed with '" + this._url + "'");
+        qWarn("[QServer::onClose] Connection closed with '" + this._url + "'");
         
         if( this._ws ) {
             this._ws.removeEventListener('open', this.onOpen.bind(this));
@@ -68,12 +68,12 @@ class ServerInteractor {
 
     connect() {
         if (this._connectionStatus !== SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTED) {
-            qError("[ServerInteractor::connect] Connection already exists, disconnecting first.");
+            qError("[QServer::connect] Connection already exists, disconnecting first.");
             this.disconnect();
             return;
         }
         
-        qInfo("[ServerInteractor::connect] Connecting to '" + this._url + "'")
+        qInfo("[QServer::connect] Connecting to '" + this._url + "'")
         this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.CONNECTING;
         this._ws = new WebSocket(this._url);
         
@@ -84,7 +84,7 @@ class ServerInteractor {
 
     disconnect() {
         if (this._ws) {
-            qInfo("[ServerInteractor::disconnect] Disconnecting from '" + this._url + "'")
+            qInfo("[QServer::disconnect] Disconnecting from '" + this._url + "'")
 
             this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTING;
 
@@ -98,11 +98,11 @@ class ServerInteractor {
         const requestId = uuidv4();
         const request = this._waitingResponses[requestId] = { "sent": +new Date(), "responseType": responseProtoType };
 
-        const header = new proto.qdb.WebHeader();
+        const header = new proto.db.WebHeader();
         header.setId(requestId);
         header.setTimestamp(new proto.google.protobuf.Timestamp.fromDate(new Date()));
 
-        const message = new proto.qdb.WebMessage();
+        const message = new proto.db.WebMessage();
         message.setHeader(header);
         message.setPayload(new proto.google.protobuf.Any());
         message.getPayload().pack(requestProto.serializeBinary(), qMessageType(requestProto));
@@ -112,7 +112,7 @@ class ServerInteractor {
                 this._ws.send(message.serializeBinary());
             }
 
-            qTrace("[ServerInteractor::send] Request '" + requestId + "' sent");
+            qTrace("[QServer::send] Request '" + requestId + "' sent");
 
             const result = await new Promise((resolve, reject) => {
                 request.resolve = resolve;
@@ -123,7 +123,7 @@ class ServerInteractor {
                 }
             });
 
-            qTrace("[ServerInteractor::send] Response for '" + requestId + "' received in " + (new Date() - request.sent) + "ms");
+            qTrace("[QServer::send] Response for '" + requestId + "' received in " + (new Date() - request.sent) + "ms");
 
             return result;
         } finally {

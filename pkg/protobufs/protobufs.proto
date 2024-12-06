@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-option go_package = "qlib/qprotobufs";
-package qprotobufs;
+option go_package = "qlib/protobufs";
+package protobufs;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";

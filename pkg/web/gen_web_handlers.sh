@@ -27,7 +27,7 @@ for FILE in $(find $JS_DIR -type f -name "*.js"); do
 
     # Convert the JavaScript code to a Go web handler function
     echo "" >> $OUTPUT_FILE
-    echo "    http.HandleFunc(\"/js/qdb/$FILENAME.js\", func(w http.ResponseWriter, r *http.Request) {" >> $OUTPUT_FILE
+    echo "    http.HandleFunc(\"/js/db/$FILENAME.js\", func(w http.ResponseWriter, r *http.Request) {" >> $OUTPUT_FILE
     echo "        w.Header().Set(\"Content-Type\", \"application/javascript\")" >> $OUTPUT_FILE
     echo "        s := \`$CONTENT\`" >> $OUTPUT_FILE
     echo "        fmt.Fprint(w, s)" >> $OUTPUT_FILE

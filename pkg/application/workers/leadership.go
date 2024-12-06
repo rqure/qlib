@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	ss "github.com/rqure/qlib/pkg/signals"
 )
 
 type LeaderStates int
@@ -35,10 +37,10 @@ const MaxCandidates = 5
 type LeaderAvailabilityCriteria func() bool
 
 type LeaderElectionWorkerSignals struct {
-	BecameLeader      Signal // Is the current leader
-	LosingLeadership  Signal // Is the current leader, but is about to lose leadership status
-	BecameFollower    Signal // Is available to become a leader, but not elected as a leader
-	BecameUnavailable Signal // Is not available to become a leader
+	BecameLeader      ss.Signal // Is the current leader
+	LosingLeadership  ss.Signal // Is the current leader, but is about to lose leadership status
+	BecameFollower    ss.Signal // Is available to become a leader, but not elected as a leader
+	BecameUnavailable ss.Signal // Is not available to become a leader
 }
 
 // ILeaderState interface defines the behavior for each state
@@ -218,7 +220,7 @@ func (w *LeaderElectionWorker) AddAvailabilityCriteria(criteria LeaderAvailabili
 func (w *LeaderElectionWorker) Init() {
 	w.applicationName = GetApplicationName()
 
-	if os.Getenv("QDB_IN_DOCKER") != "" {
+	if os.Getenv("db_IN_DOCKER") != "" {
 		w.applicationInstanceId = os.Getenv("HOSTNAME")
 	}
 

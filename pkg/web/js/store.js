@@ -1,9 +1,9 @@
-DATABASE_EVENTS = {
+Q_STORE_EVENTS = {
     CONNECTED: "connected",
     DISCONNECTED: "disconnected",
 };
 
-class DatabaseNotificationListener {
+class QNotificationListener {
     constructor(eventName, callback) {
         this._eventName = eventName;
         this._callback = callback;
@@ -22,7 +22,7 @@ class DatabaseNotificationListener {
     }
 }
 
-class DatabaseNotificationManager {
+class QNotificationManager {
     constructor() {
         this._listeners = {};
     }
@@ -32,7 +32,7 @@ class DatabaseNotificationManager {
             this._listeners[eventName] = [];
         }
 
-        this._listeners[eventName].push(new DatabaseNotificationListener(eventName, callback));
+        this._listeners[eventName].push(new QNotificationListener(eventName, callback));
 
         return this;
     }
@@ -55,7 +55,7 @@ class DatabaseNotificationManager {
 
 }
 
-class DatabaseInteractor {
+class QEntityStore {
     constructor(overrides) {
         let port = location.port == "" ? "" : ":" + location.port;
         this._mainLoopInterval = 500;
@@ -73,8 +73,8 @@ class DatabaseInteractor {
                 this._connectionBackoffTime = overrides.connectionBackoffTime;
             }
         }
-        this._serverInteractor = new ServerInteractor(`${location.protocol == "https:" ? "wss:" : "ws:"}//${location.hostname}${port}/ws`);
-        this._notificationManager = new DatabaseNotificationManager();
+        this._server = new QServer(`${location.protocol == "https:" ? "wss:" : "ws:"}//${location.hostname}${port}/ws`);
+        this._notificationManager = new QNotificationManager();
         this._runInBackground = false;
         this._isConnected = null;
         this._lastConnnectionAttempt = new Date(0).getTime();
@@ -84,8 +84,8 @@ class DatabaseInteractor {
         return this._isConnected;
     }
 
-    getServerInteractor() {
-        return this._serverInteractor;
+    getServer() {
+        return this._server;
     }
 
     getEventManager() {
@@ -93,7 +93,7 @@ class DatabaseInteractor {
     }
 
     getAvailableFieldTypes() {
-        return Object.keys(proto.qdb).filter(type => !type.startsWith("Web") && !type.startsWith("Database"));
+        return Object.keys(proto.protobufs).filter(type => !type.startsWith("Web") && !type.startsWith("Database"));
     }
 
     setMainLoopInterval(interval) {
@@ -111,15 +111,15 @@ class DatabaseInteractor {
             return;
         }
 
-        if (!this._serverInteractor.isConnected()) {
+        if (!this._server.isConnected()) {
             if (this._isConnected !== false) {
                 this._isConnected = false;
-                this._notificationManager.dispatchEvent(DATABASE_EVENTS.DISCONNECTED, {});
+                this._notificationManager.dispatchEvent(Q_STORE_EVENTS.DISCONNECTED, {});
             }
 
             const currentTime = new Date().getTime();
             if ((this._lastConnnectionAttempt + this._connectionBackoffTime) <= currentTime) {
-                this._serverInteractor.connect();
+                this._server.connect();
                 this._lastConnnectionAttempt = currentTime;
             }
 
@@ -130,13 +130,13 @@ class DatabaseInteractor {
             return;
         }
 
-        this._serverInteractor
-            .send(new proto.qdb.WebRuntimeGetDatabaseConnectionStatusRequest(), proto.qdb.WebRuntimeGetDatabaseConnectionStatusResponse)
+        this._server
+            .send(new proto.protobufs.WebRuntimeGetDatabaseConnectionStatusRequest(), proto.protobufs.WebRuntimeGetDatabaseConnectionStatusResponse)
             .then(response => {
-                if (response.getStatus().getRaw() !== proto.qdb.ConnectionState.ConnectionStateEnum.CONNECTED) {
+                if (response.getStatus().getRaw() !== proto.protobufs.ConnectionState.ConnectionStateEnum.CONNECTED) {
                     if(this._isConnected !== false) {
                         this._isConnected = false;
-                        this._notificationManager.dispatchEvent(DATABASE_EVENTS.DISCONNECTED, {});
+                        this._notificationManager.dispatchEvent(Q_STORE_EVENTS.DISCONNECTED, {});
                     }
                 } else {
                     if(this._isConnected !== true) {
@@ -148,12 +148,12 @@ class DatabaseInteractor {
                          */
                         this.unregisterNotifications(this._tokens);
 
-                        this._notificationManager.dispatchEvent(DATABASE_EVENTS.CONNECTED, {});
+                        this._notificationManager.dispatchEvent(Q_STORE_EVENTS.CONNECTED, {});
                     }
                 }
             })
             .catch(error => {
-                qError(`[DatabaseInteractor::mainLoop] Failed to get database connection status: ${error}`);
+                qError(`[QEntityStore::mainLoop] Failed to get database connection status: ${error}`);
             });
         
         this.processNotifications();
@@ -165,226 +165,226 @@ class DatabaseInteractor {
 
     createEntity(parentId, entityName, entityType) {
         const me = this;
-        const request = new proto.qdb.WebConfigCreateEntityRequest();
+        const request = new proto.protobufs.WebConfigCreateEntityRequest();
         request.setParentid(parentId);
         request.setName(entityName);
         request.setType(entityType);
 
-        return me._serverInteractor
-            .send(request, proto.qdb.WebConfigCreateEntityResponse)
+        return me._server
+            .send(request, proto.protobufs.WebConfigCreateEntityResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigCreateEntityResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::createEntity] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigCreateEntityResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::createEntity] Could not complete the request: ${response.getStatus()}`);
                 }
                 
                 return {entityName: entityName, entityType: entityType, parentId: parentId};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::createEntity] Failed to create entity: ${error}`);
+                throw new Error(`[QEntityStore::createEntity] Failed to create entity: ${error}`);
             });
     }
 
     queryAllEntities(entityType) {
-        const request = new proto.qdb.WebRuntimeGetEntitiesRequest();
+        const request = new proto.protobufs.WebRuntimeGetEntitiesRequest();
         request.setEntitytype(entityType);
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebRuntimeGetEntitiesResponse)
+        return this._server
+            .send(request, proto.protobufs.WebRuntimeGetEntitiesResponse)
             .then(response => {
                 return {entities: response.getEntitiesList()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::queryAllEntities] Failed to get all entities: ${error}`);
+                throw new Error(`[QEntityStore::queryAllEntities] Failed to get all entities: ${error}`);
             });
     }
 
     queryEntity(entityId) {
-        const request = new proto.qdb.WebConfigGetEntityRequest();
+        const request = new proto.protobufs.WebConfigGetEntityRequest();
         request.setId(entityId);
         
-        return this._serverInteractor
-            .send(request, proto.qdb.WebConfigGetEntityResponse)
+        return this._server
+            .send(request, proto.protobufs.WebConfigGetEntityResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::queryEntity] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::queryEntity] Could not complete the request: ${response.getStatus()}`);
                 }
                 
                 return {entity: response.getEntity()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::queryEntity] Failed to get entity: ${error}`);
+                throw new Error(`[QEntityStore::queryEntity] Failed to get entity: ${error}`);
             });
     }
 
     queryEntitySchema(entityType) {
-        const request = new proto.qdb.WebConfigGetEntitySchemaRequest();
+        const request = new proto.protobufs.WebConfigGetEntitySchemaRequest();
         request.setType(entityType);
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebConfigGetEntitySchemaResponse)
+        return this._server
+            .send(request, proto.protobufs.WebConfigGetEntitySchemaResponse)
             .then(response => {
-                if(response.getStatus() !== proto.qdb.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::queryEntitySchema] Could not complete the request: ${response.getStatus()}`);
+                if(response.getStatus() !== proto.protobufs.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::queryEntitySchema] Could not complete the request: ${response.getStatus()}`);
                 }
 
                 return {schema: response.getSchema()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::queryEntitySchema] Failed to get entity schema: ${error}`);
+                throw new Error(`[QEntityStore::queryEntitySchema] Failed to get entity schema: ${error}`);
             });
     }
 
     queryAllFields() {
-        return this._serverInteractor
-            .send(new proto.qdb.WebConfigGetAllFieldsRequest(), proto.qdb.WebConfigGetAllFieldsResponse)
+        return this._server
+            .send(new proto.protobufs.WebConfigGetAllFieldsRequest(), proto.protobufs.WebConfigGetAllFieldsResponse)
             .then(response => {
                 return {fields: response.getFieldsList()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::queryAllFields] Failed to get all fields: ${error}`);
+                throw new Error(`[QEntityStore::queryAllFields] Failed to get all fields: ${error}`);
             });
     }
 
     queryAllEntityTypes() {
-        return this._serverInteractor
-            .send(new proto.qdb.WebConfigGetEntityTypesRequest(), proto.qdb.WebConfigGetEntityTypesResponse)
+        return this._server
+            .send(new proto.protobufs.WebConfigGetEntityTypesRequest(), proto.protobufs.WebConfigGetEntityTypesResponse)
             .then(response => {
                 return {entityTypes: response.getTypesList()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::queryAllEntityTypes] Failed to get all entity types: ${error}`);
+                throw new Error(`[QEntityStore::queryAllEntityTypes] Failed to get all entity types: ${error}`);
             });
     }
 
     deleteEntity(entityId) {
         const me = this;
-        const request = new proto.qdb.WebConfigDeleteEntityRequest();
+        const request = new proto.protobufs.WebConfigDeleteEntityRequest();
         request.setId(entityId);
 
-        return me._serverInteractor
-            .send(request, proto.qdb.WebConfigDeleteEntityResponse)
+        return me._server
+            .send(request, proto.protobufs.WebConfigDeleteEntityResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigDeleteEntityResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::deleteEntity] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigDeleteEntityResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::deleteEntity] Could not complete the request: ${response.getStatus()}`);
                 }
 
                 return {entityId: entityId};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::deleteEntity] Failed to delete entity: ${error}`);
+                throw new Error(`[QEntityStore::deleteEntity] Failed to delete entity: ${error}`);
             });
     }
 
     createOrUpdateEntityType(entityType, entityFields) {
-        const request = new proto.qdb.WebConfigSetEntitySchemaRequest();
+        const request = new proto.protobufs.WebConfigSetEntitySchemaRequest();
         request.setName(entityType);
         request.setFieldsList(entityFields);
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebConfigSetEntitySchemaResponse)
+        return this._server
+            .send(request, proto.protobufs.WebConfigSetEntitySchemaResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigSetEntitySchemaResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::createOrUpdateEntityType] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigSetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::createOrUpdateEntityType] Could not complete the request: ${response.getStatus()}`);
                 }
                 
                 return {entityType: entityType, entityFields: entityFields};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::createOrUpdateEntityType] Failed to create or update entity type: ${error}`);
+                throw new Error(`[QEntityStore::createOrUpdateEntityType] Failed to create or update entity type: ${error}`);
             });
     }
 
     createField(fieldName, fieldType) {
-        const request = new proto.qdb.WebConfigSetFieldSchemaRequest();
+        const request = new proto.protobufs.WebConfigSetFieldSchemaRequest();
         request.setField( fieldName );
 
-        const schema = new proto.qdb.DatabaseFieldSchema();
+        const schema = new proto.protobufs.DatabaseFieldSchema();
         schema.setName( fieldName );
-        schema.setType( 'qdb.' + fieldType );
+        schema.setType( 'db.' + fieldType );
         request.setSchema( schema );
 
-        return this._serverInteractor.send(request, proto.qdb.WebConfigSetFieldSchemaResponse)
+        return this._server.send(request, proto.protobufs.WebConfigSetFieldSchemaResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigSetFieldSchemaResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::createField] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigSetFieldSchemaResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::createField] Could not complete the request: ${response.getStatus()}`);
                 }
                 
                 return {fieldName: fieldName, fieldType: fieldType};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::createField] Failed to create field: ${error}`);
+                throw new Error(`[QEntityStore::createField] Failed to create field: ${error}`);
             });
     }
 
     createSnapshot() {
         const me = this;
-        const request = new proto.qdb.WebConfigCreateSnapshotRequest();
+        const request = new proto.protobufs.WebConfigCreateSnapshotRequest();
 
-        return me._serverInteractor
-            .send(request, proto.qdb.WebConfigCreateSnapshotResponse)
+        return me._server
+            .send(request, proto.protobufs.WebConfigCreateSnapshotResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigCreateSnapshotResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::createSnapshot] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigCreateSnapshotResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::createSnapshot] Could not complete the request: ${response.getStatus()}`);
                 }
                 
                 return {snapshot: response.getSnapshot()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::createSnapshot] Failed to create snapshot: ${error}`);
+                throw new Error(`[QEntityStore::createSnapshot] Failed to create snapshot: ${error}`);
             });
     }
 
     restoreSnapshot(snapshot) {
         const me = this;
-        const request = new proto.qdb.WebConfigRestoreSnapshotRequest();
+        const request = new proto.protobufs.WebConfigRestoreSnapshotRequest();
         request.setSnapshot((snapshot));
 
-        return me._serverInteractor
-            .send(request, proto.qdb.WebConfigRestoreSnapshotResponse)
+        return me._server
+            .send(request, proto.protobufs.WebConfigRestoreSnapshotResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebConfigRestoreSnapshotResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::restoreSnapshot] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebConfigRestoreSnapshotResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::restoreSnapshot] Could not complete the request: ${response.getStatus()}`);
                 }
 
                 return {};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::restoreSnapshot] Failed to restore snapshot: ${error}`);
+                throw new Error(`[QEntityStore::restoreSnapshot] Failed to restore snapshot: ${error}`);
             });
     }
 
     queryRootEntityId() {
-        return this._serverInteractor
-            .send(new proto.qdb.WebConfigGetRootRequest(), proto.qdb.WebConfigGetRootResponse)
+        return this._server
+            .send(new proto.protobufs.WebConfigGetRootRequest(), proto.protobufs.WebConfigGetRootResponse)
             .then(response => {
                 if (response.getRootid() === "") {
-                    throw new Error(`[DatabaseInteractor::queryRootEntityId] Could not complete the request: No root entity id returned`);
+                    throw new Error(`[QEntityStore::queryRootEntityId] Could not complete the request: No root entity id returned`);
                 }
                 
                 return {rootId: response.getRootid()};
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::queryRootEntityId] Failed to get root entity id: ${error}`);
+                throw new Error(`[QEntityStore::queryRootEntityId] Failed to get root entity id: ${error}`);
             });
     }
 
     processNotifications() {
-        return this._serverInteractor
-            .send(new proto.qdb.WebRuntimeGetNotificationsRequest(), proto.qdb.WebRuntimeGetNotificationsResponse)
+        return this._server
+            .send(new proto.protobufs.WebRuntimeGetNotificationsRequest(), proto.protobufs.WebRuntimeGetNotificationsResponse)
             .then(response => {
                 response.getNotificationsList().forEach(notification => {
                     this._notificationManager.dispatchEvent(notification.getToken(), notification);
                 });
             })
             .catch(error => {
-                qError(`[DatabaseInteractor::processNotifications] Failed to get notifications: ${error}`);
+                qError(`[QEntityStore::processNotifications] Failed to get notifications: ${error}`);
             });
     }
 
     registerNotifications(nRequests, callback) {
-        const request = new proto.qdb.WebRuntimeRegisterNotificationRequest();
+        const request = new proto.protobufs.WebRuntimeRegisterNotificationRequest();
         request.setRequestsList(nRequests.map(r => {
-            const nr = new proto.qdb.DatabaseNotificationConfig();
+            const nr = new proto.protobufs.DatabaseNotificationConfig();
             if (r.id) {
                 nr.setId(r.id);
             }
@@ -399,11 +399,11 @@ class DatabaseInteractor {
             return nr;
         }));
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebRuntimeRegisterNotificationResponse)
+        return this._server
+            .send(request, proto.protobufs.WebRuntimeRegisterNotificationResponse)
             .then(response => {
                 if (response.getTokensList().length === 0) {
-                    throw new Error(`[DatabaseInteractor::registerNotification] Could not complete the request: No tokens returned`);
+                    throw new Error(`[QEntityStore::registerNotification] Could not complete the request: No tokens returned`);
                 }
 
                 response.getTokensList().forEach(token => {
@@ -417,19 +417,19 @@ class DatabaseInteractor {
                 };
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::registerNotification] Failed to register notification: ${error}`);
+                throw new Error(`[QEntityStore::registerNotification] Failed to register notification: ${error}`);
             });
     }
 
     unregisterNotifications(tokens) {
-        const request = new proto.qdb.WebRuntimeUnregisterNotificationRequest();
+        const request = new proto.protobufs.WebRuntimeUnregisterNotificationRequest();
         request.setTokensList(tokens);
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebRuntimeUnregisterNotificationResponse)
+        return this._server
+            .send(request, proto.protobufs.WebRuntimeUnregisterNotificationResponse)
             .then(response => {
-                if (response.getStatus() !== proto.qdb.WebRuntimeUnregisterNotificationResponse.StatusEnum.SUCCESS) {
-                    throw new Error(`[DatabaseInteractor::unregisterNotification] Could not complete the request: ${response.getStatus()}`);
+                if (response.getStatus() !== proto.protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum.SUCCESS) {
+                    throw new Error(`[QEntityStore::unregisterNotification] Could not complete the request: ${response.getStatus()}`);
                 }
 
                 tokens.forEach(token => {
@@ -439,15 +439,15 @@ class DatabaseInteractor {
                 this._tokens = this._tokens.filter(t => !tokens.includes(t));
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::unregisterNotification] Failed to unregister notification: ${error}`);
+                throw new Error(`[QEntityStore::unregisterNotification] Failed to unregister notification: ${error}`);
             });
     }
 
     read(dbRequest) {
-        const request = new proto.qdb.WebRuntimeDatabaseRequest();
-        request.setRequesttype(proto.qdb.WebRuntimeDatabaseRequest.RequestTypeEnum.READ);
+        const request = new proto.protobufs.WebRuntimeDatabaseRequest();
+        request.setRequesttype(proto.protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum.READ);
         request.setRequestsList(dbRequest.map(r => {
-            const dr = new proto.qdb.DatabaseRequest();
+            const dr = new proto.protobufs.DatabaseRequest();
 
             dr.setId(r.id);
             dr.setField(r.field);
@@ -455,21 +455,21 @@ class DatabaseInteractor {
             return dr;
         }));
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebRuntimeDatabaseResponse)
+        return this._server
+            .send(request, proto.protobufs.WebRuntimeDatabaseResponse)
             .then(response => {
                 return response.getResponseList();
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::read] Failed to read entity: ${error}`);
+                throw new Error(`[QEntityStore::read] Failed to read entity: ${error}`);
             });
     }
 
     write(dbRequest) {
-        const request = new proto.qdb.WebRuntimeDatabaseRequest();
-        request.setRequesttype(proto.qdb.WebRuntimeDatabaseRequest.RequestTypeEnum.WRITE);
+        const request = new proto.protobufs.WebRuntimeDatabaseRequest();
+        request.setRequesttype(proto.protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum.WRITE);
         request.setRequestsList(dbRequest.map(r => {
-            const dr = new proto.qdb.DatabaseRequest();
+            const dr = new proto.protobufs.DatabaseRequest();
 
             dr.setId(r.id);
             dr.setField(r.field);
@@ -478,13 +478,13 @@ class DatabaseInteractor {
             return dr;
         }));
 
-        return this._serverInteractor
-            .send(request, proto.qdb.WebRuntimeDatabaseResponse)
+        return this._server
+            .send(request, proto.protobufs.WebRuntimeDatabaseResponse)
             .then(response => {
                 return response.getResponseList();
             })
             .catch(error => {
-                throw new Error(`[DatabaseInteractor::write] Failed to write entity: ${error}`);
+                throw new Error(`[QEntityStore::write] Failed to write entity: ${error}`);
             });
     }
 }

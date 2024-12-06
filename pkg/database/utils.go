@@ -1,4 +1,4 @@
-package qdatabase
+package entity
 
 import (
 	"encoding/base64"
@@ -7,14 +7,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-func Truncate(text string, width int) string {
-	text = text[:min(len(text), width)]
-	if len(text) == width {
-		text = text + "..."
-	}
-	return text
-}
 
 func FileEncode(content []byte) string {
 	prefix := "data:application/octet-stream;base64,"

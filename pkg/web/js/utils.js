@@ -4,7 +4,7 @@ function uuidv4() {
     );
 }
 
-const LOG_LEVELS = {
+const Q_LOG_LEVELS = {
     TRACE: 0,
     DEBUG: 1,
     INFO: 2,
@@ -13,44 +13,44 @@ const LOG_LEVELS = {
     PANIC: 5,
 }
 
-let CURRENT_LOG_LEVEL = LOG_LEVELS.TRACE;
+let Q_CURRENT_LOG_LEVEL = Q_LOG_LEVELS.TRACE;
 
 function qLog(level, message) {
-    if (level < CURRENT_LOG_LEVEL) {
+    if (level < Q_CURRENT_LOG_LEVEL) {
         return;
     }
 
-    console.log(`${new Date().toISOString()} | ${Object.keys(LOG_LEVELS).find(key => LOG_LEVELS[key] === level)} | ${message}`);
+    console.log(`${new Date().toISOString()} | ${Object.keys(Q_LOG_LEVELS).find(key => Q_LOG_LEVELS[key] === level)} | ${message}`);
 }
 
 function qTrace(message) {
-    qLog(LOG_LEVELS.TRACE, message);
+    qLog(Q_LOG_LEVELS.TRACE, message);
 }
 
 function qDebug(message) {
-    qLog(LOG_LEVELS.DEBUG, message);
+    qLog(Q_LOG_LEVELS.DEBUG, message);
 }
 
 function qInfo(message) {
-    qLog(LOG_LEVELS.INFO, message);
+    qLog(Q_LOG_LEVELS.INFO, message);
 }
 
 function qWarn(message) {
-    qLog(LOG_LEVELS.WARN, message);
+    qLog(Q_LOG_LEVELS.WARN, message);
 }
 
 function qError(message) {
-    qLog(LOG_LEVELS.ERROR, message);
+    qLog(Q_LOG_LEVELS.ERROR, message);
 }
 
 function qPanic(message) {
-    qLog(LOG_LEVELS.PANIC, message);
+    qLog(Q_LOG_LEVELS.PANIC, message);
 }
 
 function qMessageType(message) {
-    for (const key in proto.qdb) {
-        if (message instanceof proto.qdb[key]) {
-            return "qdb." + key
+    for (const key in proto.db) {
+        if (message instanceof proto.db[key]) {
+            return "db." + key
         }
     }
 

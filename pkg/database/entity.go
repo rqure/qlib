@@ -1,4 +1,4 @@
-package qdatabase
+package entity
 
 import (
 	"cmp"

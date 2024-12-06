@@ -1,33 +1,40 @@
 package qapplication
 
-import "time"
+import (
+	"time"
+
+	db "github.com/rqure/qlib/pkg/database"
+	qlog "github.com/rqure/qlib/pkg/logging"
+	pb "github.com/rqure/qlib/pkg/protobufs"
+	ss "github.com/rqure/qlib/pkg/signals"
+)
 
 type DatabaseWorkerSignals struct {
-	Connected     Signal
-	Disconnected  Signal
-	SchemaUpdated Signal
+	Connected     ss.Signal
+	Disconnected  ss.Signal
+	SchemaUpdated ss.Signal
 }
 
 type DatabaseWorker struct {
 	Signals DatabaseWorkerSignals
 
-	db                    IDatabase
-	connectionState       ConnectionState_ConnectionStateEnum
+	db                    db.IDatabase
+	isConnected           bool
 	connectionCheckTicker *time.Ticker
-	notificationTokens    []INotificationToken
+	notificationTokens    []db.INotificationToken
 }
 
-func NewDatabaseWorker(db IDatabase) *DatabaseWorker {
+func NewDatabaseWorker(db db.IDatabase) *DatabaseWorker {
 	return &DatabaseWorker{
 		db:                    db,
-		connectionState:       ConnectionState_DISCONNECTED,
-		notificationTokens:    []INotificationToken{},
+		isConnected:           false,
+		notificationTokens:    []db.INotificationToken{},
 		connectionCheckTicker: time.NewTicker(5 * time.Second),
 	}
 }
 
 func (w *DatabaseWorker) Init() {
-	w.Signals.Connected.Connect(Slot(w.onDatabaseConnected))
+	w.Signals.Connected.Connect(ss.Slot(w.onDatabaseConnected))
 }
 
 func (w *DatabaseWorker) Deinit() {
@@ -56,37 +63,33 @@ func (w *DatabaseWorker) onDatabaseConnected() {
 		token.Unbind()
 	}
 
-	w.notificationTokens = []INotificationToken{}
+	w.notificationTokens = []db.INotificationToken{}
 
-	w.notificationTokens = append(w.notificationTokens, w.db.Notify(&DatabaseNotificationConfig{
+	w.notificationTokens = append(w.notificationTokens, w.db.Notify(&pb.DatabaseNotificationConfig{
 		Type:  "Root",
 		Field: "SchemaUpdateTrigger",
-	}, NewNotificationCallback(w.OnSchemaUpdated)))
+	}, db.NewNotificationCallback(w.OnSchemaUpdated)))
 }
 
 func (w *DatabaseWorker) setConnectionStatus(connected bool) {
-	connectionStatus := ConnectionState_DISCONNECTED
-	if connected {
-		connectionStatus = ConnectionState_CONNECTED
-	}
-
-	if w.connectionState == connectionStatus {
+	if w.isConnected == connected {
 		return
 	}
 
-	w.connectionState = connectionStatus
-	Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [%s]", connectionStatus.String())
+	w.isConnected = connected
 	if connected {
+		qlog.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [CONNECTED]")
 		w.Signals.Connected.Emit()
 	} else {
+		qlog.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [DISCONNECTED]")
 		w.Signals.Disconnected.Emit()
 	}
 }
 
 func (w *DatabaseWorker) IsConnected() bool {
-	return w.connectionState == ConnectionState_CONNECTED
+	return w.isConnected
 }
 
-func (w *DatabaseWorker) OnSchemaUpdated(*DatabaseNotification) {
+func (w *DatabaseWorker) OnSchemaUpdated(*pb.DatabaseNotification) {
 	w.Signals.SchemaUpdated.Emit()
 }

@@ -1,4 +1,4 @@
-package qdatabase
+package entity
 
 import (
 	"container/heap"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/d5/tengo/v2"
+	db "github.com/rqure/db/src"
 )
 
 type ITengoEntity interface {
@@ -56,7 +57,7 @@ type ITengoField interface {
 }
 
 type TengoField struct {
-	field IField
+	field db.IField
 }
 
 type ITengoDatabase interface {
@@ -117,11 +118,11 @@ func (pq *JobQueue) Update(job *TengoJob, task *tengo.UserFunction, deadline tim
 }
 
 type TengoDatabase struct {
-	db   IDatabase
+	db   db.IDatabase
 	jobs JobQueue
 }
 
-func NewTengoDatabase(db IDatabase) ITengoDatabase {
+func NewTengoDatabase(db db.IDatabase) ITengoDatabase {
 	tdb := &TengoDatabase{db: db}
 
 	heap.Init(&tdb.jobs)
@@ -129,11 +130,11 @@ func NewTengoDatabase(db IDatabase) ITengoDatabase {
 	return tdb
 }
 
-func NewTengoEntity(entity IEntity) ITengoEntity {
+func NewTengoEntity(entity db.IEntity) ITengoEntity {
 	return &TengoEntity{entity: entity}
 }
 
-func NewTengoField(field IField) ITengoField {
+func NewTengoField(field db.IField) ITengoField {
 	return &TengoField{field: field}
 }
 
@@ -174,7 +175,7 @@ func (tdb *TengoDatabase) GetEntity(args ...tengo.Object) (tengo.Object, error) 
 		}
 	}
 
-	e := NewEntity(tdb.db, entityId)
+	e := db.NewEntity(tdb.db, entityId)
 	if e.entity == nil {
 		return nil, errors.New("entity not found")
 	}

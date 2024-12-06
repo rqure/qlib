@@ -37,14 +37,14 @@ var applicationName string
 
 func GetApplicationName() string {
 	if applicationName == "" {
-		applicationName = os.Getenv("QDB_APP_NAME")
+		applicationName = os.Getenv("db_APP_NAME")
 	}
 
 	return applicationName
 }
 
 func SetApplicationName(name string) {
-	if os.Getenv("QDB_APP_NAME") == "" {
+	if os.Getenv("db_APP_NAME") == "" {
 		applicationName = name
 	}
 }

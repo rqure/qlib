@@ -1,8 +1,4 @@
-package qsignals
-
-type ISlot interface {
-	Invoke(...interface{})
-}
+package ss
 
 type ISignal interface {
 	Connect(ISlot)
@@ -13,10 +9,6 @@ type ISignal interface {
 
 type Signal struct {
 	slots []ISlot
-}
-
-type SlotDefinition struct {
-	Fn func(...interface{})
 }
 
 func (s *Signal) Connect(slot ISlot) {
@@ -40,18 +32,4 @@ func (s *Signal) Emit(args ...interface{}) {
 
 func (s *Signal) DisconnectAll() {
 	s.slots = []ISlot{}
-}
-
-func SlotWithArgs(fn func(...interface{})) ISlot {
-	return &SlotDefinition{Fn: fn}
-}
-
-func Slot(fn func()) ISlot {
-	return SlotWithArgs(func(args ...interface{}) {
-		fn()
-	})
-}
-
-func (s *SlotDefinition) Invoke(args ...interface{}) {
-	s.Fn(args...)
 }
