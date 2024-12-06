@@ -1,33 +1,34 @@
 package data
 
-import (
-	pb "github.com/rqure/qlib/pkg/protobufs"
-)
+type Notification interface {
+	GetToken() string
+	GetCurrent() Field
+	GetPrevious() Field
+	GetContext(index int) Field
+}
 
-type INotificationCallback interface {
-	Fn(*pb.DatabaseNotification)
+type NotificationConfig interface {
+	GetEntityId() string
+	GetEntityType() string
+	GetField() string
+	GetContextFields() []string
+	GetNotifyOnChange() bool
+	GetServiceId() string
+
+	SetEntityId(string) NotificationConfig
+	SetEntityType(string) NotificationConfig
+	SetField(string) NotificationConfig
+	SetContextFields([]string) NotificationConfig
+	SetNotifyOnChange(bool) NotificationConfig
+	SetServiceId(string) NotificationConfig
+}
+
+type NotificationCallback interface {
+	Fn(Notification)
 	Id() string
 }
 
-type INotificationToken interface {
+type NotificationToken interface {
 	Id() string
 	Unbind()
-}
-
-type NotificationToken struct {
-	db             IDatabase
-	subscriptionId string
-	callback       INotificationCallback
-}
-
-func (t *NotificationToken) Id() string {
-	return t.subscriptionId
-}
-
-func (t *NotificationToken) Unbind() {
-	if t.callback != nil {
-		t.db.UnnotifyCallback(t.subscriptionId, t.callback)
-	} else {
-		t.db.Unnotify(t.subscriptionId)
-	}
 }

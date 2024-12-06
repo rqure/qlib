@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type IDatabase interface {
+type Store interface {
 	Connect()
 	Disconnect()
 	IsConnected() bool
@@ -45,9 +45,9 @@ type IDatabase interface {
 	Read(requests []*pb.DatabaseRequest)
 	Write(requests []*pb.DatabaseRequest)
 
-	Notify(config *pb.DatabaseNotificationConfig, callback INotificationCallback) INotificationToken
+	Notify(config *pb.DatabaseNotificationConfig, callback NotificationCallback) INotificationToken
 	Unnotify(subscriptionId string)
-	UnnotifyCallback(subscriptionId string, callback INotificationCallback)
+	UnnotifyCallback(subscriptionId string, callback NotificationCallback)
 	ProcessNotifications()
 }
 
@@ -135,7 +135,7 @@ func (g *RedisDatabaseKeyGenerator) GetNotificationChannelKey(serviceId string) 
 type RedisDatabase struct {
 	client              *redis.Client
 	config              RedisDatabaseConfig
-	callbacks           map[string][]INotificationCallback
+	callbacks           map[string][]NotificationCallback
 	lastStreamMessageId string
 	keygen              RedisDatabaseKeyGenerator
 	getServiceId        func() string
@@ -150,7 +150,7 @@ func NewRedisDatabase(config RedisDatabaseConfig) IDatabase {
 
 	db := &RedisDatabase{
 		config:              config,
-		callbacks:           map[string][]INotificationCallback{},
+		callbacks:           map[string][]NotificationCallback{},
 		lastStreamMessageId: "$",
 		keygen:              RedisDatabaseKeyGenerator{},
 		getServiceId:        getServiceId,
@@ -708,7 +708,7 @@ func (db *RedisDatabase) Write(requests []*pb.DatabaseRequest) {
 	}
 }
 
-func (db *RedisDatabase) Notify(notification *pb.DatabaseNotificationConfig, callback INotificationCallback) INotificationToken {
+func (db *RedisDatabase) Notify(notification *pb.DatabaseNotificationConfig, callback NotificationCallback) INotificationToken {
 	if notification.ServiceId == "" {
 		notification.ServiceId = db.getServiceId()
 	}
@@ -771,13 +771,13 @@ func (db *RedisDatabase) Unnotify(e string) {
 	delete(db.callbacks, e)
 }
 
-func (db *RedisDatabase) UnnotifyCallback(e string, c INotificationCallback) {
+func (db *RedisDatabase) UnnotifyCallback(e string, c NotificationCallback) {
 	if db.callbacks[e] == nil {
 		qlog.Warn("[RedisDatabase::UnnotifyCallback] Failed to find callback: %v", e)
 		return
 	}
 
-	callbacks := []INotificationCallback{}
+	callbacks := []NotificationCallback{}
 	for _, callback := range db.callbacks[e] {
 		if callback.Id() != c.Id() {
 			callbacks = append(callbacks, callback)

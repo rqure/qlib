@@ -1,20 +1,23 @@
 package notification
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/rqure/qlib/pkg/data"
+)
 
 type Callback struct {
-	fn func(*pb.DatabaseNotification)
+	fn func(data.Notification)
 	id string
 }
 
-func NewCallback(fn func(*pb.DatabaseNotification)) Callback {
+func NewCallback(fn func(data.Notification)) data.NotificationCallback {
 	return &Callback{
 		fn: fn,
 		id: uuid.New().String(),
 	}
 }
 
-func (c *Callback) Fn(n *pb.DatabaseNotification) {
+func (c *Callback) Fn(n data.Notification) {
 	c.fn(n)
 }
 
