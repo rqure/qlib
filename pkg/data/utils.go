@@ -1,4 +1,4 @@
-package entity
+package data
 
 import (
 	"encoding/base64"

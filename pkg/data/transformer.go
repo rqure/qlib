@@ -1,4 +1,4 @@
-package entity
+package data
 
 import (
 	"github.com/d5/tengo/v2"

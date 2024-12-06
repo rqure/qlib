@@ -1,4 +1,4 @@
-package entity
+package data
 
 import (
 	pb "github.com/rqure/qlib/pkg/protobufs"
