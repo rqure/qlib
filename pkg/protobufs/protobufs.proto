@@ -228,7 +228,7 @@ message WebRuntimeGetDatabaseConnectionStatusRequest {
 }
 
 message WebRuntimeGetDatabaseConnectionStatusResponse {
-    ConnectionState status = 1;
+    bool connected = 1;
 }
 
 message WebRuntimeGetEntitiesRequest {
