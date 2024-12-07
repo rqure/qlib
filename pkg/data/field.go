@@ -9,7 +9,7 @@ type Field interface {
 	GetWriteTime() time.Time
 	GetWriter() string
 	GetEntityId() string
-	GetEntityName() string
+	GetFieldName() string
 }
 
 type Value interface {
@@ -39,4 +39,7 @@ type Value interface {
 	SetEntityReference(interface{}) Value
 	SetTimestamp(interface{}) Value
 	SetTransformation(interface{}) Value
+}
+
+type FieldSchema interface {
 }

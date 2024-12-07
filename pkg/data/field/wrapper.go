@@ -33,6 +33,6 @@ func (f *Wrapper) GetEntityId() string {
 	return f.impl.Id
 }
 
-func (f *Wrapper) GetEntityName() string {
+func (f *Wrapper) GetFieldName() string {
 	return f.impl.Name
 }

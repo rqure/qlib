@@ -27,6 +27,20 @@ func FromAnyPb(impl *anypb.Any) data.Value {
 	}
 }
 
+func ToAnyPb(v data.Value) *anypb.Any {
+	if v == nil {
+		return nil
+	}
+
+	switch c := v.(type) {
+	case *Value:
+		return c.impl
+	default:
+		log.Error("[Value::ToAnyPb] Unsupported type: %T", v)
+		return nil
+	}
+}
+
 func (v *Value) IsInt() bool {
 	return v.impl != nil && v.impl.MessageIs(&protobufs.Int{})
 }
