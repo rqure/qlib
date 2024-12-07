@@ -5,6 +5,7 @@ type Notification interface {
 	GetCurrent() Field
 	GetPrevious() Field
 	GetContext(index int) Field
+	GetContextCount() int
 }
 
 type NotificationConfig interface {

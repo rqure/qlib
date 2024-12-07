@@ -42,4 +42,6 @@ type Value interface {
 }
 
 type FieldSchema interface {
+	GetFieldName() string
+	GetFieldType() string
 }

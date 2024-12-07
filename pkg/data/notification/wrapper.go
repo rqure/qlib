@@ -21,15 +21,19 @@ func (n *NotificationWrapper) GetToken() string {
 }
 
 func (n *NotificationWrapper) GetCurrent() data.Field {
-	return field.FromPb(n.impl.Current)
+	return field.FromFieldPb(n.impl.Current)
 }
 
 func (n *NotificationWrapper) GetPrevious() data.Field {
-	return field.FromPb(n.impl.Previous)
+	return field.FromFieldPb(n.impl.Previous)
 }
 
 func (n *NotificationWrapper) GetContext(index int) data.Field {
-	return field.FromPb(n.impl.Context[index])
+	return field.FromFieldPb(n.impl.Context[index])
+}
+
+func (n *NotificationWrapper) GetContextCount() int {
+	return len(n.impl.Context)
 }
 
 type ConfigWrapper struct {
