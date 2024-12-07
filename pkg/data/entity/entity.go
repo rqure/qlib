@@ -9,6 +9,19 @@ type Entity struct {
 	impl *protobufs.DatabaseEntity
 }
 
+func ToEntityPb(e data.Entity) *protobufs.DatabaseEntity {
+	if e == nil {
+		return nil
+	}
+
+	switch c := e.(type) {
+	case *Entity:
+		return c.impl
+	default:
+		return nil
+	}
+}
+
 func FromEntityPb(impl *protobufs.DatabaseEntity) data.Entity {
 	return &Entity{
 		impl: impl,

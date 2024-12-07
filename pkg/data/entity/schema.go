@@ -10,6 +10,19 @@ type Schema struct {
 	impl *protobufs.DatabaseEntitySchema
 }
 
+func ToSchemaPb(s data.EntitySchema) *protobufs.DatabaseEntitySchema {
+	if s == nil {
+		return nil
+	}
+
+	switch c := s.(type) {
+	case *Schema:
+		return c.impl
+	default:
+		return nil
+	}
+}
+
 func FromSchemaPb(impl *protobufs.DatabaseEntitySchema) data.EntitySchema {
 	return &Schema{
 		impl: impl,
