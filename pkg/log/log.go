@@ -2,26 +2,33 @@ package log
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"time"
+
+	"github.com/rqure/qlib/pkg/protobufs"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
-	logLevel, err := strconv.Atoi(os.Getenv("Q_LOG_LEVEL"))
-	if err != nil {
-		logLevel = 2
-	}
+var applicationName string
+var currentLogLevel int
 
-	if int(level) < logLevel {
+func SetApplicationName(name string) {
+	applicationName = name
+}
+
+func SetLogLevel(level int) {
+	currentLogLevel = level
+}
+
+func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
+	if int(level) < currentLogLevel {
 		return
 	}
 
 	logMsg := &protobufs.LogMessage{
 		Level:       level,
 		Message:     fmt.Sprintf(message, args...),
-		Timestamp:   timestampprotobufs.Now(),
-		Application: GetApplicationName(),
+		Timestamp:   timestamppb.Now(),
+		Application: applicationName,
 	}
 
 	fmt.Printf("%s | %s | %s | %s\n", logMsg.Timestamp.AsTime().Local().Format(time.RFC3339Nano), logMsg.Application, logMsg.Level.String(), Truncate(logMsg.Message, 1024))
