@@ -7,7 +7,7 @@ import (
 	pb "github.com/rqure/qlib/pkg/protobufs"
 )
 
-type ITransformer interface {
+type Transformer interface {
 	Transform(*pb.Transformation, IField)
 	ProcessPending()
 }

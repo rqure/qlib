@@ -42,17 +42,17 @@ func (b *Binding) GetValue() data.Value {
 	return b.r.GetValue()
 }
 
-func (b *Binding) WriteValue(v data.Value) Binding {
+func (b *Binding) WriteValue(v data.Value) data.Binding {
 	b.r.SetValue(v)
 	b.s.Write(b.r)
 
 	return b
 }
 
-func (b *Binding) WriteInt(args ...interface{}) Binding {
+func (b *Binding) WriteInt(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetInt(args[0])
+	b.r.GetValue().SetInt(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -88,10 +88,10 @@ func (b *Binding) WriteInt(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteFloat(args ...interface{}) Binding {
+func (b *Binding) WriteFloat(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetFloat(args[0])
+	b.r.GetValue().SetFloat(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -127,10 +127,10 @@ func (b *Binding) WriteFloat(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteString(args ...interface{}) Binding {
+func (b *Binding) WriteString(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetString(args[0])
+	b.r.GetValue().SetString(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -166,10 +166,10 @@ func (b *Binding) WriteString(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteBool(args ...interface{}) Binding {
+func (b *Binding) WriteBool(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetBool(args[0])
+	b.r.GetValue().SetBool(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -205,10 +205,10 @@ func (b *Binding) WriteBool(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteBinaryFile(args ...interface{}) Binding {
+func (b *Binding) WriteBinaryFile(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetBinaryFile(args[0])
+	b.r.GetValue().SetBinaryFile(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -244,10 +244,10 @@ func (b *Binding) WriteBinaryFile(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteEntityReference(args ...interface{}) Binding {
+func (b *Binding) WriteEntityReference(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetEntityReference(args[0])
+	b.r.GetValue().SetEntityReference(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -283,10 +283,10 @@ func (b *Binding) WriteEntityReference(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteTimestamp(args ...interface{}) Binding {
+func (b *Binding) WriteTimestamp(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetTimestamp(args[0])
+	b.r.GetValue().SetTimestamp(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -322,10 +322,10 @@ func (b *Binding) WriteTimestamp(args ...interface{}) Binding {
 	return b
 }
 
-func (b *Binding) WriteTransformation(args ...interface{}) Binding {
+func (b *Binding) WriteTransformation(args ...interface{}) data.Binding {
 	v := args[0]
 
-	b.r.GetValue().SetTransformation(args[0])
+	b.r.GetValue().SetTransformation(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -403,5 +403,69 @@ func (b *Binding) ReadTimestamp() time.Time {
 
 func (b *Binding) ReadTransformation() string {
 	b.s.Read(b.r)
+	return b.r.GetValue().GetTransformation()
+}
+
+func (b *Binding) IsInt() bool {
+	return b.r.GetValue().IsInt()
+}
+
+func (b *Binding) IsFloat() bool {
+	return b.r.GetValue().IsFloat()
+}
+
+func (b *Binding) IsString() bool {
+	return b.r.GetValue().IsString()
+}
+
+func (b *Binding) IsBool() bool {
+	return b.r.GetValue().IsBool()
+}
+
+func (b *Binding) IsBinaryFile() bool {
+	return b.r.GetValue().IsBinaryFile()
+}
+
+func (b *Binding) IsEntityReference() bool {
+	return b.r.GetValue().IsEntityReference()
+}
+
+func (b *Binding) IsTimestamp() bool {
+	return b.r.GetValue().IsTimestamp()
+}
+
+func (b *Binding) IsTransformation() bool {
+	return b.r.GetValue().IsTransformation()
+}
+
+func (b *Binding) GetInt() int64 {
+	return b.r.GetValue().GetInt()
+}
+
+func (b *Binding) GetFloat() float64 {
+	return b.r.GetValue().GetFloat()
+}
+
+func (b *Binding) GetString() string {
+	return b.r.GetValue().GetString()
+}
+
+func (b *Binding) GetBool() bool {
+	return b.r.GetValue().GetBool()
+}
+
+func (b *Binding) GetBinaryFile() string {
+	return b.r.GetValue().GetBinaryFile()
+}
+
+func (b *Binding) GetEntityReference() string {
+	return b.r.GetValue().GetEntityReference()
+}
+
+func (b *Binding) GetTimestamp() time.Time {
+	return b.r.GetValue().GetTimestamp()
+}
+
+func (b *Binding) GetTransformation() string {
 	return b.r.GetValue().GetTransformation()
 }

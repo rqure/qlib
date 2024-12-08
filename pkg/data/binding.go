@@ -14,7 +14,25 @@ type Binding interface {
 	GetFieldName() string
 	GetWriteTime() time.Time
 	GetWriter() string
+
+	IsInt() bool
+	IsFloat() bool
+	IsString() bool
+	IsBool() bool
+	IsBinaryFile() bool
+	IsEntityReference() bool
+	IsTimestamp() bool
+	IsTransformation() bool
+
 	GetValue() Value
+	GetInt() int64
+	GetFloat() float64
+	GetString() string
+	GetBool() bool
+	GetBinaryFile() string
+	GetEntityReference() string
+	GetTimestamp() time.Time
+	GetTransformation() string
 
 	WriteValue(Value) Binding
 	WriteInt(...interface{}) Binding
