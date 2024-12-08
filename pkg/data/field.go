@@ -22,6 +22,7 @@ type Value interface {
 	IsTimestamp() bool
 	IsTransformation() bool
 
+	GetType() string
 	GetInt() int64
 	GetFloat() float64
 	GetString() string

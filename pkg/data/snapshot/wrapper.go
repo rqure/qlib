@@ -11,6 +11,25 @@ type Wrapper struct {
 	impl *protobufs.DatabaseSnapshot
 }
 
+func New() data.Snapshot {
+	return &Wrapper{
+		impl: &protobufs.DatabaseSnapshot{},
+	}
+}
+
+func ToPb(s data.Snapshot) *protobufs.DatabaseSnapshot {
+	if s == nil {
+		return nil
+	}
+
+	switch c := s.(type) {
+	case *Wrapper:
+		return c.impl
+	default:
+		return nil
+	}
+}
+
 func FromPb(impl *protobufs.DatabaseSnapshot) data.Snapshot {
 	return &Wrapper{
 		impl: impl,
@@ -63,4 +82,16 @@ func (w *Wrapper) SetSchemas(schemas []data.EntitySchema) {
 	for i, s := range schemas {
 		w.impl.EntitySchemas[i] = entity.ToSchemaPb(s)
 	}
+}
+
+func (w *Wrapper) AppendEntity(e data.Entity) {
+	w.impl.Entities = append(w.impl.Entities, entity.ToEntityPb(e))
+}
+
+func (w *Wrapper) AppendField(f data.Field) {
+	w.impl.Fields = append(w.impl.Fields, field.ToFieldPb(f))
+}
+
+func (w *Wrapper) AppendSchema(s data.EntitySchema) {
+	w.impl.EntitySchemas = append(w.impl.EntitySchemas, entity.ToSchemaPb(s))
 }

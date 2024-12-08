@@ -8,4 +8,8 @@ type Snapshot interface {
 	SetEntities([]Entity)
 	SetFields([]Field)
 	SetSchemas([]EntitySchema)
+
+	AppendEntity(Entity)
+	AppendField(Field)
+	AppendSchema(EntitySchema)
 }

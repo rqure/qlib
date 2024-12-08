@@ -27,10 +27,10 @@ type Store interface {
 	FieldExists(fieldName, entityType string) bool
 
 	GetEntitySchema(entityType string) EntitySchema
-	SetEntitySchema(entityType string, value EntitySchema)
+	SetEntitySchema(EntitySchema)
 
-	Read(requests []Request)
-	Write(requests []Request)
+	Read(...Request)
+	Write(...Request)
 
 	Notify(config NotificationConfig, callback NotificationCallback) NotificationToken
 	Unnotify(subscriptionId string)

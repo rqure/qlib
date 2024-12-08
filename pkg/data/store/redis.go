@@ -3,22 +3,26 @@ package store
 import (
 	"context"
 	"encoding/base64"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis"
 	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/data/entity"
+	"github.com/rqure/qlib/pkg/data/field"
+	"github.com/rqure/qlib/pkg/data/notification"
+	"github.com/rqure/qlib/pkg/data/request"
+	"github.com/rqure/qlib/pkg/data/snapshot"
 	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type RedisStoreConfig struct {
+type RedisConfig struct {
 	Address   string
 	Password  string
 	ServiceID func() string
@@ -31,157 +35,147 @@ type RedisStoreConfig struct {
 // instance:type:<entityType> -> []string{entityId...}
 // instance:notification-config:<entityId>:<fieldName> -> []string{subscriptionId...}
 // instance:notification-config:<entityType>:<fieldName> -> []string{subscriptionId...}
-type RedisStoreKeyGenerator struct{}
+type RedisKeyGenerator struct{}
 
-func (g *RedisStoreKeyGenerator) GetEntitySchemaKey(entityType string) string {
+func (g *RedisKeyGenerator) GetEntitySchemaKey(entityType string) string {
 	return "schema:entity:" + entityType
 }
 
-func (g *RedisStoreKeyGenerator) GetFieldSchemaKey(entityType, fieldName string) string {
-	return "schema:field:" + entityType + ":" + fieldName
-}
-
-func (g *RedisStoreKeyGenerator) GetEntityKey(entityId string) string {
+func (g *RedisKeyGenerator) GetEntityKey(entityId string) string {
 	return "instance:entity:" + entityId
 }
 
-func (g *RedisStoreKeyGenerator) GetFieldKey(fieldName, entityId string) string {
+func (g *RedisKeyGenerator) GetFieldKey(fieldName, entityId string) string {
 	return "instance:field:" + fieldName + ":" + entityId
 }
 
-func (g *RedisStoreKeyGenerator) GetEntityTypeKey(entityType string) string {
+func (g *RedisKeyGenerator) GetEntityTypeKey(entityType string) string {
 	return "instance:type:" + entityType
 }
 
-func (g *RedisStoreKeyGenerator) GetEntityIdNotificationConfigKey(entityId, fieldName string) string {
+func (g *RedisKeyGenerator) GetEntityIdNotificationConfigKey(entityId, fieldName string) string {
 	return "instance:notification-config:" + entityId + ":" + fieldName
 }
 
-func (g *RedisStoreKeyGenerator) GetEntityTypeNotificationConfigKey(entityType, fieldName string) string {
+func (g *RedisKeyGenerator) GetEntityTypeNotificationConfigKey(entityType, fieldName string) string {
 	return "instance:notification-config:" + entityType + ":" + fieldName
 }
 
-func (g *RedisStoreKeyGenerator) GetNotificationChannelKey(serviceId string) string {
+func (g *RedisKeyGenerator) GetNotificationChannelKey(serviceId string) string {
 	return "instance:notification:" + serviceId
 }
 
-type RedisStore struct {
+type Redis struct {
 	client              *redis.Client
-	config              RedisStoreConfig
-	callbacks           map[string][]NotificationCallback
+	config              RedisConfig
+	callbacks           map[string][]data.NotificationCallback
 	lastStreamMessageId string
-	keygen              RedisStoreKeyGenerator
+	keygen              RedisKeyGenerator
 	getServiceId        func() string
 	transformer         ITransformer // Transformer calls scripts to transform field values of type Transformation
 }
 
-func NewRedisStore(config RedisStoreConfig) data.Store {
+func NewRedis(config RedisConfig) data.Store {
 	getServiceId := config.ServiceID
 	if config.ServiceID == nil {
 		getServiceId = GetApplicationName
 	}
 
-	db := &RedisStore{
+	s := &Redis{
 		config:              config,
-		callbacks:           map[string][]NotificationCallback{},
+		callbacks:           map[string][]data.NotificationCallback{},
 		lastStreamMessageId: "$",
-		keygen:              RedisStoreKeyGenerator{},
+		keygen:              RedisKeyGenerator{},
 		getServiceId:        getServiceId,
 	}
 
-	db.transformer = NewTransformer(db)
+	s.transformer = NewTransformer(s)
 
-	return db
+	return s
 }
 
-func (db *RedisStore) Connect() {
-	db.Disconnect()
+func (s *Redis) Connect() {
+	s.Disconnect()
 
-	log.Info("[RedisStore::Connect] Connecting to %v", db.config.Address)
-	db.client = redis.NewClient(&redis.Options{
-		Addr:     db.config.Address,
-		Password: db.config.Password,
-		DB:       0,
+	log.Info("[Redis::Connect] Connecting to %v", s.config.Address)
+	s.client = redis.NewClient(&redis.Options{
+		Addr:     s.config.Address,
+		Password: s.config.Password,
+		s:        0,
 	})
 }
 
-func (db *RedisStore) Disconnect() {
-	if db.client == nil {
+func (s *Redis) Disconnect() {
+	if s.client == nil {
 		return
 	}
 
-	db.client.Close()
-	db.client = nil
+	s.client.Close()
+	s.client = nil
 }
 
-func (db *RedisStore) IsConnected() bool {
-	return db.client != nil && db.client.Ping(context.Background()).Err() == nil
+func (s *Redis) IsConnected() bool {
+	return s.client != nil && s.client.Ping(context.Background()).Err() == nil
 }
 
-func (db *RedisStore) CreateSnapshot() data.Snapshot {
-	snapshot := &pb.DatabaseSnapshot{}
+func (s *Redis) CreateSnapshot() data.Snapshot {
+	ss := snapshot.New()
 
 	usedEntityType := map[string]bool{}
 	usedFields := map[string]bool{}
-	for _, entityType := range db.GetEntityTypes() {
-		entitySchema := db.GetEntitySchema(entityType)
-		for _, entityId := range db.FindEntities(entityType) {
+	for _, entityType := range s.GetEntityTypes() {
+		entitySchema := s.GetEntitySchema(entityType)
+		for _, entityId := range s.FindEntities(entityType) {
 			usedEntityType[entityType] = true
-			snapshot.Entities = append(snapshot.Entities, db.GetEntity(entityId))
-			for _, fieldName := range entitySchema.Fields {
-				request := &pb.DatabaseRequest{
-					Id:    entityId,
-					Field: fieldName,
+			ss.AppendEntity(s.GetEntity(entityId))
+			for _, fieldName := range entitySchema.GetFieldNames() {
+				r := request.New().SetEntityId(entityId).SetFieldName(fieldName)
+
+				s.Read(r)
+
+				if r.IsSuccessful() {
+					ss.AppendField(field.FromRequest(r))
 				}
-				db.Read([]*pb.DatabaseRequest{request})
-				if request.Success {
-					snapshot.Fields = append(snapshot.Fields, new(pb.DatabaseField).FromRequest(request))
-				}
+
 				usedFields[fieldName] = true
 			}
 		}
 
 		if usedEntityType[entityType] {
-			snapshot.EntitySchemas = append(snapshot.EntitySchemas, entitySchema)
+			ss.AppendSchema(entitySchema)
 		}
 	}
 
-	for _, fieldSchema := range db.GetFieldSchemas() {
-		if usedFields[fieldSchema.Name] {
-			snapshot.FieldSchemas = append(snapshot.FieldSchemas, fieldSchema)
-		}
-	}
-
-	return snapshot
+	return ss
 }
 
-func (db *RedisStore) RestoreSnapshot(snapshot *pb.DatabaseSnapshot) {
-	log.Info("[RedisStore::RestoreSnapshot] Restoring snapshot...")
+func (s *Redis) RestoreSnapshot(ss data.Snapshot) {
+	log.Info("[Redis::RestoreSnapshot] Restoring snapshot...")
 
-	err := db.client.FlushDB(context.Background()).Err()
+	err := s.client.Flushs(context.Background()).Err()
 	if err != nil {
-		log.Error("[RedisStore::RestoreSnapshot] Failed to flush database: %v", err)
+		log.Error("[Redis::RestoreSnapshot] Failed to flush database: %v", err)
 		return
 	}
 
-	for _, schema := range snapshot.EntitySchemas {
-		db.SetEntitySchema(schema.Name, schema)
-		log.Debug("[RedisStore::RestoreSnapshot] Restored entity schema: %v", schema)
+	for _, schema := range ss.GetSchemas() {
+		s.SetEntitySchema(schema.Name, schema)
+		log.Debug("[Redis::RestoreSnapshot] Restored entity schema: %v", schema)
 	}
 
-	for _, schema := range snapshot.FieldSchemas {
-		db.SetFieldSchema(schema.Name, schema)
-		log.Debug("[RedisStore::RestoreSnapshot] Restored field schema: %v", schema)
+	for _, schema := range ss.FieldSchemas {
+		s.SetFieldSchema(schema.Name, schema)
+		log.Debug("[Redis::RestoreSnapshot] Restored field schema: %v", schema)
 	}
 
-	for _, entity := range snapshot.Entities {
-		db.SetEntity(entity.Id, entity)
-		db.client.SAdd(context.Background(), db.keygen.GetEntityTypeKey(entity.Type), entity.Id)
-		log.Debug("[RedisStore::RestoreSnapshot] Restored entity: %v", entity)
+	for _, entity := range ss.Entities {
+		s.SetEntity(entity.Id, entity)
+		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeKey(entity.Type), entity.Id)
+		log.Debug("[Redis::RestoreSnapshot] Restored entity: %v", entity)
 	}
 
-	for _, field := range snapshot.Fields {
-		db.Write([]*pb.DatabaseRequest{
+	for _, field := range ss.Fields {
+		s.Write([]*pb.DatabaseRequest{
 			{
 				Id:        field.Id,
 				Field:     field.Name,
@@ -190,27 +184,27 @@ func (db *RedisStore) RestoreSnapshot(snapshot *pb.DatabaseSnapshot) {
 				WriterId:  &pb.String{Raw: field.WriterId},
 			},
 		})
-		log.Debug("[RedisStore::RestoreSnapshot] Restored field: %v", field)
+		log.Debug("[Redis::RestoreSnapshot] Restored field: %v", field)
 	}
 
-	log.Info("[RedisStore::RestoreSnapshot] Snapshot restored.")
+	log.Info("[Redis::RestoreSnapshot] Snapshot restored.")
 }
 
-func (db *RedisStore) CreateEntity(entityType, parentId, name string) {
+func (s *Redis) CreateEntity(entityType, parentId, name string) {
 	entityId := uuid.New().String()
 
-	schema := db.GetEntitySchema(entityType)
+	schema := s.GetEntitySchema(entityType)
 	if schema == nil {
-		log.Error("[RedisStore::CreateEntity] Failed to get entity schema for type %s", entityType)
+		log.Error("[Redis::CreateEntity] Failed to get entity schema for type %s", entityType)
 		return
 	}
 
 	// Initialize empty fields
 	requests := []*pb.DatabaseRequest{}
 	for _, fieldName := range schema.Fields {
-		fieldSchema := db.GetFieldSchema(fieldName)
+		fieldSchema := s.GetFieldSchema(fieldName)
 		if fieldSchema == nil {
-			log.Error("[RedisStore::CreateEntity] Failed to get field schema for %s", fieldName)
+			log.Error("[Redis::CreateEntity] Failed to get field schema for %s", fieldName)
 			continue
 		}
 
@@ -221,7 +215,7 @@ func (db *RedisStore) CreateEntity(entityType, parentId, name string) {
 	}
 
 	if len(requests) > 0 {
-		db.Write(requests)
+		s.Write(requests)
 	}
 
 	p := &pb.DatabaseEntity{
@@ -233,69 +227,69 @@ func (db *RedisStore) CreateEntity(entityType, parentId, name string) {
 	}
 	b, err := proto.Marshal(p)
 	if err != nil {
-		log.Error("[RedisStore::CreateEntity] Failed to marshal entity: %v", err)
+		log.Error("[Redis::CreateEntity] Failed to marshal entity: %v", err)
 		return
 	}
 
-	db.client.SAdd(context.Background(), db.keygen.GetEntityTypeKey(entityType), entityId)
-	db.client.Set(context.Background(), db.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0)
+	s.client.SAdd(context.Background(), s.keygen.GetEntityTypeKey(entityType), entityId)
+	s.client.Set(context.Background(), s.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0)
 
 	if parentId != "" {
-		parent := db.GetEntity(parentId)
+		parent := s.GetEntity(parentId)
 		if parent != nil {
 			parent.Children = append(parent.Children, &pb.EntityReference{Raw: entityId})
-			db.SetEntity(parentId, parent)
+			s.SetEntity(parentId, parent)
 		} else {
-			log.Error("[RedisStore::CreateEntity] Failed to get parent entity: %v", parentId)
+			log.Error("[Redis::CreateEntity] Failed to get parent entity: %v", parentId)
 		}
 	}
 }
 
-func (db *RedisStore) GetEntity(entityId string) *pb.DatabaseEntity {
-	e, err := db.client.Get(context.Background(), db.keygen.GetEntityKey(entityId)).Result()
+func (s *Redis) GetEntity(entityId string) data.Entity {
+	e, err := s.client.Get(context.Background(), s.keygen.GetEntityKey(entityId)).Result()
 	if err != nil {
-		log.Error("[RedisStore::GetEntity] Failed to get entity: %v", err)
+		log.Error("[Redis::GetEntity] Failed to get entity: %v", err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		log.Error("[RedisStore::GetEntity] Failed to decode entity: %v", err)
+		log.Error("[Redis::GetEntity] Failed to decode entity: %v", err)
 		return nil
 	}
 
-	p := &pb.DatabaseEntity{}
+	p := &protobufs.DatabaseEntity{}
 	err = proto.Unmarshal(b, p)
 	if err != nil {
-		log.Error("[RedisStore::GetEntity] Failed to unmarshal entity: %v", err)
+		log.Error("[Redis::GetEntity] Failed to unmarshal entity: %v", err)
 		return nil
 	}
 
-	return p
+	return entity.FromEntityPb(p)
 }
 
-func (db *RedisStore) SetEntity(entityId string, value *pb.DatabaseEntity) {
+func (s *Redis) SetEntity(entityId string, value *pb.DatabaseEntity) {
 	b, err := proto.Marshal(value)
 	if err != nil {
-		log.Error("[RedisStore::SetEntity] Failed to marshal entity: %v", err)
+		log.Error("[Redis::SetEntity] Failed to marshal entity: %v", err)
 		return
 	}
 
-	err = db.client.Set(context.Background(), db.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0).Err()
+	err = s.client.Set(context.Background(), s.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0).Err()
 	if err != nil {
-		log.Error("[RedisStore::SetEntity] Failed to set entity '%s': %v", entityId, err)
+		log.Error("[Redis::SetEntity] Failed to set entity '%s': %v", entityId, err)
 		return
 	}
 }
 
-func (db *RedisStore) DeleteEntity(entityId string) {
-	p := db.GetEntity(entityId)
+func (s *Redis) DeleteEntity(entityId string) {
+	p := s.GetEntity(entityId)
 	if p == nil {
-		log.Error("[RedisStore::DeleteEntity] Failed to get entity: %v", entityId)
+		log.Error("[Redis::DeleteEntity] Failed to get entity: %v", entityId)
 		return
 	}
 
-	parent := db.GetEntity(p.Parent.Raw)
+	parent := s.GetEntity(p.Parent.Raw)
 	if parent != nil {
 		newChildren := []*pb.EntityReference{}
 		for _, child := range parent.Children {
@@ -304,27 +298,27 @@ func (db *RedisStore) DeleteEntity(entityId string) {
 			}
 		}
 		parent.Children = newChildren
-		db.SetEntity(p.Parent.Raw, parent)
+		s.SetEntity(p.Parent.Raw, parent)
 	}
 
 	for _, child := range p.Children {
-		db.DeleteEntity(child.Raw)
+		s.DeleteEntity(child.Raw)
 	}
 
-	for _, fieldName := range db.GetEntitySchema(p.Type).Fields {
-		db.client.Del(context.Background(), db.keygen.GetFieldKey(fieldName, entityId))
+	for _, fieldName := range s.GetEntitySchema(p.Type).Fields {
+		s.client.Del(context.Background(), s.keygen.GetFieldKey(fieldName, entityId))
 	}
 
-	db.client.SRem(context.Background(), db.keygen.GetEntityTypeKey(p.Type), entityId)
-	db.client.Del(context.Background(), db.keygen.GetEntityKey(entityId))
+	s.client.SRem(context.Background(), s.keygen.GetEntityTypeKey(p.Type), entityId)
+	s.client.Del(context.Background(), s.keygen.GetEntityKey(entityId))
 }
 
-func (db *RedisStore) FindEntities(entityType string) []string {
-	return db.client.SMembers(context.Background(), db.keygen.GetEntityTypeKey(entityType)).Val()
+func (s *Redis) FindEntities(entityType string) []string {
+	return s.client.SMembers(context.Background(), s.keygen.GetEntityTypeKey(entityType)).Val()
 }
 
-func (db *RedisStore) EntityExists(entityId string) bool {
-	e, err := db.client.Get(context.Background(), db.keygen.GetEntityKey(entityId)).Result()
+func (s *Redis) EntityExists(entityId string) bool {
+	e, err := s.client.Get(context.Background(), s.keygen.GetEntityKey(entityId)).Result()
 	if err != nil {
 		return false
 	}
@@ -332,325 +326,301 @@ func (db *RedisStore) EntityExists(entityId string) bool {
 	return e != ""
 }
 
-func (db *RedisStore) FieldExists(fieldName, entityType string) bool {
+func (s *Redis) FieldExists(fieldName, entityType string) bool {
 	if !strings.Contains(entityType, "-") {
-		schema := db.GetEntitySchema(entityType)
+		schema := s.GetEntitySchema(entityType)
 		if schema != nil {
-			for _, field := range schema.Fields {
-				if field == fieldName {
-					return true
-				}
-			}
-			return false
+			f := schema.GetField(fieldName)
+			return f != nil
 		}
 	}
 
-	request := &pb.DatabaseRequest{
-		Id:    entityType,
-		Field: fieldName,
-	}
-	db.Read([]*pb.DatabaseRequest{request})
+	r := request.New()
+	r.SetEntityId(entityType)
+	r.SetFieldName(fieldName)
 
-	return request.Success
+	s.Read(r)
+
+	return r.IsSuccessful()
 }
 
-func (db *RedisStore) GetFieldSchemas() []*pb.DatabaseFieldSchema {
-	it := db.client.Scan(context.Background(), 0, db.keygen.GetFieldSchemaKey("*"), 0).Iterator()
-	schemas := []*pb.DatabaseFieldSchema{}
-
-	for it.Next(context.Background()) {
-		e, err := db.client.Get(context.Background(), it.Val()).Result()
-		if err != nil {
-			log.Error("[RedisStore::GetFieldSchemas] Failed to get field schema: %v", err)
-			continue
-		}
-
-		b, err := base64.StdEncoding.DecodeString(e)
-		if err != nil {
-			log.Error("[RedisStore::GetFieldSchemas] Failed to decode field schema: %v", err)
-			continue
-		}
-
-		p := &pb.DatabaseFieldSchema{}
-		err = proto.Unmarshal(b, p)
-		if err != nil {
-			log.Error("[RedisStore::GetFieldSchemas] Failed to unmarshal field schema: %v", err)
-			continue
-		}
-
-		schemas = append(schemas, p)
-	}
-
-	return schemas
-
-}
-
-func (db *RedisStore) GetFieldSchema(fieldName string) *pb.DatabaseFieldSchema {
-	e, err := db.client.Get(context.Background(), db.keygen.GetFieldSchemaKey(fieldName)).Result()
-	if err != nil {
-		log.Error("[RedisStore::GetFieldSchema] Failed to get field schema: %v", err)
+func (s *Redis) GetFieldSchema(entityType, fieldName string) data.FieldSchema {
+	entitySchema := s.GetEntitySchema(entityType)
+	if entitySchema == nil {
+		log.Error("[Redis::GetFieldSchema] Failed to get entity schema for %s", entityType)
 		return nil
 	}
 
-	b, err := base64.StdEncoding.DecodeString(e)
-	if err != nil {
-		log.Error("[RedisStore::GetFieldSchema] Failed to decode field schema: %v", err)
-		return nil
+	f := entitySchema.GetField(fieldName)
+
+	if f == nil {
+		log.Error("[Redis::GetFieldSchema] Failed to find field schema: %s.%s", entityType, fieldName)
 	}
 
-	a := &pb.DatabaseFieldSchema{}
-	err = proto.Unmarshal(b, a)
-	if err != nil {
-		log.Error("[RedisStore::GetFieldSchema] Failed to unmarshal field schema: %v", err)
-		return nil
-	}
-
-	return a
+	return f
 }
 
-func (db *RedisStore) SetFieldSchema(fieldName string, value *pb.DatabaseFieldSchema) {
-	b, err := proto.Marshal(value)
-	if err != nil {
-		log.Error("[RedisStore::SetFieldSchema] Failed to marshal field schema: %v", err)
+func (s *Redis) SetFieldSchema(entityType, fieldName string, value data.FieldSchema) {
+	entitySchema := s.GetEntitySchema(entityType)
+	if entitySchema == nil {
+		log.Error("[Redis::SetFieldSchema] Failed to get entity schema for %s", entityType)
 		return
 	}
 
-	db.client.Set(context.Background(), db.keygen.GetFieldSchemaKey(fieldName), base64.StdEncoding.EncodeToString(b), 0)
+	fields := entitySchema.GetFields()
+	for i, f := range fields {
+		if f.GetFieldName() == fieldName {
+			fields[i] = value
+			entitySchema.SetFields(fields)
+			s.SetEntitySchema(entityType, entitySchema)
+			return
+		}
+	}
+
+	fields = append(fields, value)
+	entitySchema.SetFields(fields)
+	s.SetEntitySchema(entityType, entitySchema)
 }
 
-func (db *RedisStore) GetEntityTypes() []string {
-	it := db.client.Scan(context.Background(), 0, db.keygen.GetEntitySchemaKey("*"), 0).Iterator()
+func (s *Redis) GetEntityTypes() []string {
+	it := s.client.Scan(context.Background(), 0, s.keygen.GetEntitySchemaKey("*"), 0).Iterator()
 	types := []string{}
 
 	for it.Next(context.Background()) {
-		types = append(types, strings.ReplaceAll(it.Val(), db.keygen.GetEntitySchemaKey(""), ""))
+		types = append(types, strings.ReplaceAll(it.Val(), s.keygen.GetEntitySchemaKey(""), ""))
 	}
 
 	return types
 }
 
-func (db *RedisStore) GetEntitySchema(entityType string) *pb.DatabaseEntitySchema {
-	e, err := db.client.Get(context.Background(), db.keygen.GetEntitySchemaKey(entityType)).Result()
+func (s *Redis) GetEntitySchema(entityType string) data.EntitySchema {
+	e, err := s.client.Get(context.Background(), s.keygen.GetEntitySchemaKey(entityType)).Result()
 	if err != nil {
-		log.Error("[RedisStore::GetEntitySchema] Failed to get entity schema (%v): %v", entityType, err)
+		log.Error("[Redis::GetEntitySchema] Failed to get entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		log.Error("[RedisStore::GetEntitySchema] Failed to decode entity schema (%v): %v", entityType, err)
+		log.Error("[Redis::GetEntitySchema] Failed to decode entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
-	p := &pb.DatabaseEntitySchema{}
+	p := &protobufs.DatabaseEntitySchema{}
 	err = proto.Unmarshal(b, p)
 	if err != nil {
-		log.Error("[RedisStore::GetEntitySchema] Failed to unmarshal entity schema (%v): %v", entityType, err)
+		log.Error("[Redis::GetEntitySchema] Failed to unmarshal entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
-	return p
+	return entity.FromSchemaPb(p)
 }
 
-func (db *RedisStore) SetEntitySchema(entityType string, value *pb.DatabaseEntitySchema) {
-	b, err := proto.Marshal(value)
+func (s *Redis) SetEntitySchema(newSchema data.EntitySchema) {
+	b, err := proto.Marshal(entity.ToSchemaPb(newSchema))
 	if err != nil {
-		log.Error("[RedisStore::SetEntitySchema] Failed to marshal entity schema: %v", err)
+		log.Error("[Redis::SetEntitySchema] Failed to marshal entity schema: %v", err)
 		return
 	}
 
-	oldSchema := db.GetEntitySchema(entityType)
+	oldSchema := s.GetEntitySchema(newSchema.GetType())
 	if oldSchema != nil {
 		removedFields := []string{}
 		newFields := []string{}
 
-		for _, field := range oldSchema.Fields {
-			if !slices.Contains(value.Fields, field) {
-				removedFields = append(removedFields, field)
+		for _, fieldName := range oldSchema.GetFieldNames() {
+			if newSchema.GetField(fieldName) == nil {
+				removedFields = append(removedFields, fieldName)
 			}
 		}
 
-		for _, field := range value.Fields {
-			if !slices.Contains(oldSchema.Fields, field) {
-				newFields = append(newFields, field)
+		for _, fieldName := range newSchema.GetFieldNames() {
+			if oldSchema.GetField(fieldName) == nil {
+				newFields = append(newFields, fieldName)
 			}
 		}
 
-		for _, entityId := range db.FindEntities(entityType) {
+		for _, entityId := range s.FindEntities(newSchema.GetType()) {
 			for _, field := range removedFields {
-				db.client.Del(context.Background(), db.keygen.GetFieldKey(field, entityId))
+				s.client.Del(context.Background(), s.keygen.GetFieldKey(field, entityId))
 			}
 
 			for _, field := range newFields {
-				request := &pb.DatabaseRequest{
-					Id:    entityId,
-					Field: field,
-				}
-				db.Write([]*pb.DatabaseRequest{request})
+				r := request.New().SetEntityId(entityId).SetFieldName(field)
+				s.Write(r)
 			}
 		}
 	}
 
-	db.client.Set(context.Background(), db.keygen.GetEntitySchemaKey(entityType), base64.StdEncoding.EncodeToString(b), 0)
+	s.client.Set(context.Background(), s.keygen.GetEntitySchemaKey(newSchema.GetType()), base64.StdEncoding.EncodeToString(b), 0)
 }
 
-func (db *RedisStore) Read(requests []*pb.DatabaseRequest) {
-	for _, request := range requests {
-		request.Success = false
+func (s *Redis) Read(requests ...data.Request) {
+	for _, r := range requests {
+		r.SetSuccessful(false)
 
-		indirectField, indirectEntity := db.ResolveIndirection(request.Field, request.Id)
+		indirectField, indirectEntity := s.ResolveIndirection(r.GetFieldName(), r.GetEntityId())
 
 		if indirectField == "" || indirectEntity == "" {
-			log.Error("[RedisStore::Read] Failed to resolve indirection: %v", request)
+			log.Error("[Redis::Read] Failed to resolve indirection: %v", r)
 			continue
 		}
 
-		e, err := db.client.Get(context.Background(), db.keygen.GetFieldKey(indirectField, indirectEntity)).Result()
+		e, err := s.client.Get(context.Background(), s.keygen.GetFieldKey(indirectField, indirectEntity)).Result()
 		if err != nil {
 			if err != redis.Nil {
-				log.Error("[RedisStore::Read] Failed to read field: %v", err)
+				log.Error("[Redis::Read] Failed to read field: %v", err)
 			} else {
 				// If we can't read because the key doesn't exist, it's not a necessarily an issue.
 				// It would be good to know from a troubleshooting aspect though.
-				log.Trace("[RedisStore::Read] Failed to read field: %v", err)
+				log.Trace("[Redis::Read] Failed to read field: %v", err)
 			}
 			continue
 		}
 
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			log.Error("[RedisStore::Read] Failed to decode field: %v", err)
+			log.Error("[Redis::Read] Failed to decode field: %v", err)
 			continue
 		}
 
-		p := &pb.DatabaseField{}
+		p := &protobufs.DatabaseField{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			log.Error("[RedisStore::Read] Failed to unmarshal field: %v", err)
+			log.Error("[Redis::Read] Failed to unmarshal field: %v", err)
 			continue
 		}
 
-		request.Value = p.Value
+		f := field.FromFieldPb(p)
+		writeTime := f.GetWriteTime()
+		writerId := f.GetWriter()
 
-		if request.WriteTime == nil {
-			request.WriteTime = &pb.Timestamp{Raw: timestamppb.Now()}
-		}
-		request.WriteTime.Raw = p.WriteTime
+		r.SetValue(f.GetValue())
+		r.SetWriteTime(&writeTime)
+		r.SetWriter(&writerId)
 
-		if request.WriterId == nil {
-			request.WriterId = &pb.String{Raw: ""}
-		}
-		request.WriterId.Raw = p.WriterId
-
-		request.Success = true
+		r.SetSuccessful(true)
 	}
 }
 
-func (db *RedisStore) Write(requests []*pb.DatabaseRequest) {
-	for _, request := range requests {
-		request.Success = false
+func (s *Redis) Write(requests ...data.Request) {
+	for _, r := range requests {
+		r.SetSuccessful(false)
 
-		indirectField, indirectEntity := db.ResolveIndirection(request.Field, request.Id)
+		indirectField, indirectEntity := s.ResolveIndirection(r.GetFieldName(), r.GetEntityId())
 		if indirectField == "" || indirectEntity == "" {
-			log.Error("[RedisStore::Write] Failed to resolve indirection: %v", request)
+			log.Error("[Redis::Write] Failed to resolve indirection: %v", r)
 			continue
 		}
 
-		schema := db.GetFieldSchema(indirectField)
-		if schema == nil {
-			log.Error("[RedisStore::Write] Failed to get field schema for %s", indirectField)
+		e := s.GetEntity(indirectEntity)
+		if e == nil {
+			log.Error("[Redis::Write] Failed to get entity: %v", indirectEntity)
 			continue
 		}
 
-		actualFieldType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(schema.Type))
+		fs := s.GetFieldSchema(e.GetType(), indirectField)
+		if fs == nil {
+			log.Error("[Redis::Write] Failed to get field schema for %s", indirectField)
+			continue
+		}
+
+		actualFieldType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(fs.GetFieldType()))
 		if err != nil {
-			log.Error("[RedisStore::Write] Failed to find message type %s: %v", schema.Type, err)
+			log.Error("[Redis::Write] Failed to find message type %s: %v", fs.GetFieldType(), err)
 			continue
 		}
 
-		if request.Value == nil {
-			if request.Value, err = anypb.New(actualFieldType.New().Interface()); err != nil {
-				log.Error("[RedisStore::Write] Failed to create anypb: %v", err)
-				continue
-			}
-		} else {
-			sampleAnyType, err := anypb.New(actualFieldType.New().Interface())
+		if r.GetValue() == nil {
+			a, err := anypb.New(actualFieldType.New().Interface())
+
 			if err != nil {
-				log.Error("[RedisStore::Write] Failed to create anypb: %v", err)
+				log.Error("[Redis::Write] Failed to create anypb for field %s.%s: %v", e.GetType(), fs.GetFieldName(), err)
 				continue
 			}
 
-			if request.Value.TypeUrl != sampleAnyType.TypeUrl && !sampleAnyType.MessageIs(&pb.Transformation{}) {
-				Warn("[RedisStore::Write] Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", request.Id, request.Field, request.Value.TypeUrl, sampleAnyType.TypeUrl)
-				request.Value = sampleAnyType
+			v := field.FromAnyPb(a)
+			r.SetValue(v)
+		} else {
+			a, err := anypb.New(actualFieldType.New().Interface())
+
+			if err != nil {
+				log.Error("[Redis::Write] Failed to create anypb for field %s.%s: %v", e.GetType(), fs.GetFieldName(), err)
+				continue
+			}
+
+			v := field.FromAnyPb(a)
+
+			if r.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
+				log.Warn("[Redis::Write] Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", r.GetEntityId(), r.GetFieldName(), r.GetValue().GetType(), v.GetType())
+				r.SetValue(v)
 			}
 		}
 
-		if request.WriteTime == nil {
-			request.WriteTime = &pb.Timestamp{Raw: timestamppb.Now()}
+		if r.GetWriteTime() == nil {
+			wt := time.Now()
+			r.SetWriteTime(&wt)
 		}
 
-		if request.WriterId == nil {
-			request.WriterId = &pb.String{Raw: ""}
+		if r.GetWriter() == nil {
+			wr := ""
+			r.SetWriter(&wr)
 		}
 
-		oldRequest := &pb.DatabaseRequest{
-			Id:    request.Id,
-			Field: request.Field,
-		}
-		db.Read([]*pb.DatabaseRequest{oldRequest})
+		oldRequest := request.New().SetEntityId(r.GetEntityId()).SetFieldName(r.GetFieldName())
+		s.Read(oldRequest)
 
 		// Set the value in the database
 		// Note that for a transformation, we don't actually write the value to the database
 		// unless the new value is a transformation. This is because the transformation is
 		// executed by the transformer, which will write the result to the database.
-		if oldRequest.Success && oldRequest.Value.MessageIs(&pb.Transformation{}) && !request.Value.MessageIs(&pb.Transformation{}) {
-			transformation := ValueCast[*pb.Transformation](oldRequest.Value)
-			field := NewField(db, request.Id, request.Field)
+		if oldRequest.IsSuccessful() && oldRequest.GetValue().IsTransformation() && !r.GetValue().IsTransformation() {
+			transformation := oldRequest.GetValue().GetTransformation()
+			field := NewField(s, r.Id, r.Field)
 			field.req = &pb.DatabaseRequest{
-				Id:      request.Id,
-				Field:   request.Field,
-				Value:   request.Value,
+				Id:      r.Id,
+				Field:   r.Field,
+				Value:   r.Value,
 				Success: true,
 			}
-			db.transformer.Transform(transformation, field)
-			request.Value = oldRequest.Value
+			s.transformer.Transform(transformation, field)
+			r.SetValue(oldRequest.GetValue())
 		}
 
-		p := new(pb.DatabaseField).FromRequest(request)
+		p := field.ToFieldPb(field.FromRequest(r))
 
 		b, err := proto.Marshal(p)
 		if err != nil {
-			log.Error("[RedisStore::Write] Failed to marshal field: %v", err)
+			log.Error("[Redis::Write] Failed to marshal field: %v", err)
 			continue
 		}
 
 		p.Id = indirectEntity
 		p.Name = indirectField
 
-		_, err = db.client.Set(context.Background(), db.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
+		_, err = s.client.Set(context.Background(), s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
 
 		// Notify listeners of the change
-		db.triggerNotifications(request, oldRequest)
+		s.triggerNotifications(r, oldRequest)
 
 		if err != nil {
-			log.Error("[RedisStore::Write] Failed to write field: %v", err)
+			log.Error("[Redis::Write] Failed to write field: %v", err)
 			continue
 		}
-		request.Success = true
+		r.SetSuccessful(true)
 	}
 }
 
-func (db *RedisStore) Notify(notification *pb.DatabaseNotificationConfig, callback NotificationCallback) INotificationToken {
-	if notification.ServiceId == "" {
-		notification.ServiceId = db.getServiceId()
+func (s *Redis) Notify(nc data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+	if nc.GetServiceId() == "" {
+		nc.SetServiceId(s.getServiceId())
 	}
 
-	b, err := proto.Marshal(notification)
+	b, err := proto.Marshal(notification.ToConfigPb(nc))
 	if err != nil {
-		log.Error("[RedisStore::Notify] Failed to marshal notification config: %v", err)
+		log.Error("[Redis::Notify] Failed to marshal notification config: %v", err)
 		return &NotificationToken{
-			db:             db,
+			s:              s,
 			subscriptionId: "",
 			callback:       nil,
 		}
@@ -658,92 +628,92 @@ func (db *RedisStore) Notify(notification *pb.DatabaseNotificationConfig, callba
 
 	e := base64.StdEncoding.EncodeToString(b)
 
-	if db.lastStreamMessageId == "$" {
-		r, err := db.client.XInfoStream(context.Background(), db.keygen.GetNotificationChannelKey(db.getServiceId())).Result()
+	if s.lastStreamMessageId == "$" {
+		r, err := s.client.XInfoStream(context.Background(), s.keygen.GetNotificationChannelKey(s.getServiceId())).Result()
 		if err != nil {
-			db.lastStreamMessageId = "0"
+			s.lastStreamMessageId = "0"
 		} else {
-			db.lastStreamMessageId = r.LastGeneratedID
+			s.lastStreamMessageId = r.LastGeneratedID
 		}
 	}
 
-	if notification.Id != "" && db.FieldExists(notification.Field, notification.Id) {
-		db.client.SAdd(context.Background(), db.keygen.GetEntityIdNotificationConfigKey(notification.Id, notification.Field), e)
-		db.callbacks[e] = append(db.callbacks[e], callback)
+	if nc.Id != "" && s.FieldExists(nc.Field, nc.Id) {
+		s.client.SAdd(context.Background(), s.keygen.GetEntityIdNotificationConfigKey(nc.Id, nc.Field), e)
+		s.callbacks[e] = append(s.callbacks[e], cb)
 		return &NotificationToken{
-			db:             db,
+			s:              s,
 			subscriptionId: e,
-			callback:       callback,
+			callback:       cb,
 		}
 	}
 
-	if notification.Type != "" && db.FieldExists(notification.Field, notification.Type) {
-		db.client.SAdd(context.Background(), db.keygen.GetEntityTypeNotificationConfigKey(notification.Type, notification.Field), e)
-		db.callbacks[e] = append(db.callbacks[e], callback)
+	if nc.Type != "" && s.FieldExists(nc.Field, nc.Type) {
+		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(nc.Type, nc.Field), e)
+		s.callbacks[e] = append(s.callbacks[e], cb)
 		return &NotificationToken{
-			db:             db,
+			s:              s,
 			subscriptionId: e,
-			callback:       callback,
+			callback:       cb,
 		}
 	}
 
-	log.Warn("[RedisStore::Notify] Failed to find field: %v", notification)
+	log.Warn("[Redis::Notify] Failed to find field: %v", nc)
 	return &NotificationToken{
-		db:             db,
+		s:              s,
 		subscriptionId: "",
 		callback:       nil,
 	}
 }
 
-func (db *RedisStore) Unnotify(e string) {
-	if db.callbacks[e] == nil {
-		log.Warn("[RedisStore::Unnotify] Failed to find callback: %v", e)
+func (s *Redis) Unnotify(e string) {
+	if s.callbacks[e] == nil {
+		log.Warn("[Redis::Unnotify] Failed to find callback: %v", e)
 		return
 	}
 
-	delete(db.callbacks, e)
+	delete(s.callbacks, e)
 }
 
-func (db *RedisStore) UnnotifyCallback(e string, c NotificationCallback) {
-	if db.callbacks[e] == nil {
-		log.Warn("[RedisStore::UnnotifyCallback] Failed to find callback: %v", e)
+func (s *Redis) UnnotifyCallback(e string, c NotificationCallback) {
+	if s.callbacks[e] == nil {
+		log.Warn("[Redis::UnnotifyCallback] Failed to find callback: %v", e)
 		return
 	}
 
 	callbacks := []NotificationCallback{}
-	for _, callback := range db.callbacks[e] {
+	for _, callback := range s.callbacks[e] {
 		if callback.Id() != c.Id() {
 			callbacks = append(callbacks, callback)
 		}
 	}
 
-	db.callbacks[e] = callbacks
+	s.callbacks[e] = callbacks
 }
 
-func (db *RedisStore) ProcessNotifications() {
-	db.transformer.ProcessPending()
+func (s *Redis) ProcessNotifications() {
+	s.transformer.ProcessPending()
 
-	r, err := db.client.XRead(context.Background(), &redis.XReadArgs{
-		Streams: []string{db.keygen.GetNotificationChannelKey(db.getServiceId()), db.lastStreamMessageId},
+	r, err := s.client.XRead(context.Background(), &redis.XReadArgs{
+		Streams: []string{s.keygen.GetNotificationChannelKey(s.getServiceId()), s.lastStreamMessageId},
 		Count:   1000,
 		Block:   -1,
 	}).Result()
 
 	if err != nil && err != redis.Nil {
-		log.Error("[RedisStore::ProcessNotifications] Failed to read stream %v: %v", db.keygen.GetNotificationChannelKey(db.getServiceId()), err)
+		log.Error("[Redis::ProcessNotifications] Failed to read stream %v: %v", s.keygen.GetNotificationChannelKey(s.getServiceId()), err)
 		return
 	}
 
 	for _, x := range r {
 		for _, m := range x.Messages {
-			db.lastStreamMessageId = m.ID
+			s.lastStreamMessageId = m.ID
 			decodedMessage := make(map[string]string)
 
 			for key, value := range m.Values {
 				if castedValue, ok := value.(string); ok {
 					decodedMessage[key] = castedValue
 				} else {
-					log.Error("[RedisStore::ProcessNotifications] Failed to cast value: %v", value)
+					log.Error("[Redis::ProcessNotifications] Failed to cast value: %v", value)
 					continue
 				}
 			}
@@ -751,18 +721,18 @@ func (db *RedisStore) ProcessNotifications() {
 			if data, ok := decodedMessage["data"]; ok {
 				p, err := base64.StdEncoding.DecodeString(data)
 				if err != nil {
-					log.Error("[RedisStore::ProcessNotifications] Failed to decode notification: %v", err)
+					log.Error("[Redis::ProcessNotifications] Failed to decode notification: %v", err)
 					continue
 				}
 
 				n := &pb.DatabaseNotification{}
 				err = proto.Unmarshal(p, n)
 				if err != nil {
-					log.Error("[RedisStore::ProcessNotifications] Failed to unmarshal notification: %v", err)
+					log.Error("[Redis::ProcessNotifications] Failed to unmarshal notification: %v", err)
 					continue
 				}
 
-				for _, callback := range db.callbacks[n.Token] {
+				for _, callback := range s.callbacks[n.Token] {
 					callback.Fn(n)
 				}
 			}
@@ -770,7 +740,7 @@ func (db *RedisStore) ProcessNotifications() {
 	}
 }
 
-func (db *RedisStore) ResolveIndirection(indirectField, entityId string) (string, string) {
+func (s *Redis) ResolveIndirection(indirectField, entityId string) (string, string) {
 	fields := strings.Split(indirectField, "->")
 
 	if len(fields) == 1 {
@@ -783,14 +753,14 @@ func (db *RedisStore) ResolveIndirection(indirectField, entityId string) (string
 			Field: field,
 		}
 
-		db.Read([]*pb.DatabaseRequest{request})
+		s.Read([]*pb.DatabaseRequest{request})
 
 		if request.Success {
 			entityReference := &pb.EntityReference{}
 			if request.Value.MessageIs(entityReference) {
 				err := request.Value.UnmarshalTo(entityReference)
 				if err != nil {
-					log.Error("[RedisStore::ResolveIndirection] Failed to unmarshal entity reference: %v", err)
+					log.Error("[Redis::ResolveIndirection] Failed to unmarshal entity reference: %v", err)
 					return "", ""
 				}
 
@@ -798,19 +768,19 @@ func (db *RedisStore) ResolveIndirection(indirectField, entityId string) (string
 				continue
 			}
 
-			log.Error("[RedisStore::ResolveIndirection] Field is not an entity reference: %v", request)
+			log.Error("[Redis::ResolveIndirection] Field is not an entity reference: %v", request)
 			return "", ""
 		}
 
 		// Fallback to parent entity reference by name
-		entity := db.GetEntity(entityId)
+		entity := s.GetEntity(entityId)
 		if entity == nil {
-			log.Error("[RedisStore::ResolveIndirection] Failed to get entity: %v", entityId)
+			log.Error("[Redis::ResolveIndirection] Failed to get entity: %v", entityId)
 			return "", ""
 		}
 
 		if entity.Parent != nil && entity.Parent.Raw != "" {
-			parentEntity := db.GetEntity(entity.Parent.Raw)
+			parentEntity := s.GetEntity(entity.Parent.Raw)
 
 			if parentEntity != nil && parentEntity.Name == field {
 				entityId = entity.Parent.Raw
@@ -821,9 +791,9 @@ func (db *RedisStore) ResolveIndirection(indirectField, entityId string) (string
 		// Fallback to child entity reference by name
 		foundChild := false
 		for _, child := range entity.Children {
-			childEntity := db.GetEntity(child.Raw)
+			childEntity := s.GetEntity(child.Raw)
 			if childEntity == nil {
-				log.Error("[RedisStore::ResolveIndirection] Failed to get child entity: %v", child.Raw)
+				log.Error("[Redis::ResolveIndirection] Failed to get child entity: %v", child.Raw)
 				continue
 			}
 
@@ -835,7 +805,7 @@ func (db *RedisStore) ResolveIndirection(indirectField, entityId string) (string
 		}
 
 		if !foundChild {
-			log.Error("[RedisStore::ResolveIndirection] Failed to find child entity: %v", field)
+			log.Error("[Redis::ResolveIndirection] Failed to find child entity: %v", field)
 			return "", ""
 		}
 	}
@@ -843,39 +813,39 @@ func (db *RedisStore) ResolveIndirection(indirectField, entityId string) (string
 	return fields[len(fields)-1], entityId
 }
 
-func (db *RedisStore) triggerNotifications(request *pb.DatabaseRequest, oldRequest *pb.DatabaseRequest) {
+func (s *Redis) triggerNotifications(request *pb.DatabaseRequest, oldRequest *pb.DatabaseRequest) {
 	// failed to read old value (it may not exist initially)
 	if !oldRequest.Success {
-		log.Warn("[RedisStore::triggerNotifications] Failed to read old value: %v", oldRequest)
+		log.Warn("[Redis::triggerNotifications] Failed to read old value: %v", oldRequest)
 		return
 	}
 
 	changed := !proto.Equal(request.Value, oldRequest.Value)
 
-	indirectField, indirectEntity := db.ResolveIndirection(request.Field, request.Id)
+	indirectField, indirectEntity := s.ResolveIndirection(request.Field, request.Id)
 
 	if indirectField == "" || indirectEntity == "" {
-		log.Error("[RedisStore::triggerNotifications] Failed to resolve indirection: %v", request)
+		log.Error("[Redis::triggerNotifications] Failed to resolve indirection: %v", request)
 		return
 	}
 
-	m, err := db.client.SMembers(context.Background(), db.keygen.GetEntityIdNotificationConfigKey(indirectEntity, indirectField)).Result()
+	m, err := s.client.SMembers(context.Background(), s.keygen.GetEntityIdNotificationConfigKey(indirectEntity, indirectField)).Result()
 	if err != nil {
-		log.Error("[RedisStore::triggerNotifications] Failed to get notification config: %v", err)
+		log.Error("[Redis::triggerNotifications] Failed to get notification config: %v", err)
 		return
 	}
 
 	for _, e := range m {
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to decode notification config: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to decode notification config: %v", err)
 			continue
 		}
 
 		p := &pb.DatabaseNotificationConfig{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to unmarshal notification config: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to unmarshal notification config: %v", err)
 			continue
 		}
 
@@ -895,7 +865,7 @@ func (db *RedisStore) triggerNotifications(request *pb.DatabaseRequest, oldReque
 				Id:    indirectEntity,
 				Field: context,
 			}
-			db.Read([]*pb.DatabaseRequest{contextRequest})
+			s.Read([]*pb.DatabaseRequest{contextRequest})
 			if contextRequest.Success {
 				n.Context = append(n.Context, new(pb.DatabaseField).FromRequest(contextRequest))
 			}
@@ -903,45 +873,45 @@ func (db *RedisStore) triggerNotifications(request *pb.DatabaseRequest, oldReque
 
 		b, err = proto.Marshal(n)
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to marshal notification: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to marshal notification: %v", err)
 			continue
 		}
 
-		_, err = db.client.XAdd(context.Background(), &redis.XAddArgs{
-			Stream: db.keygen.GetNotificationChannelKey(p.ServiceId),
+		_, err = s.client.XAdd(context.Background(), &redis.XAddArgs{
+			Stream: s.keygen.GetNotificationChannelKey(p.ServiceId),
 			Values: []string{"data", base64.StdEncoding.EncodeToString(b)},
 			MaxLen: 1000,
 			Approx: true,
 		}).Result()
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to add notification: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to add notification: %v", err)
 			continue
 		}
 	}
 
-	entity := db.GetEntity(indirectEntity)
+	entity := s.GetEntity(indirectEntity)
 	if entity == nil {
-		log.Error("[RedisStore::triggerNotifications] Failed to get entity: %v (indirect=%v)", request.Id, indirectEntity)
+		log.Error("[Redis::triggerNotifications] Failed to get entity: %v (indirect=%v)", request.Id, indirectEntity)
 		return
 	}
 
-	m, err = db.client.SMembers(context.Background(), db.keygen.GetEntityTypeNotificationConfigKey(entity.Type, indirectField)).Result()
+	m, err = s.client.SMembers(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(entity.Type, indirectField)).Result()
 	if err != nil {
-		log.Error("[RedisStore::triggerNotifications] Failed to get notification config: %v", err)
+		log.Error("[Redis::triggerNotifications] Failed to get notification config: %v", err)
 		return
 	}
 
 	for _, e := range m {
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to decode notification config: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to decode notification config: %v", err)
 			continue
 		}
 
 		p := &pb.DatabaseNotificationConfig{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to unmarshal notification config: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to unmarshal notification config: %v", err)
 			continue
 		}
 
@@ -961,7 +931,7 @@ func (db *RedisStore) triggerNotifications(request *pb.DatabaseRequest, oldReque
 				Id:    indirectEntity,
 				Field: context,
 			}
-			db.Read([]*pb.DatabaseRequest{contextRequest})
+			s.Read([]*pb.DatabaseRequest{contextRequest})
 			if contextRequest.Success {
 				n.Context = append(n.Context, new(pb.DatabaseField).FromRequest(contextRequest))
 			}
@@ -969,25 +939,25 @@ func (db *RedisStore) triggerNotifications(request *pb.DatabaseRequest, oldReque
 
 		b, err = proto.Marshal(n)
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to marshal notification: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to marshal notification: %v", err)
 			continue
 		}
 
-		_, err = db.client.XAdd(context.Background(), &redis.XAddArgs{
-			Stream: db.keygen.GetNotificationChannelKey(p.ServiceId),
+		_, err = s.client.XAdd(context.Background(), &redis.XAddArgs{
+			Stream: s.keygen.GetNotificationChannelKey(p.ServiceId),
 			Values: []string{"data", base64.StdEncoding.EncodeToString(b)},
 			MaxLen: 100,
 			Approx: true,
 		}).Result()
 		if err != nil {
-			log.Error("[RedisStore::triggerNotifications] Failed to add notification: %v", err)
+			log.Error("[Redis::triggerNotifications] Failed to add notification: %v", err)
 			continue
 		}
 	}
 }
 
-func (db *RedisStore) TempSet(key, value string, expiration time.Duration) bool {
-	r, err := db.client.SetNX(context.Background(), key, value, expiration).Result()
+func (s *Redis) TempSet(key, value string, expiration time.Duration) bool {
+	r, err := s.client.SetNX(context.Background(), key, value, expiration).Result()
 	if err != nil {
 		return false
 	}
@@ -995,8 +965,8 @@ func (db *RedisStore) TempSet(key, value string, expiration time.Duration) bool 
 	return r
 }
 
-func (db *RedisStore) TempGet(key string) string {
-	r, err := db.client.Get(context.Background(), key).Result()
+func (s *Redis) TempGet(key string) string {
+	r, err := s.client.Get(context.Background(), key).Result()
 	if err != nil {
 		return ""
 	}
@@ -1004,51 +974,51 @@ func (db *RedisStore) TempGet(key string) string {
 	return r
 }
 
-func (db *RedisStore) TempExpire(key string, expiration time.Duration) {
-	db.client.Expire(context.Background(), key, expiration)
+func (s *Redis) TempExpire(key string, expiration time.Duration) {
+	s.client.Expire(context.Background(), key, expiration)
 }
 
-func (db *RedisStore) TempDel(key string) {
-	db.client.Del(context.Background(), key)
+func (s *Redis) TempDel(key string) {
+	s.client.Del(context.Background(), key)
 }
 
-func (db *RedisStore) SortedSetAdd(key string, member string, score float64) int64 {
-	result, err := db.client.ZAdd(context.Background(), key, redis.Z{
+func (s *Redis) SortedSetAdd(key string, member string, score float64) int64 {
+	result, err := s.client.ZAdd(context.Background(), key, redis.Z{
 		Score:  score,
 		Member: member,
 	}).Result()
 	if err != nil {
-		log.Error("[RedisStore::SortedSetAdd] Failed to add member to sorted set: %v", err)
+		log.Error("[Redis::SortedSetAdd] Failed to add member to sorted set: %v", err)
 		return 0
 	}
 	return result
 }
 
-func (db *RedisStore) SortedSetRemove(key string, member string) int64 {
-	result, err := db.client.ZRem(context.Background(), key, member).Result()
+func (s *Redis) SortedSetRemove(key string, member string) int64 {
+	result, err := s.client.ZRem(context.Background(), key, member).Result()
 	if err != nil {
-		log.Error("[RedisStore::SortedSetRemove] Failed to remove member from sorted set: %v", err)
+		log.Error("[Redis::SortedSetRemove] Failed to remove member from sorted set: %v", err)
 		return 0
 	}
 	return result
 }
 
-func (db *RedisStore) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
-	result, err := db.client.ZRemRangeByRank(context.Background(), key, start, stop).Result()
+func (s *Redis) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
+	result, err := s.client.ZRemRangeByRank(context.Background(), key, start, stop).Result()
 	if err != nil {
-		log.Error("[RedisStore::SortedSetRemoveRangeByRank] Failed to remove range from sorted set: %v", err)
+		log.Error("[Redis::SortedSetRemoveRangeByRank] Failed to remove range from sorted set: %v", err)
 		return 0
 	}
 	return result
 }
 
-func (db *RedisStore) SortedSetRangeByScoreWithScores(key string, min, max string) []SortedSetMember {
-	result, err := db.client.ZRangeByScoreWithScores(context.Background(), key, &redis.ZRangeBy{
+func (s *Redis) SortedSetRangeByScoreWithScores(key string, min, max string) []SortedSetMember {
+	result, err := s.client.ZRangeByScoreWithScores(context.Background(), key, &redis.ZRangeBy{
 		Min: min,
 		Max: max,
 	}).Result()
 	if err != nil {
-		log.Error("[RedisStore::SortedSetRangeByScoreWithScores] Failed to get range from sorted set: %v", err)
+		log.Error("[Redis::SortedSetRangeByScoreWithScores] Failed to get range from sorted set: %v", err)
 		return nil
 	}
 	members := make([]SortedSetMember, len(result))

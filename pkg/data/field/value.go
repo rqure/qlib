@@ -73,6 +73,14 @@ func (v *Value) IsTransformation() bool {
 	return v.impl != nil && v.impl.MessageIs(&protobufs.Transformation{})
 }
 
+func (v *Value) GetType() string {
+	if v.impl == nil {
+		return ""
+	}
+
+	return v.impl.TypeUrl
+}
+
 func (v *Value) GetInt() int64 {
 	m := new(protobufs.Int)
 

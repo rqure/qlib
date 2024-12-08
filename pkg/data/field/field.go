@@ -32,13 +32,24 @@ func FromFieldPb(impl *protobufs.DatabaseField) data.Field {
 }
 
 func FromRequest(r data.Request) data.Field {
+	writeTime := time.Unix(0, 0)
+	writer := ""
+
+	if r.GetWriteTime() != nil {
+		writeTime = *r.GetWriteTime()
+	}
+
+	if r.GetWriter() != nil {
+		writer = *r.GetWriter()
+	}
+
 	return &Field{
 		impl: &protobufs.DatabaseField{
 			Id:        r.GetEntityId(),
 			Name:      r.GetFieldName(),
 			Value:     ToAnyPb(r.GetValue()),
-			WriteTime: timestamppb.New(r.GetWriteTime()),
-			WriterId:  r.GetWriter(),
+			WriteTime: timestamppb.New(writeTime),
+			WriterId:  writer,
 		},
 	}
 }

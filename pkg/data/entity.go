@@ -11,4 +11,9 @@ type Entity interface {
 type EntitySchema interface {
 	GetType() string
 	GetFields() []FieldSchema
+	GetFieldNames() []string
+	GetField(string) FieldSchema
+
+	SetType(string)
+	SetFields([]FieldSchema)
 }

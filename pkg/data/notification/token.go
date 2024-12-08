@@ -8,6 +8,14 @@ type Token struct {
 	callback       data.NotificationCallback
 }
 
+func NewToken(subscriptionId string, store data.Store, callback data.NotificationCallback) data.NotificationToken {
+	return &Token{
+		subscriptionId: subscriptionId,
+		store:          store,
+		callback:       callback,
+	}
+}
+
 func (t *Token) Id() string {
 	return t.subscriptionId
 }

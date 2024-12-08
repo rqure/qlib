@@ -26,7 +26,7 @@ func FromPb(impl *protobufs.DatabaseRequest) data.Request {
 }
 
 func FromField(f data.Field) data.Request {
-	return New().SetEntityId(f.GetEntityId()).SetFieldName(f.GetFieldName()).SetValue(f.GetValue()).SetSuccessful(false)
+	return New().SetEntityId(f.GetEntityId()).SetFieldName(f.GetFieldName()).SetValue(f.GetValue())
 }
 
 func (r *Wrapper) GetEntityId() string {
@@ -37,20 +37,26 @@ func (r *Wrapper) GetFieldName() string {
 	return r.impl.Field
 }
 
-func (r *Wrapper) GetWriteTime() time.Time {
+func (r *Wrapper) GetWriteTime() *time.Time {
 	if r.impl.WriteTime == nil {
-		return time.Time{}
+		return nil
 	}
 
-	return r.impl.WriteTime.Raw.AsTime()
+	if r.impl.WriteTime.Raw == nil {
+		return nil
+	}
+
+	t := r.impl.WriteTime.Raw.AsTime()
+	return &t
 }
 
-func (r *Wrapper) GetWriter() string {
+func (r *Wrapper) GetWriter() *string {
 	if r.impl.WriterId == nil {
-		return ""
+		return nil
 	}
 
-	return r.impl.WriterId.Raw
+	s := r.impl.WriterId.Raw
+	return &s
 }
 
 func (r *Wrapper) IsSuccessful() bool {
@@ -71,16 +77,26 @@ func (r *Wrapper) SetFieldName(name string) data.Request {
 	return r
 }
 
-func (r *Wrapper) SetWriteTime(t time.Time) data.Request {
+func (r *Wrapper) SetWriteTime(t *time.Time) data.Request {
+	if t == nil {
+		r.impl.WriteTime = nil
+		return r
+	}
+
 	r.impl.WriteTime = &protobufs.Timestamp{
-		Raw: timestamppb.New(t),
+		Raw: timestamppb.New(*t),
 	}
 	return r
 }
 
-func (r *Wrapper) SetWriter(id string) data.Request {
+func (r *Wrapper) SetWriter(id *string) data.Request {
+	if id == nil {
+		r.impl.WriterId = nil
+		return r
+	}
+
 	r.impl.WriterId = &protobufs.String{
-		Raw: id,
+		Raw: *id,
 	}
 
 	return r

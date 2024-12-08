@@ -10,6 +10,32 @@ type NotificationWrapper struct {
 	impl *protobufs.DatabaseNotification
 }
 
+func ToPb(n data.Notification) *protobufs.DatabaseNotification {
+	if n == nil {
+		return nil
+	}
+
+	switch c := n.(type) {
+	case *NotificationWrapper:
+		return c.impl
+	default:
+		return nil
+	}
+}
+
+func ToConfigPb(n data.NotificationConfig) *protobufs.DatabaseNotificationConfig {
+	if n == nil {
+		return nil
+	}
+
+	switch c := n.(type) {
+	case *ConfigWrapper:
+		return c.impl
+	default:
+		return nil
+	}
+}
+
 func FromPb(impl *protobufs.DatabaseNotification) data.Notification {
 	return &NotificationWrapper{
 		impl: impl,
