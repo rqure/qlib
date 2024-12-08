@@ -17,7 +17,7 @@ type Store interface {
 
 	CreateEntity(entityType, parentId, name string)
 	GetEntity(entityId string) Entity
-	SetEntity(entityId string, value Entity)
+	SetEntity(value Entity)
 	DeleteEntity(entityId string)
 
 	FindEntities(entityType string) []string

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis"
+	"github.com/redis/go-redis/v9"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
 	"github.com/rqure/qlib/pkg/data/field"
@@ -220,7 +220,7 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 		parent := s.GetEntity(parentId)
 		if parent != nil {
 			parent.AppendChildId(entityId)
-			s.SetEntity(parentId, parent)
+			s.SetEntity(parent)
 		} else {
 			log.Error("[Redis::CreateEntity] Failed to get parent entity: %v", parentId)
 		}
@@ -265,33 +265,27 @@ func (s *Redis) SetEntity(e data.Entity) {
 }
 
 func (s *Redis) DeleteEntity(entityId string) {
-	p := s.GetEntity(entityId)
-	if p == nil {
+	e := s.GetEntity(entityId)
+	if e == nil {
 		log.Error("[Redis::DeleteEntity] Failed to get entity: %v", entityId)
 		return
 	}
 
-	parent := s.GetEntity(p.Parent.Raw)
+	parent := s.GetEntity(e.GetParentId())
 	if parent != nil {
-		newChildren := []*pb.EntityReference{}
-		for _, child := range parent.Children {
-			if child.Raw != entityId {
-				newChildren = append(newChildren, child)
-			}
-		}
-		parent.Children = newChildren
-		s.SetEntity(p.Parent.Raw, parent)
+		parent.RemoveChildId(e.GetId())
+		s.SetEntity(parent)
 	}
 
-	for _, child := range p.Children {
-		s.DeleteEntity(child.Raw)
+	for _, c := range e.GetChildrenIds() {
+		s.DeleteEntity(c)
 	}
 
-	for _, fieldName := range s.GetEntitySchema(p.Type).Fields {
+	for _, fieldName := range s.GetEntitySchema(e.GetType()).GetFieldNames() {
 		s.client.Del(context.Background(), s.keygen.GetFieldKey(fieldName, entityId))
 	}
 
-	s.client.SRem(context.Background(), s.keygen.GetEntityTypeKey(p.Type), entityId)
+	s.client.SRem(context.Background(), s.keygen.GetEntityTypeKey(e.GetType()), entityId)
 	s.client.Del(context.Background(), s.keygen.GetEntityKey(entityId))
 }
 
@@ -354,14 +348,14 @@ func (s *Redis) SetFieldSchema(entityType, fieldName string, value data.FieldSch
 		if f.GetFieldName() == fieldName {
 			fields[i] = value
 			entitySchema.SetFields(fields)
-			s.SetEntitySchema(entityType, entitySchema)
+			s.SetEntitySchema(entitySchema)
 			return
 		}
 	}
 
 	fields = append(fields, value)
 	entitySchema.SetFields(fields)
-	s.SetEntitySchema(entityType, entitySchema)
+	s.SetEntitySchema(entitySchema)
 }
 
 func (s *Redis) GetEntityTypes() []string {
