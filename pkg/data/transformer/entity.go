@@ -11,6 +11,10 @@ type TengoEntity struct {
 	e data.Entity
 }
 
+func NewTengoEntity(s data.Store, e data.Entity) *TengoEntity {
+	return &TengoEntity{s: s, e: e}
+}
+
 func (te *TengoEntity) ToTengoMap() tengo.Object {
 	return &tengo.Map{
 		Value: map[string]tengo.Object{

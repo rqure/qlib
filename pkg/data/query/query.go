@@ -103,6 +103,24 @@ func (q *Query) compareValues(a data.Value, b any, want int) bool {
 		} else if a.IsFloat() {
 			return cmp.Compare(a.GetFloat(), float64(v)) == want
 		}
+	case uint:
+		if a.IsInt() {
+			return cmp.Compare(a.GetInt(), int64(v)) == want
+		} else if a.IsFloat() {
+			return cmp.Compare(a.GetFloat(), float64(v)) == want
+		}
+	case uint32:
+		if a.IsInt() {
+			return cmp.Compare(a.GetInt(), int64(v)) == want
+		} else if a.IsFloat() {
+			return cmp.Compare(a.GetFloat(), float64(v)) == want
+		}
+	case uint64:
+		if a.IsInt() {
+			return cmp.Compare(a.GetInt(), int64(v)) == want
+		} else if a.IsFloat() {
+			return cmp.Compare(a.GetFloat(), float64(v)) == want
+		}
 	case float32:
 		if a.IsFloat() {
 			return cmp.Compare(a.GetFloat(), float64(v)) == want

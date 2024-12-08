@@ -1,26 +1,18 @@
-package qapp
+package application
 
 import (
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/signalslots"
 )
-
-type IApplication interface {
-	Execute()
-	Quit()
-}
-
-type IWorker interface {
-	Deinit()
-	DoWork()
-	Init()
-}
 
 type ApplicationConfig struct {
 	Name    string
-	Workers []IWorker
+	Workers []app.Worker
 }
 
 type Application struct {
@@ -28,39 +20,26 @@ type Application struct {
 
 	quit chan interface{}
 
-	deinit Signal
-	init   Signal
-	tick   Signal
+	deinit signalslots.Signal
+	init   signalslots.Signal
+	tick   signalslots.Signal
 }
 
-var applicationName string
-
-func GetApplicationName() string {
-	if applicationName == "" {
-		applicationName = os.Getenv("db_APP_NAME")
-	}
-
-	return applicationName
-}
-
-func SetApplicationName(name string) {
-	if os.Getenv("db_APP_NAME") == "" {
-		applicationName = name
-	}
-}
-
-func NewApplication(config ApplicationConfig) IApplication {
+func NewApplication(config ApplicationConfig) app.Application {
 	a := &Application{
 		config: config,
 		quit:   make(chan interface{}, 1),
+		deinit: signalslots.NewSignal(),
+		init:   signalslots.NewSignal(),
+		tick:   signalslots.NewSignal(),
 	}
 
-	SetApplicationName(config.Name)
+	app.SetApplicationName(config.Name)
 
 	for _, worker := range config.Workers {
-		a.init.Connect(Slot(worker.Init))
-		a.deinit.Connect(Slot(worker.Deinit))
-		a.tick.Connect(Slot(worker.DoWork))
+		a.init.Connect(signalslots.NewSlot(worker.Init))
+		a.deinit.Connect(signalslots.NewSlot(worker.Deinit))
+		a.tick.Connect(signalslots.NewSlot(worker.DoWork))
 	}
 
 	return a

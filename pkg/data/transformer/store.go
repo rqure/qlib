@@ -10,14 +10,14 @@ import (
 )
 
 type TengoStore struct {
-	s data.Store
-	q JobQueue
+	impl  data.Store
+	queue JobQueue
 }
 
 func NewTengoStore(s data.Store) *TengoStore {
-	ts := &TengoStore{s: s}
+	ts := &TengoStore{impl: s}
 
-	heap.Init(&ts.q)
+	heap.Init(&ts.queue)
 
 	return ts
 }
@@ -33,9 +33,9 @@ func (ts *TengoStore) ToTengoMap() tengo.Object {
 				Name:  "entity",
 				Value: ts.GetEntity,
 			},
-			"find": &tengo.UserFunction{
-				Name:  "find",
-				Value: ts.Find,
+			"query": &tengo.UserFunction{
+				Name:  "query",
+				Value: ts.Query,
 			},
 			"schedule": &tengo.UserFunction{
 				Name:  "schedule",
@@ -59,15 +59,15 @@ func (ts *TengoStore) GetEntity(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	e := s.NewEntity(ts.s, entityId)
-	if e.entity == nil {
+	e := ts.impl.GetEntity(entityId)
+	if e == nil {
 		return nil, errors.New("entity not found")
 	}
 
-	return NewTengoEntity(e).ToTengoMap(), nil
+	return NewTengoEntity(ts.impl, e).ToTengoMap(), nil
 }
 
-func (ts *TengoStore) Find(args ...tengo.Object) (tengo.Object, error) {
+func (ts *TengoStore) Query(args ...tengo.Object) (tengo.Object, error) {
 	if len(args) < 1 {
 		return nil, tengo.ErrWrongNumArguments
 	}
@@ -81,12 +81,12 @@ func (ts *TengoStore) Find(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	entityIds := ts.s.FindEntities(entityType)
+	entityIds := ts.impl.FindEntities(entityType)
 	entities := make([]tengo.Object, 0)
 	resultEntities := make([]tengo.Object, 0)
 	for _, entityId := range entityIds {
-		e := NewEntity(ts.s, entityId)
-		entities = append(entities, NewTengoEntity(e).ToTengoMap())
+		e := ts.impl.GetEntity(entityId)
+		entities = append(entities, NewTengoEntity(ts.impl, e).ToTengoMap())
 	}
 
 	if len(args) > 1 {
@@ -139,7 +139,7 @@ func (ts *TengoStore) Schedule(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	heap.Push(&ts.q, &Job{task: fn, deadline: deadline.Value})
+	heap.Push(&ts.queue, &Job{task: fn, deadline: deadline.Value})
 
 	return tengo.UndefinedValue, nil
 }
@@ -147,12 +147,12 @@ func (ts *TengoStore) Schedule(args ...tengo.Object) (tengo.Object, error) {
 func (ts *TengoStore) PopAvailableJobs() []*Job {
 	now := time.Now()
 	availableJobs := make([]*Job, 0)
-	for ts.q.Len() > 0 {
-		if ts.q[0].deadline.After(now) {
+	for ts.queue.Len() > 0 {
+		if ts.queue[0].deadline.After(now) {
 			break
 		}
 
-		availableJobs = append(availableJobs, heap.Pop(&ts.q).(*Job))
+		availableJobs = append(availableJobs, heap.Pop(&ts.queue).(*Job))
 	}
 
 	return availableJobs

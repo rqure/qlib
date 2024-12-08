@@ -1,4 +1,4 @@
-package qapplication
+package workers
 
 import (
 	"crypto/rand"
@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	ss "github.com/rqure/qlib/pkg/signals"
 )
 
 type LeaderStates int

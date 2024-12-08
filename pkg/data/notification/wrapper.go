@@ -66,6 +66,12 @@ type ConfigWrapper struct {
 	impl *protobufs.DatabaseNotificationConfig
 }
 
+func NewConfig() data.NotificationConfig {
+	return &ConfigWrapper{
+		impl: &protobufs.DatabaseNotificationConfig{},
+	}
+}
+
 func FromConfigPb(impl *protobufs.DatabaseNotificationConfig) data.NotificationConfig {
 	return &ConfigWrapper{
 		impl: impl,

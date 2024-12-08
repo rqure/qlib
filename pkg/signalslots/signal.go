@@ -1,21 +1,25 @@
-package ss
+package signalslots
 
-type ISignal interface {
-	Connect(ISlot)
-	Disconnect(ISlot)
+type Signal interface {
+	Connect(Slot)
+	Disconnect(Slot)
 	DisconnectAll()
 	Emit(...interface{})
 }
 
-type Signal struct {
-	slots []ISlot
+type SignalImpl struct {
+	slots []Slot
 }
 
-func (s *Signal) Connect(slot ISlot) {
+func NewSignal() Signal {
+	return &SignalImpl{}
+}
+
+func (s *SignalImpl) Connect(slot Slot) {
 	s.slots = append(s.slots, slot)
 }
 
-func (s *Signal) Disconnect(slot ISlot) {
+func (s *SignalImpl) Disconnect(slot Slot) {
 	for i, v := range s.slots {
 		if v == slot {
 			s.slots = append(s.slots[:i], s.slots[i+1:]...)
@@ -24,12 +28,12 @@ func (s *Signal) Disconnect(slot ISlot) {
 	}
 }
 
-func (s *Signal) Emit(args ...interface{}) {
+func (s *SignalImpl) Emit(args ...interface{}) {
 	for _, slot := range s.slots {
 		slot.Invoke(args...)
 	}
 }
 
-func (s *Signal) DisconnectAll() {
-	s.slots = []ISlot{}
+func (s *SignalImpl) DisconnectAll() {
+	s.slots = []Slot{}
 }

@@ -1,4 +1,4 @@
-package qapplication
+package workers
 
 import (
 	"net/http"

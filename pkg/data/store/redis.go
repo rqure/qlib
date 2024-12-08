@@ -8,12 +8,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/notification"
 	"github.com/rqure/qlib/pkg/data/request"
 	"github.com/rqure/qlib/pkg/data/snapshot"
+	"github.com/rqure/qlib/pkg/data/transformer"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/proto"
@@ -27,9 +29,8 @@ const (
 )
 
 type RedisConfig struct {
-	Address   string
-	Password  string
-	ServiceID func() string
+	Address  string
+	Password string
 }
 
 // schema:entity:<type> -> DatabaseEntitySchema
@@ -75,25 +76,18 @@ type Redis struct {
 	callbacks           map[string][]data.NotificationCallback
 	lastStreamMessageId string
 	keygen              RedisKeyGenerator
-	getServiceId        func() string
-	transformer         ITransformer // Transformer calls scripts to transform field values of type Transformation
+	transformer         data.Transformer
 }
 
 func NewRedis(config RedisConfig) data.Store {
-	getServiceId := config.ServiceID
-	if config.ServiceID == nil {
-		getServiceId = GetApplicationName
-	}
-
 	s := &Redis{
 		config:              config,
 		callbacks:           map[string][]data.NotificationCallback{},
 		lastStreamMessageId: "$",
 		keygen:              RedisKeyGenerator{},
-		getServiceId:        getServiceId,
 	}
 
-	s.transformer = NewTransformer(s)
+	s.transformer = transformer.NewTransformer(s)
 
 	return s
 }
@@ -105,7 +99,6 @@ func (s *Redis) Connect() {
 	s.client = redis.NewClient(&redis.Options{
 		Addr:     s.config.Address,
 		Password: s.config.Password,
-		s:        0,
 	})
 }
 
@@ -156,7 +149,7 @@ func (s *Redis) CreateSnapshot() data.Snapshot {
 func (s *Redis) RestoreSnapshot(ss data.Snapshot) {
 	log.Info("[Redis::RestoreSnapshot] Restoring snapshot...")
 
-	err := s.client.Flushs(context.Background()).Err()
+	err := s.client.FlushDB(context.Background()).Err()
 	if err != nil {
 		log.Error("[Redis::RestoreSnapshot] Failed to flush database: %v", err)
 		return
@@ -480,12 +473,12 @@ func (s *Redis) Read(requests ...data.Request) {
 }
 
 func (s *Redis) Write(requests ...data.Request) {
-	for _, r := range requests {
-		r.SetSuccessful(false)
+	for _, req := range requests {
+		req.SetSuccessful(false)
 
-		indirectField, indirectEntity := s.ResolveIndirection(r.GetFieldName(), r.GetEntityId())
+		indirectField, indirectEntity := s.ResolveIndirection(req.GetFieldName(), req.GetEntityId())
 		if indirectField == "" || indirectEntity == "" {
-			log.Error("[Redis::Write] Failed to resolve indirection: %v", r)
+			log.Error("[Redis::Write] Failed to resolve indirection: %v", req)
 			continue
 		}
 
@@ -507,7 +500,7 @@ func (s *Redis) Write(requests ...data.Request) {
 			continue
 		}
 
-		if r.GetValue() == nil {
+		if req.GetValue() == nil {
 			a, err := anypb.New(actualFieldType.New().Interface())
 
 			if err != nil {
@@ -516,7 +509,7 @@ func (s *Redis) Write(requests ...data.Request) {
 			}
 
 			v := field.FromAnyPb(a)
-			r.SetValue(v)
+			req.SetValue(v)
 		} else {
 			a, err := anypb.New(actualFieldType.New().Interface())
 
@@ -527,44 +520,36 @@ func (s *Redis) Write(requests ...data.Request) {
 
 			v := field.FromAnyPb(a)
 
-			if r.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
-				log.Warn("[Redis::Write] Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", r.GetEntityId(), r.GetFieldName(), r.GetValue().GetType(), v.GetType())
-				r.SetValue(v)
+			if req.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
+				log.Warn("[Redis::Write] Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", req.GetEntityId(), req.GetFieldName(), req.GetValue().GetType(), v.GetType())
+				req.SetValue(v)
 			}
 		}
 
-		if r.GetWriteTime() == nil {
+		if req.GetWriteTime() == nil {
 			wt := time.Now()
-			r.SetWriteTime(&wt)
+			req.SetWriteTime(&wt)
 		}
 
-		if r.GetWriter() == nil {
+		if req.GetWriter() == nil {
 			wr := ""
-			r.SetWriter(&wr)
+			req.SetWriter(&wr)
 		}
 
-		// Read the old value
-		o := request.New().SetEntityId(r.GetEntityId()).SetFieldName(r.GetFieldName())
-		s.Read(o)
+		oldReq := request.New().SetEntityId(req.GetEntityId()).SetFieldName(req.GetFieldName())
+		s.Read(oldReq)
 
 		// Set the value in the database
 		// Note that for a transformation, we don't actually write the value to the database
 		// unless the new value is a transformation. This is because the transformation is
 		// executed by the transformer, which will write the result to the database.
-		if o.IsSuccessful() && o.GetValue().IsTransformation() && !r.GetValue().IsTransformation() {
-			transformation := o.GetValue().GetTransformation()
-			field := NewField(s, r.Id, r.Field)
-			field.req = &pb.DatabaseRequest{
-				Id:      r.Id,
-				Field:   r.Field,
-				Value:   r.Value,
-				Success: true,
-			}
-			s.transformer.Transform(transformation, field)
-			r.SetValue(o.GetValue())
+		if oldReq.IsSuccessful() && oldReq.GetValue().IsTransformation() && !req.GetValue().IsTransformation() {
+			src := oldReq.GetValue().GetTransformation()
+			s.transformer.Transform(src, req)
+			req.SetValue(oldReq.GetValue())
 		}
 
-		p := field.ToFieldPb(field.FromRequest(r))
+		p := field.ToFieldPb(field.FromRequest(req))
 
 		b, err := proto.Marshal(p)
 		if err != nil {
@@ -578,13 +563,13 @@ func (s *Redis) Write(requests ...data.Request) {
 		_, err = s.client.Set(context.Background(), s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
 
 		// Notify listeners of the change
-		s.triggerNotifications(r, o)
+		s.triggerNotifications(req, oldReq)
 
 		if err != nil {
 			log.Error("[Redis::Write] Failed to write field: %v", err)
 			continue
 		}
-		r.SetSuccessful(true)
+		req.SetSuccessful(true)
 	}
 }
 
@@ -617,7 +602,7 @@ func (s *Redis) Notify(nc data.NotificationConfig, cb data.NotificationCallback)
 	}
 
 	if nc.GetEntityType() != "" && s.FieldExists(nc.GetFieldName(), nc.GetEntityType()) {
-		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(nc.Type, nc.Field), e)
+		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(nc.GetEntityType(), nc.GetFieldName()), e)
 		s.callbacks[e] = append(s.callbacks[e], cb)
 		return notification.NewToken(e, s, cb)
 	}
@@ -752,7 +737,7 @@ func (s *Redis) ResolveIndirection(indirectField, entityId string) (string, stri
 		for _, childId := range entity.GetChildrenIds() {
 			childEntity := s.GetEntity(childId)
 			if childEntity == nil {
-				log.Error("[Redis::ResolveIndirection] Failed to get child entity: %v", childId.Raw)
+				log.Error("[Redis::ResolveIndirection] Failed to get child entity: %v", childId)
 				continue
 			}
 
@@ -848,7 +833,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 
 	fetchedEntity := s.GetEntity(indirectEntity)
 	if fetchedEntity == nil {
-		log.Error("[Redis::triggerNotifications] Failed to get entity: %v (indirect=%v)", r.Id, indirectEntity)
+		log.Error("[Redis::triggerNotifications] Failed to get entity: %v (indirect=%v)", r.GetEntityId(), indirectEntity)
 		return
 	}
 
@@ -984,4 +969,8 @@ func (s *Redis) SortedSetRangeByScoreWithScores(key string, min, max string) []d
 		}
 	}
 	return members
+}
+
+func (s *Redis) getServiceId() string {
+	return app.GetApplicationName()
 }
