@@ -13,7 +13,7 @@ type Transformer interface {
 }
 
 type TengoTransformer struct {
-	db ITengoDatabase
+	store ITengoDatabase
 }
 
 func NewTransformer(db IDatabase) ITransformer {
