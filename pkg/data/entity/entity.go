@@ -56,3 +56,44 @@ func (e *Entity) GetChildrenIds() []string {
 
 	return ids
 }
+
+func (e *Entity) AppendChildId(id string) {
+	e.impl.Children = append(e.impl.Children, &protobufs.EntityReference{Raw: id})
+}
+
+func (e *Entity) RemoveChildId(id string) {
+	for i, child := range e.impl.Children {
+		if child.Raw == id {
+			e.impl.Children = append(e.impl.Children[:i], e.impl.Children[i+1:]...)
+			return
+		}
+	}
+}
+
+func (e *Entity) SetChildrenIds(ids []string) {
+	e.impl.Children = make([]*protobufs.EntityReference, len(ids))
+	for i, id := range ids {
+		e.impl.Children[i] = &protobufs.EntityReference{Raw: id}
+	}
+}
+
+func (e *Entity) SetId(id string) {
+	e.impl.Id = id
+}
+
+func (e *Entity) SetName(name string) {
+	e.impl.Name = name
+}
+
+func (e *Entity) SetType(t string) {
+	e.impl.Type = t
+}
+
+func (e *Entity) SetParentId(id string) {
+	if id == "" {
+		e.impl.Parent = nil
+		return
+	}
+
+	e.impl.Parent = &protobufs.EntityReference{Raw: id}
+}

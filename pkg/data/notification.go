@@ -11,14 +11,14 @@ type Notification interface {
 type NotificationConfig interface {
 	GetEntityId() string
 	GetEntityType() string
-	GetField() string
+	GetFieldName() string
 	GetContextFields() []string
 	GetNotifyOnChange() bool
 	GetServiceId() string
 
 	SetEntityId(string) NotificationConfig
 	SetEntityType(string) NotificationConfig
-	SetField(string) NotificationConfig
+	SetFieldName(string) NotificationConfig
 	SetContextFields([]string) NotificationConfig
 	SetNotifyOnChange(bool) NotificationConfig
 	SetServiceId(string) NotificationConfig

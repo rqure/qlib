@@ -6,6 +6,15 @@ type Entity interface {
 	GetName() string
 	GetParentId() string
 	GetChildrenIds() []string
+
+	AppendChildId(string)
+	RemoveChildId(string)
+	SetChildrenIds([]string)
+
+	SetId(string)
+	SetType(string)
+	SetName(string)
+	SetParentId(string)
 }
 
 type EntitySchema interface {

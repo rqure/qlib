@@ -80,7 +80,7 @@ func (c *ConfigWrapper) GetEntityType() string {
 	return c.impl.Type
 }
 
-func (c *ConfigWrapper) GetField() string {
+func (c *ConfigWrapper) GetFieldName() string {
 	return c.impl.Field
 }
 
@@ -106,7 +106,7 @@ func (c *ConfigWrapper) SetEntityType(t string) data.NotificationConfig {
 	return c
 }
 
-func (c *ConfigWrapper) SetField(f string) data.NotificationConfig {
+func (c *ConfigWrapper) SetFieldName(f string) data.NotificationConfig {
 	c.impl.Field = f
 	return c
 }
