@@ -6,10 +6,10 @@ import (
 )
 
 type TengoField struct {
-	b data.Binding
+	b data.FieldBinding
 }
 
-func NewTengoField(b data.Binding) *TengoField {
+func NewTengoField(b data.FieldBinding) *TengoField {
 	return &TengoField{b: b}
 }
 

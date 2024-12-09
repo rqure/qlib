@@ -24,7 +24,7 @@ func (t *Transformer) Transform(src string, req data.Request) {
 		return
 	}
 
-	f := binding.New(t.store.impl, req.GetEntityId(), req.GetFieldName())
+	f := binding.NewField(t.store.impl, req.GetEntityId(), req.GetFieldName())
 
 	script := tengo.NewScript([]byte(src))
 	script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))

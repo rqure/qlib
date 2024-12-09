@@ -9,50 +9,50 @@ import (
 	"github.com/rqure/qlib/pkg/log"
 )
 
-type Binding struct {
-	s data.Store
-	r data.Request
+type Field struct {
+	store data.Store
+	req   data.Request
 }
 
-func New(s data.Store, e, f string) data.Binding {
-	r := request.New().SetEntityId(e).SetFieldName(f)
-	return &Binding{
-		s: s,
-		r: r,
+func NewField(store data.Store, entityId, fieldName string) data.FieldBinding {
+	r := request.New().SetEntityId(entityId).SetFieldName(fieldName)
+	return &Field{
+		store: store,
+		req:   r,
 	}
 }
 
-func (b *Binding) GetEntityId() string {
-	return b.r.GetEntityId()
+func (b *Field) GetEntityId() string {
+	return b.req.GetEntityId()
 }
 
-func (b *Binding) GetFieldName() string {
-	return b.r.GetFieldName()
+func (b *Field) GetFieldName() string {
+	return b.req.GetFieldName()
 }
 
-func (b *Binding) GetWriteTime() time.Time {
-	return field.FromRequest(b.r).GetWriteTime()
+func (b *Field) GetWriteTime() time.Time {
+	return field.FromRequest(b.req).GetWriteTime()
 }
 
-func (b *Binding) GetWriter() string {
-	return field.FromRequest(b.r).GetWriter()
+func (b *Field) GetWriter() string {
+	return field.FromRequest(b.req).GetWriter()
 }
 
-func (b *Binding) GetValue() data.Value {
-	return b.r.GetValue()
+func (b *Field) GetValue() data.Value {
+	return b.req.GetValue()
 }
 
-func (b *Binding) WriteValue(v data.Value) data.Binding {
-	b.r.SetValue(v)
-	b.s.Write(b.r)
+func (b *Field) WriteValue(v data.Value) data.FieldBinding {
+	b.req.SetValue(v)
+	b.store.Write(b.req)
 
 	return b
 }
 
-func (b *Binding) WriteInt(args ...interface{}) data.Binding {
+func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetInt(v)
+	b.req.GetValue().SetInt(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -65,7 +65,7 @@ func (b *Binding) WriteInt(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteInt] Invalid write time: %v", args[2])
 		}
@@ -74,24 +74,24 @@ func (b *Binding) WriteInt(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteInt] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteFloat(args ...interface{}) data.Binding {
+func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetFloat(v)
+	b.req.GetValue().SetFloat(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -104,7 +104,7 @@ func (b *Binding) WriteFloat(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteFloat] Invalid write time: %v", args[2])
 		}
@@ -113,24 +113,24 @@ func (b *Binding) WriteFloat(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteFloat] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteString(args ...interface{}) data.Binding {
+func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetString(v)
+	b.req.GetValue().SetString(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -143,7 +143,7 @@ func (b *Binding) WriteString(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteString] Invalid write time: %v", args[2])
 		}
@@ -152,24 +152,24 @@ func (b *Binding) WriteString(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteString] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteBool(args ...interface{}) data.Binding {
+func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetBool(v)
+	b.req.GetValue().SetBool(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -182,7 +182,7 @@ func (b *Binding) WriteBool(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteBool] Invalid write time: %v", args[2])
 		}
@@ -191,24 +191,24 @@ func (b *Binding) WriteBool(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteBool] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteBinaryFile(args ...interface{}) data.Binding {
+func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetBinaryFile(v)
+	b.req.GetValue().SetBinaryFile(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -221,7 +221,7 @@ func (b *Binding) WriteBinaryFile(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteBinaryFile] Invalid write time: %v", args[2])
 		}
@@ -230,24 +230,24 @@ func (b *Binding) WriteBinaryFile(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteBinaryFile] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteEntityReference(args ...interface{}) data.Binding {
+func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetEntityReference(v)
+	b.req.GetValue().SetEntityReference(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -260,7 +260,7 @@ func (b *Binding) WriteEntityReference(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteEntityReference] Invalid write time: %v", args[2])
 		}
@@ -269,24 +269,24 @@ func (b *Binding) WriteEntityReference(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteEntityReference] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteTimestamp(args ...interface{}) data.Binding {
+func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetTimestamp(v)
+	b.req.GetValue().SetTimestamp(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -299,7 +299,7 @@ func (b *Binding) WriteTimestamp(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteTimestamp] Invalid write time: %v", args[2])
 		}
@@ -308,24 +308,24 @@ func (b *Binding) WriteTimestamp(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteTimestamp] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) WriteTransformation(args ...interface{}) data.Binding {
+func (b *Field) WriteTransformation(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.r.GetValue().SetTransformation(v)
+	b.req.GetValue().SetTransformation(v)
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -338,7 +338,7 @@ func (b *Binding) WriteTransformation(args ...interface{}) data.Binding {
 	if len(args) > 2 {
 		wt, ok := args[2].(time.Time)
 		if ok {
-			b.r.SetWriteTime(&wt)
+			b.req.SetWriteTime(&wt)
 		} else {
 			log.Error("[Binding::WriteTransformation] Invalid write time: %v", args[2])
 		}
@@ -347,125 +347,125 @@ func (b *Binding) WriteTransformation(args ...interface{}) data.Binding {
 	if len(args) > 3 {
 		writer, ok := args[3].(string)
 		if ok {
-			b.r.SetWriter(&writer)
+			b.req.SetWriter(&writer)
 		} else {
 			log.Error("[Binding::WriteTransformation] Invalid writer: %v", args[3])
 		}
 	}
 
-	b.s.Write(b.r)
+	b.store.Write(b.req)
 
 	// Clear write time and writer for future use
-	b.r.SetWriteTime(nil).SetWriter(nil)
+	b.req.SetWriteTime(nil).SetWriter(nil)
 
 	return b
 }
 
-func (b *Binding) ReadValue() data.Value {
-	b.s.Read(b.r)
-	return b.r.GetValue()
+func (b *Field) ReadValue() data.Value {
+	b.store.Read(b.req)
+	return b.req.GetValue()
 }
 
-func (b *Binding) ReadInt() int64 {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetInt()
+func (b *Field) ReadInt() int64 {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetInt()
 }
 
-func (b *Binding) ReadFloat() float64 {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetFloat()
+func (b *Field) ReadFloat() float64 {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetFloat()
 }
 
-func (b *Binding) ReadString() string {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetString()
+func (b *Field) ReadString() string {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetString()
 }
 
-func (b *Binding) ReadBool() bool {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetBool()
+func (b *Field) ReadBool() bool {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetBool()
 }
 
-func (b *Binding) ReadBinaryFile() string {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetBinaryFile()
+func (b *Field) ReadBinaryFile() string {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetBinaryFile()
 }
 
-func (b *Binding) ReadEntityReference() string {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetEntityReference()
+func (b *Field) ReadEntityReference() string {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetEntityReference()
 }
 
-func (b *Binding) ReadTimestamp() time.Time {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetTimestamp()
+func (b *Field) ReadTimestamp() time.Time {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetTimestamp()
 }
 
-func (b *Binding) ReadTransformation() string {
-	b.s.Read(b.r)
-	return b.r.GetValue().GetTransformation()
+func (b *Field) ReadTransformation() string {
+	b.store.Read(b.req)
+	return b.req.GetValue().GetTransformation()
 }
 
-func (b *Binding) IsInt() bool {
-	return b.r.GetValue().IsInt()
+func (b *Field) IsInt() bool {
+	return b.req.GetValue().IsInt()
 }
 
-func (b *Binding) IsFloat() bool {
-	return b.r.GetValue().IsFloat()
+func (b *Field) IsFloat() bool {
+	return b.req.GetValue().IsFloat()
 }
 
-func (b *Binding) IsString() bool {
-	return b.r.GetValue().IsString()
+func (b *Field) IsString() bool {
+	return b.req.GetValue().IsString()
 }
 
-func (b *Binding) IsBool() bool {
-	return b.r.GetValue().IsBool()
+func (b *Field) IsBool() bool {
+	return b.req.GetValue().IsBool()
 }
 
-func (b *Binding) IsBinaryFile() bool {
-	return b.r.GetValue().IsBinaryFile()
+func (b *Field) IsBinaryFile() bool {
+	return b.req.GetValue().IsBinaryFile()
 }
 
-func (b *Binding) IsEntityReference() bool {
-	return b.r.GetValue().IsEntityReference()
+func (b *Field) IsEntityReference() bool {
+	return b.req.GetValue().IsEntityReference()
 }
 
-func (b *Binding) IsTimestamp() bool {
-	return b.r.GetValue().IsTimestamp()
+func (b *Field) IsTimestamp() bool {
+	return b.req.GetValue().IsTimestamp()
 }
 
-func (b *Binding) IsTransformation() bool {
-	return b.r.GetValue().IsTransformation()
+func (b *Field) IsTransformation() bool {
+	return b.req.GetValue().IsTransformation()
 }
 
-func (b *Binding) GetInt() int64 {
-	return b.r.GetValue().GetInt()
+func (b *Field) GetInt() int64 {
+	return b.req.GetValue().GetInt()
 }
 
-func (b *Binding) GetFloat() float64 {
-	return b.r.GetValue().GetFloat()
+func (b *Field) GetFloat() float64 {
+	return b.req.GetValue().GetFloat()
 }
 
-func (b *Binding) GetString() string {
-	return b.r.GetValue().GetString()
+func (b *Field) GetString() string {
+	return b.req.GetValue().GetString()
 }
 
-func (b *Binding) GetBool() bool {
-	return b.r.GetValue().GetBool()
+func (b *Field) GetBool() bool {
+	return b.req.GetValue().GetBool()
 }
 
-func (b *Binding) GetBinaryFile() string {
-	return b.r.GetValue().GetBinaryFile()
+func (b *Field) GetBinaryFile() string {
+	return b.req.GetValue().GetBinaryFile()
 }
 
-func (b *Binding) GetEntityReference() string {
-	return b.r.GetValue().GetEntityReference()
+func (b *Field) GetEntityReference() string {
+	return b.req.GetValue().GetEntityReference()
 }
 
-func (b *Binding) GetTimestamp() time.Time {
-	return b.r.GetValue().GetTimestamp()
+func (b *Field) GetTimestamp() time.Time {
+	return b.req.GetValue().GetTimestamp()
 }
 
-func (b *Binding) GetTransformation() string {
-	return b.r.GetValue().GetTransformation()
+func (b *Field) GetTransformation() string {
+	return b.req.GetValue().GetTransformation()
 }

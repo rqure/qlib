@@ -9,7 +9,13 @@ const (
 	WriteChanges
 )
 
-type Binding interface {
+type EntityBinding interface {
+	Entity
+
+	GetField(string) FieldBinding
+}
+
+type FieldBinding interface {
 	GetEntityId() string
 	GetFieldName() string
 	GetWriteTime() time.Time
@@ -34,15 +40,15 @@ type Binding interface {
 	GetTimestamp() time.Time
 	GetTransformation() string
 
-	WriteValue(Value) Binding
-	WriteInt(...interface{}) Binding
-	WriteFloat(...interface{}) Binding
-	WriteString(...interface{}) Binding
-	WriteBool(...interface{}) Binding
-	WriteBinaryFile(...interface{}) Binding
-	WriteEntityReference(...interface{}) Binding
-	WriteTimestamp(...interface{}) Binding
-	WriteTransformation(...interface{}) Binding
+	WriteValue(Value) FieldBinding
+	WriteInt(...interface{}) FieldBinding
+	WriteFloat(...interface{}) FieldBinding
+	WriteString(...interface{}) FieldBinding
+	WriteBool(...interface{}) FieldBinding
+	WriteBinaryFile(...interface{}) FieldBinding
+	WriteEntityReference(...interface{}) FieldBinding
+	WriteTimestamp(...interface{}) FieldBinding
+	WriteTransformation(...interface{}) FieldBinding
 
 	ReadValue() Value
 	ReadInt() int64

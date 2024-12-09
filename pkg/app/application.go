@@ -13,7 +13,7 @@ type Application interface {
 	Execute()
 }
 
-type ApplicationHandle interface {
+type Handle interface {
 	GetCtx() context.Context
 	Do(func())
 	GetWg() *sync.WaitGroup
@@ -21,7 +21,7 @@ type ApplicationHandle interface {
 
 type Worker interface {
 	Deinit()
-	Init(ApplicationHandle)
+	Init(Handle)
 }
 
 type ApplicationImpl struct {

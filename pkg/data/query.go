@@ -3,7 +3,7 @@ package data
 type Query interface {
 	ForType(string) Query
 	Where(string) FieldQuery
-	Execute() []Entity
+	Execute() []EntityBinding
 }
 
 type FieldQuery interface {

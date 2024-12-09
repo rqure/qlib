@@ -77,7 +77,7 @@ func (te *TengoEntity) GetField(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	f := binding.New(te.s, te.e.GetId(), fn)
+	f := binding.NewField(te.s, te.e.GetId(), fn)
 
 	return NewTengoField(f).ToTengoMap(), nil
 }

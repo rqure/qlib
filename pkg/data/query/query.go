@@ -32,15 +32,15 @@ func (q *Query) Where(fieldName string) data.FieldQuery {
 	}
 }
 
-func (q *Query) Execute() []data.Entity {
+func (q *Query) Execute() []data.EntityBinding {
 	if q.entityType == "" {
 		return nil
 	}
 
-	var results []data.Entity
+	var results []data.EntityBinding
 	for _, entityId := range q.store.FindEntities(q.entityType) {
 		if q.evaluateConditions(entityId) {
-			results = append(results, q.store.GetEntity(entityId))
+			results = append(results, binding.NewEntity(q.store, entityId))
 		}
 	}
 	return results
@@ -48,7 +48,7 @@ func (q *Query) Execute() []data.Entity {
 
 func (q *Query) evaluateConditions(entityId string) bool {
 	for _, condition := range q.conditions {
-		f := binding.New(q.store, entityId, condition.fieldName)
+		f := binding.NewField(q.store, entityId, condition.fieldName)
 		switch condition.op {
 		case "eq":
 			if !q.compareValues(f.ReadValue(), condition.value, 0) {

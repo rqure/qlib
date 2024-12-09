@@ -10,42 +10,50 @@ import (
 	"github.com/rqure/qlib/pkg/signalslots"
 )
 
-type DatabaseWorker struct {
+type StoreWorker struct {
 	Connected     signalslots.Signal[any]
 	Disconnected  signalslots.Signal[any]
 	SchemaUpdated signalslots.Signal[any]
 
-	store                 data.Store
-	isConnected           bool
+	store       data.Store
+	isConnected bool
+
 	connectionCheckTicker *time.Ticker
 	notificationTicker    *time.Ticker
-	notificationTokens    []data.NotificationToken
 
-	handle app.ApplicationHandle
+	notificationTokens []data.NotificationToken
+
+	handle app.Handle
 }
 
-func NewDatabaseWorker(store data.Store) app.Worker {
-	return &DatabaseWorker{
-		store:                 store,
-		isConnected:           false,
-		notificationTokens:    []data.NotificationToken{},
+func NewStoreWorker(store data.Store) *StoreWorker {
+	return &StoreWorker{
+		Connected:     signalslots.NewSignal[any](),
+		Disconnected:  signalslots.NewSignal[any](),
+		SchemaUpdated: signalslots.NewSignal[any](),
+
+		store:       store,
+		isConnected: false,
+
+		notificationTokens: []data.NotificationToken{},
+
 		connectionCheckTicker: time.NewTicker(5 * time.Second),
 		notificationTicker:    time.NewTicker(100 * time.Millisecond),
 	}
 }
 
-func (w *DatabaseWorker) Init(h app.ApplicationHandle) {
+func (w *StoreWorker) Init(h app.Handle) {
 	w.handle = h
 
 	go w.DoWork()
 }
 
-func (w *DatabaseWorker) Deinit() {
+func (w *StoreWorker) Deinit() {
 	w.connectionCheckTicker.Stop()
 	w.notificationTicker.Stop()
 }
 
-func (w *DatabaseWorker) DoWork() {
+func (w *StoreWorker) DoWork() {
 	w.handle.GetWg().Add(1)
 	defer w.handle.GetWg().Done()
 
@@ -72,8 +80,8 @@ func (w *DatabaseWorker) DoWork() {
 	}
 }
 
-func (w *DatabaseWorker) onDatabaseConnected() {
-	log.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [CONNECTED]")
+func (w *StoreWorker) onConnected() {
+	log.Info("[StoreWorker::onConnected] Connection status changed to [CONNECTED]")
 
 	for _, token := range w.notificationTokens {
 		token.Unbind()
@@ -90,29 +98,29 @@ func (w *DatabaseWorker) onDatabaseConnected() {
 	w.Connected.Emit(nil)
 }
 
-func (w *DatabaseWorker) onDatabaseDisconnected() {
-	log.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [DISCONNECTED]")
+func (w *StoreWorker) onDisconnected() {
+	log.Info("[StoreWorker::onDisconnected] Connection status changed to [DISCONNECTED]")
 
 	w.Disconnected.Emit(nil)
 }
 
-func (w *DatabaseWorker) setConnectionStatus(connected bool) {
+func (w *StoreWorker) setConnectionStatus(connected bool) {
 	if w.isConnected == connected {
 		return
 	}
 
 	w.isConnected = connected
 	if connected {
-		w.onDatabaseConnected()
+		w.onConnected()
 	} else {
-		w.onDatabaseDisconnected()
+		w.onDisconnected()
 	}
 }
 
-func (w *DatabaseWorker) IsConnected() bool {
+func (w *StoreWorker) IsConnected() bool {
 	return w.isConnected
 }
 
-func (w *DatabaseWorker) OnSchemaUpdated(data.Notification) {
+func (w *StoreWorker) OnSchemaUpdated(data.Notification) {
 	w.SchemaUpdated.Emit(nil)
 }
