@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var applicationName string
 var currentLogLevel int
-
-func SetApplicationName(name string) {
-	applicationName = name
-}
 
 func SetLogLevel(level int) {
 	currentLogLevel = level
+}
+
+func GetLogLevel() int {
+	return currentLogLevel
 }
 
 func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
@@ -28,7 +28,7 @@ func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interf
 		Level:       level,
 		Message:     fmt.Sprintf(message, args...),
 		Timestamp:   timestamppb.Now(),
-		Application: applicationName,
+		Application: app.GetApplicationName(),
 	}
 
 	fmt.Printf("%s | %s | %s | %s\n", logMsg.Timestamp.AsTime().Local().Format(time.RFC3339Nano), logMsg.Application, logMsg.Level.String(), Truncate(logMsg.Message, 1024))

@@ -10,27 +10,18 @@ import (
 	"github.com/rqure/qlib/pkg/signalslots"
 )
 
-type DatabaseWorkerSignals struct {
-	Connected     signalslots.Signal
-	Disconnected  signalslots.Signal
-	SchemaUpdated signalslots.Signal
-}
-
-func NewDatabaseWorkerSignals() DatabaseWorkerSignals {
-	return DatabaseWorkerSignals{
-		Connected:     signalslots.NewSignal(),
-		Disconnected:  signalslots.NewSignal(),
-		SchemaUpdated: signalslots.NewSignal(),
-	}
-}
-
 type DatabaseWorker struct {
-	Signals DatabaseWorkerSignals
+	Connected     signalslots.Signal[any]
+	Disconnected  signalslots.Signal[any]
+	SchemaUpdated signalslots.Signal[any]
 
 	store                 data.Store
 	isConnected           bool
 	connectionCheckTicker *time.Ticker
+	notificationTicker    *time.Ticker
 	notificationTokens    []data.NotificationToken
+
+	handle app.ApplicationHandle
 }
 
 func NewDatabaseWorker(store data.Store) app.Worker {
@@ -39,35 +30,51 @@ func NewDatabaseWorker(store data.Store) app.Worker {
 		isConnected:           false,
 		notificationTokens:    []data.NotificationToken{},
 		connectionCheckTicker: time.NewTicker(5 * time.Second),
+		notificationTicker:    time.NewTicker(100 * time.Millisecond),
 	}
 }
 
-func (w *DatabaseWorker) Init() {
-	w.Signals.Connected.Connect(signalslots.NewSlot(w.onDatabaseConnected))
+func (w *DatabaseWorker) Init(h app.ApplicationHandle) {
+	w.handle = h
+
+	go w.DoWork()
 }
 
 func (w *DatabaseWorker) Deinit() {
-
+	w.connectionCheckTicker.Stop()
+	w.notificationTicker.Stop()
 }
 
 func (w *DatabaseWorker) DoWork() {
-	select {
-	case <-w.connectionCheckTicker.C:
-		w.setConnectionStatus(w.store.IsConnected())
+	w.handle.GetWg().Add(1)
+	defer w.handle.GetWg().Done()
 
-		if !w.IsConnected() {
-			w.store.Connect()
+	for {
+		select {
+		case <-w.handle.GetCtx().Done():
 			return
-		}
-	default:
-	}
+		case <-w.connectionCheckTicker.C:
+			w.handle.Do(func() {
+				w.setConnectionStatus(w.store.IsConnected())
 
-	if w.IsConnected() {
-		w.store.ProcessNotifications()
+				if !w.IsConnected() {
+					w.store.Connect()
+					return
+				}
+			})
+		case <-w.notificationTicker.C:
+			w.handle.Do(func() {
+				if w.IsConnected() {
+					w.store.ProcessNotifications()
+				}
+			})
+		}
 	}
 }
 
 func (w *DatabaseWorker) onDatabaseConnected() {
+	log.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [CONNECTED]")
+
 	for _, token := range w.notificationTokens {
 		token.Unbind()
 	}
@@ -79,6 +86,14 @@ func (w *DatabaseWorker) onDatabaseConnected() {
 			SetEntityType("Root").
 			SetFieldName("SchemaUpdateTrigger"),
 		notification.NewCallback(w.OnSchemaUpdated)))
+
+	w.Connected.Emit(nil)
+}
+
+func (w *DatabaseWorker) onDatabaseDisconnected() {
+	log.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [DISCONNECTED]")
+
+	w.Disconnected.Emit(nil)
 }
 
 func (w *DatabaseWorker) setConnectionStatus(connected bool) {
@@ -88,11 +103,9 @@ func (w *DatabaseWorker) setConnectionStatus(connected bool) {
 
 	w.isConnected = connected
 	if connected {
-		log.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [CONNECTED]")
-		w.Signals.Connected.Emit()
+		w.onDatabaseConnected()
 	} else {
-		log.Info("[DatabaseWorker::setConnectionStatus] Connection status changed to [DISCONNECTED]")
-		w.Signals.Disconnected.Emit()
+		w.onDatabaseDisconnected()
 	}
 }
 
@@ -101,5 +114,5 @@ func (w *DatabaseWorker) IsConnected() bool {
 }
 
 func (w *DatabaseWorker) OnSchemaUpdated(data.Notification) {
-	w.Signals.SchemaUpdated.Emit()
+	w.SchemaUpdated.Emit(nil)
 }
