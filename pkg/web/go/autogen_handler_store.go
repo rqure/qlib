@@ -145,7 +145,7 @@ class QEntityStore {
         this._server
             .send(new proto.protobufs.WebRuntimeGetDatabaseConnectionStatusRequest(), proto.protobufs.WebRuntimeGetDatabaseConnectionStatusResponse)
             .then(response => {
-                if (response.getStatus().getRaw() !== proto.protobufs.ConnectionState.ConnectionStateEnum.CONNECTED) {
+                if (!response.getConnected()) {
                     if(this._isConnected !== false) {
                         this._isConnected = false;
                         this._notificationManager.dispatchEvent(Q_STORE_EVENTS.DISCONNECTED, {});

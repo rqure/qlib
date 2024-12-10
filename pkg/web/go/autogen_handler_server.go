@@ -10,7 +10,7 @@ func Register_web_handler_server() {
 
     http.HandleFunc("/js/db/server.js", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/javascript")
-        s := `SERVER_INTERACTOR_CONNECTION_STATES = {
+        s := `Q_SERVER_CONNECTION_STATES = {
     DISCONNECTED: 0,
     CONNECTING: 1,
     CONNECTED: 2,
@@ -21,12 +21,12 @@ class QServer {
     constructor(url) {
         this._url = url;
         this._ws = null;
-        this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTED;
+        this._connectionStatus = Q_SERVER_CONNECTION_STATES.DISCONNECTED;
         this._waitingResponses = {};
     }
 
     isConnected() {
-        return this._connectionStatus === SERVER_INTERACTOR_CONNECTION_STATES.CONNECTED;
+        return this._connectionStatus === Q_SERVER_CONNECTION_STATES.CONNECTED;
     }
 
     onMessage(event) {
@@ -34,7 +34,7 @@ class QServer {
         const fileReader = new FileReader();
 
         fileReader.onload = function(event) {
-            const message = proto.db.WebMessage.deserializeBinary(new Uint8Array(event.target.result));
+            const message = proto.protobufs.WebMessage.deserializeBinary(new Uint8Array(event.target.result));
             const requestId = message.getHeader().getId();
 
             if (!me._waitingResponses[requestId]) {
@@ -55,7 +55,7 @@ class QServer {
 
     onOpen(event) {
         qInfo("[QServer::onOpen] Connection established with '" + this._url + "'");
-        this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.CONNECTED;
+        this._connectionStatus = Q_SERVER_CONNECTION_STATES.CONNECTED;
     }
 
     onClose(event) {
@@ -68,7 +68,7 @@ class QServer {
             this._ws = null;
         }
         
-        this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTED;
+        this._connectionStatus = Q_SERVER_CONNECTION_STATES.DISCONNECTED;
 
         for (const requestId in this._waitingResponses) {
             const request = this._waitingResponses[requestId];
@@ -79,14 +79,14 @@ class QServer {
     }
 
     connect() {
-        if (this._connectionStatus !== SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTED) {
+        if (this._connectionStatus !== Q_SERVER_CONNECTION_STATES.DISCONNECTED) {
             qError("[QServer::connect] Connection already exists, disconnecting first.");
             this.disconnect();
             return;
         }
         
         qInfo("[QServer::connect] Connecting to '" + this._url + "'")
-        this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.CONNECTING;
+        this._connectionStatus = Q_SERVER_CONNECTION_STATES.CONNECTING;
         this._ws = new WebSocket(this._url);
         
         this._ws.addEventListener('open', this.onOpen.bind(this));
@@ -98,11 +98,11 @@ class QServer {
         if (this._ws) {
             qInfo("[QServer::disconnect] Disconnecting from '" + this._url + "'")
 
-            this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTING;
+            this._connectionStatus = Q_SERVER_CONNECTION_STATES.DISCONNECTING;
 
             this._ws.close();
         } else {
-            this._connectionStatus = SERVER_INTERACTOR_CONNECTION_STATES.DISCONNECTED;
+            this._connectionStatus = Q_SERVER_CONNECTION_STATES.DISCONNECTED;
         }
     }
 
@@ -110,11 +110,11 @@ class QServer {
         const requestId = uuidv4();
         const request = this._waitingResponses[requestId] = { "sent": +new Date(), "responseType": responseProtoType };
 
-        const header = new proto.db.WebHeader();
+        const header = new proto.protobufs.WebHeader();
         header.setId(requestId);
         header.setTimestamp(new proto.google.protobuf.Timestamp.fromDate(new Date()));
 
-        const message = new proto.db.WebMessage();
+        const message = new proto.protobufs.WebMessage();
         message.setHeader(header);
         message.setPayload(new proto.google.protobuf.Any());
         message.getPayload().pack(requestProto.serializeBinary(), qMessageType(requestProto));
