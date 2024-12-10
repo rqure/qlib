@@ -17,21 +17,24 @@ func NewMessage() Message {
 	return new(protobufs.WebMessage)
 }
 
+type MessageHandler func(Client, Message)
+
 type Client interface {
 	Id() string
-	Read() Message
 	Write(Message)
 	Close()
+	SetMessageHandler(MessageHandler)
 }
 
 type ClientImpl struct {
-	id         string
-	connection *websocket.Conn
-	readCh     chan Message
-	wg         sync.WaitGroup
-	onClose    func(string)
-	isClosed   atomic.Bool
-	closeMu    sync.Mutex // Add mutex for thread-safe closure
+	id             string
+	connection     *websocket.Conn
+	readCh         chan Message
+	wg             sync.WaitGroup
+	onClose        func(string)
+	isClosed       atomic.Bool
+	closeMu        sync.Mutex
+	messageHandler MessageHandler
 }
 
 func NewClient(connection *websocket.Conn, onClose func(string)) Client {
@@ -49,6 +52,10 @@ func NewClient(connection *websocket.Conn, onClose func(string)) Client {
 
 func (c *ClientImpl) Id() string {
 	return c.id
+}
+
+func (c *ClientImpl) SetMessageHandler(handler MessageHandler) {
+	c.messageHandler = handler
 }
 
 func (c *ClientImpl) backgroundRead() {
@@ -72,14 +79,11 @@ func (c *ClientImpl) backgroundRead() {
 			}
 
 			log.Debug("[ClientImpl::backgroundRead] Received message: %v", m)
-			c.readCh <- m
+			if c.messageHandler != nil {
+				c.messageHandler(c, m)
+			}
 		}
 	}
-}
-
-func (c *ClientImpl) Read() Message {
-	// Remove select-default to make this blocking
-	return <-c.readCh
 }
 
 func (c *ClientImpl) Write(message Message) {
@@ -101,7 +105,6 @@ func (c *ClientImpl) Close() {
 	c.closeMu.Lock()
 	defer c.closeMu.Unlock()
 
-	// Invert the condition - we want to proceed if NOT already closed
 	if c.isClosed.CompareAndSwap(false, true) {
 		if err := c.connection.Close(); err != nil {
 			log.Error("[ClientImpl::Close] Error closing connection: %v", err)

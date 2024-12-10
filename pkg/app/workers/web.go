@@ -21,10 +21,8 @@ type Web struct {
 	ClientDisconnected signalslots.Signal
 	Received           signalslots.Signal
 
-	clients        map[string]web.Client
-	addClientCh    chan web.Client
-	removeClientCh chan string
-	addr           string
+	clients map[string]web.Client
+	addr    string
 
 	handle app.Handle
 }
@@ -32,8 +30,6 @@ type Web struct {
 func NewWeb(addr string) *Web {
 	return &Web{
 		clients:            make(map[string]web.Client),
-		addClientCh:        make(chan web.Client, 100),
-		removeClientCh:     make(chan string, 100),
 		addr:               addr,
 		ClientConnected:    signal.NewSignal(),
 		ClientDisconnected: signal.NewSignal(),
@@ -42,6 +38,8 @@ func NewWeb(addr string) *Web {
 }
 
 func (w *Web) Init(h app.Handle) {
+	w.handle = h
+
 	// Serve static files from the "static" directory
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./web/css"))))
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./web/img"))))
@@ -108,37 +106,7 @@ func (w *Web) Deinit() {
 }
 
 func (w *Web) DoWork() {
-	w.processClientConnectionEvents()
-	w.processClientMessages()
-}
-
-func (w *Web) processClientMessages() {
-	for _, client := range w.clients {
-		for {
-			if m := client.Read(); m != nil {
-				w.Received.Emit(client, m)
-			} else {
-				break
-			}
-		}
-	}
-}
-
-func (w *Web) processClientConnectionEvents() {
-	for {
-		select {
-		case client := <-w.addClientCh:
-			log.Info("[WebServiceWorker::processClientConnectionEvents] Client connected: %s", client.Id())
-			w.clients[client.Id()] = client
-			w.ClientConnected.Emit(client)
-		case id := <-w.removeClientCh:
-			log.Info("[WebServiceWorker::processClientConnectionEvents] Client disconnected: %s", id)
-			w.ClientDisconnected.Emit(id)
-			delete(w.clients, id)
-		default:
-			return
-		}
-	}
+	// Empty as processing is now done via handlers
 }
 
 func (w *Web) Send(clientId string, p *anypb.Any) {
@@ -161,10 +129,23 @@ func (w *Web) Broadcast(p *anypb.Any) {
 
 func (w *Web) addClient(conn *websocket.Conn) web.Client {
 	client := web.NewClient(conn, func(id string) {
-		w.removeClientCh <- id
+		w.handle.DoInMainThread(func() {
+			w.clients[id].Close()
+			w.ClientDisconnected.Emit(id)
+			delete(w.clients, id)
+		})
 	})
 
-	w.addClientCh <- client
+	client.SetMessageHandler(func(c web.Client, m web.Message) {
+		w.handle.DoInMainThread(func() {
+			w.Received.Emit(c, m)
+		})
+	})
+
+	w.handle.DoInMainThread(func() {
+		w.clients[client.Id()] = client
+		w.ClientConnected.Emit(client)
+	})
 
 	return client
 }

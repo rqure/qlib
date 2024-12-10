@@ -39,7 +39,7 @@ type ApplicationImpl struct {
 func NewApplication(name string) Application {
 	ctx, cancel := context.WithCancel(context.Background())
 	a := &ApplicationImpl{
-		tasks:  make(chan func()),
+		tasks:  make(chan func(), 1000),
 		ctx:    ctx,
 		cancel: cancel,
 		wg:     &sync.WaitGroup{},
