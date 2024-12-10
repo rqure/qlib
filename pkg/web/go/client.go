@@ -35,6 +35,7 @@ type ClientImpl struct {
 	isClosed       atomic.Bool
 	closeMu        sync.Mutex
 	messageHandler MessageHandler
+	writeMu        sync.Mutex
 }
 
 func NewClient(connection *websocket.Conn, onClose func(string)) Client {
@@ -64,10 +65,16 @@ func (c *ClientImpl) backgroundRead() {
 	defer c.wg.Done()
 
 	for {
+		if c.isClosed.Load() {
+			return
+		}
+
 		t, b, err := c.connection.ReadMessage()
 
 		if err != nil {
-			log.Error("[ClientImpl::backgroundRead] Error reading message: %v", err)
+			if !c.isClosed.Load() {
+				log.Error("[ClientImpl::backgroundRead] Error reading message: %v", err)
+			}
 			return
 		}
 
@@ -87,6 +94,13 @@ func (c *ClientImpl) backgroundRead() {
 }
 
 func (c *ClientImpl) Write(message Message) {
+	if c.isClosed.Load() {
+		return
+	}
+
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
 	b, err := proto.Marshal(message)
 
 	if err != nil {
@@ -102,16 +116,25 @@ func (c *ClientImpl) Write(message Message) {
 }
 
 func (c *ClientImpl) Close() {
+	if c.isClosed.Load() {
+		return
+	}
+
 	c.closeMu.Lock()
-	defer c.closeMu.Unlock()
+	if !c.isClosed.CompareAndSwap(false, true) {
+		c.closeMu.Unlock()
+		return
+	}
+	c.closeMu.Unlock()
 
-	if c.isClosed.CompareAndSwap(false, true) {
-		if err := c.connection.Close(); err != nil {
-			log.Error("[ClientImpl::Close] Error closing connection: %v", err)
-		}
+	if err := c.connection.Close(); err != nil {
+		log.Error("[ClientImpl::Close] Error closing connection: %v", err)
+	}
 
-		close(c.readCh)
-		c.wg.Wait()
+	close(c.readCh)
+	c.wg.Wait()
+
+	if c.onClose != nil {
 		c.onClose(c.id)
 	}
 }
