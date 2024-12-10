@@ -6,38 +6,42 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/protobufs"
 	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
 	web "github.com/rqure/qlib/pkg/web/go"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type RecievePackage struct {
-	Msg web.Message
-	Cli web.Client
-}
-
 type Web struct {
-	ClientConnected    signalslots.Signal[web.Client]
-	ClientDisconnected signalslots.Signal[string]
-	Received           signalslots.Signal[RecievePackage]
+	ClientConnected    signalslots.Signal
+	ClientDisconnected signalslots.Signal
+	Received           signalslots.Signal
 
 	clients        map[string]web.Client
 	addClientCh    chan web.Client
 	removeClientCh chan string
 	addr           string
+
+	handle app.Handle
 }
 
-func NewWebServiceWorker(addr string) *Web {
+func NewWeb(addr string) *Web {
 	return &Web{
-		clients:        make(map[string]web.Client),
-		addClientCh:    make(chan web.Client, 100),
-		removeClientCh: make(chan string, 100),
-		addr:           addr,
+		clients:            make(map[string]web.Client),
+		addClientCh:        make(chan web.Client, 100),
+		removeClientCh:     make(chan string, 100),
+		addr:               addr,
+		ClientConnected:    signal.NewSignal(),
+		ClientDisconnected: signal.NewSignal(),
+		Received:           signal.NewSignal(),
 	}
 }
 
-func (w *Web) Init() {
+func (w *Web) Init(h app.Handle) {
 	// Serve static files from the "static" directory
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./web/css"))))
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./web/img"))))
@@ -46,15 +50,15 @@ func (w *Web) Init() {
 	// Handle WebSocket and other routes
 	http.Handle("/", w)
 
-	Register_web_handler_app()
-	Register_web_handler_server_interactor()
-	Register_web_handler_utils()
-	Register_web_handler_database_interactor()
+	web.Register_web_handler_app()
+	web.Register_web_handler_server()
+	web.Register_web_handler_utils()
+	web.Register_web_handler_store()
 
 	go func() {
 		err := http.ListenAndServe(w.addr, nil)
 		if err != nil {
-			Panic("[WebServiceWorker::Init] HTTP server error: %v", err)
+			log.Panic("[WebServiceWorker::Init] HTTP server error: %v", err)
 		}
 	}()
 }
@@ -63,7 +67,7 @@ func (w *Web) onIndexRequest(wr http.ResponseWriter, _ *http.Request) {
 	index, err := os.ReadFile("web/index.html")
 
 	if err != nil {
-		Error("[WebServiceWorker::onIndexRequest] Error reading index.html: %v", err)
+		log.Error("[WebServiceWorker::onIndexRequest] Error reading index.html: %v", err)
 		return
 	}
 
@@ -80,7 +84,7 @@ func (w *Web) onWSRequest(wr http.ResponseWriter, req *http.Request) {
 
 	conn, err := upgrader.Upgrade(wr, req, nil)
 	if err != nil {
-		Error("[WebServiceWorker::onWSRequest] Error upgrading to WebSocket: %v", err)
+		log.Error("[WebServiceWorker::onWSRequest] Error upgrading to WebSocket: %v", err)
 		return
 	}
 
@@ -112,7 +116,7 @@ func (w *Web) processClientMessages() {
 	for _, client := range w.clients {
 		for {
 			if m := client.Read(); m != nil {
-				w.Signals.Received.Emit(client, m)
+				w.Received.Emit(client, m)
 			} else {
 				break
 			}
@@ -124,12 +128,12 @@ func (w *Web) processClientConnectionEvents() {
 	for {
 		select {
 		case client := <-w.addClientCh:
-			Info("[WebServiceWorker::processClientConnectionEvents] Client connected: %s", client.Id())
+			log.Info("[WebServiceWorker::processClientConnectionEvents] Client connected: %s", client.Id())
 			w.clients[client.Id()] = client
-			w.Signals.ClientConnected.Emit(client)
+			w.ClientConnected.Emit(client)
 		case id := <-w.removeClientCh:
-			Info("[WebServiceWorker::processClientConnectionEvents] Client disconnected: %s", id)
-			w.Signals.ClientDisconnected.Emit(id)
+			log.Info("[WebServiceWorker::processClientConnectionEvents] Client disconnected: %s", id)
+			w.ClientDisconnected.Emit(id)
 			delete(w.clients, id)
 		default:
 			return
@@ -139,8 +143,8 @@ func (w *Web) processClientConnectionEvents() {
 
 func (w *Web) Send(clientId string, p *anypb.Any) {
 	if client, ok := w.clients[clientId]; ok {
-		client.Write(&WebMessage{
-			Header: &WebHeader{
+		client.Write(&protobufs.WebMessage{
+			Header: &protobufs.WebHeader{
 				Id:        uuid.New().String(),
 				Timestamp: timestamppb.Now(),
 			},
@@ -156,7 +160,7 @@ func (w *Web) Broadcast(p *anypb.Any) {
 }
 
 func (w *Web) addClient(conn *websocket.Conn) web.Client {
-	client := NewWebClient(conn, func(id string) {
+	client := web.NewClient(conn, func(id string) {
 		w.removeClientCh <- id
 	})
 

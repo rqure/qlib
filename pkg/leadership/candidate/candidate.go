@@ -12,16 +12,17 @@ import (
 	"github.com/rqure/qlib/pkg/leadership/states"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
 )
 
 const LeaseTimeout = 15 * time.Second
 const MaxCandidates = 5
 
 type Candidate struct {
-	becameLeader      signalslots.Signal[any]
-	losingLeadership  signalslots.Signal[any]
-	becameFollower    signalslots.Signal[any]
-	becameUnavailable signalslots.Signal[any]
+	becameLeader      signalslots.Signal
+	losingLeadership  signalslots.Signal
+	becameFollower    signalslots.Signal
+	becameUnavailable signalslots.Signal
 
 	store data.Store
 
@@ -45,6 +46,10 @@ func New(store data.Store) leadership.Candidate {
 		candidateUpdateTicker: time.NewTicker(LeaseTimeout / 2),
 		leaderAttemptTicker:   time.NewTicker(LeaseTimeout),
 		leaseRenewalTicker:    time.NewTicker(LeaseTimeout / 2),
+		becameLeader:          signal.NewSignal(),
+		losingLeadership:      signal.NewSignal(),
+		becameFollower:        signal.NewSignal(),
+		becameUnavailable:     signal.NewSignal(),
 	}
 
 	return c
@@ -136,19 +141,19 @@ func (c *Candidate) Deinit() {
 	c.leaseRenewalTicker.Stop()
 }
 
-func (c *Candidate) BecameLeader() signalslots.Signal[any] {
+func (c *Candidate) BecameLeader() signalslots.Signal {
 	return c.becameLeader
 }
 
-func (c *Candidate) LosingLeadership() signalslots.Signal[any] {
+func (c *Candidate) LosingLeadership() signalslots.Signal {
 	return c.losingLeadership
 }
 
-func (c *Candidate) BecameFollower() signalslots.Signal[any] {
+func (c *Candidate) BecameFollower() signalslots.Signal {
 	return c.becameFollower
 }
 
-func (c *Candidate) BecameUnavailable() signalslots.Signal[any] {
+func (c *Candidate) BecameUnavailable() signalslots.Signal {
 	return c.becameUnavailable
 }
 

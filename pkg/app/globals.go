@@ -4,10 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"os"
+	"time"
 )
 
 var applicationName string
 var applicationInstanceId string
+
+var tickRate = 100 * time.Millisecond
 
 func GetApplicationName() string {
 	return applicationName
@@ -48,4 +51,12 @@ func randomString() string {
 
 	r := base64.StdEncoding.EncodeToString(randomBytes)
 	return r[:len(r)-1]
+}
+
+func GetTickRate() time.Duration {
+	return tickRate
+}
+
+func SetTickRate(rate time.Duration) {
+	tickRate = rate
 }

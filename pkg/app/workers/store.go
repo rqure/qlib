@@ -8,12 +8,13 @@ import (
 	"github.com/rqure/qlib/pkg/data/notification"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
 )
 
 type Store struct {
-	Connected     signalslots.Signal[any]
-	Disconnected  signalslots.Signal[any]
-	SchemaUpdated signalslots.Signal[any]
+	Connected     signalslots.Signal
+	Disconnected  signalslots.Signal
+	SchemaUpdated signalslots.Signal
 
 	store       data.Store
 	isConnected bool
@@ -26,11 +27,11 @@ type Store struct {
 	handle app.Handle
 }
 
-func NewStoreWorker(store data.Store) *Store {
+func NewStore(store data.Store) *Store {
 	return &Store{
-		Connected:     signalslots.NewSignal[any](),
-		Disconnected:  signalslots.NewSignal[any](),
-		SchemaUpdated: signalslots.NewSignal[any](),
+		Connected:     signal.NewSignal(),
+		Disconnected:  signal.NewSignal(),
+		SchemaUpdated: signal.NewSignal(),
 
 		store:       store,
 		isConnected: false,
@@ -43,9 +44,6 @@ func NewStoreWorker(store data.Store) *Store {
 }
 
 func (w *Store) Init(h app.Handle) {
-	w.handle = h
-
-	go w.DoWork()
 }
 
 func (w *Store) Deinit() {
@@ -54,29 +52,19 @@ func (w *Store) Deinit() {
 }
 
 func (w *Store) DoWork() {
-	w.handle.GetWg().Add(1)
-	defer w.handle.GetWg().Done()
+	select {
+	case <-w.connectionCheckTicker.C:
+		w.setConnectionStatus(w.store.IsConnected())
 
-	for {
-		select {
-		case <-w.handle.GetCtx().Done():
+		if !w.IsConnected() {
+			w.store.Connect()
 			return
-		case <-w.connectionCheckTicker.C:
-			w.handle.Do(func() {
-				w.setConnectionStatus(w.store.IsConnected())
-
-				if !w.IsConnected() {
-					w.store.Connect()
-					return
-				}
-			})
-		case <-w.notificationTicker.C:
-			w.handle.Do(func() {
-				if w.IsConnected() {
-					w.store.ProcessNotifications()
-				}
-			})
 		}
+	case <-w.notificationTicker.C:
+		if w.IsConnected() {
+			w.store.ProcessNotifications()
+		}
+	default:
 	}
 }
 
@@ -95,13 +83,13 @@ func (w *Store) onConnected() {
 			SetFieldName("SchemaUpdateTrigger"),
 		notification.NewCallback(w.OnSchemaUpdated)))
 
-	w.Connected.Emit(nil)
+	w.Connected.Emit()
 }
 
 func (w *Store) onDisconnected() {
 	log.Info("[StoreWorker::onDisconnected] Connection status changed to [DISCONNECTED]")
 
-	w.Disconnected.Emit(nil)
+	w.Disconnected.Emit()
 }
 
 func (w *Store) setConnectionStatus(connected bool) {
@@ -122,5 +110,5 @@ func (w *Store) IsConnected() bool {
 }
 
 func (w *Store) OnSchemaUpdated(data.Notification) {
-	w.SchemaUpdated.Emit(nil)
+	w.SchemaUpdated.Emit()
 }

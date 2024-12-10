@@ -23,10 +23,10 @@ type Candidate interface {
 	SetLeaderAndCandidateFields()
 	DoWork()
 
-	LosingLeadership() signalslots.Signal[any]
-	BecameLeader() signalslots.Signal[any]
-	BecameFollower() signalslots.Signal[any]
-	BecameUnavailable() signalslots.Signal[any]
+	LosingLeadership() signalslots.Signal
+	BecameLeader() signalslots.Signal
+	BecameFollower() signalslots.Signal
+	BecameUnavailable() signalslots.Signal
 
 	CandidateUpdate() <-chan time.Time
 	LeaderAttempt() <-chan time.Time

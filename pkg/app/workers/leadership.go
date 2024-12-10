@@ -1,8 +1,6 @@
 package workers
 
 import (
-	"time"
-
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/leadership"
@@ -12,27 +10,17 @@ import (
 
 // Modify Leadership struct
 type Leadership struct {
-	StoreConnectedSlot    signalslots.Slot[any]
-	StoreDisconnectedSlot signalslots.Slot[any]
-
 	store            data.Store
 	isStoreConnected bool
-
-	handle    app.Handle
-	candidate leadership.Candidate
-
-	ticker *time.Ticker
+	candidate        leadership.Candidate
 }
 
 // Update initialization
-func NewLeaderElectionWorker(store data.Store) *Leadership {
+func NewLeadership(store data.Store) *Leadership {
 	w := &Leadership{
-		StoreConnectedSlot:    signalslots.NewSlot[any](),
-		StoreDisconnectedSlot: signalslots.NewSlot[any](),
-		store:                 store,
-		isStoreConnected:      false,
-		candidate:             candidate.New(store),
-		ticker:                time.NewTicker(100 * time.Millisecond),
+		store:            store,
+		isStoreConnected: false,
+		candidate:        candidate.New(store),
 	}
 
 	return w
@@ -43,8 +31,6 @@ func (w *Leadership) AddAvailabilityCriteria(criteria leadership.AvailabilityCri
 }
 
 func (w *Leadership) Init(h app.Handle) {
-	w.handle = h
-
 	w.candidate.Init()
 
 	w.AddAvailabilityCriteria(func() bool {
@@ -57,25 +43,29 @@ func (w *Leadership) Deinit() {
 }
 
 func (w *Leadership) DoWork() {
-	w.handle.GetWg().Add(1)
-	defer w.handle.GetWg().Done()
+	w.candidate.DoWork()
+}
 
-	for {
-		select {
-		case <-w.handle.GetCtx().Done():
-			return
-		case <-w.ticker.C:
-			w.handle.Do(func() {
-				w.candidate.DoWork()
-			})
-		case <-w.StoreConnectedSlot:
-			w.handle.Do(func() {
-				w.isStoreConnected = !w.isStoreConnected
-			})
-		case <-w.StoreDisconnectedSlot:
-			w.handle.Do(func() {
-				w.isStoreConnected = !w.isStoreConnected
-			})
-		}
-	}
+func (w *Leadership) OnStoreConnected() {
+	w.isStoreConnected = true
+}
+
+func (w *Leadership) OnStoreDisconnected() {
+	w.isStoreConnected = false
+}
+
+func (w *Leadership) BecameLeader() signalslots.Signal {
+	return w.candidate.BecameLeader()
+}
+
+func (w *Leadership) BecameFollower() signalslots.Signal {
+	return w.candidate.BecameFollower()
+}
+
+func (w *Leadership) BecameUnavailable() signalslots.Signal {
+	return w.candidate.BecameUnavailable()
+}
+
+func (w *Leadership) LosingLeadership() signalslots.Signal {
+	return w.candidate.LosingLeadership()
 }

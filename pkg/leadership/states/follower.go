@@ -39,10 +39,10 @@ func (s *Follower) DoWork(c leadership.Candidate) {
 func (s *Follower) OnEnterState(c leadership.Candidate, previousState leadership.State) {
 	wasLeader := previousState != nil && previousState.Name() == LeaderState.String()
 	if wasLeader {
-		c.LosingLeadership().Emit(nil)
+		c.LosingLeadership().Emit()
 	}
 
-	c.BecameFollower().Emit(nil)
+	c.BecameFollower().Emit()
 
 	if c.TryBecomeLeader() {
 		c.SetState(NewLeader())

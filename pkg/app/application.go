@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type Application interface {
@@ -14,14 +15,16 @@ type Application interface {
 }
 
 type Handle interface {
+	DoInMainThread(func())
 	GetCtx() context.Context
-	Do(func())
 	GetWg() *sync.WaitGroup
+	Quit()
 }
 
 type Worker interface {
 	Deinit()
 	Init(Handle)
+	DoWork()
 }
 
 type ApplicationImpl struct {
@@ -30,6 +33,7 @@ type ApplicationImpl struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	wg      *sync.WaitGroup
+	ticker  *time.Ticker
 }
 
 func NewApplication(name string) Application {
@@ -39,6 +43,7 @@ func NewApplication(name string) Application {
 		ctx:    ctx,
 		cancel: cancel,
 		wg:     &sync.WaitGroup{},
+		ticker: time.NewTicker(100 * time.Millisecond),
 	}
 
 	SetApplicationName(name)
@@ -56,6 +61,8 @@ func (a *ApplicationImpl) Init() {
 }
 
 func (a *ApplicationImpl) Deinit() {
+	a.ticker.Stop()
+
 	for _, w := range a.workers {
 		w.Deinit()
 	}
@@ -79,6 +86,10 @@ func (a *ApplicationImpl) Execute() {
 			return
 		case <-interrupt:
 			return
+		case <-a.ticker.C:
+			for _, w := range a.workers {
+				w.DoWork()
+			}
 		case task := <-a.tasks:
 			task()
 		}
@@ -89,10 +100,14 @@ func (a *ApplicationImpl) GetCtx() context.Context {
 	return a.ctx
 }
 
-func (a *ApplicationImpl) Do(t func()) {
+func (a *ApplicationImpl) DoInMainThread(t func()) {
 	go func() { a.tasks <- t }()
 }
 
 func (a *ApplicationImpl) GetWg() *sync.WaitGroup {
 	return a.wg
+}
+
+func (a *ApplicationImpl) Quit() {
+	a.cancel()
 }
