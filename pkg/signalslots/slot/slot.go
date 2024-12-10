@@ -18,10 +18,10 @@ func (s *SlotWrapper) Invoke(args ...interface{}) {
 	s.Fn(args...)
 }
 
-func (s *SlotWithArgs) Invoke(args ...interface{}) {
-	(*s)(args...)
+func (s SlotWithArgs) Invoke(args ...interface{}) {
+	s(args...)
 }
 
-func (s *SlotWithoutArgs) Invoke(args ...interface{}) {
-	(*s)()
+func (s SlotWithoutArgs) Invoke(args ...interface{}) {
+	s()
 }

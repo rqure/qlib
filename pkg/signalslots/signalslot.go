@@ -5,7 +5,7 @@ type Slot interface {
 }
 
 type Signal interface {
-	Connect(Slot)
+	Connect(interface{})
 	Disconnect(Slot)
 	DisconnectAll()
 	Emit(...interface{})

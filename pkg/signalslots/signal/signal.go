@@ -1,6 +1,10 @@
 package signal
 
-import "github.com/rqure/qlib/pkg/signalslots"
+import (
+	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/slot"
+)
 
 type SignalImpl struct {
 	slots []signalslots.Slot
@@ -10,13 +14,22 @@ func NewSignal() signalslots.Signal {
 	return &SignalImpl{}
 }
 
-func (s *SignalImpl) Connect(slot signalslots.Slot) {
-	s.slots = append(s.slots, slot)
+func (s *SignalImpl) Connect(i interface{}) {
+	switch st := i.(type) {
+	case signalslots.Slot:
+		s.slots = append(s.slots, st)
+	case func(...interface{}):
+		s.slots = append(s.slots, slot.SlotWithArgs(st))
+	case func():
+		s.slots = append(s.slots, slot.SlotWithoutArgs(st))
+	default:
+		log.Error("[SignalImpl::Connect] Unknown slot type: %v", i)
+	}
 }
 
-func (s *SignalImpl) Disconnect(slot signalslots.Slot) {
+func (s *SignalImpl) Disconnect(st signalslots.Slot) {
 	for i, v := range s.slots {
-		if v == slot {
+		if v == st {
 			s.slots = append(s.slots[:i], s.slots[i+1:]...)
 			break
 		}
@@ -24,8 +37,8 @@ func (s *SignalImpl) Disconnect(slot signalslots.Slot) {
 }
 
 func (s *SignalImpl) Emit(args ...interface{}) {
-	for _, slot := range s.slots {
-		slot.Invoke(args...)
+	for _, st := range s.slots {
+		st.Invoke(args...)
 	}
 }
 
