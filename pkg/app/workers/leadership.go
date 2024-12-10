@@ -1,36 +1,48 @@
 package workers
 
 import (
+	"time"
+
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/leadership"
 	"github.com/rqure/qlib/pkg/leadership/candidate"
+	"github.com/rqure/qlib/pkg/signalslots"
 )
 
-// Modify LeaderElectionWorker struct
-type LeaderElectionWorker struct {
+// Modify Leadership struct
+type Leadership struct {
+	StoreConnectedSlot    signalslots.Slot[any]
+	StoreDisconnectedSlot signalslots.Slot[any]
+
 	store            data.Store
 	isStoreConnected bool
 
 	handle    app.Handle
 	candidate leadership.Candidate
+
+	ticker *time.Ticker
 }
 
 // Update initialization
-func NewLeaderElectionWorker(store data.Store) *LeaderElectionWorker {
-	w := &LeaderElectionWorker{
-		store:     store,
-		candidate: candidate.New(store),
+func NewLeaderElectionWorker(store data.Store) *Leadership {
+	w := &Leadership{
+		StoreConnectedSlot:    signalslots.NewSlot[any](),
+		StoreDisconnectedSlot: signalslots.NewSlot[any](),
+		store:                 store,
+		isStoreConnected:      false,
+		candidate:             candidate.New(store),
+		ticker:                time.NewTicker(100 * time.Millisecond),
 	}
 
 	return w
 }
 
-func (w *LeaderElectionWorker) AddAvailabilityCriteria(criteria leadership.AvailabilityCriteria) {
+func (w *Leadership) AddAvailabilityCriteria(criteria leadership.AvailabilityCriteria) {
 	w.candidate.AddAvailabilityCriteria(criteria)
 }
 
-func (w *LeaderElectionWorker) Init(h app.Handle) {
+func (w *Leadership) Init(h app.Handle) {
 	w.handle = h
 
 	w.candidate.Init()
@@ -40,22 +52,30 @@ func (w *LeaderElectionWorker) Init(h app.Handle) {
 	})
 }
 
-func (w *LeaderElectionWorker) Deinit() {
+func (w *Leadership) Deinit() {
 	w.candidate.Deinit()
 }
 
-func (w *LeaderElectionWorker) OnDatabaseConnected() {
-	w.isStoreConnected = true
-}
+func (w *Leadership) DoWork() {
+	w.handle.GetWg().Add(1)
+	defer w.handle.GetWg().Done()
 
-func (w *LeaderElectionWorker) OnDatabaseDisconnected() {
-	w.isStoreConnected = false
-}
-
-func (w *LeaderElectionWorker) OnSchemaUpdated() {
-
-}
-
-func (w *LeaderElectionWorker) DoWork() {
-	w.currentState.DoWork(w)
+	for {
+		select {
+		case <-w.handle.GetCtx().Done():
+			return
+		case <-w.ticker.C:
+			w.handle.Do(func() {
+				w.candidate.DoWork()
+			})
+		case <-w.StoreConnectedSlot:
+			w.handle.Do(func() {
+				w.isStoreConnected = !w.isStoreConnected
+			})
+		case <-w.StoreDisconnectedSlot:
+			w.handle.Do(func() {
+				w.isStoreConnected = !w.isStoreConnected
+			})
+		}
+	}
 }

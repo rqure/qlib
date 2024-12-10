@@ -221,3 +221,7 @@ func (c *Candidate) onLosingLeadership() {
 	c.UpdateCandidateStatus(false)
 	c.ClearLeaderAndCandidateFields()
 }
+
+func (c *Candidate) DoWork() {
+	c.currentState.DoWork(c)
+}

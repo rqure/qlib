@@ -21,6 +21,7 @@ type Candidate interface {
 	GetLeaderCandidates() []string
 	SetState(State)
 	SetLeaderAndCandidateFields()
+	DoWork()
 
 	LosingLeadership() signalslots.Signal[any]
 	BecameLeader() signalslots.Signal[any]

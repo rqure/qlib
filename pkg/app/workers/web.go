@@ -6,36 +6,38 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/rqure/qlib/pkg/signalslots"
+	web "github.com/rqure/qlib/pkg/web/go"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type WebServiceWorkerSignals struct {
-	ClientConnected    Signal
-	ClientDisconnected Signal
-	Received           Signal
+type RecievePackage struct {
+	Msg web.Message
+	Cli web.Client
 }
 
-type WebServiceWorker struct {
-	Signals WebServiceWorkerSignals
+type Web struct {
+	ClientConnected    signalslots.Signal[web.Client]
+	ClientDisconnected signalslots.Signal[string]
+	Received           signalslots.Signal[RecievePackage]
 
-	clients        map[string]IWebClient
-	addClientCh    chan IWebClient
+	clients        map[string]web.Client
+	addClientCh    chan web.Client
 	removeClientCh chan string
 	addr           string
 }
 
-func NewWebServiceWorker(addr string) *WebServiceWorker {
-	return &WebServiceWorker{
-		Signals:        WebServiceWorkerSignals{},
-		clients:        make(map[string]IWebClient),
-		addClientCh:    make(chan IWebClient, 100),
+func NewWebServiceWorker(addr string) *Web {
+	return &Web{
+		clients:        make(map[string]web.Client),
+		addClientCh:    make(chan web.Client, 100),
 		removeClientCh: make(chan string, 100),
 		addr:           addr,
 	}
 }
 
-func (w *WebServiceWorker) Init() {
+func (w *Web) Init() {
 	// Serve static files from the "static" directory
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./web/css"))))
 	http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("./web/img"))))
@@ -57,7 +59,7 @@ func (w *WebServiceWorker) Init() {
 	}()
 }
 
-func (w *WebServiceWorker) onIndexRequest(wr http.ResponseWriter, _ *http.Request) {
+func (w *Web) onIndexRequest(wr http.ResponseWriter, _ *http.Request) {
 	index, err := os.ReadFile("web/index.html")
 
 	if err != nil {
@@ -69,7 +71,7 @@ func (w *WebServiceWorker) onIndexRequest(wr http.ResponseWriter, _ *http.Reques
 	wr.Write(index)
 }
 
-func (w *WebServiceWorker) onWSRequest(wr http.ResponseWriter, req *http.Request) {
+func (w *Web) onWSRequest(wr http.ResponseWriter, req *http.Request) {
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
@@ -85,7 +87,7 @@ func (w *WebServiceWorker) onWSRequest(wr http.ResponseWriter, req *http.Request
 	w.addClient(conn)
 }
 
-func (w *WebServiceWorker) ServeHTTP(wr http.ResponseWriter, req *http.Request) {
+func (w *Web) ServeHTTP(wr http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == "/" {
 		w.onIndexRequest(wr, req)
 	} else if req.URL.Path == "/ws" {
@@ -95,18 +97,18 @@ func (w *WebServiceWorker) ServeHTTP(wr http.ResponseWriter, req *http.Request) 
 	}
 }
 
-func (w *WebServiceWorker) Deinit() {
+func (w *Web) Deinit() {
 	for _, client := range w.clients {
 		client.Close()
 	}
 }
 
-func (w *WebServiceWorker) DoWork() {
+func (w *Web) DoWork() {
 	w.processClientConnectionEvents()
 	w.processClientMessages()
 }
 
-func (w *WebServiceWorker) processClientMessages() {
+func (w *Web) processClientMessages() {
 	for _, client := range w.clients {
 		for {
 			if m := client.Read(); m != nil {
@@ -118,7 +120,7 @@ func (w *WebServiceWorker) processClientMessages() {
 	}
 }
 
-func (w *WebServiceWorker) processClientConnectionEvents() {
+func (w *Web) processClientConnectionEvents() {
 	for {
 		select {
 		case client := <-w.addClientCh:
@@ -135,7 +137,7 @@ func (w *WebServiceWorker) processClientConnectionEvents() {
 	}
 }
 
-func (w *WebServiceWorker) Send(clientId string, p *anypb.Any) {
+func (w *Web) Send(clientId string, p *anypb.Any) {
 	if client, ok := w.clients[clientId]; ok {
 		client.Write(&WebMessage{
 			Header: &WebHeader{
@@ -147,13 +149,13 @@ func (w *WebServiceWorker) Send(clientId string, p *anypb.Any) {
 	}
 }
 
-func (w *WebServiceWorker) Broadcast(p *anypb.Any) {
+func (w *Web) Broadcast(p *anypb.Any) {
 	for clientId := range w.clients {
 		w.Send(clientId, p)
 	}
 }
 
-func (w *WebServiceWorker) addClient(conn *websocket.Conn) IWebClient {
+func (w *Web) addClient(conn *websocket.Conn) web.Client {
 	client := NewWebClient(conn, func(id string) {
 		w.removeClientCh <- id
 	})

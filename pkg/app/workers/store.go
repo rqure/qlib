@@ -10,7 +10,7 @@ import (
 	"github.com/rqure/qlib/pkg/signalslots"
 )
 
-type StoreWorker struct {
+type Store struct {
 	Connected     signalslots.Signal[any]
 	Disconnected  signalslots.Signal[any]
 	SchemaUpdated signalslots.Signal[any]
@@ -26,8 +26,8 @@ type StoreWorker struct {
 	handle app.Handle
 }
 
-func NewStoreWorker(store data.Store) *StoreWorker {
-	return &StoreWorker{
+func NewStoreWorker(store data.Store) *Store {
+	return &Store{
 		Connected:     signalslots.NewSignal[any](),
 		Disconnected:  signalslots.NewSignal[any](),
 		SchemaUpdated: signalslots.NewSignal[any](),
@@ -42,18 +42,18 @@ func NewStoreWorker(store data.Store) *StoreWorker {
 	}
 }
 
-func (w *StoreWorker) Init(h app.Handle) {
+func (w *Store) Init(h app.Handle) {
 	w.handle = h
 
 	go w.DoWork()
 }
 
-func (w *StoreWorker) Deinit() {
+func (w *Store) Deinit() {
 	w.connectionCheckTicker.Stop()
 	w.notificationTicker.Stop()
 }
 
-func (w *StoreWorker) DoWork() {
+func (w *Store) DoWork() {
 	w.handle.GetWg().Add(1)
 	defer w.handle.GetWg().Done()
 
@@ -80,7 +80,7 @@ func (w *StoreWorker) DoWork() {
 	}
 }
 
-func (w *StoreWorker) onConnected() {
+func (w *Store) onConnected() {
 	log.Info("[StoreWorker::onConnected] Connection status changed to [CONNECTED]")
 
 	for _, token := range w.notificationTokens {
@@ -98,13 +98,13 @@ func (w *StoreWorker) onConnected() {
 	w.Connected.Emit(nil)
 }
 
-func (w *StoreWorker) onDisconnected() {
+func (w *Store) onDisconnected() {
 	log.Info("[StoreWorker::onDisconnected] Connection status changed to [DISCONNECTED]")
 
 	w.Disconnected.Emit(nil)
 }
 
-func (w *StoreWorker) setConnectionStatus(connected bool) {
+func (w *Store) setConnectionStatus(connected bool) {
 	if w.isConnected == connected {
 		return
 	}
@@ -117,10 +117,10 @@ func (w *StoreWorker) setConnectionStatus(connected bool) {
 	}
 }
 
-func (w *StoreWorker) IsConnected() bool {
+func (w *Store) IsConnected() bool {
 	return w.isConnected
 }
 
-func (w *StoreWorker) OnSchemaUpdated(data.Notification) {
+func (w *Store) OnSchemaUpdated(data.Notification) {
 	w.SchemaUpdated.Emit(nil)
 }
