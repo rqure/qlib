@@ -156,14 +156,6 @@ message WebConfigGetRootResponse {
     string rootId = 1;
 }
 
-message WebConfigGetAllFieldsRequest {
-
-}
-
-message WebConfigGetAllFieldsResponse {
-    repeated string fields = 1;
-}
-
 message WebRuntimeDatabaseRequest {
     enum RequestTypeEnum {
         UNSPECIFIED = 0;

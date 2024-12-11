@@ -50,6 +50,7 @@ func New(store data.Store) leadership.Candidate {
 		losingLeadership:      signal.New(),
 		becameFollower:        signal.New(),
 		becameUnavailable:     signal.New(),
+		currentState:          states.NewUnavailable(),
 	}
 
 	c.becameFollower.Connect(c.onBecameFollower)
@@ -134,8 +135,6 @@ func (c *Candidate) Init() {
 	c.applicationInstanceId = app.GetApplicationInstanceId()
 
 	log.Info("[Candidate::Init] Application instance ID: %s", c.applicationInstanceId)
-
-	c.SetState(states.NewUnavailable())
 }
 
 func (c *Candidate) Deinit() {
