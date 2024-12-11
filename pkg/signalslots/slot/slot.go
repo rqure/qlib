@@ -10,7 +10,7 @@ type SlotWrapper struct {
 	Fn func(...interface{})
 }
 
-func NewSlot(fn func(...interface{})) signalslots.Slot {
+func New(fn func(...interface{})) signalslots.Slot {
 	return &SlotWrapper{Fn: fn}
 }
 

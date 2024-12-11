@@ -92,21 +92,6 @@ message WebConfigGetFieldSchemaResponse {
     DatabaseFieldSchema schema = 2;
 }
 
-message WebConfigSetFieldSchemaRequest {
-    string field = 1;
-    DatabaseFieldSchema schema = 2;
-}
-
-message WebConfigSetFieldSchemaResponse {
-    enum StatusEnum {
-        UNSPECIFIED = 0;
-        SUCCESS = 1;
-        FAILURE = 2;
-    }
-
-    StatusEnum status = 1;
-}
-
 message WebConfigGetEntitySchemaRequest {
     string type = 1;
 }
@@ -123,8 +108,7 @@ message WebConfigGetEntitySchemaResponse {
 }
 
 message WebConfigSetEntitySchemaRequest {
-    string name = 1;
-    repeated string fields = 2;
+    DatabaseEntitySchema schema = 1;
 }
 
 message WebConfigSetEntitySchemaResponse {

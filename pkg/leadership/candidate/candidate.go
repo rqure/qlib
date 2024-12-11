@@ -46,11 +46,16 @@ func New(store data.Store) leadership.Candidate {
 		candidateUpdateTicker: time.NewTicker(LeaseTimeout / 2),
 		leaderAttemptTicker:   time.NewTicker(LeaseTimeout),
 		leaseRenewalTicker:    time.NewTicker(LeaseTimeout / 2),
-		becameLeader:          signal.NewSignal(),
-		losingLeadership:      signal.NewSignal(),
-		becameFollower:        signal.NewSignal(),
-		becameUnavailable:     signal.NewSignal(),
+		becameLeader:          signal.New(),
+		losingLeadership:      signal.New(),
+		becameFollower:        signal.New(),
+		becameUnavailable:     signal.New(),
 	}
+
+	c.becameFollower.Connect(c.onBecameFollower)
+	c.becameLeader.Connect(c.onBecameLeader)
+	c.becameUnavailable.Connect(c.onBecameUnavailable)
+	c.losingLeadership.Connect(c.onLosingLeadership)
 
 	return c
 }

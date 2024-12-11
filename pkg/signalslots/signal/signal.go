@@ -10,7 +10,7 @@ type SignalImpl struct {
 	slots []signalslots.Slot
 }
 
-func NewSignal() signalslots.Signal {
+func New() signalslots.Signal {
 	return &SignalImpl{}
 }
 

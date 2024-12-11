@@ -31,9 +31,9 @@ func NewWeb(addr string) *Web {
 	return &Web{
 		clients:            make(map[string]web.Client),
 		addr:               addr,
-		ClientConnected:    signal.NewSignal(),
-		ClientDisconnected: signal.NewSignal(),
-		Received:           signal.NewSignal(),
+		ClientConnected:    signal.New(),
+		ClientDisconnected: signal.New(),
+		Received:           signal.New(),
 	}
 }
 

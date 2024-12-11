@@ -24,8 +24,8 @@ type Store struct {
 
 func NewStore(store data.Store) *Store {
 	return &Store{
-		Connected:    signal.NewSignal(),
-		Disconnected: signal.NewSignal(),
+		Connected:    signal.New(),
+		Disconnected: signal.New(),
 
 		store:       store,
 		isConnected: false,
