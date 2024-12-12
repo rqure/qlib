@@ -50,7 +50,7 @@ function qPanic(message) {
 function qMessageType(message) {
     for (const key in proto.db) {
         if (message instanceof proto.db[key]) {
-            return "db." + key
+            return "protobufs." + key
         }
     }
 

@@ -300,7 +300,7 @@ class QEntityStore {
 
         const schema = new proto.protobufs.DatabaseFieldSchema();
         schema.setName( fieldName );
-        schema.setType( 'db.' + fieldType );
+        schema.setType( 'protobufs.' + fieldType );
         request.setSchema( schema );
 
         return this._server.send(request, proto.protobufs.WebConfigSetFieldSchemaResponse)
