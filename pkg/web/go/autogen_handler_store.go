@@ -8,7 +8,7 @@ import (
 
 func Register_web_handler_store() {
 
-    http.HandleFunc("/js/db/store.js", func(w http.ResponseWriter, r *http.Request) {
+    http.HandleFunc("/js/qlib/store.js", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/javascript")
         s := `Q_STORE_EVENTS = {
     CONNECTED: "connected",
@@ -312,7 +312,7 @@ class QEntityStore {
 
         const schema = new proto.protobufs.DatabaseFieldSchema();
         schema.setName( fieldName );
-        schema.setType( 'db.' + fieldType );
+        schema.setType( 'protobufs.' + fieldType );
         request.setSchema( schema );
 
         return this._server.send(request, proto.protobufs.WebConfigSetFieldSchemaResponse)

@@ -8,7 +8,7 @@ import (
 
 func Register_web_handler_utils() {
 
-    http.HandleFunc("/js/db/utils.js", func(w http.ResponseWriter, r *http.Request) {
+    http.HandleFunc("/js/qlib/utils.js", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/javascript")
         s := `function uuidv4() {
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
@@ -62,7 +62,7 @@ function qPanic(message) {
 function qMessageType(message) {
     for (const key in proto.db) {
         if (message instanceof proto.db[key]) {
-            return "db." + key
+            return "protobufs." + key
         }
     }
 

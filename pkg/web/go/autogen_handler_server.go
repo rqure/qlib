@@ -8,7 +8,7 @@ import (
 
 func Register_web_handler_server() {
 
-    http.HandleFunc("/js/db/server.js", func(w http.ResponseWriter, r *http.Request) {
+    http.HandleFunc("/js/qlib/server.js", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/javascript")
         s := `Q_SERVER_CONNECTION_STATES = {
     DISCONNECTED: 0,
