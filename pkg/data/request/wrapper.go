@@ -29,6 +29,10 @@ func FromField(f data.Field) data.Request {
 	return New().SetEntityId(f.GetEntityId()).SetFieldName(f.GetFieldName()).SetValue(f.GetValue())
 }
 
+func ToPb(r data.Request) *protobufs.DatabaseRequest {
+	return r.(*Wrapper).impl
+}
+
 func (r *Wrapper) GetEntityId() string {
 	return r.impl.Id
 }

@@ -9,10 +9,11 @@ import (
 	"github.com/rqure/qlib/pkg/data/entity"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/notification"
+	"github.com/rqure/qlib/pkg/data/request"
 	"github.com/rqure/qlib/pkg/data/snapshot"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
-	"github.com/rqure/qlib/pkg/web"
+	web "github.com/rqure/qlib/pkg/web/go"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -306,7 +307,7 @@ func (s *Web) Read(requests ...data.Request) {
 
 	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
 	for i, r := range requests {
-		dbRequests[i] = field.ToRequestPb(r)
+		dbRequests[i] = request.ToPb(r)
 	}
 
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeDatabaseRequest{
@@ -350,7 +351,7 @@ func (s *Web) Write(requests ...data.Request) {
 
 	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
 	for i, r := range requests {
-		dbRequests[i] = field.ToRequestPb(r)
+		dbRequests[i] = request.ToPb(r)
 	}
 
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeDatabaseRequest{
