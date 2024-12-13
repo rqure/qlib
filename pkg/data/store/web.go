@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
@@ -22,13 +23,11 @@ type WebConfig struct {
 }
 
 type Web struct {
-	config             WebConfig
-	client             web.Client
-	callbacks          map[string][]data.NotificationCallback
-	pendingResponses   map[string]chan *protobufs.WebMessage
-	mu                 sync.RWMutex
-	notifications      []data.Notification
-	notificationsMutex sync.Mutex
+	config           WebConfig
+	client           web.Client
+	callbacks        map[string][]data.NotificationCallback
+	pendingResponses map[string]chan *protobufs.WebMessage
+	mu               sync.RWMutex
 }
 
 func NewWeb(config WebConfig) data.Store {
@@ -73,9 +72,7 @@ func (s *Web) IsConnected() bool {
 
 func (s *Web) CreateSnapshot() data.Snapshot {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "create_snapshot",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigCreateSnapshotRequest{})
 
 	response := s.sendAndWait(msg)
@@ -98,9 +95,7 @@ func (s *Web) CreateSnapshot() data.Snapshot {
 
 func (s *Web) RestoreSnapshot(ss data.Snapshot) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "restore_snapshot",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigRestoreSnapshotRequest{
 		Snapshot: snapshot.ToPb(ss),
 	})
@@ -110,9 +105,7 @@ func (s *Web) RestoreSnapshot(ss data.Snapshot) {
 
 func (s *Web) CreateEntity(entityType, parentId, name string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "create_entity",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigCreateEntityRequest{
 		Type:     entityType,
 		ParentId: parentId,
@@ -124,9 +117,7 @@ func (s *Web) CreateEntity(entityType, parentId, name string) {
 
 func (s *Web) GetEntity(entityId string) data.Entity {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "get_entity",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntityRequest{
 		Id: entityId,
 	})
@@ -155,9 +146,7 @@ func (s *Web) SetEntity(e data.Entity) {
 
 func (s *Web) DeleteEntity(entityId string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "delete_entity",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigDeleteEntityRequest{
 		Id: entityId,
 	})
@@ -167,9 +156,7 @@ func (s *Web) DeleteEntity(entityId string) {
 
 func (s *Web) FindEntities(entityType string) []string {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "get_entities",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetEntitiesRequest{
 		EntityType: entityType,
 	})
@@ -194,9 +181,7 @@ func (s *Web) FindEntities(entityType string) []string {
 
 func (s *Web) GetEntityTypes() []string {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "get_entity_types",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntityTypesRequest{})
 
 	response := s.sendAndWait(msg)
@@ -215,9 +200,7 @@ func (s *Web) GetEntityTypes() []string {
 
 func (s *Web) EntityExists(entityId string) bool {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "entity_exists",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeEntityExistsRequest{
 		EntityId: entityId,
 	})
@@ -238,9 +221,7 @@ func (s *Web) EntityExists(entityId string) bool {
 
 func (s *Web) FieldExists(fieldName, entityType string) bool {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "field_exists",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeFieldExistsRequest{
 		FieldName:  fieldName,
 		EntityType: entityType,
@@ -262,9 +243,7 @@ func (s *Web) FieldExists(fieldName, entityType string) bool {
 
 func (s *Web) GetEntitySchema(entityType string) data.EntitySchema {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "get_entity_schema",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntitySchemaRequest{
 		Type: entityType,
 	})
@@ -289,9 +268,7 @@ func (s *Web) GetEntitySchema(entityType string) data.EntitySchema {
 
 func (s *Web) SetEntitySchema(schema data.EntitySchema) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "set_entity_schema",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigSetEntitySchemaRequest{
 		Schema: entity.ToSchemaPb(schema),
 	})
@@ -301,9 +278,7 @@ func (s *Web) SetEntitySchema(schema data.EntitySchema) {
 
 func (s *Web) Read(requests ...data.Request) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "read",
-	}
+	msg.Header = &protobufs.WebHeader{}
 
 	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
 	for i, r := range requests {
@@ -345,9 +320,7 @@ func (s *Web) Read(requests ...data.Request) {
 
 func (s *Web) Write(requests ...data.Request) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "write",
-	}
+	msg.Header = &protobufs.WebHeader{}
 
 	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
 	for i, r := range requests {
@@ -388,19 +361,6 @@ func (s *Web) handleMessage(msg web.Message) {
 		return
 	}
 	s.mu.Unlock()
-
-	// Handle notifications
-	if msg.Header.Id == "notification" {
-		var notif protobufs.DatabaseNotification
-		if err := msg.Payload.UnmarshalTo(&notif); err != nil {
-			log.Error("[Web::handleMessage] Failed to unmarshal notification: %v", err)
-			return
-		}
-
-		s.notificationsMutex.Lock()
-		s.notifications = append(s.notifications, notification.FromPb(&notif))
-		s.notificationsMutex.Unlock()
-	}
 }
 
 func (s *Web) sendAndWait(msg web.Message) web.Message {
@@ -409,10 +369,14 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 		return nil
 	}
 
+	// Generate unique request ID
+	requestId := uuid.New().String()
+	msg.Header.Id = requestId
+
 	responseCh := make(chan web.Message, 1)
 
 	s.mu.Lock()
-	s.pendingResponses[msg.Header.Id] = responseCh
+	s.pendingResponses[requestId] = responseCh
 	s.mu.Unlock()
 
 	s.client.Write(msg)
@@ -421,9 +385,9 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 	case response := <-responseCh:
 		return response
 	case <-time.After(10 * time.Second):
-		log.Error("[Web::sendAndWait] Timeout waiting for response to %v", msg.Header.Id)
+		log.Error("[Web::sendAndWait] Timeout waiting for response to %v", requestId)
 		s.mu.Lock()
-		delete(s.pendingResponses, msg.Header.Id)
+		delete(s.pendingResponses, requestId)
 		s.mu.Unlock()
 		return nil
 	}
@@ -431,9 +395,7 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 
 func (s *Web) Notify(config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "register_notification",
-	}
+	msg.Header = &protobufs.WebHeader{}
 
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeRegisterNotificationRequest{
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
@@ -462,9 +424,7 @@ func (s *Web) Notify(config data.NotificationConfig, cb data.NotificationCallbac
 
 func (s *Web) Unnotify(token string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{
-		Id: "unregister_notification",
-	}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
 	})
@@ -493,15 +453,26 @@ func (s *Web) UnnotifyCallback(token string, cb data.NotificationCallback) {
 }
 
 func (s *Web) ProcessNotifications() {
-	s.notificationsMutex.Lock()
-	notifications := s.notifications
-	s.notifications = nil
-	s.notificationsMutex.Unlock()
+	msg := web.NewMessage()
+	msg.Header = &protobufs.WebHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetNotificationsRequest{})
 
-	for _, n := range notifications {
-		if callbacks, ok := s.callbacks[n.GetToken()]; ok {
+	response := s.sendAndWait(msg)
+	if response == nil {
+		return
+	}
+
+	var resp protobufs.WebRuntimeGetNotificationsResponse
+	if err := response.Payload.UnmarshalTo(&resp); err != nil {
+		log.Error("[Web::ProcessNotifications] Failed to unmarshal response: %v", err)
+		return
+	}
+
+	for _, n := range resp.Notifications {
+		notification := notification.FromPb(n)
+		if callbacks, ok := s.callbacks[notification.GetToken()]; ok {
 			for _, cb := range callbacks {
-				cb.Fn(n)
+				cb.Fn(notification)
 			}
 		}
 	}
@@ -671,5 +642,3 @@ func (s *Web) SortedSetRangeByScoreWithScores(key string, min, max string) []dat
 
 	return members
 }
-
-// ...implement remaining temp and sorted set methods following same pattern...
