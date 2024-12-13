@@ -9,6 +9,13 @@ const (
 	WriteChanges
 )
 
+type MultiBinding interface {
+	Store
+
+	GetEntityById(string) EntityBinding
+	Commit()
+}
+
 type EntityBinding interface {
 	Entity
 
