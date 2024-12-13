@@ -79,6 +79,8 @@ func (w *Leadership) OnStoreConnected() {
 			SetEntityType("Root").
 			SetFieldName("SchemaUpdateTrigger"),
 		notification.NewCallback(w.OnSchemaUpdated)))
+
+	w.OnSchemaUpdated(nil)
 }
 
 func (w *Leadership) OnStoreDisconnected() {

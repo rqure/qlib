@@ -173,19 +173,26 @@ func (c *Candidate) LeaseRenewal() <-chan time.Time {
 	return c.leaseRenewalTicker.C
 }
 
+func (c *Candidate) resetCandidateTicker() {
+	c.candidateUpdateTicker.Reset(LeaseTimeout / 2)
+}
+
 func (c *Candidate) onBecameLeader() {
 	log.Info("[Candidate::onBecameLeader] Became the leader (instanceId=%s)", c.applicationInstanceId)
 	c.UpdateCandidateStatus(true)
+	c.resetCandidateTicker()
 }
 
 func (c *Candidate) onBecameFollower() {
 	log.Info("[Candidate::onBecameFollower] Became a follower (instanceId=%s)", c.applicationInstanceId)
 	c.UpdateCandidateStatus(true)
+	c.resetCandidateTicker()
 }
 
 func (c *Candidate) onBecameUnavailable() {
 	log.Info("[Candidate::onBecameUnavailable] Became unavailable (instanceId=%s)", c.applicationInstanceId)
 	c.UpdateCandidateStatus(false)
+	c.resetCandidateTicker()
 }
 
 func (c *Candidate) SetLeaderAndCandidateFields() {
