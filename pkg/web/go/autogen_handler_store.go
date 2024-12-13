@@ -277,9 +277,12 @@ class QEntityStore {
     }
 
     createOrUpdateEntityType(entityType, entityFields) {
+        const schema = new proto.protobufs.DatabaseEntitySchema();
+        schema.setName(entityType);
+        schema.setFieldsList(entityFields);
+
         const request = new proto.protobufs.WebConfigSetEntitySchemaRequest();
-        request.setName(entityType);
-        request.setFieldsList(entityFields);
+        request.setSchema(schema);
 
         return this._server
             .send(request, proto.protobufs.WebConfigSetEntitySchemaResponse)
