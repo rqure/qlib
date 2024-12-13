@@ -60,8 +60,8 @@ function qPanic(message) {
 }
 
 function qMessageType(message) {
-    for (const key in proto.db) {
-        if (message instanceof proto.db[key]) {
+    for (const key in proto.protobufs) {
+        if (message instanceof proto.protobufs[key]) {
             return "protobufs." + key
         }
     }

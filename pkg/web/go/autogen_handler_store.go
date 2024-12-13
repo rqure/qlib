@@ -246,17 +246,6 @@ class QEntityStore {
             });
     }
 
-    queryAllFields() {
-        return this._server
-            .send(new proto.protobufs.WebConfigGetAllFieldsRequest(), proto.protobufs.WebConfigGetAllFieldsResponse)
-            .then(response => {
-                return {fields: response.getFieldsList()};
-            })
-            .catch(error => {
-                throw new Error(` + "`" + `[QEntityStore::queryAllFields] Failed to get all fields: ${error}` + "`" + `);
-            });
-    }
-
     queryAllEntityTypes() {
         return this._server
             .send(new proto.protobufs.WebConfigGetEntityTypesRequest(), proto.protobufs.WebConfigGetEntityTypesResponse)
@@ -414,8 +403,8 @@ class QEntityStore {
         return this._server
             .send(request, proto.protobufs.WebRuntimeRegisterNotificationResponse)
             .then(response => {
-                if (response.getTokensList().length === 0) {
-                    throw new Error(` + "`" + `[QEntityStore::registerNotification] Could not complete the request: No tokens returned` + "`" + `);
+                if (response.getTokensList().length !== nRequests.length) {
+                    qWarn(` + "`" + `[QEntityStore::registerNotification] Could not complete the request: Got ${response.getTokensList().length} tokens, Expected: ${nRequests.length}` + "`" + `);
                 }
 
                 response.getTokensList().forEach(token => {
