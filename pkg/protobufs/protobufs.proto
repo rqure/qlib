@@ -215,6 +215,99 @@ message WebRuntimeGetEntitiesResponse {
     repeated DatabaseEntity entities = 1;
 }
 
+message WebRuntimeFieldExistsRequest {
+    string fieldName = 1;
+    string entityType = 2;
+}
+
+message WebRuntimeFieldExistsResponse {
+    bool exists = 1;
+}
+
+message WebRuntimeEntityExistsRequest {
+    string entityId = 1;
+}
+
+message WebRuntimeEntityExistsResponse {
+    bool exists = 1;
+}
+
+message WebRuntimeTempSetRequest {
+    string key = 1;
+    string value = 2;
+    int64 expirationMs = 3;
+}
+
+message WebRuntimeTempSetResponse {
+    bool success = 1;
+}
+
+message WebRuntimeTempGetRequest {
+    string key = 1;
+}
+
+message WebRuntimeTempGetResponse {
+    string value = 1;
+}
+
+message WebRuntimeTempExpireRequest {
+    string key = 1;
+    int64 expirationMs = 2;
+}
+
+message WebRuntimeTempExpireResponse {
+}
+
+message WebRuntimeTempDelRequest {
+    string key = 1;
+}
+
+message WebRuntimeTempDelResponse {
+}
+
+message WebRuntimeSortedSetAddRequest {
+    string key = 1;
+    string member = 2;
+    double score = 3;
+}
+
+message WebRuntimeSortedSetAddResponse {
+    int64 result = 1;
+}
+
+message WebRuntimeSortedSetRemoveRequest {
+    string key = 1;
+    string member = 2;
+}
+
+message WebRuntimeSortedSetRemoveResponse {
+    int64 result = 1;
+}
+
+message WebRuntimeSortedSetRemoveRangeByRankRequest {
+    string key = 1;
+    int64 start = 2;
+    int64 stop = 3;
+}
+
+message WebRuntimeSortedSetRemoveRangeByRankResponse {
+    int64 result = 1;
+}
+
+message WebRuntimeSortedSetRangeByScoreWithScoresRequest {
+    string key = 1;
+    string min = 2;
+    string max = 3;
+}
+
+message WebRuntimeSortedSetRangeByScoreWithScoresResponse {
+    message Member {
+        double score = 1;
+        string member = 2;
+    }
+    repeated Member members = 1;
+}
+
 message DatabaseEntity {
     string id = 1;
     string type = 2;
