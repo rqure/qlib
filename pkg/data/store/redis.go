@@ -547,6 +547,11 @@ func (s *Redis) Write(requests ...data.Request) {
 			src := oldReq.GetValue().GetTransformation()
 			s.transformer.Transform(src, req)
 			req.SetValue(oldReq.GetValue())
+		} else if oldReq.IsSuccessful() && req.GetWriteOpt() == data.WriteChanges {
+			if proto.Equal(field.ToAnyPb(oldReq.GetValue()), field.ToAnyPb(req.GetValue())) {
+				req.SetSuccessful(true)
+				continue
+			}
 		}
 
 		p := field.ToFieldPb(field.FromRequest(req))

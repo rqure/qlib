@@ -2,6 +2,13 @@ package data
 
 import "time"
 
+type WriteOpt int
+
+const (
+	WriteNormal WriteOpt = iota
+	WriteChanges
+)
+
 type Request interface {
 	GetEntityId() string
 	GetFieldName() string
@@ -16,4 +23,7 @@ type Request interface {
 	SetWriter(*string) Request
 	SetValue(Value) Request
 	SetSuccessful(bool) Request
+
+	GetWriteOpt() WriteOpt
+	SetWriteOpt(WriteOpt) Request
 }

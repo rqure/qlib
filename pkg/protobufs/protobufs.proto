@@ -258,12 +258,18 @@ message DatabaseFieldSchema {
 }
 
 message DatabaseRequest {
+    enum WriteOptEnum {
+        WRITE_NORMAL = 0;
+        WRITE_CHANGES = 1;
+    }
+
     string id = 1;
     string field = 2;
     google.protobuf.Any value = 3;
     Timestamp writeTime = 4;
     String writerId = 5;
     bool success = 6;
+    WriteOptEnum writeOpt = 7;
 }
 
 message DatabaseSnapshot {

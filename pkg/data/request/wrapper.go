@@ -111,3 +111,22 @@ func (r *Wrapper) SetValue(v data.Value) data.Request {
 	r.impl.Value = field.ToAnyPb(v)
 	return r
 }
+
+func (r *Wrapper) GetWriteOpt() data.WriteOpt {
+	switch r.impl.WriteOpt {
+	case protobufs.DatabaseRequest_WRITE_CHANGES:
+		return data.WriteChanges
+	default:
+		return data.WriteNormal
+	}
+}
+
+func (r *Wrapper) SetWriteOpt(opt data.WriteOpt) data.Request {
+	switch opt {
+	case data.WriteChanges:
+		r.impl.WriteOpt = protobufs.DatabaseRequest_WRITE_CHANGES
+	default:
+		r.impl.WriteOpt = protobufs.DatabaseRequest_WRITE_NORMAL
+	}
+	return r
+}

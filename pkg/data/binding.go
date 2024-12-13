@@ -2,13 +2,6 @@ package data
 
 import "time"
 
-type WriteOpt int
-
-const (
-	WriteNormal WriteOpt = iota
-	WriteChanges
-)
-
 type MultiBinding interface {
 	Store
 

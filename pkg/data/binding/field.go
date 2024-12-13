@@ -6,7 +6,6 @@ import (
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/request"
-	"github.com/rqure/qlib/pkg/log"
 )
 
 type Field struct {
@@ -51,312 +50,240 @@ func (b *Field) WriteValue(v data.Value) data.FieldBinding {
 
 func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetInt(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadInt() == b.GetValue().GetInt() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteInt] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteInt] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetFloat(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadFloat() == b.GetValue().GetFloat() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteFloat] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteFloat] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetString(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadString() == b.GetValue().GetString() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteString] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteString] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetBool(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadBool() == b.GetValue().GetBool() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteBool] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteBool] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetBinaryFile(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadBinaryFile() == b.GetValue().GetBinaryFile() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteBinaryFile] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteBinaryFile] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetEntityReference(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadEntityReference() == b.GetValue().GetEntityReference() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteEntityReference] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteEntityReference] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetTimestamp(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadTimestamp() == b.GetValue().GetTimestamp() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteTimestamp] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteTimestamp] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
 
 func (b *Field) WriteTransformation(args ...interface{}) data.FieldBinding {
 	v := args[0]
-
 	b.req.SetValue(field.NewValue().SetTransformation(v))
 
 	if len(args) > 1 {
-		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
-
-		if writeChanges && b.ReadTransformation() == b.GetValue().GetTransformation() {
-			return b
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
-		wt, ok := args[2].(time.Time)
-		if ok {
+		if wt, ok := args[2].(time.Time); ok {
 			b.req.SetWriteTime(&wt)
-		} else {
-			log.Error("[Binding::WriteTransformation] Invalid write time: %v", args[2])
 		}
 	}
 
 	if len(args) > 3 {
-		writer, ok := args[3].(string)
-		if ok {
+		if writer, ok := args[3].(string); ok {
 			b.req.SetWriter(&writer)
-		} else {
-			log.Error("[Binding::WriteTransformation] Invalid writer: %v", args[3])
 		}
 	}
 
 	b.store.Write(b.req)
 
-	// Clear write time and writer for future use
-	b.req.SetWriteTime(nil).SetWriter(nil)
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
 	return b
 }
