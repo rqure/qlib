@@ -731,6 +731,7 @@ goog.exportSymbol('proto.protobufs.DatabaseFieldSchema', null, global);
 goog.exportSymbol('proto.protobufs.DatabaseNotification', null, global);
 goog.exportSymbol('proto.protobufs.DatabaseNotificationConfig', null, global);
 goog.exportSymbol('proto.protobufs.DatabaseRequest', null, global);
+goog.exportSymbol('proto.protobufs.DatabaseRequest.WriteOptEnum', null, global);
 goog.exportSymbol('proto.protobufs.DatabaseSnapshot', null, global);
 goog.exportSymbol('proto.protobufs.EntityReference', null, global);
 goog.exportSymbol('proto.protobufs.Float', null, global);
@@ -8555,7 +8556,8 @@ field: jspb.Message.getFieldWithDefault(msg, 2, ""),
 value: (f = msg.getValue()) && google_protobuf_any_pb.Any.toObject(includeInstance, f),
 writetime: (f = msg.getWritetime()) && proto.protobufs.Timestamp.toObject(includeInstance, f),
 writerid: (f = msg.getWriterid()) && proto.protobufs.String.toObject(includeInstance, f),
-success: jspb.Message.getBooleanFieldWithDefault(msg, 6, false)
+success: jspb.Message.getBooleanFieldWithDefault(msg, 6, false),
+writeopt: jspb.Message.getFieldWithDefault(msg, 7, 0)
   };
 
   if (includeInstance) {
@@ -8618,6 +8620,10 @@ proto.protobufs.DatabaseRequest.deserializeBinaryFromReader = function(msg, read
     case 6:
       var value = /** @type {boolean} */ (reader.readBool());
       msg.setSuccess(value);
+      break;
+    case 7:
+      var value = /** @type {!proto.protobufs.DatabaseRequest.WriteOptEnum} */ (reader.readEnum());
+      msg.setWriteopt(value);
       break;
     default:
       reader.skipField();
@@ -8693,8 +8699,23 @@ proto.protobufs.DatabaseRequest.serializeBinaryToWriter = function(message, writ
       f
     );
   }
+  f = message.getWriteopt();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      7,
+      f
+    );
+  }
 };
 
+
+/**
+ * @enum {number}
+ */
+proto.protobufs.DatabaseRequest.WriteOptEnum = {
+  WRITE_NORMAL: 0,
+  WRITE_CHANGES: 1
+};
 
 /**
  * optional string id = 1;
@@ -8858,6 +8879,24 @@ proto.protobufs.DatabaseRequest.prototype.getSuccess = function() {
  */
 proto.protobufs.DatabaseRequest.prototype.setSuccess = function(value) {
   return jspb.Message.setProto3BooleanField(this, 6, value);
+};
+
+
+/**
+ * optional WriteOptEnum writeOpt = 7;
+ * @return {!proto.protobufs.DatabaseRequest.WriteOptEnum}
+ */
+proto.protobufs.DatabaseRequest.prototype.getWriteopt = function() {
+  return /** @type {!proto.protobufs.DatabaseRequest.WriteOptEnum} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
+};
+
+
+/**
+ * @param {!proto.protobufs.DatabaseRequest.WriteOptEnum} value
+ * @return {!proto.protobufs.DatabaseRequest} returns this
+ */
+proto.protobufs.DatabaseRequest.prototype.setWriteopt = function(value) {
+  return jspb.Message.setProto3EnumField(this, 7, value);
 };
 
 
