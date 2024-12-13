@@ -478,6 +478,13 @@ class QEntityStore {
             dr.setId(r.id);
             dr.setField(r.field);
             dr.setValue(r.value);
+            
+            // Convert boolean writeChanges to enum
+            if (r.writeChanges === true) {
+                dr.setWriteopt(proto.protobufs.DatabaseRequest.WriteOptEnum.WRITE_CHANGES);
+            } else {
+                dr.setWriteopt(proto.protobufs.DatabaseRequest.WriteOptEnum.WRITE_NORMAL);
+            }
 
             return dr;
         }));
