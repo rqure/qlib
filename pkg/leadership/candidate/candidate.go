@@ -7,6 +7,7 @@ import (
 
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/data/binding"
 	"github.com/rqure/qlib/pkg/data/query"
 	"github.com/rqure/qlib/pkg/leadership"
 	"github.com/rqure/qlib/pkg/leadership/states"
@@ -203,11 +204,16 @@ func (c *Candidate) SetLeaderAndCandidateFields() {
 
 	candidates := c.GetLeaderCandidates()
 
+	multi := binding.NewMulti(c.store)
+
 	for _, service := range services {
-		service.GetField("Leader").WriteString(c.applicationInstanceId, data.WriteChanges)
-		service.GetField("Candidates").WriteString(strings.Join(candidates, ","), data.WriteChanges)
-		service.GetField("HeartbeatTrigger").WriteInt(0)
+		s := multi.GetEntityById(service.GetId())
+		s.GetField("Leader").WriteString(c.applicationInstanceId, data.WriteChanges)
+		s.GetField("Candidates").WriteString(strings.Join(candidates, ","), data.WriteChanges)
+		s.GetField("HeartbeatTrigger").WriteInt(0)
 	}
+
+	multi.Commit()
 }
 
 func (c *Candidate) ClearLeaderAndCandidateFields() {
