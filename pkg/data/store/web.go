@@ -16,6 +16,7 @@ import (
 	"github.com/rqure/qlib/pkg/protobufs"
 	web "github.com/rqure/qlib/pkg/web/go"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type WebConfig struct {
@@ -372,6 +373,7 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 	// Generate unique request ID
 	requestId := uuid.New().String()
 	msg.Header.Id = requestId
+	msg.Header.Timestamp = timestamppb.Now()
 
 	responseCh := make(chan web.Message, 1)
 
@@ -481,7 +483,7 @@ func (s *Web) ProcessNotifications() {
 // Implement remaining data.Store interface methods for temp storage and sorted sets
 func (s *Web) TempSet(key, value string, expiration time.Duration) bool {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "temp_set"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempSetRequest{
 		Key:          key,
 		Value:        value,
@@ -504,7 +506,7 @@ func (s *Web) TempSet(key, value string, expiration time.Duration) bool {
 
 func (s *Web) TempGet(key string) string {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "temp_get"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempGetRequest{
 		Key: key,
 	})
@@ -525,7 +527,7 @@ func (s *Web) TempGet(key string) string {
 
 func (s *Web) TempExpire(key string, expiration time.Duration) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "temp_expire"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempExpireRequest{
 		Key:          key,
 		ExpirationMs: expiration.Milliseconds(),
@@ -536,7 +538,7 @@ func (s *Web) TempExpire(key string, expiration time.Duration) {
 
 func (s *Web) TempDel(key string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "temp_del"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempDelRequest{
 		Key: key,
 	})
@@ -546,7 +548,7 @@ func (s *Web) TempDel(key string) {
 
 func (s *Web) SortedSetAdd(key string, member string, score float64) int64 {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "sorted_set_add"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetAddRequest{
 		Key:    key,
 		Member: member,
@@ -569,7 +571,7 @@ func (s *Web) SortedSetAdd(key string, member string, score float64) int64 {
 
 func (s *Web) SortedSetRemove(key string, member string) int64 {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "sorted_set_remove"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetRemoveRequest{
 		Key:    key,
 		Member: member,
@@ -591,7 +593,7 @@ func (s *Web) SortedSetRemove(key string, member string) int64 {
 
 func (s *Web) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "sorted_set_remove_range_by_rank"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetRemoveRangeByRankRequest{
 		Key:   key,
 		Start: start,
@@ -614,7 +616,7 @@ func (s *Web) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 
 func (s *Web) SortedSetRangeByScoreWithScores(key string, min, max string) []data.SortedSetMember {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{Id: "sorted_set_range_by_score_with_scores"}
+	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetRangeByScoreWithScoresRequest{
 		Key: key,
 		Min: min,
