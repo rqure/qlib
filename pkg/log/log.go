@@ -2,9 +2,10 @@ package log
 
 import (
 	"fmt"
+	"path"
+	"runtime"
 	"time"
 
-	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -19,6 +20,20 @@ func GetLogLevel() int {
 	return currentLogLevel
 }
 
+func getCallerInfo(skip int) string {
+	pc, file, line, ok := runtime.Caller(skip)
+	if !ok {
+		return "unknown"
+	}
+
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		return fmt.Sprintf("%s:%d", path.Base(file), line)
+	}
+
+	return fmt.Sprintf("%s:%d %s", path.Base(file), line, path.Base(fn.Name()))
+}
+
 func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
 	if int(level) < currentLogLevel {
 		return
@@ -28,10 +43,15 @@ func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interf
 		Level:       level,
 		Message:     fmt.Sprintf(message, args...),
 		Timestamp:   timestamppb.Now(),
-		Application: app.GetApplicationName(),
+		Application: getCallerInfo(3),
 	}
 
-	fmt.Printf("%s | %s | %s | %s\n", logMsg.Timestamp.AsTime().Local().Format(time.RFC3339Nano), logMsg.Application, logMsg.Level.String(), Truncate(logMsg.Message, 1024))
+	// skip runtime.Caller + Log + helper function (Trace/Debug/etc)
+	fmt.Printf("%s | %s | %s | %s\n",
+		logMsg.Timestamp.AsTime().Local().Format(time.RFC3339Nano),
+		logMsg.Level.String(),
+		logMsg.Application,
+		Truncate(logMsg.Message, 1024))
 }
 
 func Trace(message string, args ...interface{}) {
