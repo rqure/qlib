@@ -214,7 +214,14 @@ func (tf *TengoField) WriteInt(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	tf.b.WriteInt(i)
+	writeOpts := []interface{}{i}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteInt(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
 
@@ -232,7 +239,14 @@ func (tf *TengoField) WriteFloat(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	tf.b.WriteFloat(f)
+	writeOpts := []interface{}{f}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteFloat(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
 
@@ -250,7 +264,14 @@ func (tf *TengoField) WriteString(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	tf.b.WriteString(s)
+	writeOpts := []interface{}{s}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteString(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
 
@@ -268,7 +289,14 @@ func (tf *TengoField) WriteBool(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	tf.b.WriteBool(b)
+	writeOpts := []interface{}{b}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteBool(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
 
@@ -286,7 +314,14 @@ func (tf *TengoField) WriteBinaryFile(args ...tengo.Object) (tengo.Object, error
 		}
 	}
 
-	tf.b.WriteBinaryFile(b)
+	writeOpts := []interface{}{b}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteBinaryFile(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
 
@@ -304,7 +339,14 @@ func (tf *TengoField) WriteEntityReference(args ...tengo.Object) (tengo.Object, 
 		}
 	}
 
-	tf.b.WriteEntityReference(e)
+	writeOpts := []interface{}{e}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteEntityReference(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
 
@@ -322,6 +364,13 @@ func (tf *TengoField) WriteTimestamp(args ...tengo.Object) (tengo.Object, error)
 		}
 	}
 
-	tf.b.WriteTimestamp(t)
+	writeOpts := []interface{}{t}
+	if len(args) > 1 {
+		if opt, ok := args[1].(*tengo.Int); ok {
+			writeOpts = append(writeOpts, data.WriteOpt(opt.Value))
+		}
+	}
+
+	tf.b.WriteTimestamp(writeOpts...)
 	return tengo.UndefinedValue, nil
 }
