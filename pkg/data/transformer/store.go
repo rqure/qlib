@@ -7,6 +7,7 @@ import (
 
 	"github.com/d5/tengo/v2"
 	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/data/binding"
 )
 
 type TengoStore struct {
@@ -40,6 +41,10 @@ func (ts *TengoStore) ToTengoMap() tengo.Object {
 			"schedule": &tengo.UserFunction{
 				Name:  "schedule",
 				Value: ts.Schedule,
+			},
+			"getMulti": &tengo.UserFunction{
+				Name:  "getMulti",
+				Value: ts.GetMulti,
 			},
 		},
 	}
@@ -156,4 +161,10 @@ func (ts *TengoStore) PopAvailableJobs() []*Job {
 	}
 
 	return availableJobs
+}
+
+// Add this new method
+func (ts *TengoStore) GetMulti(...tengo.Object) (tengo.Object, error) {
+	multi := binding.NewMulti(ts.impl)
+	return NewTengoMulti(multi).ToTengoMap(), nil
 }
