@@ -52,7 +52,7 @@ func (b *Field) WriteValue(v data.Value) data.FieldBinding {
 func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetInt(v)
+	b.req.SetValue(field.NewValue().SetInt(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -91,7 +91,7 @@ func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetFloat(v)
+	b.req.SetValue(field.NewValue().SetFloat(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -130,7 +130,7 @@ func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetString(v)
+	b.req.SetValue(field.NewValue().SetString(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -169,7 +169,7 @@ func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetBool(v)
+	b.req.SetValue(field.NewValue().SetBool(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -208,7 +208,7 @@ func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetBinaryFile(v)
+	b.req.SetValue(field.NewValue().SetBinaryFile(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -247,7 +247,7 @@ func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetEntityReference(v)
+	b.req.SetValue(field.NewValue().SetEntityReference(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -286,7 +286,7 @@ func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetTimestamp(v)
+	b.req.SetValue(field.NewValue().SetTimestamp(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges
@@ -325,7 +325,7 @@ func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
 func (b *Field) WriteTransformation(args ...interface{}) data.FieldBinding {
 	v := args[0]
 
-	b.req.GetValue().SetTransformation(v)
+	b.req.SetValue(field.NewValue().SetTransformation(v))
 
 	if len(args) > 1 {
 		writeChanges := args[1].(data.WriteOpt) == data.WriteChanges

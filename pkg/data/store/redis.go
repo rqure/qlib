@@ -393,6 +393,8 @@ func (s *Redis) SetEntitySchema(newSchema data.EntitySchema) {
 	}
 
 	oldSchema := s.GetEntitySchema(newSchema.GetType())
+	s.client.Set(context.Background(), s.keygen.GetEntitySchemaKey(newSchema.GetType()), base64.StdEncoding.EncodeToString(b), 0)
+
 	if oldSchema != nil {
 		removedFields := []string{}
 		newFields := []string{}
@@ -420,8 +422,6 @@ func (s *Redis) SetEntitySchema(newSchema data.EntitySchema) {
 			}
 		}
 	}
-
-	s.client.Set(context.Background(), s.keygen.GetEntitySchemaKey(newSchema.GetType()), base64.StdEncoding.EncodeToString(b), 0)
 }
 
 func (s *Redis) Read(requests ...data.Request) {
