@@ -132,7 +132,7 @@ func (c *Candidate) AddAvailabilityCriteria(criteria leadership.AvailabilityCrit
 }
 
 func (c *Candidate) Init() {
-	c.applicationName = app.GetApplicationName()
+	c.applicationName = app.GetName()
 	c.applicationInstanceId = app.GetApplicationInstanceId()
 
 	log.Info("[Candidate::Init] Application instance ID: %s", c.applicationInstanceId)

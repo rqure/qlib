@@ -10,14 +10,44 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var currentLogLevel int
+type Level int
 
-func SetLogLevel(level int) {
-	currentLogLevel = level
+const (
+	TRACE Level = iota
+	DEBUG
+	INFO
+	WARN
+	ERROR
+	PANIC
+)
+
+var currentLogLevel int = int(TRACE)
+
+func (l Level) String() string {
+	switch l {
+	case TRACE:
+		return "TRACE"
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARN:
+		return "WARN"
+	case ERROR:
+		return "ERROR"
+	case PANIC:
+		return "PANIC"
+	default:
+		return "UNKNOWN"
+	}
 }
 
-func GetLogLevel() int {
-	return currentLogLevel
+func SetLevel(level Level) {
+	currentLogLevel = int(level)
+}
+
+func GetLevel() Level {
+	return Level(currentLogLevel)
 }
 
 func getCallerInfo(skip int) string {

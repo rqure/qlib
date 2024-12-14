@@ -46,7 +46,8 @@ func NewApplication(name string) Application {
 		ticker: time.NewTicker(100 * time.Millisecond),
 	}
 
-	SetApplicationName(name)
+	SetName(name)
+
 	return a
 }
 

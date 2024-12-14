@@ -977,5 +977,5 @@ func (s *Redis) SortedSetRangeByScoreWithScores(key string, min, max string) []d
 }
 
 func (s *Redis) getServiceId() string {
-	return app.GetApplicationName()
+	return app.GetName()
 }

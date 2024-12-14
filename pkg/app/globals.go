@@ -12,11 +12,11 @@ var applicationInstanceId string
 
 var tickRate = 100 * time.Millisecond
 
-func GetApplicationName() string {
+func GetName() string {
 	return applicationName
 }
 
-func SetApplicationName(name string) {
+func SetName(name string) {
 	applicationName = name
 }
 
