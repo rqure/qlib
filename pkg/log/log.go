@@ -59,10 +59,10 @@ func getCallerInfo(skip int) string {
 
 	fn := runtime.FuncForPC(pc)
 	if fn == nil {
-		return fmt.Sprintf("%s:%d", path.Base(file), line)
+		return fmt.Sprintf("%s:%d", file, line)
 	}
 
-	return fmt.Sprintf("%s:%d %s", path.Base(file), line, path.Base(fn.Name()))
+	return fmt.Sprintf("%s:%d %s", file, line, path.Base(fn.Name()))
 }
 
 func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
