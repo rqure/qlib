@@ -110,3 +110,7 @@ func (w *Leadership) OnSchemaUpdated(data.Notification) {
 		w.isStoreValid = false
 	}
 }
+
+func (w *Leadership) GetEntityFieldValidator() data.EntityFieldValidator {
+	return w.storeValidator
+}

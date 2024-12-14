@@ -13,9 +13,8 @@ import (
 )
 
 type Store struct {
-	Connected     signalslots.Signal
-	Disconnected  signalslots.Signal
-	SchemaUpdated signalslots.Signal
+	Connected    signalslots.Signal
+	Disconnected signalslots.Signal
 
 	store       data.Store
 	isConnected bool
