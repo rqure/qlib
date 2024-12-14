@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
 	"github.com/rqure/qlib/pkg/data/field"
@@ -384,6 +385,9 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 	s.client.Write(msg)
 
 	select {
+	case <-app.GetCtx().Done():
+		log.Warn("Context done")
+		return nil
 	case response := <-responseCh:
 		return response
 	case <-time.After(10 * time.Second):

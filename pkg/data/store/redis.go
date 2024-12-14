@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -112,7 +111,7 @@ func (s *Redis) Disconnect() {
 }
 
 func (s *Redis) IsConnected() bool {
-	return s.client != nil && s.client.Ping(context.Background()).Err() == nil
+	return s.client != nil && s.client.Ping(app.GetCtx()).Err() == nil
 }
 
 func (s *Redis) CreateSnapshot() data.Snapshot {
@@ -149,7 +148,7 @@ func (s *Redis) CreateSnapshot() data.Snapshot {
 func (s *Redis) RestoreSnapshot(ss data.Snapshot) {
 	log.Info("Restoring snapshot...")
 
-	err := s.client.FlushDB(context.Background()).Err()
+	err := s.client.FlushDB(app.GetCtx()).Err()
 	if err != nil {
 		log.Error("Failed to flush database: %v", err)
 		return
@@ -162,7 +161,7 @@ func (s *Redis) RestoreSnapshot(ss data.Snapshot) {
 
 	for _, e := range ss.GetEntities() {
 		s.SetEntity(e)
-		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeKey(e.GetType()), e.GetId())
+		s.client.SAdd(app.GetCtx(), s.keygen.GetEntityTypeKey(e.GetType()), e.GetId())
 		log.Debug("Restored entity: %v", e)
 	}
 
@@ -206,8 +205,8 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 		return
 	}
 
-	s.client.SAdd(context.Background(), s.keygen.GetEntityTypeKey(entityType), entityId)
-	s.client.Set(context.Background(), s.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0)
+	s.client.SAdd(app.GetCtx(), s.keygen.GetEntityTypeKey(entityType), entityId)
+	s.client.Set(app.GetCtx(), s.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0)
 
 	if parentId != "" {
 		parent := s.GetEntity(parentId)
@@ -221,7 +220,7 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 }
 
 func (s *Redis) GetEntity(entityId string) data.Entity {
-	e, err := s.client.Get(context.Background(), s.keygen.GetEntityKey(entityId)).Result()
+	e, err := s.client.Get(app.GetCtx(), s.keygen.GetEntityKey(entityId)).Result()
 	if err != nil {
 		log.Error("Failed to get entity: %v", err)
 		return nil
@@ -250,7 +249,7 @@ func (s *Redis) SetEntity(e data.Entity) {
 		return
 	}
 
-	err = s.client.Set(context.Background(), s.keygen.GetEntityKey(e.GetId()), base64.StdEncoding.EncodeToString(b), 0).Err()
+	err = s.client.Set(app.GetCtx(), s.keygen.GetEntityKey(e.GetId()), base64.StdEncoding.EncodeToString(b), 0).Err()
 	if err != nil {
 		log.Error("Failed to set entity '%s': %v", e.GetId(), err)
 		return
@@ -275,19 +274,19 @@ func (s *Redis) DeleteEntity(entityId string) {
 	}
 
 	for _, fieldName := range s.GetEntitySchema(e.GetType()).GetFieldNames() {
-		s.client.Del(context.Background(), s.keygen.GetFieldKey(fieldName, entityId))
+		s.client.Del(app.GetCtx(), s.keygen.GetFieldKey(fieldName, entityId))
 	}
 
-	s.client.SRem(context.Background(), s.keygen.GetEntityTypeKey(e.GetType()), entityId)
-	s.client.Del(context.Background(), s.keygen.GetEntityKey(entityId))
+	s.client.SRem(app.GetCtx(), s.keygen.GetEntityTypeKey(e.GetType()), entityId)
+	s.client.Del(app.GetCtx(), s.keygen.GetEntityKey(entityId))
 }
 
 func (s *Redis) FindEntities(entityType string) []string {
-	return s.client.SMembers(context.Background(), s.keygen.GetEntityTypeKey(entityType)).Val()
+	return s.client.SMembers(app.GetCtx(), s.keygen.GetEntityTypeKey(entityType)).Val()
 }
 
 func (s *Redis) EntityExists(entityId string) bool {
-	e, err := s.client.Get(context.Background(), s.keygen.GetEntityKey(entityId)).Result()
+	e, err := s.client.Get(app.GetCtx(), s.keygen.GetEntityKey(entityId)).Result()
 	if err != nil {
 		return false
 	}
@@ -352,10 +351,10 @@ func (s *Redis) SetFieldSchema(entityType, fieldName string, value data.FieldSch
 }
 
 func (s *Redis) GetEntityTypes() []string {
-	it := s.client.Scan(context.Background(), 0, s.keygen.GetEntitySchemaKey("*"), 0).Iterator()
+	it := s.client.Scan(app.GetCtx(), 0, s.keygen.GetEntitySchemaKey("*"), 0).Iterator()
 	types := []string{}
 
-	for it.Next(context.Background()) {
+	for it.Next(app.GetCtx()) {
 		types = append(types, strings.ReplaceAll(it.Val(), s.keygen.GetEntitySchemaKey(""), ""))
 	}
 
@@ -363,7 +362,7 @@ func (s *Redis) GetEntityTypes() []string {
 }
 
 func (s *Redis) GetEntitySchema(entityType string) data.EntitySchema {
-	e, err := s.client.Get(context.Background(), s.keygen.GetEntitySchemaKey(entityType)).Result()
+	e, err := s.client.Get(app.GetCtx(), s.keygen.GetEntitySchemaKey(entityType)).Result()
 	if err != nil {
 		log.Error("Failed to get entity schema (%v): %v", entityType, err)
 		return nil
@@ -393,7 +392,7 @@ func (s *Redis) SetEntitySchema(newSchema data.EntitySchema) {
 	}
 
 	oldSchema := s.GetEntitySchema(newSchema.GetType())
-	s.client.Set(context.Background(), s.keygen.GetEntitySchemaKey(newSchema.GetType()), base64.StdEncoding.EncodeToString(b), 0)
+	s.client.Set(app.GetCtx(), s.keygen.GetEntitySchemaKey(newSchema.GetType()), base64.StdEncoding.EncodeToString(b), 0)
 
 	if oldSchema != nil {
 		removedFields := []string{}
@@ -413,7 +412,7 @@ func (s *Redis) SetEntitySchema(newSchema data.EntitySchema) {
 
 		for _, entityId := range s.FindEntities(newSchema.GetType()) {
 			for _, field := range removedFields {
-				s.client.Del(context.Background(), s.keygen.GetFieldKey(field, entityId))
+				s.client.Del(app.GetCtx(), s.keygen.GetFieldKey(field, entityId))
 			}
 
 			for _, field := range newFields {
@@ -435,7 +434,7 @@ func (s *Redis) Read(requests ...data.Request) {
 			continue
 		}
 
-		e, err := s.client.Get(context.Background(), s.keygen.GetFieldKey(indirectField, indirectEntity)).Result()
+		e, err := s.client.Get(app.GetCtx(), s.keygen.GetFieldKey(indirectField, indirectEntity)).Result()
 		if err != nil {
 			if err != redis.Nil {
 				log.Error("Failed to read field: %v", err)
@@ -565,7 +564,7 @@ func (s *Redis) Write(requests ...data.Request) {
 		p.Id = indirectEntity
 		p.Name = indirectField
 
-		_, err = s.client.Set(context.Background(), s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
+		_, err = s.client.Set(app.GetCtx(), s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
 
 		// Notify listeners of the change
 		s.triggerNotifications(req, oldReq)
@@ -592,7 +591,7 @@ func (s *Redis) Notify(nc data.NotificationConfig, cb data.NotificationCallback)
 	e := base64.StdEncoding.EncodeToString(b)
 
 	if s.lastStreamMessageId == "$" {
-		r, err := s.client.XInfoStream(context.Background(), s.keygen.GetNotificationChannelKey(s.getServiceId())).Result()
+		r, err := s.client.XInfoStream(app.GetCtx(), s.keygen.GetNotificationChannelKey(s.getServiceId())).Result()
 		if err != nil {
 			s.lastStreamMessageId = "0"
 		} else {
@@ -601,13 +600,13 @@ func (s *Redis) Notify(nc data.NotificationConfig, cb data.NotificationCallback)
 	}
 
 	if nc.GetEntityId() != "" && s.FieldExists(nc.GetFieldName(), nc.GetEntityId()) {
-		s.client.SAdd(context.Background(), s.keygen.GetEntityIdNotificationConfigKey(nc.GetEntityId(), nc.GetFieldName()), e)
+		s.client.SAdd(app.GetCtx(), s.keygen.GetEntityIdNotificationConfigKey(nc.GetEntityId(), nc.GetFieldName()), e)
 		s.callbacks[e] = append(s.callbacks[e], cb)
 		return notification.NewToken(e, s, cb)
 	}
 
 	if nc.GetEntityType() != "" && s.FieldExists(nc.GetFieldName(), nc.GetEntityType()) {
-		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(nc.GetEntityType(), nc.GetFieldName()), e)
+		s.client.SAdd(app.GetCtx(), s.keygen.GetEntityTypeNotificationConfigKey(nc.GetEntityType(), nc.GetFieldName()), e)
 		s.callbacks[e] = append(s.callbacks[e], cb)
 		return notification.NewToken(e, s, cb)
 	}
@@ -644,7 +643,7 @@ func (s *Redis) UnnotifyCallback(e string, c data.NotificationCallback) {
 func (s *Redis) ProcessNotifications() {
 	s.transformer.ProcessPending()
 
-	r, err := s.client.XRead(context.Background(), &redis.XReadArgs{
+	r, err := s.client.XRead(app.GetCtx(), &redis.XReadArgs{
 		Streams: []string{s.keygen.GetNotificationChannelKey(s.getServiceId()), s.lastStreamMessageId},
 		Count:   1000,
 		Block:   -1,
@@ -778,7 +777,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 		return
 	}
 
-	m, err := s.client.SMembers(context.Background(), s.keygen.GetEntityIdNotificationConfigKey(indirectEntity, indirectField)).Result()
+	m, err := s.client.SMembers(app.GetCtx(), s.keygen.GetEntityIdNotificationConfigKey(indirectEntity, indirectField)).Result()
 	if err != nil {
 		log.Error("Failed to get notification config: %v", err)
 		return
@@ -824,7 +823,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 			continue
 		}
 
-		_, err = s.client.XAdd(context.Background(), &redis.XAddArgs{
+		_, err = s.client.XAdd(app.GetCtx(), &redis.XAddArgs{
 			Stream: s.keygen.GetNotificationChannelKey(p.ServiceId),
 			Values: []string{"data", base64.StdEncoding.EncodeToString(b)},
 			MaxLen: MaxStreamLength,
@@ -842,7 +841,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 		return
 	}
 
-	m, err = s.client.SMembers(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(fetchedEntity.GetType(), indirectField)).Result()
+	m, err = s.client.SMembers(app.GetCtx(), s.keygen.GetEntityTypeNotificationConfigKey(fetchedEntity.GetType(), indirectField)).Result()
 	if err != nil {
 		log.Error("Failed to get notification config: %v", err)
 		return
@@ -888,7 +887,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 			continue
 		}
 
-		_, err = s.client.XAdd(context.Background(), &redis.XAddArgs{
+		_, err = s.client.XAdd(app.GetCtx(), &redis.XAddArgs{
 			Stream: s.keygen.GetNotificationChannelKey(p.ServiceId),
 			Values: []string{"data", base64.StdEncoding.EncodeToString(b)},
 			MaxLen: MaxStreamLength,
@@ -902,7 +901,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 }
 
 func (s *Redis) TempSet(key, value string, expiration time.Duration) bool {
-	r, err := s.client.SetNX(context.Background(), key, value, expiration).Result()
+	r, err := s.client.SetNX(app.GetCtx(), key, value, expiration).Result()
 	if err != nil {
 		return false
 	}
@@ -911,7 +910,7 @@ func (s *Redis) TempSet(key, value string, expiration time.Duration) bool {
 }
 
 func (s *Redis) TempGet(key string) string {
-	r, err := s.client.Get(context.Background(), key).Result()
+	r, err := s.client.Get(app.GetCtx(), key).Result()
 	if err != nil {
 		return ""
 	}
@@ -920,15 +919,15 @@ func (s *Redis) TempGet(key string) string {
 }
 
 func (s *Redis) TempExpire(key string, expiration time.Duration) {
-	s.client.Expire(context.Background(), key, expiration)
+	s.client.Expire(app.GetCtx(), key, expiration)
 }
 
 func (s *Redis) TempDel(key string) {
-	s.client.Del(context.Background(), key)
+	s.client.Del(app.GetCtx(), key)
 }
 
 func (s *Redis) SortedSetAdd(key string, member string, score float64) int64 {
-	result, err := s.client.ZAdd(context.Background(), key, redis.Z{
+	result, err := s.client.ZAdd(app.GetCtx(), key, redis.Z{
 		Score:  score,
 		Member: member,
 	}).Result()
@@ -940,7 +939,7 @@ func (s *Redis) SortedSetAdd(key string, member string, score float64) int64 {
 }
 
 func (s *Redis) SortedSetRemove(key string, member string) int64 {
-	result, err := s.client.ZRem(context.Background(), key, member).Result()
+	result, err := s.client.ZRem(app.GetCtx(), key, member).Result()
 	if err != nil {
 		log.Error("Failed to remove member from sorted set: %v", err)
 		return 0
@@ -949,7 +948,7 @@ func (s *Redis) SortedSetRemove(key string, member string) int64 {
 }
 
 func (s *Redis) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
-	result, err := s.client.ZRemRangeByRank(context.Background(), key, start, stop).Result()
+	result, err := s.client.ZRemRangeByRank(app.GetCtx(), key, start, stop).Result()
 	if err != nil {
 		log.Error("Failed to remove range from sorted set: %v", err)
 		return 0
@@ -958,7 +957,7 @@ func (s *Redis) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 
 }
 
 func (s *Redis) SortedSetRangeByScoreWithScores(key string, min, max string) []data.SortedSetMember {
-	result, err := s.client.ZRangeByScoreWithScores(context.Background(), key, &redis.ZRangeBy{
+	result, err := s.client.ZRangeByScoreWithScores(app.GetCtx(), key, &redis.ZRangeBy{
 		Min: min,
 		Max: max,
 	}).Result()

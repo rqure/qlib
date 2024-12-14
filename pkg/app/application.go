@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,9 +15,7 @@ type Application interface {
 
 type Handle interface {
 	DoInMainThread(func())
-	GetCtx() context.Context
 	GetWg() *sync.WaitGroup
-	Quit()
 }
 
 type Worker interface {
@@ -30,22 +27,18 @@ type Worker interface {
 type ApplicationImpl struct {
 	workers []Worker
 	tasks   chan func()
-	ctx     context.Context
-	cancel  context.CancelFunc
 	wg      *sync.WaitGroup
 	ticker  *time.Ticker
 }
 
 func NewApplication(name string) Application {
-	ctx, cancel := context.WithCancel(context.Background())
 	a := &ApplicationImpl{
 		tasks:  make(chan func(), 1000),
-		ctx:    ctx,
-		cancel: cancel,
 		wg:     &sync.WaitGroup{},
-		ticker: time.NewTicker(100 * time.Millisecond),
+		ticker: time.NewTicker(GetTickRate()),
 	}
 
+	InitCtx()
 	SetName(name)
 
 	return a
@@ -75,15 +68,18 @@ func (a *ApplicationImpl) Execute() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
+	ctx := GetCtx()
+	cancel := GetCancel()
+
 	a.Init()
 	defer a.Deinit()
 
 	defer signal.Stop(interrupt)
-	defer a.cancel() // Ensure context is cancelled when Execute returns
+	defer cancel() // Ensure context is cancelled when Execute returns
 
 	for {
 		select {
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-interrupt:
 			return
@@ -97,18 +93,10 @@ func (a *ApplicationImpl) Execute() {
 	}
 }
 
-func (a *ApplicationImpl) GetCtx() context.Context {
-	return a.ctx
-}
-
 func (a *ApplicationImpl) DoInMainThread(t func()) {
 	go func() { a.tasks <- t }()
 }
 
 func (a *ApplicationImpl) GetWg() *sync.WaitGroup {
 	return a.wg
-}
-
-func (a *ApplicationImpl) Quit() {
-	a.cancel()
 }

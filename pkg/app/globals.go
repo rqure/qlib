@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"os"
@@ -9,6 +10,8 @@ import (
 
 var applicationName string
 var applicationInstanceId string
+var applicationCtx context.Context
+var applicationCancel context.CancelFunc
 
 var tickRate = 100 * time.Millisecond
 
@@ -59,4 +62,16 @@ func GetTickRate() time.Duration {
 
 func SetTickRate(rate time.Duration) {
 	tickRate = rate
+}
+
+func InitCtx() {
+	applicationCtx, applicationCancel = context.WithCancel(context.Background())
+}
+
+func GetCtx() context.Context {
+	return applicationCtx
+}
+
+func GetCancel() context.CancelFunc {
+	return applicationCancel
 }
