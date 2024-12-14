@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/rqure/qlib/pkg/protobufs"
@@ -57,12 +58,18 @@ func getCallerInfo(skip int) string {
 		return "unknown"
 	}
 
+	// Trim the /go/pkg/mod/github.com/ prefix from file path
+	gomod := "github.com/rqure"
+	if idx := strings.Index(file, gomod); idx != -1 {
+		file = file[idx+len(gomod):]
+	}
+
 	fn := runtime.FuncForPC(pc)
 	if fn == nil {
 		return fmt.Sprintf("%s:%d", file, line)
 	}
 
-	return fmt.Sprintf("%s:%d %s", file, line, path.Base(fn.Name()))
+	return fmt.Sprintf("%s:%d | %s", file, line, path.Base(fn.Name()))
 }
 
 func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
