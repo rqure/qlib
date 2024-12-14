@@ -396,3 +396,8 @@ func (b *Field) GetTimestamp() time.Time {
 func (b *Field) GetTransformation() string {
 	return b.req.GetValue().GetTransformation()
 }
+
+func (b *Field) SetValue(v data.Value) data.FieldBinding {
+	b.req.SetValue(v)
+	return b
+}

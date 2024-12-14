@@ -40,6 +40,8 @@ type FieldBinding interface {
 	GetTimestamp() time.Time
 	GetTransformation() string
 
+	SetValue(Value) FieldBinding
+
 	WriteValue(Value) FieldBinding
 	WriteInt(...interface{}) FieldBinding
 	WriteFloat(...interface{}) FieldBinding
