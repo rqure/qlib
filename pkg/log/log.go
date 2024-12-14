@@ -13,7 +13,8 @@ import (
 type Level int
 
 const (
-	TRACE Level = iota
+	UNSPECIFIED Level = iota
+	TRACE
 	DEBUG
 	INFO
 	WARN
