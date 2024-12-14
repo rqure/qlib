@@ -59,7 +59,7 @@ func getCallerInfo(skip int) string {
 	}
 
 	// Trim the /go/pkg/mod/github.com/ prefix from file path
-	gomod := "github.com/rqure"
+	gomod := "github.com/rqure/"
 	if idx := strings.Index(file, gomod); idx != -1 {
 		file = file[idx+len(gomod):]
 	}
