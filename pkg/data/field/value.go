@@ -36,7 +36,7 @@ func ToAnyPb(v data.Value) *anypb.Any {
 	case *Value:
 		return c.impl
 	default:
-		log.Error("[Value::ToAnyPb] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 		return nil
 	}
 }
@@ -211,10 +211,10 @@ func (v *Value) SetInt(i interface{}) data.Value {
 		if i, err := strconv.ParseInt(c, 10, 64); err == nil {
 			value = i
 		} else {
-			log.Error("[Value::SetInt] Error parsing int: %s", err)
+			log.Error("Error parsing int: %s", err)
 		}
 	default:
-		log.Error("[Value::SetInt] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.Int{
@@ -222,7 +222,7 @@ func (v *Value) SetInt(i interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetInt] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -266,10 +266,10 @@ func (v *Value) SetFloat(f interface{}) data.Value {
 		if f, err := strconv.ParseFloat(c, 64); err == nil {
 			value = f
 		} else {
-			log.Error("[Value::SetFloat] Error parsing float: %s", err)
+			log.Error("Error parsing float: %s", err)
 		}
 	default:
-		log.Error("[Value::SetFloat] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.Float{
@@ -277,7 +277,7 @@ func (v *Value) SetFloat(f interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetFloat] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -318,7 +318,7 @@ func (v *Value) SetString(s interface{}) data.Value {
 	case string:
 		value = c
 	default:
-		log.Error("[Value::SetString] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.String{
@@ -326,7 +326,7 @@ func (v *Value) SetString(s interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetString] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -372,10 +372,10 @@ func (v *Value) SetBool(b interface{}) data.Value {
 		} else if f, err := strconv.ParseFloat(c, 64); err == nil {
 			value = f != 0
 		} else {
-			log.Error("[Value::SetBool] Error parsing bool: %s", err)
+			log.Error("Error parsing bool: %s", err)
 		}
 	default:
-		log.Error("[Value::SetBool] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.Bool{
@@ -383,7 +383,7 @@ func (v *Value) SetBool(b interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetBool] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -398,7 +398,7 @@ func (v *Value) SetBinaryFile(b interface{}) data.Value {
 	case string:
 		value = c
 	default:
-		log.Error("[Value::SetBinaryFile] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.BinaryFile{
@@ -406,7 +406,7 @@ func (v *Value) SetBinaryFile(b interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetBinaryFile] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -421,7 +421,7 @@ func (v *Value) SetEntityReference(e interface{}) data.Value {
 	case string:
 		value = c
 	default:
-		log.Error("[Value::SetEntityReference] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.EntityReference{
@@ -429,7 +429,7 @@ func (v *Value) SetEntityReference(e interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetEntityReference] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -447,7 +447,7 @@ func (v *Value) SetTimestamp(t interface{}) data.Value {
 		if ts, err := time.Parse(time.RFC3339, c); err == nil {
 			value = ts
 		} else {
-			log.Error("[Value::SetTimestamp] Error parsing time: %s", err)
+			log.Error("Error parsing time: %s", err)
 		}
 	case int:
 		value = time.Unix(int64(c), 0)
@@ -470,7 +470,7 @@ func (v *Value) SetTimestamp(t interface{}) data.Value {
 	case uint64:
 		value = time.Unix(int64(c), 0)
 	default:
-		log.Error("[Value::SetTimestamp] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.Timestamp{
@@ -478,7 +478,7 @@ func (v *Value) SetTimestamp(t interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetTimestamp] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}
@@ -493,7 +493,7 @@ func (v *Value) SetTransformation(t interface{}) data.Value {
 	case string:
 		value = c
 	default:
-		log.Error("[Value::SetTransformation] Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", v)
 	}
 
 	a, err := anypb.New(&protobufs.Transformation{
@@ -501,7 +501,7 @@ func (v *Value) SetTransformation(t interface{}) data.Value {
 	})
 
 	if err != nil {
-		log.Error("[Value::SetTransformation] Error creating Any: %s", err)
+		log.Error("Error creating Any: %s", err)
 	} else {
 		v.impl = a
 	}

@@ -42,17 +42,17 @@ func NewWeb(config WebConfig) data.Store {
 func (s *Web) Connect() {
 	s.Disconnect()
 
-	log.Info("[Web::Connect] Connecting to %v", s.config.Address)
+	log.Info("Connecting to %v", s.config.Address)
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(s.config.Address, nil)
 	if err != nil {
-		log.Error("[Web::Connect] Failed to connect: %v", err)
+		log.Error("Failed to connect: %v", err)
 		return
 	}
 
 	s.client = web.NewClient(conn, func(id string) {
-		log.Info("[Web::Connect] Connection closed: %v", id)
+		log.Info("Connection closed: %v", id)
 	})
 
 	s.client.SetMessageHandler(func(_ web.Client, msg web.Message) {
@@ -83,7 +83,7 @@ func (s *Web) CreateSnapshot() data.Snapshot {
 
 	var resp protobufs.WebConfigCreateSnapshotResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::CreateSnapshot] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (s *Web) GetEntity(entityId string) data.Entity {
 
 	var resp protobufs.WebConfigGetEntityResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::GetEntity] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func (s *Web) FindEntities(entityType string) []string {
 
 	var resp protobufs.WebRuntimeGetEntitiesResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::FindEntities] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
@@ -192,7 +192,7 @@ func (s *Web) GetEntityTypes() []string {
 
 	var resp protobufs.WebConfigGetEntityTypesResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::GetEntityTypes] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
@@ -213,7 +213,7 @@ func (s *Web) EntityExists(entityId string) bool {
 
 	var resp protobufs.WebRuntimeEntityExistsResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::EntityExists] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return false
 	}
 
@@ -235,7 +235,7 @@ func (s *Web) FieldExists(fieldName, entityType string) bool {
 
 	var resp protobufs.WebRuntimeFieldExistsResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::FieldExists] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return false
 	}
 
@@ -256,7 +256,7 @@ func (s *Web) GetEntitySchema(entityType string) data.EntitySchema {
 
 	var resp protobufs.WebConfigGetEntitySchemaResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::GetEntitySchema] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
@@ -298,7 +298,7 @@ func (s *Web) Read(requests ...data.Request) {
 
 	var resp protobufs.WebRuntimeDatabaseResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::Read] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return
 	}
 
@@ -340,7 +340,7 @@ func (s *Web) Write(requests ...data.Request) {
 
 	var resp protobufs.WebRuntimeDatabaseResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::Write] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return
 	}
 
@@ -366,7 +366,7 @@ func (s *Web) handleMessage(msg web.Message) {
 
 func (s *Web) sendAndWait(msg web.Message) web.Message {
 	if !s.IsConnected() {
-		log.Error("[Web::sendAndWait] Not connected")
+		log.Error("Not connected")
 		return nil
 	}
 
@@ -387,7 +387,7 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 	case response := <-responseCh:
 		return response
 	case <-time.After(10 * time.Second):
-		log.Error("[Web::sendAndWait] Timeout waiting for response to %v", requestId)
+		log.Error("Timeout waiting for response to %v", requestId)
 		s.mu.Lock()
 		delete(s.pendingResponses, requestId)
 		s.mu.Unlock()
@@ -410,7 +410,7 @@ func (s *Web) Notify(config data.NotificationConfig, cb data.NotificationCallbac
 
 	var resp protobufs.WebRuntimeRegisterNotificationResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::Notify] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return notification.NewToken("", s, nil)
 	}
 
@@ -466,7 +466,7 @@ func (s *Web) ProcessNotifications() {
 
 	var resp protobufs.WebRuntimeGetNotificationsResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::ProcessNotifications] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return
 	}
 
@@ -497,7 +497,7 @@ func (s *Web) TempSet(key, value string, expiration time.Duration) bool {
 
 	var resp protobufs.WebRuntimeTempSetResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::TempSet] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return false
 	}
 
@@ -518,7 +518,7 @@ func (s *Web) TempGet(key string) string {
 
 	var resp protobufs.WebRuntimeTempGetResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::TempGet] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return ""
 	}
 
@@ -562,7 +562,7 @@ func (s *Web) SortedSetAdd(key string, member string, score float64) int64 {
 
 	var resp protobufs.WebRuntimeSortedSetAddResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::SortedSetAdd] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return 0
 	}
 
@@ -584,7 +584,7 @@ func (s *Web) SortedSetRemove(key string, member string) int64 {
 
 	var resp protobufs.WebRuntimeSortedSetRemoveResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::SortedSetRemove] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return 0
 	}
 
@@ -607,7 +607,7 @@ func (s *Web) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 
 	var resp protobufs.WebRuntimeSortedSetRemoveRangeByRankResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::SortedSetRemoveRangeByRank] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return 0
 	}
 
@@ -630,7 +630,7 @@ func (s *Web) SortedSetRangeByScoreWithScores(key string, min, max string) []dat
 
 	var resp protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("[Web::SortedSetRangeByScoreWithScores] Failed to unmarshal response: %v", err)
+		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 

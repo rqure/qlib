@@ -90,13 +90,13 @@ func (w *Store) onConnected() {
 		))
 	}
 
-	log.Info("[StoreWorker::onConnected] Connection status changed to [CONNECTED]")
+	log.Info("Connection status changed to [CONNECTED]")
 
 	w.Connected.Emit()
 }
 
 func (w *Store) onDisconnected() {
-	log.Info("[StoreWorker::onDisconnected] Connection status changed to [DISCONNECTED]")
+	log.Info("Connection status changed to [DISCONNECTED]")
 
 	w.Disconnected.Emit()
 }
@@ -122,5 +122,5 @@ func (w *Store) onLogLevelChanged(n data.Notification) {
 	level := log.Level(n.GetCurrent().GetValue().GetInt())
 	log.SetLevel(level)
 
-	log.Info("[StoreWorker::onLogLevelChanged] Log level changed to [%s]", level.String())
+	log.Info("Log level changed to [%s]", level.String())
 }

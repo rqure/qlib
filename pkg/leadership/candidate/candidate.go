@@ -135,7 +135,7 @@ func (c *Candidate) Init() {
 	c.applicationName = app.GetName()
 	c.applicationInstanceId = app.GetApplicationInstanceId()
 
-	log.Info("[Candidate::Init] Application instance ID: %s", c.applicationInstanceId)
+	log.Info("Application instance ID: %s", c.applicationInstanceId)
 }
 
 func (c *Candidate) Deinit() {
@@ -179,19 +179,19 @@ func (c *Candidate) resetCandidateTicker() {
 }
 
 func (c *Candidate) onBecameLeader() {
-	log.Info("[Candidate::onBecameLeader] Became the leader (instanceId=%s)", c.applicationInstanceId)
+	log.Info("Became the leader (instanceId=%s)", c.applicationInstanceId)
 	c.UpdateCandidateStatus(true)
 	c.resetCandidateTicker()
 }
 
 func (c *Candidate) onBecameFollower() {
-	log.Info("[Candidate::onBecameFollower] Became a follower (instanceId=%s)", c.applicationInstanceId)
+	log.Info("Became a follower (instanceId=%s)", c.applicationInstanceId)
 	c.UpdateCandidateStatus(true)
 	c.resetCandidateTicker()
 }
 
 func (c *Candidate) onBecameUnavailable() {
-	log.Info("[Candidate::onBecameUnavailable] Became unavailable (instanceId=%s)", c.applicationInstanceId)
+	log.Info("Became unavailable (instanceId=%s)", c.applicationInstanceId)
 	c.UpdateCandidateStatus(false)
 	c.resetCandidateTicker()
 }
@@ -238,7 +238,7 @@ func (c *Candidate) ClearLeaderAndCandidateFields() {
 }
 
 func (c *Candidate) onLosingLeadership() {
-	log.Info("[Candidate::onLosingLeadership] Losing leadership status (instanceId=%s)", c.applicationInstanceId)
+	log.Info("Losing leadership status (instanceId=%s)", c.applicationInstanceId)
 
 	c.UpdateCandidateStatus(false)
 	c.ClearLeaderAndCandidateFields()

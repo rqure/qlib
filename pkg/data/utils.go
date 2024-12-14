@@ -15,13 +15,13 @@ func FileEncode(content []byte) string {
 func FileDecode(encoded string) []byte {
 	prefix := "data:application/octet-stream;base64,"
 	if !strings.HasPrefix(encoded, prefix) {
-		log.Error("[FileDecode] Invalid prefix: %v", encoded)
+		log.Error("Invalid prefix: %v", encoded)
 		return []byte{}
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(encoded, prefix))
 	if err != nil {
-		log.Error("[FileDecode] Failed to decode: %v", err)
+		log.Error("Failed to decode: %v", err)
 		return []byte{}
 	}
 

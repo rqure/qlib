@@ -56,7 +56,7 @@ func (w *Web) Init(h app.Handle) {
 	go func() {
 		err := http.ListenAndServe(w.addr, nil)
 		if err != nil {
-			log.Panic("[WebServiceWorker::Init] HTTP server error: %v", err)
+			log.Panic("HTTP server error: %v", err)
 		}
 	}()
 }
@@ -65,7 +65,7 @@ func (w *Web) onIndexRequest(wr http.ResponseWriter, _ *http.Request) {
 	index, err := os.ReadFile("web/index.html")
 
 	if err != nil {
-		log.Error("[WebServiceWorker::onIndexRequest] Error reading index.html: %v", err)
+		log.Error("Error reading index.html: %v", err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (w *Web) onWSRequest(wr http.ResponseWriter, req *http.Request) {
 
 	conn, err := upgrader.Upgrade(wr, req, nil)
 	if err != nil {
-		log.Error("[WebServiceWorker::onWSRequest] Error upgrading to WebSocket: %v", err)
+		log.Error("Error upgrading to WebSocket: %v", err)
 		return
 	}
 

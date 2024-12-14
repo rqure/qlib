@@ -73,7 +73,7 @@ func (c *ClientImpl) backgroundRead() {
 
 		if err != nil {
 			if !c.isClosed.Load() {
-				log.Error("[ClientImpl::backgroundRead] Error reading message: %v", err)
+				log.Error("Error reading message: %v", err)
 			}
 			return
 		}
@@ -81,11 +81,11 @@ func (c *ClientImpl) backgroundRead() {
 		if t == websocket.BinaryMessage {
 			m := NewMessage()
 			if err := proto.Unmarshal(b, m); err != nil {
-				log.Error("[ClientImpl::backgroundRead] Error unmarshalling bytes into message: %v", err)
+				log.Error("Error unmarshalling bytes into message: %v", err)
 				continue
 			}
 
-			log.Debug("[ClientImpl::backgroundRead] Received message: %v", m)
+			log.Debug("Received message: %v", m)
 			if c.messageHandler != nil {
 				c.messageHandler(c, m)
 			}
@@ -104,14 +104,14 @@ func (c *ClientImpl) Write(message Message) {
 	b, err := proto.Marshal(message)
 
 	if err != nil {
-		log.Error("[ClientImpl::Write] Error marshalling message: %v", err)
+		log.Error("Error marshalling message: %v", err)
 		return
 	}
 
 	if err := c.connection.WriteMessage(websocket.BinaryMessage, b); err != nil {
-		log.Error("[ClientImpl::Write] Error writing message: %v", err)
+		log.Error("Error writing message: %v", err)
 	} else {
-		log.Debug("[ClientImpl::Write] Sent message: %v", message)
+		log.Debug("Sent message: %v", message)
 	}
 }
 
@@ -128,7 +128,7 @@ func (c *ClientImpl) Close() {
 	c.closeMu.Unlock()
 
 	if err := c.connection.Close(); err != nil {
-		log.Error("[ClientImpl::Close] Error closing connection: %v", err)
+		log.Error("Error closing connection: %v", err)
 	}
 
 	close(c.readCh)

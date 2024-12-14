@@ -33,7 +33,7 @@ func (t *Transformer) Transform(src string, req data.Request) {
 
 	_, err := script.Run()
 	if err != nil {
-		log.Error("[Transformer::Transform] Failed to execute script: %v", err)
+		log.Error("Failed to execute script: %v", err)
 	}
 }
 
@@ -41,7 +41,7 @@ func (t *Transformer) ProcessPending() {
 	for _, pending := range t.store.PopAvailableJobs() {
 		_, err := pending.task.Call()
 		if err != nil {
-			log.Error("[Transformer::ProcessPending] Failed to execute script: %v", err)
+			log.Error("Failed to execute script: %v", err)
 		}
 	}
 }

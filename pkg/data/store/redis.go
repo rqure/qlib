@@ -95,7 +95,7 @@ func NewRedis(config RedisConfig) data.Store {
 func (s *Redis) Connect() {
 	s.Disconnect()
 
-	log.Info("[Redis::Connect] Connecting to %v", s.config.Address)
+	log.Info("Connecting to %v", s.config.Address)
 	s.client = redis.NewClient(&redis.Options{
 		Addr:     s.config.Address,
 		Password: s.config.Password,
@@ -147,31 +147,31 @@ func (s *Redis) CreateSnapshot() data.Snapshot {
 }
 
 func (s *Redis) RestoreSnapshot(ss data.Snapshot) {
-	log.Info("[Redis::RestoreSnapshot] Restoring snapshot...")
+	log.Info("Restoring snapshot...")
 
 	err := s.client.FlushDB(context.Background()).Err()
 	if err != nil {
-		log.Error("[Redis::RestoreSnapshot] Failed to flush database: %v", err)
+		log.Error("Failed to flush database: %v", err)
 		return
 	}
 
 	for _, sc := range ss.GetSchemas() {
 		s.SetEntitySchema(sc)
-		log.Debug("[Redis::RestoreSnapshot] Restored entity schema: %v", sc)
+		log.Debug("Restored entity schema: %v", sc)
 	}
 
 	for _, e := range ss.GetEntities() {
 		s.SetEntity(e)
 		s.client.SAdd(context.Background(), s.keygen.GetEntityTypeKey(e.GetType()), e.GetId())
-		log.Debug("[Redis::RestoreSnapshot] Restored entity: %v", e)
+		log.Debug("Restored entity: %v", e)
 	}
 
 	for _, f := range ss.GetFields() {
 		s.Write(request.FromField(f))
-		log.Debug("[Redis::RestoreSnapshot] Restored field: %v", f)
+		log.Debug("Restored field: %v", f)
 	}
 
-	log.Info("[Redis::RestoreSnapshot] Snapshot restored.")
+	log.Info("Snapshot restored.")
 }
 
 func (s *Redis) CreateEntity(entityType, parentId, name string) {
@@ -179,7 +179,7 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 
 	sc := s.GetEntitySchema(entityType)
 	if sc == nil {
-		log.Error("[Redis::CreateEntity] Failed to get entity schema for type %s", entityType)
+		log.Error("Failed to get entity schema for type %s", entityType)
 		return
 	}
 
@@ -202,7 +202,7 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 	}
 	b, err := proto.Marshal(p)
 	if err != nil {
-		log.Error("[Redis::CreateEntity] Failed to marshal entity: %v", err)
+		log.Error("Failed to marshal entity: %v", err)
 		return
 	}
 
@@ -215,7 +215,7 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 			parent.AppendChildId(entityId)
 			s.SetEntity(parent)
 		} else {
-			log.Error("[Redis::CreateEntity] Failed to get parent entity: %v", parentId)
+			log.Error("Failed to get parent entity: %v", parentId)
 		}
 	}
 }
@@ -223,20 +223,20 @@ func (s *Redis) CreateEntity(entityType, parentId, name string) {
 func (s *Redis) GetEntity(entityId string) data.Entity {
 	e, err := s.client.Get(context.Background(), s.keygen.GetEntityKey(entityId)).Result()
 	if err != nil {
-		log.Error("[Redis::GetEntity] Failed to get entity: %v", err)
+		log.Error("Failed to get entity: %v", err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		log.Error("[Redis::GetEntity] Failed to decode entity: %v", err)
+		log.Error("Failed to decode entity: %v", err)
 		return nil
 	}
 
 	p := &protobufs.DatabaseEntity{}
 	err = proto.Unmarshal(b, p)
 	if err != nil {
-		log.Error("[Redis::GetEntity] Failed to unmarshal entity: %v", err)
+		log.Error("Failed to unmarshal entity: %v", err)
 		return nil
 	}
 
@@ -246,13 +246,13 @@ func (s *Redis) GetEntity(entityId string) data.Entity {
 func (s *Redis) SetEntity(e data.Entity) {
 	b, err := proto.Marshal(entity.ToEntityPb(e))
 	if err != nil {
-		log.Error("[Redis::SetEntity] Failed to marshal entity: %v", err)
+		log.Error("Failed to marshal entity: %v", err)
 		return
 	}
 
 	err = s.client.Set(context.Background(), s.keygen.GetEntityKey(e.GetId()), base64.StdEncoding.EncodeToString(b), 0).Err()
 	if err != nil {
-		log.Error("[Redis::SetEntity] Failed to set entity '%s': %v", e.GetId(), err)
+		log.Error("Failed to set entity '%s': %v", e.GetId(), err)
 		return
 	}
 }
@@ -260,7 +260,7 @@ func (s *Redis) SetEntity(e data.Entity) {
 func (s *Redis) DeleteEntity(entityId string) {
 	e := s.GetEntity(entityId)
 	if e == nil {
-		log.Error("[Redis::DeleteEntity] Failed to get entity: %v", entityId)
+		log.Error("Failed to get entity: %v", entityId)
 		return
 	}
 
@@ -316,14 +316,14 @@ func (s *Redis) FieldExists(fieldName, entityType string) bool {
 func (s *Redis) GetFieldSchema(entityType, fieldName string) data.FieldSchema {
 	entitySchema := s.GetEntitySchema(entityType)
 	if entitySchema == nil {
-		log.Error("[Redis::GetFieldSchema] Failed to get entity schema for %s", entityType)
+		log.Error("Failed to get entity schema for %s", entityType)
 		return nil
 	}
 
 	f := entitySchema.GetField(fieldName)
 
 	if f == nil {
-		log.Error("[Redis::GetFieldSchema] Failed to find field schema: %s.%s", entityType, fieldName)
+		log.Error("Failed to find field schema: %s.%s", entityType, fieldName)
 	}
 
 	return f
@@ -332,7 +332,7 @@ func (s *Redis) GetFieldSchema(entityType, fieldName string) data.FieldSchema {
 func (s *Redis) SetFieldSchema(entityType, fieldName string, value data.FieldSchema) {
 	entitySchema := s.GetEntitySchema(entityType)
 	if entitySchema == nil {
-		log.Error("[Redis::SetFieldSchema] Failed to get entity schema for %s", entityType)
+		log.Error("Failed to get entity schema for %s", entityType)
 		return
 	}
 
@@ -365,20 +365,20 @@ func (s *Redis) GetEntityTypes() []string {
 func (s *Redis) GetEntitySchema(entityType string) data.EntitySchema {
 	e, err := s.client.Get(context.Background(), s.keygen.GetEntitySchemaKey(entityType)).Result()
 	if err != nil {
-		log.Error("[Redis::GetEntitySchema] Failed to get entity schema (%v): %v", entityType, err)
+		log.Error("Failed to get entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
 	b, err := base64.StdEncoding.DecodeString(e)
 	if err != nil {
-		log.Error("[Redis::GetEntitySchema] Failed to decode entity schema (%v): %v", entityType, err)
+		log.Error("Failed to decode entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
 	p := &protobufs.DatabaseEntitySchema{}
 	err = proto.Unmarshal(b, p)
 	if err != nil {
-		log.Error("[Redis::GetEntitySchema] Failed to unmarshal entity schema (%v): %v", entityType, err)
+		log.Error("Failed to unmarshal entity schema (%v): %v", entityType, err)
 		return nil
 	}
 
@@ -388,7 +388,7 @@ func (s *Redis) GetEntitySchema(entityType string) data.EntitySchema {
 func (s *Redis) SetEntitySchema(newSchema data.EntitySchema) {
 	b, err := proto.Marshal(entity.ToSchemaPb(newSchema))
 	if err != nil {
-		log.Error("[Redis::SetEntitySchema] Failed to marshal entity schema: %v", err)
+		log.Error("Failed to marshal entity schema: %v", err)
 		return
 	}
 
@@ -431,32 +431,32 @@ func (s *Redis) Read(requests ...data.Request) {
 		indirectField, indirectEntity := s.ResolveIndirection(r.GetFieldName(), r.GetEntityId())
 
 		if indirectField == "" || indirectEntity == "" {
-			log.Error("[Redis::Read] Failed to resolve indirection: %v", r)
+			log.Error("Failed to resolve indirection: %v", r)
 			continue
 		}
 
 		e, err := s.client.Get(context.Background(), s.keygen.GetFieldKey(indirectField, indirectEntity)).Result()
 		if err != nil {
 			if err != redis.Nil {
-				log.Error("[Redis::Read] Failed to read field: %v", err)
+				log.Error("Failed to read field: %v", err)
 			} else {
 				// If we can't read because the key doesn't exist, it's not a necessarily an issue.
 				// It would be good to know from a troubleshooting aspect though.
-				log.Trace("[Redis::Read] Failed to read field: %v", err)
+				log.Trace("Failed to read field: %v", err)
 			}
 			continue
 		}
 
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			log.Error("[Redis::Read] Failed to decode field: %v", err)
+			log.Error("Failed to decode field: %v", err)
 			continue
 		}
 
 		p := &protobufs.DatabaseField{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			log.Error("[Redis::Read] Failed to unmarshal field: %v", err)
+			log.Error("Failed to unmarshal field: %v", err)
 			continue
 		}
 
@@ -478,25 +478,25 @@ func (s *Redis) Write(requests ...data.Request) {
 
 		indirectField, indirectEntity := s.ResolveIndirection(req.GetFieldName(), req.GetEntityId())
 		if indirectField == "" || indirectEntity == "" {
-			log.Error("[Redis::Write] Failed to resolve indirection: %v", req)
+			log.Error("Failed to resolve indirection: %v", req)
 			continue
 		}
 
 		e := s.GetEntity(indirectEntity)
 		if e == nil {
-			log.Error("[Redis::Write] Failed to get entity: %v", indirectEntity)
+			log.Error("Failed to get entity: %v", indirectEntity)
 			continue
 		}
 
 		fs := s.GetFieldSchema(e.GetType(), indirectField)
 		if fs == nil {
-			log.Error("[Redis::Write] Failed to get field schema for %s", indirectField)
+			log.Error("Failed to get field schema for %s", indirectField)
 			continue
 		}
 
 		actualFieldType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(fs.GetFieldType()))
 		if err != nil {
-			log.Error("[Redis::Write] Failed to find message type %s: %v", fs.GetFieldType(), err)
+			log.Error("Failed to find message type %s: %v", fs.GetFieldType(), err)
 			continue
 		}
 
@@ -504,7 +504,7 @@ func (s *Redis) Write(requests ...data.Request) {
 			a, err := anypb.New(actualFieldType.New().Interface())
 
 			if err != nil {
-				log.Error("[Redis::Write] Failed to create anypb for field %s.%s: %v", e.GetType(), fs.GetFieldName(), err)
+				log.Error("Failed to create anypb for field %s.%s: %v", e.GetType(), fs.GetFieldName(), err)
 				continue
 			}
 
@@ -514,14 +514,14 @@ func (s *Redis) Write(requests ...data.Request) {
 			a, err := anypb.New(actualFieldType.New().Interface())
 
 			if err != nil {
-				log.Error("[Redis::Write] Failed to create anypb for field %s.%s: %v", e.GetType(), fs.GetFieldName(), err)
+				log.Error("Failed to create anypb for field %s.%s: %v", e.GetType(), fs.GetFieldName(), err)
 				continue
 			}
 
 			v := field.FromAnyPb(a)
 
 			if req.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
-				log.Warn("[Redis::Write] Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", req.GetEntityId(), req.GetFieldName(), req.GetValue().GetType(), v.GetType())
+				log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", req.GetEntityId(), req.GetFieldName(), req.GetValue().GetType(), v.GetType())
 				req.SetValue(v)
 			}
 		}
@@ -558,7 +558,7 @@ func (s *Redis) Write(requests ...data.Request) {
 
 		b, err := proto.Marshal(p)
 		if err != nil {
-			log.Error("[Redis::Write] Failed to marshal field: %v", err)
+			log.Error("Failed to marshal field: %v", err)
 			continue
 		}
 
@@ -571,7 +571,7 @@ func (s *Redis) Write(requests ...data.Request) {
 		s.triggerNotifications(req, oldReq)
 
 		if err != nil {
-			log.Error("[Redis::Write] Failed to write field: %v", err)
+			log.Error("Failed to write field: %v", err)
 			continue
 		}
 		req.SetSuccessful(true)
@@ -585,7 +585,7 @@ func (s *Redis) Notify(nc data.NotificationConfig, cb data.NotificationCallback)
 
 	b, err := proto.Marshal(notification.ToConfigPb(nc))
 	if err != nil {
-		log.Error("[Redis::Notify] Failed to marshal notification config: %v", err)
+		log.Error("Failed to marshal notification config: %v", err)
 		return notification.NewToken("", s, nil)
 	}
 
@@ -612,13 +612,13 @@ func (s *Redis) Notify(nc data.NotificationConfig, cb data.NotificationCallback)
 		return notification.NewToken(e, s, cb)
 	}
 
-	log.Error("[Redis::Notify] Failed to find field: %v", nc)
+	log.Error("Failed to find field: %v", nc)
 	return notification.NewToken("", s, nil)
 }
 
 func (s *Redis) Unnotify(e string) {
 	if s.callbacks[e] == nil {
-		log.Error("[Redis::Unnotify] Failed to find callback: %v", e)
+		log.Error("Failed to find callback: %v", e)
 		return
 	}
 
@@ -627,7 +627,7 @@ func (s *Redis) Unnotify(e string) {
 
 func (s *Redis) UnnotifyCallback(e string, c data.NotificationCallback) {
 	if s.callbacks[e] == nil {
-		log.Warn("[Redis::UnnotifyCallback] Failed to find callback: %v", e)
+		log.Warn("Failed to find callback: %v", e)
 		return
 	}
 
@@ -651,7 +651,7 @@ func (s *Redis) ProcessNotifications() {
 	}).Result()
 
 	if err != nil && err != redis.Nil {
-		log.Error("[Redis::ProcessNotifications] Failed to read stream %v: %v", s.keygen.GetNotificationChannelKey(s.getServiceId()), err)
+		log.Error("Failed to read stream %v: %v", s.keygen.GetNotificationChannelKey(s.getServiceId()), err)
 		return
 	}
 
@@ -664,7 +664,7 @@ func (s *Redis) ProcessNotifications() {
 				if castedValue, ok := value.(string); ok {
 					decodedMessage[key] = castedValue
 				} else {
-					log.Error("[Redis::ProcessNotifications] Failed to cast value: %v", value)
+					log.Error("Failed to cast value: %v", value)
 					continue
 				}
 			}
@@ -672,14 +672,14 @@ func (s *Redis) ProcessNotifications() {
 			if data, ok := decodedMessage["data"]; ok {
 				p, err := base64.StdEncoding.DecodeString(data)
 				if err != nil {
-					log.Error("[Redis::ProcessNotifications] Failed to decode notification: %v", err)
+					log.Error("Failed to decode notification: %v", err)
 					continue
 				}
 
 				n := &protobufs.DatabaseNotification{}
 				err = proto.Unmarshal(p, n)
 				if err != nil {
-					log.Error("[Redis::ProcessNotifications] Failed to unmarshal notification: %v", err)
+					log.Error("Failed to unmarshal notification: %v", err)
 					continue
 				}
 
@@ -709,21 +709,21 @@ func (s *Redis) ResolveIndirection(indirectField, entityId string) (string, stri
 				entityId = v.GetEntityReference()
 
 				if entityId == "" {
-					log.Error("[Redis::ResolveIndirection] Failed to resolve entity reference: %v", r)
+					log.Error("Failed to resolve entity reference: %v", r)
 					return "", ""
 				}
 
 				continue
 			}
 
-			log.Error("[Redis::ResolveIndirection] Field is not an entity reference: %v", r)
+			log.Error("Field is not an entity reference: %v", r)
 			return "", ""
 		}
 
 		// Fallback to parent entity reference by name
 		entity := s.GetEntity(entityId)
 		if entity == nil {
-			log.Error("[Redis::ResolveIndirection] Failed to get entity: %v", entityId)
+			log.Error("Failed to get entity: %v", entityId)
 			return "", ""
 		}
 
@@ -742,7 +742,7 @@ func (s *Redis) ResolveIndirection(indirectField, entityId string) (string, stri
 		for _, childId := range entity.GetChildrenIds() {
 			childEntity := s.GetEntity(childId)
 			if childEntity == nil {
-				log.Error("[Redis::ResolveIndirection] Failed to get child entity: %v", childId)
+				log.Error("Failed to get child entity: %v", childId)
 				continue
 			}
 
@@ -754,7 +754,7 @@ func (s *Redis) ResolveIndirection(indirectField, entityId string) (string, stri
 		}
 
 		if !foundChild {
-			log.Error("[Redis::ResolveIndirection] Failed to find child entity: %v", f)
+			log.Error("Failed to find child entity: %v", f)
 			return "", ""
 		}
 	}
@@ -765,7 +765,7 @@ func (s *Redis) ResolveIndirection(indirectField, entityId string) (string, stri
 func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 	// failed to read old value (it may not exist initially)
 	if !o.IsSuccessful() {
-		log.Warn("[Redis::triggerNotifications] Failed to read old value: %v", o)
+		log.Warn("Failed to read old value: %v", o)
 		return
 	}
 
@@ -774,27 +774,27 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 	indirectField, indirectEntity := s.ResolveIndirection(r.GetFieldName(), r.GetEntityId())
 
 	if indirectField == "" || indirectEntity == "" {
-		log.Error("[Redis::triggerNotifications] Failed to resolve indirection: %v", r)
+		log.Error("Failed to resolve indirection: %v", r)
 		return
 	}
 
 	m, err := s.client.SMembers(context.Background(), s.keygen.GetEntityIdNotificationConfigKey(indirectEntity, indirectField)).Result()
 	if err != nil {
-		log.Error("[Redis::triggerNotifications] Failed to get notification config: %v", err)
+		log.Error("Failed to get notification config: %v", err)
 		return
 	}
 
 	for _, e := range m {
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to decode notification config: %v", err)
+			log.Error("Failed to decode notification config: %v", err)
 			continue
 		}
 
 		p := &protobufs.DatabaseNotificationConfig{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to unmarshal notification config: %v", err)
+			log.Error("Failed to unmarshal notification config: %v", err)
 			continue
 		}
 		nc := notification.FromConfigPb(p)
@@ -820,7 +820,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 
 		b, err = proto.Marshal(n)
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to marshal notification: %v", err)
+			log.Error("Failed to marshal notification: %v", err)
 			continue
 		}
 
@@ -831,34 +831,34 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 			Approx: true,
 		}).Result()
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to add notification: %v", err)
+			log.Error("Failed to add notification: %v", err)
 			continue
 		}
 	}
 
 	fetchedEntity := s.GetEntity(indirectEntity)
 	if fetchedEntity == nil {
-		log.Error("[Redis::triggerNotifications] Failed to get entity: %v (indirect=%v)", r.GetEntityId(), indirectEntity)
+		log.Error("Failed to get entity: %v (indirect=%v)", r.GetEntityId(), indirectEntity)
 		return
 	}
 
 	m, err = s.client.SMembers(context.Background(), s.keygen.GetEntityTypeNotificationConfigKey(fetchedEntity.GetType(), indirectField)).Result()
 	if err != nil {
-		log.Error("[Redis::triggerNotifications] Failed to get notification config: %v", err)
+		log.Error("Failed to get notification config: %v", err)
 		return
 	}
 
 	for _, e := range m {
 		b, err := base64.StdEncoding.DecodeString(e)
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to decode notification config: %v", err)
+			log.Error("Failed to decode notification config: %v", err)
 			continue
 		}
 
 		p := &protobufs.DatabaseNotificationConfig{}
 		err = proto.Unmarshal(b, p)
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to unmarshal notification config: %v", err)
+			log.Error("Failed to unmarshal notification config: %v", err)
 			continue
 		}
 
@@ -884,7 +884,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 
 		b, err = proto.Marshal(n)
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to marshal notification: %v", err)
+			log.Error("Failed to marshal notification: %v", err)
 			continue
 		}
 
@@ -895,7 +895,7 @@ func (s *Redis) triggerNotifications(r data.Request, o data.Request) {
 			Approx: true,
 		}).Result()
 		if err != nil {
-			log.Error("[Redis::triggerNotifications] Failed to add notification: %v", err)
+			log.Error("Failed to add notification: %v", err)
 			continue
 		}
 	}
@@ -933,7 +933,7 @@ func (s *Redis) SortedSetAdd(key string, member string, score float64) int64 {
 		Member: member,
 	}).Result()
 	if err != nil {
-		log.Error("[Redis::SortedSetAdd] Failed to add member to sorted set: %v", err)
+		log.Error("Failed to add member to sorted set: %v", err)
 		return 0
 	}
 	return result
@@ -942,7 +942,7 @@ func (s *Redis) SortedSetAdd(key string, member string, score float64) int64 {
 func (s *Redis) SortedSetRemove(key string, member string) int64 {
 	result, err := s.client.ZRem(context.Background(), key, member).Result()
 	if err != nil {
-		log.Error("[Redis::SortedSetRemove] Failed to remove member from sorted set: %v", err)
+		log.Error("Failed to remove member from sorted set: %v", err)
 		return 0
 	}
 	return result
@@ -951,7 +951,7 @@ func (s *Redis) SortedSetRemove(key string, member string) int64 {
 func (s *Redis) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 	result, err := s.client.ZRemRangeByRank(context.Background(), key, start, stop).Result()
 	if err != nil {
-		log.Error("[Redis::SortedSetRemoveRangeByRank] Failed to remove range from sorted set: %v", err)
+		log.Error("Failed to remove range from sorted set: %v", err)
 		return 0
 	}
 	return result
@@ -963,7 +963,7 @@ func (s *Redis) SortedSetRangeByScoreWithScores(key string, min, max string) []d
 		Max: max,
 	}).Result()
 	if err != nil {
-		log.Error("[Redis::SortedSetRangeByScoreWithScores] Failed to get range from sorted set: %v", err)
+		log.Error("Failed to get range from sorted set: %v", err)
 		return nil
 	}
 	members := make([]data.SortedSetMember, len(result))

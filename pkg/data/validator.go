@@ -37,14 +37,14 @@ func (v *entityFieldValidatorImpl) ValidateFields() error {
 	for entityType, fields := range v.entities {
 		schema := v.store.GetEntitySchema(entityType)
 		if schema == nil {
-			log.Error("[EntityFieldValidator::ValidateFields] Schema does not exist: %v", entityType)
+			log.Error("Schema does not exist: %v", entityType)
 			return fmt.Errorf("schema does not exist: %s", entityType)
 		}
 
 		for _, f := range fields {
 			fsc := schema.GetField(f)
 			if fsc == nil {
-				log.Error("[EntityFieldValidator::ValidateFields] Field does not exist: %v->%v", entityType, f)
+				log.Error("Field does not exist: %v->%v", entityType, f)
 				return fmt.Errorf("field does not exist: %s->%s", entityType, f)
 			}
 		}

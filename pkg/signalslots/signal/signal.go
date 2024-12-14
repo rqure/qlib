@@ -23,7 +23,7 @@ func (s *SignalImpl) Connect(i interface{}) {
 	case func():
 		s.slots = append(s.slots, slot.SlotWithoutArgs(st))
 	default:
-		log.Error("[SignalImpl::Connect] Unknown slot type: %v", i)
+		log.Error("Unknown slot type: %v", i)
 	}
 }
 
