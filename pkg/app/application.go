@@ -65,23 +65,23 @@ func (a *ApplicationImpl) Deinit() {
 }
 
 func (a *ApplicationImpl) Execute() {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		interrupt := make(chan os.Signal, 1)
+		signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
+		cancel := GetCancel()
 
-	ctx := GetCtx()
-	cancel := GetCancel()
+		defer signal.Stop(interrupt)
+		defer cancel() // Ensure context is cancelled when interrupt is received
+
+		<-interrupt
+	}()
 
 	a.Init()
 	defer a.Deinit()
 
-	defer signal.Stop(interrupt)
-	defer cancel() // Ensure context is cancelled when Execute returns
-
 	for {
 		select {
-		case <-ctx.Done():
-			return
-		case <-interrupt:
+		case <-GetCtx().Done():
 			return
 		case <-a.ticker.C:
 			for _, w := range a.workers {
