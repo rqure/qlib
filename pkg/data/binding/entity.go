@@ -67,3 +67,7 @@ func (e *Entity) SetParentId(p string) {
 func (e *Entity) GetField(fieldName string) data.FieldBinding {
 	return NewField(e.store, e.GetId(), fieldName)
 }
+
+func (e *Entity) Impl() any {
+	return e.impl.Impl()
+}

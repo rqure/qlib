@@ -14,12 +14,7 @@ func ToEntityPb(e data.Entity) *protobufs.DatabaseEntity {
 		return nil
 	}
 
-	switch c := e.(type) {
-	case *Entity:
-		return c.impl
-	default:
-		return nil
-	}
+	return e.Impl().(*protobufs.DatabaseEntity)
 }
 
 func FromEntityPb(impl *protobufs.DatabaseEntity) data.Entity {
@@ -96,4 +91,8 @@ func (e *Entity) SetParentId(id string) {
 	}
 
 	e.impl.Parent = &protobufs.EntityReference{Raw: id}
+}
+
+func (e *Entity) Impl() any {
+	return e.impl
 }

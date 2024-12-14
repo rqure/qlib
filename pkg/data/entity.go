@@ -15,6 +15,8 @@ type Entity interface {
 	SetType(string)
 	SetName(string)
 	SetParentId(string)
+
+	Impl() any
 }
 
 type EntitySchema interface {
