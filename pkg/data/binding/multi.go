@@ -1,6 +1,7 @@
 package binding
 
 import (
+	"context"
 	"time"
 
 	"github.com/rqure/qlib/pkg/data"
@@ -21,136 +22,136 @@ func NewMulti(store data.Store) data.MultiBinding {
 }
 
 // Implement Store interface by proxying to impl
-func (m *MultiBinding) Connect() {
-	m.impl.Connect()
+func (m *MultiBinding) Connect(ctx context.Context) {
+	m.impl.Connect(ctx)
 }
 
-func (m *MultiBinding) Disconnect() {
-	m.impl.Disconnect()
+func (m *MultiBinding) Disconnect(ctx context.Context) {
+	m.impl.Disconnect(ctx)
 }
 
-func (m *MultiBinding) IsConnected() bool {
-	return m.impl.IsConnected()
+func (m *MultiBinding) IsConnected(ctx context.Context) bool {
+	return m.impl.IsConnected(ctx)
 }
 
-func (m *MultiBinding) CreateSnapshot() data.Snapshot {
-	return m.impl.CreateSnapshot()
+func (m *MultiBinding) CreateSnapshot(ctx context.Context) data.Snapshot {
+	return m.impl.CreateSnapshot(ctx)
 }
 
-func (m *MultiBinding) RestoreSnapshot(s data.Snapshot) {
-	m.impl.RestoreSnapshot(s)
+func (m *MultiBinding) RestoreSnapshot(ctx context.Context, s data.Snapshot) {
+	m.impl.RestoreSnapshot(ctx, s)
 }
 
-func (m *MultiBinding) CreateEntity(entityType, parentId, name string) {
-	m.impl.CreateEntity(entityType, parentId, name)
+func (m *MultiBinding) CreateEntity(ctx context.Context, entityType, parentId, name string) {
+	m.impl.CreateEntity(ctx, entityType, parentId, name)
 }
 
-func (m *MultiBinding) GetEntity(entityId string) data.Entity {
-	return m.impl.GetEntity(entityId)
+func (m *MultiBinding) GetEntity(ctx context.Context, entityId string) data.Entity {
+	return m.impl.GetEntity(ctx, entityId)
 }
 
-func (m *MultiBinding) SetEntity(value data.Entity) {
-	m.impl.SetEntity(value)
+func (m *MultiBinding) SetEntity(ctx context.Context, value data.Entity) {
+	m.impl.SetEntity(ctx, value)
 }
 
-func (m *MultiBinding) DeleteEntity(entityId string) {
-	m.impl.DeleteEntity(entityId)
+func (m *MultiBinding) DeleteEntity(ctx context.Context, entityId string) {
+	m.impl.DeleteEntity(ctx, entityId)
 }
 
-func (m *MultiBinding) FindEntities(entityType string) []string {
-	return m.impl.FindEntities(entityType)
+func (m *MultiBinding) FindEntities(ctx context.Context, entityType string) []string {
+	return m.impl.FindEntities(ctx, entityType)
 }
 
-func (m *MultiBinding) GetEntityTypes() []string {
-	return m.impl.GetEntityTypes()
+func (m *MultiBinding) GetEntityTypes(ctx context.Context) []string {
+	return m.impl.GetEntityTypes(ctx)
 }
 
-func (m *MultiBinding) EntityExists(entityId string) bool {
-	return m.impl.EntityExists(entityId)
+func (m *MultiBinding) EntityExists(ctx context.Context, entityId string) bool {
+	return m.impl.EntityExists(ctx, entityId)
 }
 
-func (m *MultiBinding) FieldExists(fieldName, entityType string) bool {
-	return m.impl.FieldExists(fieldName, entityType)
+func (m *MultiBinding) FieldExists(ctx context.Context, fieldName, entityType string) bool {
+	return m.impl.FieldExists(ctx, fieldName, entityType)
 }
 
-func (m *MultiBinding) GetEntitySchema(entityType string) data.EntitySchema {
-	return m.impl.GetEntitySchema(entityType)
+func (m *MultiBinding) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
+	return m.impl.GetEntitySchema(ctx, entityType)
 }
 
-func (m *MultiBinding) SetEntitySchema(schema data.EntitySchema) {
-	m.impl.SetEntitySchema(schema)
+func (m *MultiBinding) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
+	m.impl.SetEntitySchema(ctx, schema)
 }
 
 // Queue reads and writes instead of executing immediately
-func (m *MultiBinding) Read(reqs ...data.Request) {
+func (m *MultiBinding) Read(ctx context.Context, reqs ...data.Request) {
 	m.readReqs = append(m.readReqs, reqs...)
 }
 
-func (m *MultiBinding) Write(reqs ...data.Request) {
+func (m *MultiBinding) Write(ctx context.Context, reqs ...data.Request) {
 	m.writeReqs = append(m.writeReqs, reqs...)
 }
 
-func (m *MultiBinding) Notify(config data.NotificationConfig, callback data.NotificationCallback) data.NotificationToken {
-	return m.impl.Notify(config, callback)
+func (m *MultiBinding) Notify(ctx context.Context, config data.NotificationConfig, callback data.NotificationCallback) data.NotificationToken {
+	return m.impl.Notify(ctx, config, callback)
 }
 
-func (m *MultiBinding) Unnotify(subscriptionId string) {
-	m.impl.Unnotify(subscriptionId)
+func (m *MultiBinding) Unnotify(ctx context.Context, subscriptionId string) {
+	m.impl.Unnotify(ctx, subscriptionId)
 }
 
-func (m *MultiBinding) UnnotifyCallback(subscriptionId string, callback data.NotificationCallback) {
-	m.impl.UnnotifyCallback(subscriptionId, callback)
+func (m *MultiBinding) UnnotifyCallback(ctx context.Context, subscriptionId string, callback data.NotificationCallback) {
+	m.impl.UnnotifyCallback(ctx, subscriptionId, callback)
 }
 
-func (m *MultiBinding) ProcessNotifications() {
-	m.impl.ProcessNotifications()
+func (m *MultiBinding) ProcessNotifications(ctx context.Context) {
+	m.impl.ProcessNotifications(ctx)
 }
 
-func (m *MultiBinding) TempSet(key string, value string, expiration time.Duration) bool {
-	return m.impl.TempSet(key, value, expiration)
+func (m *MultiBinding) TempSet(ctx context.Context, key string, value string, expiration time.Duration) bool {
+	return m.impl.TempSet(ctx, key, value, expiration)
 }
 
-func (m *MultiBinding) TempGet(key string) string {
-	return m.impl.TempGet(key)
+func (m *MultiBinding) TempGet(ctx context.Context, key string) string {
+	return m.impl.TempGet(ctx, key)
 }
 
-func (m *MultiBinding) TempExpire(key string, expiration time.Duration) {
-	m.impl.TempExpire(key, expiration)
+func (m *MultiBinding) TempExpire(ctx context.Context, key string, expiration time.Duration) {
+	m.impl.TempExpire(ctx, key, expiration)
 }
 
-func (m *MultiBinding) TempDel(key string) {
-	m.impl.TempDel(key)
+func (m *MultiBinding) TempDel(ctx context.Context, key string) {
+	m.impl.TempDel(ctx, key)
 }
 
-func (m *MultiBinding) SortedSetAdd(key string, member string, score float64) int64 {
-	return m.impl.SortedSetAdd(key, member, score)
+func (m *MultiBinding) SortedSetAdd(ctx context.Context, key string, member string, score float64) int64 {
+	return m.impl.SortedSetAdd(ctx, key, member, score)
 }
 
-func (m *MultiBinding) SortedSetRemove(key string, member string) int64 {
-	return m.impl.SortedSetRemove(key, member)
+func (m *MultiBinding) SortedSetRemove(ctx context.Context, key string, member string) int64 {
+	return m.impl.SortedSetRemove(ctx, key, member)
 }
 
-func (m *MultiBinding) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
-	return m.impl.SortedSetRemoveRangeByRank(key, start, stop)
+func (m *MultiBinding) SortedSetRemoveRangeByRank(ctx context.Context, key string, start, stop int64) int64 {
+	return m.impl.SortedSetRemoveRangeByRank(ctx, key, start, stop)
 }
 
-func (m *MultiBinding) SortedSetRangeByScoreWithScores(key string, min, max string) []data.SortedSetMember {
-	return m.impl.SortedSetRangeByScoreWithScores(key, min, max)
+func (m *MultiBinding) SortedSetRangeByScoreWithScores(ctx context.Context, key string, min, max string) []data.SortedSetMember {
+	return m.impl.SortedSetRangeByScoreWithScores(ctx, key, min, max)
 }
 
 // MultiBinding specific methods
-func (m *MultiBinding) GetEntityById(entityId string) data.EntityBinding {
-	e := m.impl.GetEntity(entityId)
-	return NewEntity(m, e.GetId()) // Use MultiBinding as the store
+func (m *MultiBinding) GetEntityById(ctx context.Context, entityId string) data.EntityBinding {
+	e := m.impl.GetEntity(ctx, entityId)
+	return NewEntity(ctx, m, e.GetId()) // Use MultiBinding as the store
 }
 
-func (m *MultiBinding) Commit() {
+func (m *MultiBinding) Commit(ctx context.Context) {
 	if len(m.readReqs) > 0 {
-		m.impl.Read(m.readReqs...)
+		m.impl.Read(ctx, m.readReqs...)
 	}
 
 	if len(m.writeReqs) > 0 {
-		m.impl.Write(m.writeReqs...)
+		m.impl.Write(ctx, m.writeReqs...)
 	}
 
 	m.readReqs = []data.Request{}

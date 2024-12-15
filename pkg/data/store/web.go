@@ -1,12 +1,12 @@
 package store
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
 	"github.com/rqure/qlib/pkg/data/field"
@@ -40,8 +40,8 @@ func NewWeb(config WebConfig) data.Store {
 	}
 }
 
-func (s *Web) Connect() {
-	s.Disconnect()
+func (s *Web) Connect(ctx context.Context) {
+	s.Disconnect(ctx)
 
 	log.Info("Connecting to %v", s.config.Address)
 
@@ -57,27 +57,27 @@ func (s *Web) Connect() {
 	})
 
 	s.client.SetMessageHandler(func(_ web.Client, msg web.Message) {
-		s.handleMessage(msg)
+		s.handleMessage(ctx, msg)
 	})
 }
 
-func (s *Web) Disconnect() {
+func (s *Web) Disconnect(ctx context.Context) {
 	if s.client != nil {
 		s.client.Close()
 		s.client = nil
 	}
 }
 
-func (s *Web) IsConnected() bool {
+func (s *Web) IsConnected(context.Context) bool {
 	return s.client != nil
 }
 
-func (s *Web) CreateSnapshot() data.Snapshot {
+func (s *Web) CreateSnapshot(ctx context.Context) data.Snapshot {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigCreateSnapshotRequest{})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}
@@ -95,17 +95,17 @@ func (s *Web) CreateSnapshot() data.Snapshot {
 	return snapshot.FromPb(resp.Snapshot)
 }
 
-func (s *Web) RestoreSnapshot(ss data.Snapshot) {
+func (s *Web) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigRestoreSnapshotRequest{
 		Snapshot: snapshot.ToPb(ss),
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 }
 
-func (s *Web) CreateEntity(entityType, parentId, name string) {
+func (s *Web) CreateEntity(ctx context.Context, entityType, parentId, name string) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigCreateEntityRequest{
@@ -114,17 +114,17 @@ func (s *Web) CreateEntity(entityType, parentId, name string) {
 		Name:     name,
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 }
 
-func (s *Web) GetEntity(entityId string) data.Entity {
+func (s *Web) GetEntity(ctx context.Context, entityId string) data.Entity {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntityRequest{
 		Id: entityId,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}
@@ -142,28 +142,28 @@ func (s *Web) GetEntity(entityId string) data.Entity {
 	return entity.FromEntityPb(resp.Entity)
 }
 
-func (s *Web) SetEntity(e data.Entity) {
+func (s *Web) SetEntity(ctx context.Context, e data.Entity) {
 	// Set entity is handled through CreateEntity
 }
 
-func (s *Web) DeleteEntity(entityId string) {
+func (s *Web) DeleteEntity(ctx context.Context, entityId string) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigDeleteEntityRequest{
 		Id: entityId,
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 }
 
-func (s *Web) FindEntities(entityType string) []string {
+func (s *Web) FindEntities(ctx context.Context, entityType string) []string {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetEntitiesRequest{
 		EntityType: entityType,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}
@@ -181,12 +181,12 @@ func (s *Web) FindEntities(entityType string) []string {
 	return ids
 }
 
-func (s *Web) GetEntityTypes() []string {
+func (s *Web) GetEntityTypes(ctx context.Context) []string {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntityTypesRequest{})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}
@@ -200,14 +200,14 @@ func (s *Web) GetEntityTypes() []string {
 	return resp.Types
 }
 
-func (s *Web) EntityExists(entityId string) bool {
+func (s *Web) EntityExists(ctx context.Context, entityId string) bool {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeEntityExistsRequest{
 		EntityId: entityId,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return false
 	}
@@ -221,7 +221,7 @@ func (s *Web) EntityExists(entityId string) bool {
 	return resp.Exists
 }
 
-func (s *Web) FieldExists(fieldName, entityType string) bool {
+func (s *Web) FieldExists(ctx context.Context, fieldName, entityType string) bool {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeFieldExistsRequest{
@@ -229,7 +229,7 @@ func (s *Web) FieldExists(fieldName, entityType string) bool {
 		EntityType: entityType,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return false
 	}
@@ -243,14 +243,14 @@ func (s *Web) FieldExists(fieldName, entityType string) bool {
 	return resp.Exists
 }
 
-func (s *Web) GetEntitySchema(entityType string) data.EntitySchema {
+func (s *Web) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntitySchemaRequest{
 		Type: entityType,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}
@@ -268,17 +268,17 @@ func (s *Web) GetEntitySchema(entityType string) data.EntitySchema {
 	return entity.FromSchemaPb(resp.Schema)
 }
 
-func (s *Web) SetEntitySchema(schema data.EntitySchema) {
+func (s *Web) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebConfigSetEntitySchemaRequest{
 		Schema: entity.ToSchemaPb(schema),
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 }
 
-func (s *Web) Read(requests ...data.Request) {
+func (s *Web) Read(ctx context.Context, requests ...data.Request) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 
@@ -292,7 +292,7 @@ func (s *Web) Read(requests ...data.Request) {
 		Requests:    dbRequests,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return
 	}
@@ -320,7 +320,7 @@ func (s *Web) Read(requests ...data.Request) {
 	}
 }
 
-func (s *Web) Write(requests ...data.Request) {
+func (s *Web) Write(ctx context.Context, requests ...data.Request) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 
@@ -334,7 +334,7 @@ func (s *Web) Write(requests ...data.Request) {
 		Requests:    dbRequests,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return
 	}
@@ -353,20 +353,23 @@ func (s *Web) Write(requests ...data.Request) {
 	}
 }
 
-func (s *Web) handleMessage(msg web.Message) {
+func (s *Web) handleMessage(ctx context.Context, msg web.Message) {
 	s.mu.Lock()
 	if ch, ok := s.pendingResponses[msg.Header.Id]; ok {
 		delete(s.pendingResponses, msg.Header.Id)
 		s.mu.Unlock()
-		ch <- msg
+		select {
+		case <-ctx.Done():
+		case ch <- msg:
+		}
 		close(ch)
 		return
 	}
 	s.mu.Unlock()
 }
 
-func (s *Web) sendAndWait(msg web.Message) web.Message {
-	if !s.IsConnected() {
+func (s *Web) sendAndWait(ctx context.Context, msg web.Message) web.Message {
+	if !s.IsConnected(ctx) {
 		log.Error("Not connected")
 		return nil
 	}
@@ -385,7 +388,7 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 	s.client.Write(msg)
 
 	select {
-	case <-app.GetCtx().Done():
+	case <-ctx.Done():
 		log.Warn("Context done")
 		return nil
 	case response := <-responseCh:
@@ -399,7 +402,7 @@ func (s *Web) sendAndWait(msg web.Message) web.Message {
 	}
 }
 
-func (s *Web) Notify(config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+func (s *Web) Notify(ctx context.Context, config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 
@@ -407,7 +410,7 @@ func (s *Web) Notify(config data.NotificationConfig, cb data.NotificationCallbac
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return notification.NewToken("", s, nil)
 	}
@@ -428,18 +431,18 @@ func (s *Web) Notify(config data.NotificationConfig, cb data.NotificationCallbac
 	return notification.NewToken(token, s, cb)
 }
 
-func (s *Web) Unnotify(token string) {
+func (s *Web) Unnotify(ctx context.Context, token string) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 	delete(s.callbacks, token)
 }
 
-func (s *Web) UnnotifyCallback(token string, cb data.NotificationCallback) {
+func (s *Web) UnnotifyCallback(ctx context.Context, token string, cb data.NotificationCallback) {
 	if s.callbacks[token] == nil {
 		return
 	}
@@ -452,18 +455,18 @@ func (s *Web) UnnotifyCallback(token string, cb data.NotificationCallback) {
 	}
 
 	if len(callbacks) == 0 {
-		s.Unnotify(token)
+		s.Unnotify(ctx, token)
 	} else {
 		s.callbacks[token] = callbacks
 	}
 }
 
-func (s *Web) ProcessNotifications() {
+func (s *Web) ProcessNotifications(ctx context.Context) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetNotificationsRequest{})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return
 	}
@@ -478,14 +481,14 @@ func (s *Web) ProcessNotifications() {
 		notification := notification.FromPb(n)
 		if callbacks, ok := s.callbacks[notification.GetToken()]; ok {
 			for _, cb := range callbacks {
-				cb.Fn(notification)
+				cb.Fn(ctx, notification)
 			}
 		}
 	}
 }
 
 // Implement remaining data.Store interface methods for temp storage and sorted sets
-func (s *Web) TempSet(key, value string, expiration time.Duration) bool {
+func (s *Web) TempSet(ctx context.Context, key, value string, expiration time.Duration) bool {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempSetRequest{
@@ -494,7 +497,7 @@ func (s *Web) TempSet(key, value string, expiration time.Duration) bool {
 		ExpirationMs: expiration.Milliseconds(),
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return false
 	}
@@ -508,14 +511,14 @@ func (s *Web) TempSet(key, value string, expiration time.Duration) bool {
 	return resp.Success
 }
 
-func (s *Web) TempGet(key string) string {
+func (s *Web) TempGet(ctx context.Context, key string) string {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempGetRequest{
 		Key: key,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return ""
 	}
@@ -529,7 +532,7 @@ func (s *Web) TempGet(key string) string {
 	return resp.Value
 }
 
-func (s *Web) TempExpire(key string, expiration time.Duration) {
+func (s *Web) TempExpire(ctx context.Context, key string, expiration time.Duration) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempExpireRequest{
@@ -537,20 +540,20 @@ func (s *Web) TempExpire(key string, expiration time.Duration) {
 		ExpirationMs: expiration.Milliseconds(),
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 }
 
-func (s *Web) TempDel(key string) {
+func (s *Web) TempDel(ctx context.Context, key string) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempDelRequest{
 		Key: key,
 	})
 
-	s.sendAndWait(msg)
+	s.sendAndWait(ctx, msg)
 }
 
-func (s *Web) SortedSetAdd(key string, member string, score float64) int64 {
+func (s *Web) SortedSetAdd(ctx context.Context, key string, member string, score float64) int64 {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetAddRequest{
@@ -559,7 +562,7 @@ func (s *Web) SortedSetAdd(key string, member string, score float64) int64 {
 		Score:  score,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return 0
 	}
@@ -573,7 +576,7 @@ func (s *Web) SortedSetAdd(key string, member string, score float64) int64 {
 	return resp.Result
 }
 
-func (s *Web) SortedSetRemove(key string, member string) int64 {
+func (s *Web) SortedSetRemove(ctx context.Context, key string, member string) int64 {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetRemoveRequest{
@@ -581,7 +584,7 @@ func (s *Web) SortedSetRemove(key string, member string) int64 {
 		Member: member,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return 0
 	}
@@ -595,7 +598,7 @@ func (s *Web) SortedSetRemove(key string, member string) int64 {
 	return resp.Result
 }
 
-func (s *Web) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
+func (s *Web) SortedSetRemoveRangeByRank(ctx context.Context, key string, start, stop int64) int64 {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetRemoveRangeByRankRequest{
@@ -604,7 +607,7 @@ func (s *Web) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 		Stop:  stop,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return 0
 	}
@@ -618,7 +621,7 @@ func (s *Web) SortedSetRemoveRangeByRank(key string, start, stop int64) int64 {
 	return resp.Result
 }
 
-func (s *Web) SortedSetRangeByScoreWithScores(key string, min, max string) []data.SortedSetMember {
+func (s *Web) SortedSetRangeByScoreWithScores(ctx context.Context, key string, min, max string) []data.SortedSetMember {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeSortedSetRangeByScoreWithScoresRequest{
@@ -627,7 +630,7 @@ func (s *Web) SortedSetRangeByScoreWithScores(key string, min, max string) []dat
 		Max: max,
 	})
 
-	response := s.sendAndWait(msg)
+	response := s.sendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}

@@ -1,6 +1,7 @@
 package leadership
 
 import (
+	"context"
 	"time"
 
 	"github.com/rqure/qlib/pkg/signalslots"
@@ -9,19 +10,19 @@ import (
 type AvailabilityCriteria func() bool
 
 type Candidate interface {
-	Init()
-	Deinit()
+	Init(context.Context)
+	Deinit(context.Context)
 	AddAvailabilityCriteria(AvailabilityCriteria)
-	TryBecomeLeader() bool
-	RenewLeadershipLease()
+	TryBecomeLeader(context.Context) bool
+	RenewLeadershipLease(context.Context)
 	IsAvailable() bool
-	IsCurrentLeader() bool
-	UpdateCandidateStatus(bool)
-	TrimCandidates()
-	GetLeaderCandidates() []string
-	SetState(State)
-	SetLeaderAndCandidateFields()
-	DoWork()
+	IsCurrentLeader(context.Context) bool
+	UpdateCandidateStatus(context.Context, bool)
+	TrimCandidates(context.Context)
+	GetLeaderCandidates(context.Context) []string
+	SetState(context.Context, State)
+	SetLeaderAndCandidateFields(context.Context)
+	DoWork(context.Context)
 
 	LosingLeadership() signalslots.Signal
 	BecameLeader() signalslots.Signal

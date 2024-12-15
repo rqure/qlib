@@ -1,6 +1,7 @@
 package candidate
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -62,14 +63,14 @@ func New(store data.Store) leadership.Candidate {
 	return c
 }
 
-func (c *Candidate) SetState(newState leadership.State) {
+func (c *Candidate) SetState(ctx context.Context, newState leadership.State) {
 	if c.currentState != nil && c.currentState.Name() == newState.Name() {
 		return
 	}
 
 	previousState := c.currentState
 	c.currentState = newState
-	c.currentState.OnEnterState(c, previousState)
+	c.currentState.OnEnterState(ctx, c, previousState)
 }
 
 func (c *Candidate) IsAvailable() bool {
@@ -82,30 +83,31 @@ func (c *Candidate) IsAvailable() bool {
 	return true
 }
 
-func (c *Candidate) IsCurrentLeader() bool {
-	return c.store.TempGet(c.keygen.GetLeaderKey(c.applicationName)) == c.applicationInstanceId
+func (c *Candidate) IsCurrentLeader(ctx context.Context) bool {
+	return c.store.TempGet(ctx, c.keygen.GetLeaderKey(c.applicationName)) == c.applicationInstanceId
 }
 
-func (c *Candidate) UpdateCandidateStatus(available bool) {
+func (c *Candidate) UpdateCandidateStatus(ctx context.Context, available bool) {
 	if available {
-		c.store.SortedSetAdd(c.keygen.GetLeaderCandidatesKey(c.applicationName), c.applicationInstanceId, float64(time.Now().UnixNano()))
+		c.store.SortedSetAdd(ctx, c.keygen.GetLeaderCandidatesKey(c.applicationName), c.applicationInstanceId, float64(time.Now().UnixNano()))
 	} else {
-		c.store.SortedSetRemove(c.keygen.GetLeaderCandidatesKey(c.applicationName), c.applicationInstanceId)
+		c.store.SortedSetRemove(ctx, c.keygen.GetLeaderCandidatesKey(c.applicationName), c.applicationInstanceId)
 	}
 }
 
-func (c *Candidate) TrimCandidates() {
+func (c *Candidate) TrimCandidates(ctx context.Context) {
 	// Remove all entries except the newest MaxCandidates entries
 	// Note: 0 is lowest score (oldest), -1 is highest score (newest)
-	c.store.SortedSetRemoveRangeByRank(c.keygen.GetLeaderCandidatesKey(c.applicationName), 0, -(MaxCandidates + 1))
+	c.store.SortedSetRemoveRangeByRank(ctx, c.keygen.GetLeaderCandidatesKey(c.applicationName), 0, -(MaxCandidates + 1))
 }
 
-func (c *Candidate) GetLeaderCandidates() []string {
+func (c *Candidate) GetLeaderCandidates(ctx context.Context) []string {
 	now := float64(time.Now().UnixNano())
 	min := fmt.Sprintf("%f", now-float64(LeaseTimeout.Nanoseconds()))
 	max := fmt.Sprintf("%f", now)
 
 	members := c.store.SortedSetRangeByScoreWithScores(
+		ctx,
 		c.keygen.GetLeaderCandidatesKey(c.applicationName),
 		min,
 		max,
@@ -119,27 +121,27 @@ func (c *Candidate) GetLeaderCandidates() []string {
 	return candidates
 }
 
-func (c *Candidate) TryBecomeLeader() bool {
-	return c.store.TempSet(c.keygen.GetLeaderKey(c.applicationName), c.applicationInstanceId, LeaseTimeout)
+func (c *Candidate) TryBecomeLeader(ctx context.Context) bool {
+	return c.store.TempSet(ctx, c.keygen.GetLeaderKey(c.applicationName), c.applicationInstanceId, LeaseTimeout)
 }
 
-func (c *Candidate) RenewLeadershipLease() {
-	c.store.TempExpire(c.keygen.GetLeaderKey(c.applicationName), LeaseTimeout)
+func (c *Candidate) RenewLeadershipLease(ctx context.Context) {
+	c.store.TempExpire(ctx, c.keygen.GetLeaderKey(c.applicationName), LeaseTimeout)
 }
 
 func (c *Candidate) AddAvailabilityCriteria(criteria leadership.AvailabilityCriteria) {
 	c.availabilityCriteria = append(c.availabilityCriteria, criteria)
 }
 
-func (c *Candidate) Init() {
+func (c *Candidate) Init(context.Context) {
 	c.applicationName = app.GetName()
 	c.applicationInstanceId = app.GetApplicationInstanceId()
 
 	log.Info("Application instance ID: %s", c.applicationInstanceId)
 }
 
-func (c *Candidate) Deinit() {
-	c.SetState(states.NewUnavailable())
+func (c *Candidate) Deinit(ctx context.Context) {
+	c.SetState(ctx, states.NewUnavailable())
 
 	c.candidateUpdateTicker.Stop()
 	c.leaderAttemptTicker.Stop()
@@ -178,72 +180,72 @@ func (c *Candidate) resetCandidateTicker() {
 	c.candidateUpdateTicker.Reset(LeaseTimeout / 2)
 }
 
-func (c *Candidate) onBecameLeader() {
+func (c *Candidate) onBecameLeader(ctx context.Context) {
 	log.Info("Became the leader (instanceId=%s)", c.applicationInstanceId)
-	c.UpdateCandidateStatus(true)
+	c.UpdateCandidateStatus(ctx, true)
 	c.resetCandidateTicker()
 }
 
-func (c *Candidate) onBecameFollower() {
+func (c *Candidate) onBecameFollower(ctx context.Context) {
 	log.Info("Became a follower (instanceId=%s)", c.applicationInstanceId)
-	c.UpdateCandidateStatus(true)
+	c.UpdateCandidateStatus(ctx, true)
 	c.resetCandidateTicker()
 }
 
-func (c *Candidate) onBecameUnavailable() {
+func (c *Candidate) onBecameUnavailable(ctx context.Context) {
 	log.Info("Became unavailable (instanceId=%s)", c.applicationInstanceId)
-	c.UpdateCandidateStatus(false)
+	c.UpdateCandidateStatus(ctx, false)
 	c.resetCandidateTicker()
 }
 
-func (c *Candidate) SetLeaderAndCandidateFields() {
+func (c *Candidate) SetLeaderAndCandidateFields(ctx context.Context) {
 	services := query.New(c.store).
 		ForType("Service").
 		Where("ApplicationName").Equals(c.applicationName).
-		Execute()
+		Execute(ctx)
 
-	candidates := c.GetLeaderCandidates()
+	candidates := c.GetLeaderCandidates(ctx)
 
 	multi := binding.NewMulti(c.store)
 
 	for _, service := range services {
-		s := multi.GetEntityById(service.GetId())
-		s.GetField("Leader").WriteString(c.applicationInstanceId, data.WriteChanges)
-		s.GetField("Candidates").WriteString(strings.Join(candidates, ","), data.WriteChanges)
-		s.GetField("HeartbeatTrigger").WriteInt(0)
+		s := multi.GetEntityById(ctx, service.GetId())
+		s.GetField("Leader").WriteString(ctx, c.applicationInstanceId, data.WriteChanges)
+		s.GetField("Candidates").WriteString(ctx, strings.Join(candidates, ","), data.WriteChanges)
+		s.GetField("HeartbeatTrigger").WriteInt(ctx, 0)
 	}
 
-	multi.Commit()
+	multi.Commit(ctx)
 }
 
-func (c *Candidate) ClearLeaderAndCandidateFields() {
+func (c *Candidate) ClearLeaderAndCandidateFields(ctx context.Context) {
 	services := query.New(c.store).
 		ForType("Service").
 		Where("ApplicationName").Equals(c.applicationName).
-		Execute()
+		Execute(ctx)
 
-	candidates := c.GetLeaderCandidates()
+	candidates := c.GetLeaderCandidates(ctx)
 
 	for _, service := range services {
 		leaderField := service.GetField("Leader")
-		if leaderField.ReadString() == c.applicationInstanceId {
-			leaderField.WriteString("")
+		if leaderField.ReadString(ctx) == c.applicationInstanceId {
+			leaderField.WriteString(ctx, "")
 		}
 
 		candidatesField := service.GetField("Candidates")
-		if candidatesField.ReadString() != "" {
-			candidatesField.WriteString(strings.Join(candidates, ","))
+		if candidatesField.ReadString(ctx) != "" {
+			candidatesField.WriteString(ctx, strings.Join(candidates, ","))
 		}
 	}
 }
 
-func (c *Candidate) onLosingLeadership() {
+func (c *Candidate) onLosingLeadership(ctx context.Context) {
 	log.Info("Losing leadership status (instanceId=%s)", c.applicationInstanceId)
 
-	c.UpdateCandidateStatus(false)
-	c.ClearLeaderAndCandidateFields()
+	c.UpdateCandidateStatus(ctx, false)
+	c.ClearLeaderAndCandidateFields(ctx)
 }
 
-func (c *Candidate) DoWork() {
-	c.currentState.DoWork(c)
+func (c *Candidate) DoWork(ctx context.Context) {
+	c.currentState.DoWork(ctx, c)
 }

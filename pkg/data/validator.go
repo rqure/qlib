@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rqure/qlib/pkg/log"
@@ -11,7 +12,7 @@ type EntityFieldValidator interface {
 	// RegisterEntityFields registers required fields for an entity type
 	RegisterEntityFields(entityType string, fields ...string)
 	// ValidateFields checks if all registered entity fields exist in the schema
-	ValidateFields() error
+	ValidateFields(context.Context) error
 }
 
 type entityFieldValidatorImpl struct {
@@ -33,9 +34,9 @@ func (v *entityFieldValidatorImpl) RegisterEntityFields(entityType string, field
 	v.entities[entityType] = fields
 }
 
-func (v *entityFieldValidatorImpl) ValidateFields() error {
+func (v *entityFieldValidatorImpl) ValidateFields(ctx context.Context) error {
 	for entityType, fields := range v.entities {
-		schema := v.store.GetEntitySchema(entityType)
+		schema := v.store.GetEntitySchema(ctx, entityType)
 		if schema == nil {
 			log.Error("Schema does not exist: %v", entityType)
 			return fmt.Errorf("schema does not exist: %s", entityType)

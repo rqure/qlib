@@ -1,14 +1,18 @@
 package binding
 
-import "github.com/rqure/qlib/pkg/data"
+import (
+	"context"
+
+	"github.com/rqure/qlib/pkg/data"
+)
 
 type Entity struct {
 	impl  data.Entity
 	store data.Store
 }
 
-func NewEntity(store data.Store, entityId string) data.EntityBinding {
-	e := store.GetEntity(entityId)
+func NewEntity(ctx context.Context, store data.Store, entityId string) data.EntityBinding {
+	e := store.GetEntity(ctx, entityId)
 
 	return &Entity{
 		store: store,

@@ -1,6 +1,8 @@
 package workers
 
 import (
+	"context"
+
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/notification"
@@ -20,6 +22,8 @@ type Leadership struct {
 	notificationTokens []data.NotificationToken
 
 	candidate leadership.Candidate
+
+	handle app.Handle
 }
 
 // Update initialization
@@ -43,8 +47,10 @@ func (w *Leadership) AddAvailabilityCriteria(criteria leadership.AvailabilityCri
 	w.candidate.AddAvailabilityCriteria(criteria)
 }
 
-func (w *Leadership) Init(h app.Handle) {
-	w.candidate.Init()
+func (w *Leadership) Init(ctx context.Context, h app.Handle) {
+	w.handle = h
+
+	w.candidate.Init(ctx)
 
 	w.AddAvailabilityCriteria(func() bool {
 		return w.isStoreConnected
@@ -55,32 +61,33 @@ func (w *Leadership) Init(h app.Handle) {
 	})
 }
 
-func (w *Leadership) Deinit() {
-	w.candidate.Deinit()
+func (w *Leadership) Deinit(ctx context.Context) {
+	w.candidate.Deinit(ctx)
 }
 
-func (w *Leadership) DoWork() {
+func (w *Leadership) DoWork(ctx context.Context) {
 	if w.isStoreConnected {
-		w.candidate.DoWork()
+		w.candidate.DoWork(ctx)
 	}
 }
 
-func (w *Leadership) OnStoreConnected() {
+func (w *Leadership) OnStoreConnected(ctx context.Context) {
 	w.isStoreConnected = true
 
 	for _, token := range w.notificationTokens {
-		token.Unbind()
+		token.Unbind(ctx)
 	}
 
 	w.notificationTokens = []data.NotificationToken{}
 
 	w.notificationTokens = append(w.notificationTokens, w.store.Notify(
+		ctx,
 		notification.NewConfig().
 			SetEntityType("Root").
 			SetFieldName("SchemaUpdateTrigger"),
 		notification.NewCallback(w.OnSchemaUpdated)))
 
-	w.OnSchemaUpdated(nil)
+	w.OnSchemaUpdated(ctx, nil)
 }
 
 func (w *Leadership) OnStoreDisconnected() {
@@ -103,10 +110,10 @@ func (w *Leadership) LosingLeadership() signalslots.Signal {
 	return w.candidate.LosingLeadership()
 }
 
-func (w *Leadership) OnSchemaUpdated(data.Notification) {
+func (w *Leadership) OnSchemaUpdated(ctx context.Context, n data.Notification) {
 	w.isStoreValid = true
 
-	if err := w.storeValidator.ValidateFields(); err != nil {
+	if err := w.storeValidator.ValidateFields(ctx); err != nil {
 		w.isStoreValid = false
 	}
 }

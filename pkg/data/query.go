@@ -1,9 +1,11 @@
 package data
 
+import "context"
+
 type Query interface {
 	ForType(string) Query
 	Where(string) FieldQuery
-	Execute() []EntityBinding
+	Execute(context.Context) []EntityBinding
 }
 
 type FieldQuery interface {

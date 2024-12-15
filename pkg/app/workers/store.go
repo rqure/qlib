@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"context"
 	"time"
 
 	"github.com/rqure/qlib/pkg/app"
@@ -40,47 +41,48 @@ func NewStore(store data.Store) *Store {
 	}
 }
 
-func (w *Store) Init(h app.Handle) {
+func (w *Store) Init(context.Context, app.Handle) {
 }
 
-func (w *Store) Deinit() {
+func (w *Store) Deinit(context.Context) {
 	w.connectionCheckTicker.Stop()
 	w.notificationTicker.Stop()
 }
 
-func (w *Store) DoWork() {
+func (w *Store) DoWork(ctx context.Context) {
 	select {
 	case <-w.connectionCheckTicker.C:
-		w.setConnectionStatus(w.store.IsConnected())
+		w.setConnectionStatus(ctx, w.store.IsConnected(ctx))
 
 		if !w.IsConnected() {
-			w.store.Connect()
-			w.setConnectionStatus(w.store.IsConnected())
+			w.store.Connect(ctx)
+			w.setConnectionStatus(ctx, w.store.IsConnected(ctx))
 		}
 	case <-w.notificationTicker.C:
 		if w.IsConnected() {
-			w.store.ProcessNotifications()
+			w.store.ProcessNotifications(ctx)
 		}
 	default:
 	}
 }
 
-func (w *Store) onConnected() {
+func (w *Store) onConnected(ctx context.Context) {
 	for _, token := range w.notificationTokens {
-		token.Unbind()
+		token.Unbind(ctx)
 	}
 	w.notificationTokens = make([]data.NotificationToken, 0)
 
 	services := query.New(w.store).
 		ForType("Service").
 		Where("ApplicationName").Equals(app.GetName()).
-		Execute()
+		Execute(ctx)
 
 	for _, service := range services {
-		logLevel := service.GetField("LogLevel").ReadInt()
+		logLevel := service.GetField("LogLevel").ReadInt(ctx)
 		log.SetLevel(log.Level(logLevel))
 
 		w.notificationTokens = append(w.notificationTokens, w.store.Notify(
+			ctx,
 			notification.NewConfig().
 				SetEntityId(service.GetId()).
 				SetFieldName("LogLevel").
@@ -91,7 +93,7 @@ func (w *Store) onConnected() {
 
 	log.Info("Connection status changed to [CONNECTED]")
 
-	w.Connected.Emit()
+	w.Connected.Emit(ctx)
 }
 
 func (w *Store) onDisconnected() {
@@ -100,14 +102,14 @@ func (w *Store) onDisconnected() {
 	w.Disconnected.Emit()
 }
 
-func (w *Store) setConnectionStatus(connected bool) {
+func (w *Store) setConnectionStatus(ctx context.Context, connected bool) {
 	if w.isConnected == connected {
 		return
 	}
 
 	w.isConnected = connected
 	if connected {
-		w.onConnected()
+		w.onConnected(ctx)
 	} else {
 		w.onDisconnected()
 	}
@@ -117,7 +119,7 @@ func (w *Store) IsConnected() bool {
 	return w.isConnected
 }
 
-func (w *Store) onLogLevelChanged(n data.Notification) {
+func (w *Store) onLogLevelChanged(ctx context.Context, n data.Notification) {
 	level := log.Level(n.GetCurrent().GetValue().GetInt())
 	log.SetLevel(level)
 

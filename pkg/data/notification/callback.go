@@ -1,24 +1,26 @@
 package notification
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/rqure/qlib/pkg/data"
 )
 
 type Callback struct {
-	fn func(data.Notification)
+	fn func(context.Context, data.Notification)
 	id string
 }
 
-func NewCallback(fn func(data.Notification)) data.NotificationCallback {
+func NewCallback(fn func(context.Context, data.Notification)) data.NotificationCallback {
 	return &Callback{
 		fn: fn,
 		id: uuid.New().String(),
 	}
 }
 
-func (c *Callback) Fn(n data.Notification) {
-	c.fn(n)
+func (c *Callback) Fn(ctx context.Context, n data.Notification) {
+	c.fn(ctx, n)
 }
 
 func (c *Callback) Id() string {

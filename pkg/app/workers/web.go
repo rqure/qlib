@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"context"
 	"net/http"
 	"os"
 
@@ -37,7 +38,7 @@ func NewWeb(addr string) *Web {
 	}
 }
 
-func (w *Web) Init(h app.Handle) {
+func (w *Web) Init(ctx context.Context, h app.Handle) {
 	w.handle = h
 
 	// Serve static files from the "static" directory
@@ -99,13 +100,13 @@ func (w *Web) ServeHTTP(wr http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (w *Web) Deinit() {
+func (w *Web) Deinit(context.Context) {
 	for _, client := range w.clients {
 		client.Close()
 	}
 }
 
-func (w *Web) DoWork() {
+func (w *Web) DoWork(context.Context) {
 	// Empty as processing is now done via handlers
 }
 
@@ -129,7 +130,7 @@ func (w *Web) Broadcast(p *anypb.Any) {
 
 func (w *Web) addClient(conn *websocket.Conn) web.Client {
 	client := web.NewClient(conn, func(id string) {
-		w.handle.DoInMainThread(func() {
+		w.handle.DoInMainThread(func(context.Context) {
 			w.clients[id].Close()
 			w.ClientDisconnected.Emit(id)
 			delete(w.clients, id)
@@ -137,12 +138,12 @@ func (w *Web) addClient(conn *websocket.Conn) web.Client {
 	})
 
 	client.SetMessageHandler(func(c web.Client, m web.Message) {
-		w.handle.DoInMainThread(func() {
+		w.handle.DoInMainThread(func(context.Context) {
 			w.Received.Emit(c, m)
 		})
 	})
 
-	w.handle.DoInMainThread(func() {
+	w.handle.DoInMainThread(func(context.Context) {
 		w.clients[client.Id()] = client
 		w.ClientConnected.Emit(client)
 	})

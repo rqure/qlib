@@ -1,6 +1,10 @@
 package notification
 
-import "github.com/rqure/qlib/pkg/data"
+import (
+	"context"
+
+	"github.com/rqure/qlib/pkg/data"
+)
 
 type Token struct {
 	subscriptionId string
@@ -20,10 +24,10 @@ func (t *Token) Id() string {
 	return t.subscriptionId
 }
 
-func (t *Token) Unbind() {
+func (t *Token) Unbind(ctx context.Context) {
 	if t.callback != nil {
-		t.store.UnnotifyCallback(t.subscriptionId, t.callback)
+		t.store.UnnotifyCallback(ctx, t.subscriptionId, t.callback)
 	} else {
-		t.store.Unnotify(t.subscriptionId)
+		t.store.Unnotify(ctx, t.subscriptionId)
 	}
 }

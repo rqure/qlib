@@ -1,10 +1,18 @@
 package slot
 
-import "github.com/rqure/qlib/pkg/signalslots"
+import (
+	"context"
+
+	"github.com/rqure/qlib/pkg/signalslots"
+)
 
 type SlotWithArgs func(...interface{})
 
 type SlotWithoutArgs func()
+
+type SlotWithContext func(context.Context)
+
+type SlotWithContextAndArgs func(context.Context, ...interface{})
 
 type SlotWrapper struct {
 	Fn func(...interface{})
@@ -24,4 +32,12 @@ func (s SlotWithArgs) Invoke(args ...interface{}) {
 
 func (s SlotWithoutArgs) Invoke(args ...interface{}) {
 	s()
+}
+
+func (s SlotWithContext) Invoke(args ...interface{}) {
+	s(args[0].(context.Context))
+}
+
+func (s SlotWithContextAndArgs) Invoke(args ...interface{}) {
+	s(args[0].(context.Context), args[1:]...)
 }

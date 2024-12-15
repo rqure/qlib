@@ -1,6 +1,10 @@
 package states
 
-import "github.com/rqure/qlib/pkg/leadership"
+import (
+	"context"
+
+	"github.com/rqure/qlib/pkg/leadership"
+)
 
 type Leader struct {
 	Base
@@ -10,31 +14,31 @@ func NewLeader() leadership.State {
 	return &Leader{Base{LeaderState}}
 }
 
-func (s *Leader) DoWork(c leadership.Candidate) {
+func (s *Leader) DoWork(ctx context.Context, c leadership.Candidate) {
 	if !c.IsAvailable() {
-		c.SetState(NewUnavailable())
+		c.SetState(ctx, NewUnavailable())
 		return
 	}
 
-	if !c.IsCurrentLeader() {
-		c.SetState(NewFollower())
+	if !c.IsCurrentLeader(ctx) {
+		c.SetState(ctx, NewFollower())
 		return
 	}
 
 	for {
 		select {
 		case <-c.LeaseRenewal():
-			c.RenewLeadershipLease()
+			c.RenewLeadershipLease(ctx)
 		case <-c.CandidateUpdate():
-			c.UpdateCandidateStatus(true)
-			c.TrimCandidates()
-			c.SetLeaderAndCandidateFields()
+			c.UpdateCandidateStatus(ctx, true)
+			c.TrimCandidates(ctx)
+			c.SetLeaderAndCandidateFields(ctx)
 		default:
 			return
 		}
 	}
 }
 
-func (s *Leader) OnEnterState(c leadership.Candidate, previousState leadership.State) {
+func (s *Leader) OnEnterState(ctx context.Context, c leadership.Candidate, previousState leadership.State) {
 	c.BecameLeader().Emit()
 }

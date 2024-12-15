@@ -1,6 +1,10 @@
 package states
 
-import "github.com/rqure/qlib/pkg/leadership"
+import (
+	"context"
+
+	"github.com/rqure/qlib/pkg/leadership"
+)
 
 type Follower struct {
 	Base
@@ -10,33 +14,33 @@ func NewFollower() leadership.State {
 	return &Follower{Base{FollowerState}}
 }
 
-func (s *Follower) DoWork(c leadership.Candidate) {
+func (s *Follower) DoWork(ctx context.Context, c leadership.Candidate) {
 	if !c.IsAvailable() {
-		c.SetState(NewUnavailable())
+		c.SetState(ctx, NewUnavailable())
 		return
 	}
 
-	if c.IsCurrentLeader() {
-		c.SetState(NewLeader())
+	if c.IsCurrentLeader(ctx) {
+		c.SetState(ctx, NewLeader())
 		return
 	}
 
 	for {
 		select {
 		case <-c.LeaderAttempt():
-			if c.TryBecomeLeader() {
-				c.SetState(NewLeader())
+			if c.TryBecomeLeader(ctx) {
+				c.SetState(ctx, NewLeader())
 				return
 			}
 		case <-c.CandidateUpdate():
-			c.UpdateCandidateStatus(true)
+			c.UpdateCandidateStatus(ctx, true)
 		default:
 			return
 		}
 	}
 }
 
-func (s *Follower) OnEnterState(c leadership.Candidate, previousState leadership.State) {
+func (s *Follower) OnEnterState(ctx context.Context, c leadership.Candidate, previousState leadership.State) {
 	wasLeader := previousState != nil && previousState.Name() == LeaderState.String()
 	if wasLeader {
 		c.LosingLeadership().Emit()
@@ -44,7 +48,7 @@ func (s *Follower) OnEnterState(c leadership.Candidate, previousState leadership
 
 	c.BecameFollower().Emit()
 
-	if c.TryBecomeLeader() {
-		c.SetState(NewLeader())
+	if c.TryBecomeLeader(ctx) {
+		c.SetState(ctx, NewLeader())
 	}
 }

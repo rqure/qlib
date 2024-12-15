@@ -2,6 +2,7 @@ package query
 
 import (
 	"cmp"
+	"context"
 	"time"
 
 	"github.com/rqure/qlib/pkg/data"
@@ -32,46 +33,46 @@ func (q *Query) Where(fieldName string) data.FieldQuery {
 	}
 }
 
-func (q *Query) Execute() []data.EntityBinding {
+func (q *Query) Execute(ctx context.Context) []data.EntityBinding {
 	if q.entityType == "" {
 		return nil
 	}
 
 	var results []data.EntityBinding
-	for _, entityId := range q.store.FindEntities(q.entityType) {
-		if q.evaluateConditions(entityId) {
-			results = append(results, binding.NewEntity(q.store, entityId))
+	for _, entityId := range q.store.FindEntities(ctx, q.entityType) {
+		if q.evaluateConditions(ctx, entityId) {
+			results = append(results, binding.NewEntity(ctx, q.store, entityId))
 		}
 	}
 	return results
 }
 
-func (q *Query) evaluateConditions(entityId string) bool {
+func (q *Query) evaluateConditions(ctx context.Context, entityId string) bool {
 	for _, condition := range q.conditions {
 		f := binding.NewField(q.store, entityId, condition.fieldName)
 		switch condition.op {
 		case "eq":
-			if !q.compareValues(f.ReadValue(), condition.value, 0) {
+			if !q.compareValues(f.ReadValue(ctx), condition.value, 0) {
 				return false
 			}
 		case "neq":
-			if q.compareValues(f.ReadValue(), condition.value, 0) {
+			if q.compareValues(f.ReadValue(ctx), condition.value, 0) {
 				return false
 			}
 		case "gt":
-			if !q.compareValues(f.ReadValue(), condition.value, 1) {
+			if !q.compareValues(f.ReadValue(ctx), condition.value, 1) {
 				return false
 			}
 		case "lt":
-			if !q.compareValues(f.ReadValue(), condition.value, -1) {
+			if !q.compareValues(f.ReadValue(ctx), condition.value, -1) {
 				return false
 			}
 		case "gte":
-			if q.compareValues(f.ReadValue(), condition.value, -1) {
+			if q.compareValues(f.ReadValue(ctx), condition.value, -1) {
 				return false
 			}
 		case "lte":
-			if q.compareValues(f.ReadValue(), condition.value, 1) {
+			if q.compareValues(f.ReadValue(ctx), condition.value, 1) {
 				return false
 			}
 		}

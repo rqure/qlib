@@ -1,11 +1,14 @@
 package app
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/rqure/qlib/pkg/log"
 )
 
 type Application interface {
@@ -14,31 +17,30 @@ type Application interface {
 }
 
 type Handle interface {
-	DoInMainThread(func())
+	DoInMainThread(func(context.Context))
 	GetWg() *sync.WaitGroup
 }
 
 type Worker interface {
-	Deinit()
-	Init(Handle)
-	DoWork()
+	Deinit(context.Context)
+	Init(context.Context, Handle)
+	DoWork(context.Context)
 }
 
 type ApplicationImpl struct {
 	workers []Worker
-	tasks   chan func()
+	tasks   chan func(context.Context)
 	wg      *sync.WaitGroup
 	ticker  *time.Ticker
 }
 
 func NewApplication(name string) Application {
 	a := &ApplicationImpl{
-		tasks:  make(chan func(), 1000),
+		tasks:  make(chan func(context.Context), 1000),
 		wg:     &sync.WaitGroup{},
 		ticker: time.NewTicker(GetTickRate()),
 	}
 
-	InitCtx()
 	SetName(name)
 
 	return a
@@ -49,51 +51,84 @@ func (a *ApplicationImpl) AddWorker(w Worker) {
 }
 
 func (a *ApplicationImpl) Init() {
+	log.Info("Initializing workers")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	for _, w := range a.workers {
-		w.Init(a)
+		w.Init(ctx, a)
+	}
+
+	if ctx.Err() != nil {
+		log.Panic("Failed to initialize workers")
 	}
 }
 
 func (a *ApplicationImpl) Deinit() {
+	log.Info("Deinitializing workers")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	a.ticker.Stop()
 
 	for _, w := range a.workers {
-		w.Deinit()
+		w.Deinit(ctx)
 	}
 
-	a.wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		a.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Panic("Failed to wait for workers to deinitalize")
+	case <-done:
+		log.Info("All workers have deinitialized")
+	}
 }
 
 func (a *ApplicationImpl) Execute() {
-	go func() {
-		interrupt := make(chan os.Signal, 1)
-		signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
-		cancel := GetCancel()
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-		defer signal.Stop(interrupt)
-		defer cancel() // Ensure context is cancelled when interrupt is received
+	ctx, cancel := context.WithCancel(context.Background())
 
-		<-interrupt
-	}()
+	defer signal.Stop(interrupt)
+	defer cancel() // Ensure context is cancelled when Execute returns
 
 	a.Init()
 	defer a.Deinit()
 
 	for {
 		select {
-		case <-GetCtx().Done():
+		case <-ctx.Done():
+			return
+		case <-interrupt:
 			return
 		case <-a.ticker.C:
-			for _, w := range a.workers {
-				w.DoWork()
-			}
+			func() {
+				tickerCtx, tickerCancel := context.WithTimeout(ctx, GetTickRate())
+				defer tickerCancel()
+
+				for _, w := range a.workers {
+					w.DoWork(tickerCtx)
+				}
+			}()
 		case task := <-a.tasks:
-			task()
+			func() {
+				taskCtx, taskCancel := context.WithTimeout(ctx, GetTickRate())
+				defer taskCancel()
+				task(taskCtx)
+			}()
 		}
 	}
 }
 
-func (a *ApplicationImpl) DoInMainThread(t func()) {
+func (a *ApplicationImpl) DoInMainThread(t func(context.Context)) {
 	go func() { a.tasks <- t }()
 }
 

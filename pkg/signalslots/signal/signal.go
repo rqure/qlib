@@ -1,6 +1,8 @@
 package signal
 
 import (
+	"context"
+
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/signalslots"
 	"github.com/rqure/qlib/pkg/signalslots/slot"
@@ -22,6 +24,10 @@ func (s *SignalImpl) Connect(i interface{}) {
 		s.slots = append(s.slots, slot.SlotWithArgs(st))
 	case func():
 		s.slots = append(s.slots, slot.SlotWithoutArgs(st))
+	case func(context.Context):
+		s.slots = append(s.slots, slot.SlotWithContext(st))
+	case func(context.Context, ...interface{}):
+		s.slots = append(s.slots, slot.SlotWithContextAndArgs(st))
 	default:
 		log.Error("Unknown slot type: %v", i)
 	}

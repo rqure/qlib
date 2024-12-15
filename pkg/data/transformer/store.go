@@ -2,6 +2,7 @@ package transformer
 
 import (
 	"container/heap"
+	"context"
 	"errors"
 	"time"
 
@@ -23,34 +24,38 @@ func NewTengoStore(s data.Store) *TengoStore {
 	return ts
 }
 
-func (ts *TengoStore) ToTengoMap() tengo.Object {
+func (ts *TengoStore) ToTengoMap(ctx context.Context) tengo.Object {
 	return &tengo.Map{
 		Value: map[string]tengo.Object{
 			"getEntity": &tengo.UserFunction{
-				Name:  "getEntity",
-				Value: ts.GetEntity,
-			},
-			"entity": &tengo.UserFunction{
-				Name:  "entity",
-				Value: ts.GetEntity,
+				Name: "getEntity",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					return ts.GetEntity(ctx, args...)
+				},
 			},
 			"query": &tengo.UserFunction{
-				Name:  "query",
-				Value: ts.Query,
+				Name: "query",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					return ts.Query(ctx, args...)
+				},
 			},
 			"schedule": &tengo.UserFunction{
-				Name:  "schedule",
-				Value: ts.Schedule,
+				Name: "schedule",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					return ts.Schedule(ctx, args...)
+				},
 			},
 			"getMulti": &tengo.UserFunction{
-				Name:  "getMulti",
-				Value: ts.GetMulti,
+				Name: "getMulti",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					return ts.GetMulti(ctx, args...)
+				},
 			},
 		},
 	}
 }
 
-func (ts *TengoStore) GetEntity(args ...tengo.Object) (tengo.Object, error) {
+func (ts *TengoStore) GetEntity(ctx context.Context, args ...tengo.Object) (tengo.Object, error) {
 	if len(args) < 1 {
 		return nil, tengo.ErrWrongNumArguments
 	}
@@ -64,15 +69,15 @@ func (ts *TengoStore) GetEntity(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	e := ts.impl.GetEntity(entityId)
+	e := ts.impl.GetEntity(ctx, entityId)
 	if e == nil {
 		return nil, errors.New("entity not found")
 	}
 
-	return NewTengoEntity(ts.impl, e).ToTengoMap(), nil
+	return NewTengoEntity(ts.impl, e).ToTengoMap(ctx), nil
 }
 
-func (ts *TengoStore) Query(args ...tengo.Object) (tengo.Object, error) {
+func (ts *TengoStore) Query(ctx context.Context, args ...tengo.Object) (tengo.Object, error) {
 	if len(args) < 1 {
 		return nil, tengo.ErrWrongNumArguments
 	}
@@ -86,12 +91,12 @@ func (ts *TengoStore) Query(args ...tengo.Object) (tengo.Object, error) {
 		}
 	}
 
-	entityIds := ts.impl.FindEntities(entityType)
+	entityIds := ts.impl.FindEntities(ctx, entityType)
 	entities := make([]tengo.Object, 0)
 	resultEntities := make([]tengo.Object, 0)
 	for _, entityId := range entityIds {
-		e := ts.impl.GetEntity(entityId)
-		entities = append(entities, NewTengoEntity(ts.impl, e).ToTengoMap())
+		e := ts.impl.GetEntity(ctx, entityId)
+		entities = append(entities, NewTengoEntity(ts.impl, e).ToTengoMap(ctx))
 	}
 
 	if len(args) > 1 {
@@ -121,7 +126,7 @@ func (ts *TengoStore) Query(args ...tengo.Object) (tengo.Object, error) {
 	return &tengo.Array{Value: resultEntities}, nil
 }
 
-func (ts *TengoStore) Schedule(args ...tengo.Object) (tengo.Object, error) {
+func (ts *TengoStore) Schedule(ctx context.Context, args ...tengo.Object) (tengo.Object, error) {
 	if len(args) < 1 {
 		return nil, tengo.ErrWrongNumArguments
 	}
@@ -164,7 +169,7 @@ func (ts *TengoStore) PopAvailableJobs() []*Job {
 }
 
 // Add this new method
-func (ts *TengoStore) GetMulti(...tengo.Object) (tengo.Object, error) {
+func (ts *TengoStore) GetMulti(ctx context.Context, args ...tengo.Object) (tengo.Object, error) {
 	multi := binding.NewMulti(ts.impl)
-	return NewTengoMulti(multi).ToTengoMap(), nil
+	return NewTengoMulti(multi).ToTengoMap(ctx), nil
 }

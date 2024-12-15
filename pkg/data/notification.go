@@ -1,5 +1,7 @@
 package data
 
+import "context"
+
 type Notification interface {
 	GetToken() string
 	GetCurrent() Field
@@ -25,11 +27,11 @@ type NotificationConfig interface {
 }
 
 type NotificationCallback interface {
-	Fn(Notification)
+	Fn(context.Context, Notification)
 	Id() string
 }
 
 type NotificationToken interface {
 	Id() string
-	Unbind()
+	Unbind(context.Context)
 }

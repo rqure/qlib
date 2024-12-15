@@ -1,12 +1,15 @@
 package data
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type MultiBinding interface {
 	Store
 
-	GetEntityById(string) EntityBinding
-	Commit()
+	GetEntityById(context.Context, string) EntityBinding
+	Commit(context.Context)
 }
 
 type EntityBinding interface {
@@ -42,23 +45,23 @@ type FieldBinding interface {
 
 	SetValue(Value) FieldBinding
 
-	WriteValue(Value) FieldBinding
-	WriteInt(...interface{}) FieldBinding
-	WriteFloat(...interface{}) FieldBinding
-	WriteString(...interface{}) FieldBinding
-	WriteBool(...interface{}) FieldBinding
-	WriteBinaryFile(...interface{}) FieldBinding
-	WriteEntityReference(...interface{}) FieldBinding
-	WriteTimestamp(...interface{}) FieldBinding
-	WriteTransformation(...interface{}) FieldBinding
+	WriteValue(context.Context, Value) FieldBinding
+	WriteInt(context.Context, ...interface{}) FieldBinding
+	WriteFloat(context.Context, ...interface{}) FieldBinding
+	WriteString(context.Context, ...interface{}) FieldBinding
+	WriteBool(context.Context, ...interface{}) FieldBinding
+	WriteBinaryFile(context.Context, ...interface{}) FieldBinding
+	WriteEntityReference(context.Context, ...interface{}) FieldBinding
+	WriteTimestamp(context.Context, ...interface{}) FieldBinding
+	WriteTransformation(context.Context, ...interface{}) FieldBinding
 
-	ReadValue() Value
-	ReadInt() int64
-	ReadFloat() float64
-	ReadString() string
-	ReadBool() bool
-	ReadBinaryFile() string
-	ReadEntityReference() string
-	ReadTimestamp() time.Time
-	ReadTransformation() string
+	ReadValue(context.Context) Value
+	ReadInt(context.Context) int64
+	ReadFloat(context.Context) float64
+	ReadString(context.Context) string
+	ReadBool(context.Context) bool
+	ReadBinaryFile(context.Context) string
+	ReadEntityReference(context.Context) string
+	ReadTimestamp(context.Context) time.Time
+	ReadTransformation(context.Context) string
 }

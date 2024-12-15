@@ -1,6 +1,7 @@
 package binding
 
 import (
+	"context"
 	"time"
 
 	"github.com/rqure/qlib/pkg/data"
@@ -41,14 +42,14 @@ func (b *Field) GetValue() data.Value {
 	return b.req.GetValue()
 }
 
-func (b *Field) WriteValue(v data.Value) data.FieldBinding {
+func (b *Field) WriteValue(ctx context.Context, v data.Value) data.FieldBinding {
 	b.req.SetValue(v)
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	return b
 }
 
-func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetInt(v))
 
@@ -70,7 +71,7 @@ func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -78,7 +79,7 @@ func (b *Field) WriteInt(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetFloat(v))
 
@@ -100,7 +101,7 @@ func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -108,7 +109,7 @@ func (b *Field) WriteFloat(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteString(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetString(v))
 
@@ -130,7 +131,7 @@ func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -138,7 +139,7 @@ func (b *Field) WriteString(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetBool(v))
 
@@ -160,7 +161,7 @@ func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -168,7 +169,7 @@ func (b *Field) WriteBool(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetBinaryFile(v))
 
@@ -190,7 +191,7 @@ func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -198,7 +199,7 @@ func (b *Field) WriteBinaryFile(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteEntityReference(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetEntityReference(v))
 
@@ -220,7 +221,7 @@ func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -228,7 +229,7 @@ func (b *Field) WriteEntityReference(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetTimestamp(v))
 
@@ -250,7 +251,7 @@ func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -258,7 +259,7 @@ func (b *Field) WriteTimestamp(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) WriteTransformation(args ...interface{}) data.FieldBinding {
+func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) data.FieldBinding {
 	v := args[0]
 	b.req.SetValue(field.NewValue().SetTransformation(v))
 
@@ -280,7 +281,7 @@ func (b *Field) WriteTransformation(args ...interface{}) data.FieldBinding {
 		}
 	}
 
-	b.store.Write(b.req)
+	b.store.Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -288,48 +289,48 @@ func (b *Field) WriteTransformation(args ...interface{}) data.FieldBinding {
 	return b
 }
 
-func (b *Field) ReadValue() data.Value {
-	b.store.Read(b.req)
+func (b *Field) ReadValue(ctx context.Context) data.Value {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue()
 }
 
-func (b *Field) ReadInt() int64 {
-	b.store.Read(b.req)
+func (b *Field) ReadInt(ctx context.Context) int64 {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetInt()
 }
 
-func (b *Field) ReadFloat() float64 {
-	b.store.Read(b.req)
+func (b *Field) ReadFloat(ctx context.Context) float64 {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetFloat()
 }
 
-func (b *Field) ReadString() string {
-	b.store.Read(b.req)
+func (b *Field) ReadString(ctx context.Context) string {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetString()
 }
 
-func (b *Field) ReadBool() bool {
-	b.store.Read(b.req)
+func (b *Field) ReadBool(ctx context.Context) bool {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetBool()
 }
 
-func (b *Field) ReadBinaryFile() string {
-	b.store.Read(b.req)
+func (b *Field) ReadBinaryFile(ctx context.Context) string {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetBinaryFile()
 }
 
-func (b *Field) ReadEntityReference() string {
-	b.store.Read(b.req)
+func (b *Field) ReadEntityReference(ctx context.Context) string {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetEntityReference()
 }
 
-func (b *Field) ReadTimestamp() time.Time {
-	b.store.Read(b.req)
+func (b *Field) ReadTimestamp(ctx context.Context) time.Time {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetTimestamp()
 }
 
-func (b *Field) ReadTransformation() string {
-	b.store.Read(b.req)
+func (b *Field) ReadTransformation(ctx context.Context) string {
+	b.store.Read(ctx, b.req)
 	return b.req.GetValue().GetTransformation()
 }
 

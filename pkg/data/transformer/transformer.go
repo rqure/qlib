@@ -1,6 +1,8 @@
 package transformer
 
 import (
+	"context"
+
 	"github.com/d5/tengo/v2"
 	"github.com/d5/tengo/v2/stdlib"
 	"github.com/rqure/qlib/pkg/data"
@@ -18,7 +20,7 @@ func NewTransformer(s data.Store) data.Transformer {
 	}
 }
 
-func (t *Transformer) Transform(src string, req data.Request) {
+func (t *Transformer) Transform(ctx context.Context, src string, req data.Request) {
 	// Check if there is a script to execute
 	if len(src) == 0 {
 		return
@@ -29,8 +31,8 @@ func (t *Transformer) Transform(src string, req data.Request) {
 
 	script := tengo.NewScript([]byte(src))
 	script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
-	script.Add("STORE", t.store.ToTengoMap())
-	script.Add("FIELD", NewTengoField(f).ToTengoMap())
+	script.Add("STORE", t.store.ToTengoMap(ctx))
+	script.Add("FIELD", NewTengoField(f).ToTengoMap(ctx))
 
 	_, err := script.Run()
 	if err != nil {
