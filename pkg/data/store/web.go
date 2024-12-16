@@ -54,6 +54,7 @@ func (s *Web) Connect(ctx context.Context) {
 
 	s.client = web.NewClient(conn, func(id string) {
 		log.Info("Connection closed: %v", id)
+		s.Disconnect(ctx)
 	})
 
 	s.client.SetMessageHandler(func(_ web.Client, msg web.Message) {

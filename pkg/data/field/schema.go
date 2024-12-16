@@ -2,6 +2,7 @@ package field
 
 import (
 	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 )
 
@@ -29,9 +30,19 @@ func FromSchemaPb(impl *protobufs.DatabaseFieldSchema) data.FieldSchema {
 }
 
 func (s Schema) GetFieldName() string {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return ""
+	}
+
 	return s.impl.Name
 }
 
 func (s Schema) GetFieldType() string {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return ""
+	}
+
 	return s.impl.Type
 }

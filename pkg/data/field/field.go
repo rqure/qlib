@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -59,17 +60,42 @@ func (f *Field) GetValue() data.Value {
 }
 
 func (f *Field) GetWriteTime() time.Time {
+	if f.impl == nil {
+		log.Error("Impl not defined")
+		return time.Unix(0, 0)
+	}
+
+	if f.impl.WriteTime == nil {
+		log.Error("Writetime not defined")
+		return time.Unix(0, 0)
+	}
+
 	return f.impl.WriteTime.AsTime()
 }
 
 func (f *Field) GetWriter() string {
+	if f.impl == nil {
+		log.Error("Impl not defined")
+		return ""
+	}
+
 	return f.impl.WriterId
 }
 
 func (f *Field) GetEntityId() string {
+	if f.impl == nil {
+		log.Error("Impl not defined")
+		return ""
+	}
+
 	return f.impl.Id
 }
 
 func (f *Field) GetFieldName() string {
+	if f.impl == nil {
+		log.Error("Impl not defined")
+		return ""
+	}
+
 	return f.impl.Name
 }

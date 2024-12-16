@@ -3,6 +3,7 @@ package entity
 import (
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 )
 
@@ -30,10 +31,20 @@ func FromSchemaPb(impl *protobufs.DatabaseEntitySchema) data.EntitySchema {
 }
 
 func (s *Schema) GetType() string {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return ""
+	}
+
 	return s.impl.Name
 }
 
 func (s *Schema) GetFields() []data.FieldSchema {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return []data.FieldSchema{}
+	}
+
 	fields := make([]data.FieldSchema, len(s.impl.Fields))
 	for i, f := range s.impl.Fields {
 		fields[i] = field.FromSchemaPb(f)
@@ -43,6 +54,11 @@ func (s *Schema) GetFields() []data.FieldSchema {
 }
 
 func (s *Schema) GetFieldNames() []string {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return []string{}
+	}
+
 	names := make([]string, len(s.impl.Fields))
 	for i, f := range s.impl.Fields {
 		names[i] = f.Name
@@ -52,6 +68,11 @@ func (s *Schema) GetFieldNames() []string {
 }
 
 func (s *Schema) GetField(name string) data.FieldSchema {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return nil
+	}
+
 	for _, f := range s.impl.Fields {
 		if f.Name == name {
 			return field.FromSchemaPb(f)
@@ -62,6 +83,11 @@ func (s *Schema) GetField(name string) data.FieldSchema {
 }
 
 func (s *Schema) SetFields(fields []data.FieldSchema) {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return
+	}
+
 	s.impl.Fields = make([]*protobufs.DatabaseFieldSchema, len(fields))
 	for i, f := range fields {
 		s.impl.Fields[i] = field.ToSchemaPb(f)
@@ -69,5 +95,10 @@ func (s *Schema) SetFields(fields []data.FieldSchema) {
 }
 
 func (s *Schema) SetType(t string) {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return
+	}
+
 	s.impl.Name = t
 }

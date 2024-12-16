@@ -39,40 +39,63 @@ func (q *Query) Execute(ctx context.Context) []data.EntityBinding {
 	}
 
 	var results []data.EntityBinding
-	for _, entityId := range q.store.FindEntities(ctx, q.entityType) {
-		if q.evaluateConditions(ctx, entityId) {
+	fieldsByEntityId := make(map[string]map[string]data.FieldBinding)
+
+	// Do a bulk read from the store
+	multi := binding.NewMulti(q.store)
+	entities := q.store.FindEntities(ctx, q.entityType)
+
+	// Initialize maps for each entity
+	for _, entityId := range entities {
+		fieldsByEntityId[entityId] = make(map[string]data.FieldBinding)
+	}
+
+	// Bulk read all required fields
+	for _, entityId := range entities {
+		for _, condition := range q.conditions {
+			f := binding.NewField(multi, entityId, condition.fieldName)
+			f.ReadValue(ctx)
+			fieldsByEntityId[entityId][condition.fieldName] = f
+		}
+	}
+	multi.Commit(ctx)
+
+	// Evaluate conditions using the cached values
+	for _, entityId := range entities {
+		if q.evaluateConditions(fieldsByEntityId[entityId]) {
 			results = append(results, binding.NewEntity(ctx, q.store, entityId))
 		}
 	}
+
 	return results
 }
 
-func (q *Query) evaluateConditions(ctx context.Context, entityId string) bool {
+func (q *Query) evaluateConditions(fieldsByName map[string]data.FieldBinding) bool {
 	for _, condition := range q.conditions {
-		f := binding.NewField(q.store, entityId, condition.fieldName)
+		field := fieldsByName[condition.fieldName]
 		switch condition.op {
 		case "eq":
-			if !q.compareValues(f.ReadValue(ctx), condition.value, 0) {
+			if !q.compareValues(field.GetValue(), condition.value, 0) {
 				return false
 			}
 		case "neq":
-			if q.compareValues(f.ReadValue(ctx), condition.value, 0) {
+			if q.compareValues(field.GetValue(), condition.value, 0) {
 				return false
 			}
 		case "gt":
-			if !q.compareValues(f.ReadValue(ctx), condition.value, 1) {
+			if !q.compareValues(field.GetValue(), condition.value, 1) {
 				return false
 			}
 		case "lt":
-			if !q.compareValues(f.ReadValue(ctx), condition.value, -1) {
+			if !q.compareValues(field.GetValue(), condition.value, -1) {
 				return false
 			}
 		case "gte":
-			if q.compareValues(f.ReadValue(ctx), condition.value, -1) {
+			if q.compareValues(field.GetValue(), condition.value, -1) {
 				return false
 			}
 		case "lte":
-			if q.compareValues(f.ReadValue(ctx), condition.value, 1) {
+			if q.compareValues(field.GetValue(), condition.value, 1) {
 				return false
 			}
 		}
