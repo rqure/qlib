@@ -20,13 +20,13 @@ func (s *Follower) DoWork(ctx context.Context, c leadership.Candidate) {
 		return
 	}
 
-	if c.IsCurrentLeader(ctx) {
-		c.SetState(ctx, NewLeader())
-		return
-	}
-
 	for {
 		select {
+		case <-c.IsCurrentLeaderCheck():
+			if c.IsCurrentLeader(ctx) {
+				c.SetState(ctx, NewLeader())
+				return
+			}
 		case <-c.LeaderAttempt():
 			if c.TryBecomeLeader(ctx) {
 				c.SetState(ctx, NewLeader())

@@ -29,6 +29,7 @@ type Candidate interface {
 	BecameFollower() signalslots.Signal
 	BecameUnavailable() signalslots.Signal
 
+	IsCurrentLeaderCheck() <-chan time.Time
 	CandidateUpdate() <-chan time.Time
 	LeaderAttempt() <-chan time.Time
 	LeaseRenewal() <-chan time.Time

@@ -37,6 +37,7 @@ type Candidate struct {
 
 	keygen KeyGenerator
 
+	IsCurrentLeaderTicker *time.Ticker
 	candidateUpdateTicker *time.Ticker
 	leaderAttemptTicker   *time.Ticker
 	leaseRenewalTicker    *time.Ticker
@@ -48,6 +49,7 @@ func New(store data.Store) leadership.Candidate {
 		candidateUpdateTicker: time.NewTicker(LeaseTimeout / 2),
 		leaderAttemptTicker:   time.NewTicker(LeaseTimeout),
 		leaseRenewalTicker:    time.NewTicker(LeaseTimeout / 2),
+		IsCurrentLeaderTicker: time.NewTicker(LeaseTimeout / 5),
 		becameLeader:          signal.New(),
 		losingLeadership:      signal.New(),
 		becameFollower:        signal.New(),
@@ -148,6 +150,7 @@ func (c *Candidate) Deinit(ctx context.Context) {
 	c.candidateUpdateTicker.Stop()
 	c.leaderAttemptTicker.Stop()
 	c.leaseRenewalTicker.Stop()
+	c.IsCurrentLeaderTicker.Stop()
 }
 
 func (c *Candidate) BecameLeader() signalslots.Signal {
@@ -176,6 +179,10 @@ func (c *Candidate) LeaderAttempt() <-chan time.Time {
 
 func (c *Candidate) LeaseRenewal() <-chan time.Time {
 	return c.leaseRenewalTicker.C
+}
+
+func (c *Candidate) IsCurrentLeaderCheck() <-chan time.Time {
+	return c.IsCurrentLeaderTicker.C
 }
 
 func (c *Candidate) resetCandidateTicker() {

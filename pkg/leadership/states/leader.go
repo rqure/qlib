@@ -20,13 +20,13 @@ func (s *Leader) DoWork(ctx context.Context, c leadership.Candidate) {
 		return
 	}
 
-	if !c.IsCurrentLeader(ctx) {
-		c.SetState(ctx, NewFollower())
-		return
-	}
-
 	for {
 		select {
+		case <-c.IsCurrentLeaderCheck():
+			if !c.IsCurrentLeader(ctx) {
+				c.SetState(ctx, NewFollower())
+				return
+			}
 		case <-c.LeaseRenewal():
 			c.RenewLeadershipLease(ctx)
 		case <-c.CandidateUpdate():
