@@ -40,5 +40,5 @@ func (s *Leader) DoWork(ctx context.Context, c leadership.Candidate) {
 }
 
 func (s *Leader) OnEnterState(ctx context.Context, c leadership.Candidate, previousState leadership.State) {
-	c.BecameLeader().Emit()
+	c.BecameLeader().Emit(ctx)
 }

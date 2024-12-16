@@ -34,8 +34,8 @@ func (s *Unavailable) DoWork(ctx context.Context, c leadership.Candidate) {
 func (s *Unavailable) OnEnterState(ctx context.Context, c leadership.Candidate, previousState leadership.State) {
 	wasLeader := previousState != nil && previousState.Name() == LeaderState.String()
 	if wasLeader {
-		c.LosingLeadership().Emit()
+		c.LosingLeadership().Emit(ctx)
 	}
 
-	c.BecameUnavailable().Emit()
+	c.BecameUnavailable().Emit(ctx)
 }
