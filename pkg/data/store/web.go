@@ -24,11 +24,16 @@ type WebConfig struct {
 	Address string
 }
 
+type responseCtxPair struct {
+	ctx context.Context
+	ch  chan *protobufs.WebMessage
+}
+
 type Web struct {
 	config           WebConfig
 	client           web.Client
 	callbacks        map[string][]data.NotificationCallback
-	pendingResponses map[string]chan *protobufs.WebMessage
+	pendingResponses map[string]responseCtxPair
 	mu               sync.RWMutex
 }
 
@@ -36,7 +41,7 @@ func NewWeb(config WebConfig) data.Store {
 	return &Web{
 		config:           config,
 		callbacks:        map[string][]data.NotificationCallback{},
-		pendingResponses: map[string]chan *protobufs.WebMessage{},
+		pendingResponses: map[string]responseCtxPair{},
 	}
 }
 
@@ -58,7 +63,7 @@ func (s *Web) Connect(ctx context.Context) {
 	})
 
 	s.client.SetMessageHandler(func(_ web.Client, msg web.Message) {
-		s.handleMessage(ctx, msg)
+		s.handleMessage(msg)
 	})
 }
 
@@ -383,18 +388,18 @@ func (s *Web) Write(ctx context.Context, requests ...data.Request) {
 	}
 }
 
-func (s *Web) handleMessage(ctx context.Context, msg web.Message) {
+func (s *Web) handleMessage(msg web.Message) {
 	s.mu.Lock()
-	if ch, ok := s.pendingResponses[msg.Header.Id]; ok {
+	if rsp, ok := s.pendingResponses[msg.Header.Id]; ok {
 		delete(s.pendingResponses, msg.Header.Id)
 		s.mu.Unlock()
 		select {
-		case <-ctx.Done():
+		case <-rsp.ctx.Done():
 			log.Info("Context done")
-		case ch <- msg:
+		case rsp.ch <- msg:
 			log.Trace("Returned response for headerId=(%s)", msg.Header.Id)
 		}
-		close(ch)
+		close(rsp.ch)
 		return
 	}
 	s.mu.Unlock()
@@ -414,7 +419,10 @@ func (s *Web) sendAndWait(ctx context.Context, msg web.Message) web.Message {
 	responseCh := make(chan web.Message, 1)
 
 	s.mu.Lock()
-	s.pendingResponses[requestId] = responseCh
+	s.pendingResponses[requestId] = responseCtxPair{
+		ctx: ctx,
+		ch:  responseCh,
+	}
 	s.mu.Unlock()
 
 	s.client.Write(msg)
