@@ -13,6 +13,7 @@ type Field interface {
 }
 
 type Value interface {
+	IsNil() bool
 	IsInt() bool
 	IsFloat() bool
 	IsString() bool

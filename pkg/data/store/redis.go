@@ -500,7 +500,7 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 			continue
 		}
 
-		if req.GetValue() == nil {
+		if req.GetValue().IsNil() {
 			a, err := anypb.New(actualFieldType.New().Interface())
 
 			if err != nil {

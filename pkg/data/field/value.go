@@ -41,6 +41,10 @@ func ToAnyPb(v data.Value) *anypb.Any {
 	}
 }
 
+func (v *Value) IsNil() bool {
+	return v.impl == nil
+}
+
 func (v *Value) IsInt() bool {
 	return v.impl != nil && v.impl.MessageIs(&protobufs.Int{})
 }
