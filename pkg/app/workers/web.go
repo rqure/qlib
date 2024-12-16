@@ -130,22 +130,22 @@ func (w *Web) Broadcast(p *anypb.Any) {
 
 func (w *Web) addClient(conn *websocket.Conn) web.Client {
 	client := web.NewClient(conn, func(id string) {
-		w.handle.DoInMainThread(func(context.Context) {
+		w.handle.DoInMainThread(func(ctx context.Context) {
 			w.clients[id].Close()
-			w.ClientDisconnected.Emit(id)
+			w.ClientDisconnected.Emit(ctx, id)
 			delete(w.clients, id)
 		})
 	})
 
 	client.SetMessageHandler(func(c web.Client, m web.Message) {
-		w.handle.DoInMainThread(func(context.Context) {
-			w.Received.Emit(c, m)
+		w.handle.DoInMainThread(func(ctx context.Context) {
+			w.Received.Emit(ctx, c, m)
 		})
 	})
 
-	w.handle.DoInMainThread(func(context.Context) {
+	w.handle.DoInMainThread(func(ctx context.Context) {
 		w.clients[client.Id()] = client
-		w.ClientConnected.Emit(client)
+		w.ClientConnected.Emit(ctx, client)
 	})
 
 	return client
