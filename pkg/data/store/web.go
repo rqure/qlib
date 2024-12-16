@@ -80,6 +80,7 @@ func (s *Web) IsConnected(ctx context.Context) bool {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return false
 	}
 
@@ -99,6 +100,7 @@ func (s *Web) CreateSnapshot(ctx context.Context) data.Snapshot {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return nil
 	}
 
@@ -146,6 +148,7 @@ func (s *Web) GetEntity(ctx context.Context, entityId string) data.Entity {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return nil
 	}
 
@@ -185,6 +188,7 @@ func (s *Web) FindEntities(ctx context.Context, entityType string) []string {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return nil
 	}
 
@@ -208,6 +212,7 @@ func (s *Web) GetEntityTypes(ctx context.Context) []string {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return nil
 	}
 
@@ -229,6 +234,7 @@ func (s *Web) EntityExists(ctx context.Context, entityId string) bool {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return false
 	}
 
@@ -251,6 +257,7 @@ func (s *Web) FieldExists(ctx context.Context, fieldName, entityType string) boo
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return false
 	}
 
@@ -272,6 +279,7 @@ func (s *Web) GetEntitySchema(ctx context.Context, entityType string) data.Entit
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return nil
 	}
 
@@ -314,6 +322,7 @@ func (s *Web) Read(ctx context.Context, requests ...data.Request) {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return
 	}
 
@@ -356,6 +365,7 @@ func (s *Web) Write(ctx context.Context, requests ...data.Request) {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return
 	}
 
@@ -380,7 +390,9 @@ func (s *Web) handleMessage(ctx context.Context, msg web.Message) {
 		s.mu.Unlock()
 		select {
 		case <-ctx.Done():
+			log.Info("Context done")
 		case ch <- msg:
+			log.Trace("Returned response for headerId=(%s)", msg.Header.Id)
 		}
 		close(ch)
 		return
@@ -432,6 +444,7 @@ func (s *Web) Notify(ctx context.Context, config data.NotificationConfig, cb dat
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return notification.NewToken("", s, nil)
 	}
 
@@ -488,6 +501,7 @@ func (s *Web) ProcessNotifications(ctx context.Context) {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return
 	}
 
@@ -519,6 +533,7 @@ func (s *Web) TempSet(ctx context.Context, key, value string, expiration time.Du
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return false
 	}
 
@@ -540,6 +555,7 @@ func (s *Web) TempGet(ctx context.Context, key string) string {
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return ""
 	}
 
@@ -584,6 +600,7 @@ func (s *Web) SortedSetAdd(ctx context.Context, key string, member string, score
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return 0
 	}
 
@@ -606,6 +623,7 @@ func (s *Web) SortedSetRemove(ctx context.Context, key string, member string) in
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return 0
 	}
 
@@ -629,6 +647,7 @@ func (s *Web) SortedSetRemoveRangeByRank(ctx context.Context, key string, start,
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return 0
 	}
 
@@ -652,6 +671,7 @@ func (s *Web) SortedSetRangeByScoreWithScores(ctx context.Context, key string, m
 
 	response := s.sendAndWait(ctx, msg)
 	if response == nil {
+		log.Error("Received nil response")
 		return nil
 	}
 
