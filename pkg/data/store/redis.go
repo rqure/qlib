@@ -478,7 +478,7 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 
 		indirectField, indirectEntity := s.ResolveIndirection(ctx, req.GetFieldName(), req.GetEntityId())
 		if indirectField == "" || indirectEntity == "" {
-			log.Error("Failed to resolve indirection: %v", req)
+			log.Error("Failed to resolve indirection: entityId=(%v); fieldName=(%v)", req.GetEntityId(), req.GetFieldName())
 			continue
 		}
 

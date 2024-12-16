@@ -69,8 +69,27 @@ func (s *Web) Disconnect(ctx context.Context) {
 	}
 }
 
-func (s *Web) IsConnected(context.Context) bool {
-	return s.client != nil
+func (s *Web) IsConnected(ctx context.Context) bool {
+	if s.client == nil {
+		return false
+	}
+
+	msg := web.NewMessage()
+	msg.Header = &protobufs.WebHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetDatabaseConnectionStatusRequest{})
+
+	response := s.sendAndWait(ctx, msg)
+	if response == nil {
+		return false
+	}
+
+	var resp protobufs.WebRuntimeGetDatabaseConnectionStatusResponse
+	if err := response.Payload.UnmarshalTo(&resp); err != nil {
+		log.Error("Failed to unmarshal response: %v", err)
+		return false
+	}
+
+	return resp.Connected
 }
 
 func (s *Web) CreateSnapshot(ctx context.Context) data.Snapshot {

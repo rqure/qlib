@@ -84,7 +84,9 @@ func (c *Candidate) IsAvailable() bool {
 }
 
 func (c *Candidate) IsCurrentLeader(ctx context.Context) bool {
-	return c.store.TempGet(ctx, c.keygen.GetLeaderKey(c.applicationName)) == c.applicationInstanceId
+	currentLeaderId := c.store.TempGet(ctx, c.keygen.GetLeaderKey(c.applicationName))
+	log.Debug("applicationInstanceId=(%s); currentLeaderId=(%s)", c.applicationInstanceId, currentLeaderId)
+	return currentLeaderId == c.applicationInstanceId
 }
 
 func (c *Candidate) UpdateCandidateStatus(ctx context.Context, available bool) {
