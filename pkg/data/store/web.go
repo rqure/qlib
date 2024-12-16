@@ -389,7 +389,7 @@ func (s *Web) handleMessage(ctx context.Context, msg web.Message) {
 }
 
 func (s *Web) sendAndWait(ctx context.Context, msg web.Message) web.Message {
-	if !s.IsConnected(ctx) {
+	if s.client == nil {
 		log.Error("Not connected")
 		return nil
 	}
