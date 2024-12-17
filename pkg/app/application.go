@@ -94,11 +94,20 @@ func (a *ApplicationImpl) Deinit() {
 func (a *ApplicationImpl) Execute() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(interrupt)
+	defer close(interrupt)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	defer signal.Stop(interrupt)
-	defer cancel() // Ensure context is cancelled when Execute returns
+	go func() {
+		select {
+		case <-interrupt:
+			cancel()
+		case <-ctx.Done():
+			return
+		}
+	}()
 
 	a.Init()
 	defer a.Deinit()
@@ -107,23 +116,12 @@ func (a *ApplicationImpl) Execute() {
 		select {
 		case <-ctx.Done():
 			return
-		case <-interrupt:
-			return
 		case <-a.ticker.C:
-			func() {
-				tickerCtx, tickerCancel := context.WithTimeout(ctx, GetTickRate())
-				defer tickerCancel()
-
-				for _, w := range a.workers {
-					w.DoWork(tickerCtx)
-				}
-			}()
+			for _, w := range a.workers {
+				w.DoWork(ctx)
+			}
 		case task := <-a.tasks:
-			func() {
-				taskCtx, taskCancel := context.WithTimeout(ctx, GetTickRate())
-				defer taskCancel()
-				task(taskCtx)
-			}()
+			task(ctx)
 		}
 	}
 }
