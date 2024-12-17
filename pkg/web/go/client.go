@@ -85,7 +85,7 @@ func (c *ClientImpl) backgroundRead() {
 				continue
 			}
 
-			log.Debug("Received message: %v", m)
+			log.Trace("Received message: %v", m)
 			if c.messageHandler != nil {
 				c.messageHandler(c, m)
 			}
@@ -111,7 +111,7 @@ func (c *ClientImpl) Write(message Message) {
 	if err := c.connection.WriteMessage(websocket.BinaryMessage, b); err != nil {
 		log.Error("Error writing message: %v", err)
 	} else {
-		log.Debug("Sent message: %v", message)
+		log.Trace("Sent message: %v", message)
 	}
 }
 
