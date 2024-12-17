@@ -183,16 +183,7 @@ func (s *Redis) CreateEntity(ctx context.Context, entityType, parentId, name str
 		return
 	}
 
-	// Initialize empty fields
-	requests := []data.Request{}
-	for _, fsc := range sc.GetFields() {
-		requests = append(requests, request.New().SetEntityId(entityId).SetFieldName(fsc.GetFieldName()))
-	}
-
-	if len(requests) > 0 {
-		s.Write(ctx, requests...)
-	}
-
+	// Store entity into database
 	p := &protobufs.DatabaseEntity{
 		Id:       entityId,
 		Name:     name,
@@ -209,6 +200,7 @@ func (s *Redis) CreateEntity(ctx context.Context, entityType, parentId, name str
 	s.client.SAdd(ctx, s.keygen.GetEntityTypeKey(entityType), entityId)
 	s.client.Set(ctx, s.keygen.GetEntityKey(entityId), base64.StdEncoding.EncodeToString(b), 0)
 
+	// Update parent entity
 	if parentId != "" {
 		parent := s.GetEntity(ctx, parentId)
 		if parent != nil {
@@ -217,6 +209,16 @@ func (s *Redis) CreateEntity(ctx context.Context, entityType, parentId, name str
 		} else {
 			log.Error("Failed to get parent entity: %v", parentId)
 		}
+	}
+
+	// Initialize fields with default values
+	requests := []data.Request{}
+	for _, fsc := range sc.GetFields() {
+		requests = append(requests, request.New().SetEntityId(entityId).SetFieldName(fsc.GetFieldName()))
+	}
+
+	if len(requests) > 0 {
+		s.Write(ctx, requests...)
 	}
 }
 
