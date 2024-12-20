@@ -528,16 +528,6 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 			}
 		}
 
-		if req.GetWriteTime() == nil {
-			wt := time.Now()
-			req.SetWriteTime(&wt)
-		}
-
-		if req.GetWriter() == nil {
-			wr := ""
-			req.SetWriter(&wr)
-		}
-
 		oldReq := request.New().SetEntityId(req.GetEntityId()).SetFieldName(req.GetFieldName())
 		s.Read(ctx, oldReq)
 
@@ -576,6 +566,17 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 			log.Error("Failed to write field: %v", err)
 			continue
 		}
+
+		if req.GetWriteTime() == nil {
+			wt := time.Now()
+			req.SetWriteTime(&wt)
+		}
+
+		if req.GetWriter() == nil {
+			wr := ""
+			req.SetWriter(&wr)
+		}
+
 		req.SetSuccessful(true)
 	}
 }
