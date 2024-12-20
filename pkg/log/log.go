@@ -23,7 +23,8 @@ const (
 	PANIC
 )
 
-var currentLogLevel int = int(TRACE)
+var currentLogLevel int = int(TRACE)    // Log level for the application
+var currentLibLogLevel int = int(TRACE) // Log level for the library
 
 func (l Level) String() string {
 	switch l {
@@ -52,6 +53,14 @@ func GetLevel() Level {
 	return Level(currentLogLevel)
 }
 
+func SetLibLevel(level Level) {
+	currentLibLogLevel = int(level)
+}
+
+func GetLibLevel() Level {
+	return Level(currentLibLogLevel)
+}
+
 func getCallerInfo(skip int) string {
 	pc, file, line, ok := runtime.Caller(skip)
 	if !ok {
@@ -73,7 +82,12 @@ func getCallerInfo(skip int) string {
 }
 
 func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
-	if int(level) < currentLogLevel {
+	callInfo := getCallerInfo(3)
+	calledByQlib := strings.Contains(callInfo, "qlib")
+
+	if calledByQlib && int(level) < currentLibLogLevel {
+		return
+	} else if !calledByQlib && int(level) < currentLogLevel {
 		return
 	}
 
@@ -81,7 +95,7 @@ func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interf
 		Level:       level,
 		Message:     fmt.Sprintf(message, args...),
 		Timestamp:   timestamppb.Now(),
-		Application: getCallerInfo(3),
+		Application: callInfo,
 	}
 
 	// skip runtime.Caller + Log + helper function (Trace/Debug/etc)

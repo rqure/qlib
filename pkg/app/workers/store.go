@@ -89,6 +89,18 @@ func (w *Store) onConnected(ctx context.Context) {
 				SetNotifyOnChange(true),
 			notification.NewCallback(w.onLogLevelChanged),
 		))
+
+		qlibLogLevel := service.GetField("QLibLogLevel").ReadInt(ctx)
+		log.SetLibLevel(log.Level(qlibLogLevel))
+
+		w.notificationTokens = append(w.notificationTokens, w.store.Notify(
+			ctx,
+			notification.NewConfig().
+				SetEntityId(service.GetId()).
+				SetFieldName("QLibLogLevel").
+				SetNotifyOnChange(true),
+			notification.NewCallback(w.onQLibLogLevelChanged),
+		))
 	}
 
 	log.Info("Connection status changed to [CONNECTED]")
@@ -124,4 +136,11 @@ func (w *Store) onLogLevelChanged(ctx context.Context, n data.Notification) {
 	log.SetLevel(level)
 
 	log.Info("Log level changed to [%s]", level.String())
+}
+
+func (w *Store) onQLibLogLevelChanged(ctx context.Context, n data.Notification) {
+	level := log.Level(n.GetCurrent().GetValue().GetInt())
+	log.SetLibLevel(level)
+
+	log.Info("QLib log level changed to [%s]", level.String())
 }
