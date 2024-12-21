@@ -35,7 +35,7 @@ func PrepareApplicationInstanceId() string {
 		id = os.Getenv("HOSTNAME")
 	}
 
-	if applicationInstanceId == "" {
+	if id == "" {
 		id = randomString()
 	}
 
