@@ -557,16 +557,6 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 		p.Id = indirectEntity
 		p.Name = indirectField
 
-		_, err = s.client.Set(ctx, s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
-
-		// Notify listeners of the change
-		s.triggerNotifications(ctx, req, oldReq)
-
-		if err != nil {
-			log.Error("Failed to write field: %v", err)
-			continue
-		}
-
 		if req.GetWriteTime() == nil {
 			wt := time.Now()
 			req.SetWriteTime(&wt)
@@ -575,6 +565,16 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 		if req.GetWriter() == nil {
 			wr := ""
 			req.SetWriter(&wr)
+		}
+
+		_, err = s.client.Set(ctx, s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
+
+		// Notify listeners of the change
+		s.triggerNotifications(ctx, req, oldReq)
+
+		if err != nil {
+			log.Error("Failed to write field: %v", err)
+			continue
 		}
 
 		req.SetSuccessful(true)
