@@ -21,7 +21,7 @@ type NotificationConfig interface {
 	SetEntityId(string) NotificationConfig
 	SetEntityType(string) NotificationConfig
 	SetFieldName(string) NotificationConfig
-	SetContextFields([]string) NotificationConfig
+	SetContextFields(...string) NotificationConfig
 	SetNotifyOnChange(bool) NotificationConfig
 	SetServiceId(string) NotificationConfig
 }

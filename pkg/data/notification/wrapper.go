@@ -117,7 +117,7 @@ func (c *ConfigWrapper) SetFieldName(f string) data.NotificationConfig {
 	return c
 }
 
-func (c *ConfigWrapper) SetContextFields(cf []string) data.NotificationConfig {
+func (c *ConfigWrapper) SetContextFields(cf ...string) data.NotificationConfig {
 	c.impl.ContextFields = cf
 	return c
 }
