@@ -546,6 +546,16 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 			}
 		}
 
+		if req.GetWriteTime() == nil {
+			wt := time.Now()
+			req.SetWriteTime(&wt)
+		}
+
+		if req.GetWriter() == nil {
+			wr := ""
+			req.SetWriter(&wr)
+		}
+
 		p := field.ToFieldPb(field.FromRequest(req))
 
 		b, err := proto.Marshal(p)
@@ -556,16 +566,6 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 
 		p.Id = indirectEntity
 		p.Name = indirectField
-
-		if req.GetWriteTime() == nil {
-			wt := time.Now()
-			req.SetWriteTime(&wt)
-		}
-
-		if req.GetWriter() == nil {
-			wr := ""
-			req.SetWriter(&wr)
-		}
 
 		_, err = s.client.Set(ctx, s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
 
