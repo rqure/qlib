@@ -17,8 +17,9 @@ func NewEntity(ctx context.Context, store data.Store, entityId string) data.Enti
 	e := store.GetEntity(ctx, entityId)
 
 	return &Entity{
-		store: store,
-		impl:  e,
+		store:  store,
+		impl:   e,
+		fields: make(map[string]data.FieldBinding),
 	}
 }
 
