@@ -8,8 +8,9 @@ import (
 )
 
 type Entity struct {
-	impl  data.Entity
-	store data.Store
+	impl   data.Entity
+	store  data.Store
+	fields map[string]data.FieldBinding
 }
 
 func NewEntity(ctx context.Context, store data.Store, entityId string) data.EntityBinding {
@@ -130,7 +131,16 @@ func (e *Entity) SetParentId(p string) {
 }
 
 func (e *Entity) GetField(fieldName string) data.FieldBinding {
-	return NewField(e.store, e.GetId(), fieldName)
+	if e.impl == nil {
+		log.Error("Impl not defined")
+		return nil
+	}
+
+	if e.fields[fieldName] == nil {
+		e.fields[fieldName] = NewField(e.store, e.GetId(), fieldName)
+	}
+
+	return e.fields[fieldName]
 }
 
 func (e *Entity) Impl() any {
