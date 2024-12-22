@@ -154,6 +154,11 @@ func (m *MultiBinding) Commit(ctx context.Context) {
 		m.impl.Write(ctx, m.writeReqs...)
 	}
 
+	// Commit any nested MultiBinding
+	if impl, ok := m.impl.(data.MultiBinding); ok {
+		impl.Commit(ctx)
+	}
+
 	m.readReqs = []data.Request{}
 	m.writeReqs = []data.Request{}
 }
