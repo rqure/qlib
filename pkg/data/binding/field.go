@@ -50,7 +50,13 @@ func (b *Field) WriteValue(ctx context.Context, v data.Value) data.FieldBinding 
 }
 
 func (b *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = 0
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetInt(v))
 
 	if len(args) > 1 {
@@ -80,7 +86,13 @@ func (b *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBin
 }
 
 func (b *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = 0.0
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetFloat(v))
 
 	if len(args) > 1 {
@@ -110,7 +122,13 @@ func (b *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldB
 }
 
 func (b *Field) WriteString(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = ""
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetString(v))
 
 	if len(args) > 1 {
@@ -140,7 +158,13 @@ func (b *Field) WriteString(ctx context.Context, args ...interface{}) data.Field
 }
 
 func (b *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = false
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetBool(v))
 
 	if len(args) > 1 {
@@ -170,7 +194,13 @@ func (b *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBi
 }
 
 func (b *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = ""
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetBinaryFile(v))
 
 	if len(args) > 1 {
@@ -200,7 +230,13 @@ func (b *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.F
 }
 
 func (b *Field) WriteEntityReference(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = ""
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetEntityReference(v))
 
 	if len(args) > 1 {
@@ -230,7 +266,13 @@ func (b *Field) WriteEntityReference(ctx context.Context, args ...interface{}) d
 }
 
 func (b *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = time.Time{}
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetTimestamp(v))
 
 	if len(args) > 1 {
@@ -260,7 +302,13 @@ func (b *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.Fi
 }
 
 func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) data.FieldBinding {
-	v := args[0]
+	var v interface{}
+	v = ""
+
+	if len(args) > 0 {
+		v = args[0]
+	}
+
 	b.req.SetValue(field.NewValue().SetTransformation(v))
 
 	if len(args) > 1 {
