@@ -12,6 +12,7 @@ import (
 type Query struct {
 	store      data.Store
 	entityType string
+	fields     []string
 	conditions []Condition
 }
 
@@ -23,6 +24,15 @@ func New(s data.Store) data.Query {
 
 func (q *Query) ForType(t string) data.Query {
 	q.entityType = t
+	return q
+}
+
+func (q *Query) From(t string) data.Query {
+	return q.ForType(t)
+}
+
+func (q *Query) Select(fields ...string) data.Query {
+	q.fields = append(q.fields, fields...)
 	return q
 }
 
@@ -39,63 +49,66 @@ func (q *Query) Execute(ctx context.Context) []data.EntityBinding {
 	}
 
 	var results []data.EntityBinding
-	fieldsByEntityId := make(map[string]map[string]data.FieldBinding)
+	var allEntities []data.EntityBinding
 
 	// Do a bulk read from the store
 	multi := binding.NewMulti(q.store)
 	entities := q.store.FindEntities(ctx, q.entityType)
 
-	// Initialize maps for each entity
-	for _, entityId := range entities {
-		fieldsByEntityId[entityId] = make(map[string]data.FieldBinding)
-	}
-
 	// Bulk read all required fields
 	for _, entityId := range entities {
-		for _, condition := range q.conditions {
-			f := binding.NewField(multi, entityId, condition.fieldName)
+		ent := binding.NewEntity(ctx, q.store, entityId)
+
+		for _, fieldName := range q.fields {
+			f := ent.GetField(fieldName)
 			f.ReadValue(ctx)
-			fieldsByEntityId[entityId][condition.fieldName] = f
 		}
+
+		for _, condition := range q.conditions {
+			f := ent.GetField(condition.fieldName)
+			f.ReadValue(ctx)
+		}
+
+		allEntities = append(allEntities, ent)
 	}
 	multi.Commit(ctx)
 
 	// Evaluate conditions using the cached values
-	for _, entityId := range entities {
-		if q.evaluateConditions(fieldsByEntityId[entityId]) {
-			results = append(results, binding.NewEntity(ctx, q.store, entityId))
+	for _, e := range allEntities {
+		if q.evaluateConditions(e) {
+			results = append(results, e)
 		}
 	}
 
 	return results
 }
 
-func (q *Query) evaluateConditions(fieldsByName map[string]data.FieldBinding) bool {
+func (q *Query) evaluateConditions(e data.EntityBinding) bool {
 	for _, condition := range q.conditions {
-		field := fieldsByName[condition.fieldName]
+		f := e.GetField(condition.fieldName)
 		switch condition.op {
 		case "eq":
-			if !q.compareValues(field.GetValue(), condition.value, 0) {
+			if !q.compareValues(f.GetValue(), condition.value, 0) {
 				return false
 			}
 		case "neq":
-			if q.compareValues(field.GetValue(), condition.value, 0) {
+			if q.compareValues(f.GetValue(), condition.value, 0) {
 				return false
 			}
 		case "gt":
-			if !q.compareValues(field.GetValue(), condition.value, 1) {
+			if !q.compareValues(f.GetValue(), condition.value, 1) {
 				return false
 			}
 		case "lt":
-			if !q.compareValues(field.GetValue(), condition.value, -1) {
+			if !q.compareValues(f.GetValue(), condition.value, -1) {
 				return false
 			}
 		case "gte":
-			if q.compareValues(field.GetValue(), condition.value, -1) {
+			if q.compareValues(f.GetValue(), condition.value, -1) {
 				return false
 			}
 		case "lte":
-			if q.compareValues(field.GetValue(), condition.value, 1) {
+			if q.compareValues(f.GetValue(), condition.value, 1) {
 				return false
 			}
 		}

@@ -4,6 +4,13 @@ import "context"
 
 type Query interface {
 	ForType(string) Query
+
+	// SQL alias for ForType
+	From(string) Query
+
+	// Pulls the specified fields from the entity
+	Select(...string) Query
+
 	Where(string) FieldQuery
 	Execute(context.Context) []EntityBinding
 }
