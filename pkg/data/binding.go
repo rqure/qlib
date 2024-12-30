@@ -15,6 +15,8 @@ type MultiBinding interface {
 type EntityBinding interface {
 	Entity
 
+	DoMulti(context.Context, func(EntityBinding))
+
 	GetField(string) FieldBinding
 }
 

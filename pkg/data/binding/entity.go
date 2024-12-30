@@ -15,10 +15,13 @@ type Entity struct {
 
 func NewEntity(ctx context.Context, store data.Store, entityId string) data.EntityBinding {
 	e := store.GetEntity(ctx, entityId)
+	return NewEntityFromImpl(ctx, store, e)
+}
 
+func NewEntityFromImpl(ctx context.Context, store data.Store, impl data.Entity) data.EntityBinding {
 	return &Entity{
 		store:  store,
-		impl:   e,
+		impl:   impl,
 		fields: make(map[string]data.FieldBinding),
 	}
 }
@@ -151,4 +154,23 @@ func (e *Entity) Impl() any {
 	}
 
 	return e.impl.Impl()
+}
+
+func (e *Entity) DoMulti(ctx context.Context, fn func(data.EntityBinding)) {
+	if e.impl == nil {
+		log.Error("Impl not defined")
+		return
+	}
+
+	// Temporarily replace the store with a multi-store
+	store := e.store
+	multi := NewMulti(store)
+	e.store = multi
+
+	// Perform the multi operation
+	fn(e)
+	multi.Commit(ctx)
+
+	// Restore the original store
+	e.store = store
 }
