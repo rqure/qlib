@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"time"
 )
 
 type SortedSetMember struct {
@@ -39,14 +38,4 @@ type Store interface {
 	Unnotify(ctx context.Context, subscriptionId string)
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
 	ProcessNotifications(context.Context)
-
-	TempSet(ctx context.Context, key string, value string, expiration time.Duration) bool
-	TempGet(ctx context.Context, key string) string
-	TempExpire(ctx context.Context, key string, expiration time.Duration)
-	TempDel(ctx context.Context, key string)
-
-	SortedSetAdd(ctx context.Context, key string, member string, score float64) int64
-	SortedSetRemove(ctx context.Context, key string, member string) int64
-	SortedSetRemoveRangeByRank(ctx context.Context, key string, start, stop int64) int64
-	SortedSetRangeByScoreWithScores(ctx context.Context, key string, min, max string) []SortedSetMember
 }
