@@ -711,7 +711,7 @@ func (s *Postgres) GetEntitySchema(ctx context.Context, entityType string) data.
 	}
 	defer rows.Close()
 
-	schema := entity.NewSchema()
+	schema := entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{})
 	schema.SetType(entityType)
 	var fields []data.FieldSchema
 
@@ -722,7 +722,10 @@ func (s *Postgres) GetEntitySchema(ctx context.Context, entityType string) data.
 			log.Error("Failed to scan field schema: %v", err)
 			continue
 		}
-		fields = append(fields, entity.NewFieldSchema(fieldName, fieldType))
+		fields = append(fields, field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
+			Name: fieldName,
+			Type: fieldType,
+		}))
 	}
 
 	schema.SetFields(fields)
@@ -1056,7 +1059,10 @@ func (s *Postgres) GetFieldSchema(ctx context.Context, entityType, fieldName str
 		return nil
 	}
 
-	return entity.NewFieldSchema(schema.fieldName, schema.fieldType)
+	return field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
+		Name: schema.fieldName,
+		Type: schema.fieldType,
+	})
 }
 
 func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {
