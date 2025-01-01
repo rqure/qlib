@@ -604,7 +604,7 @@ func (x DatabaseRequest_WriteOptEnum) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DatabaseRequest_WriteOptEnum.Descriptor instead.
 func (DatabaseRequest_WriteOptEnum) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{60, 0}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{44, 0}
 }
 
 type LogMessage_LogLevelEnum int32
@@ -665,7 +665,7 @@ func (x LogMessage_LogLevelEnum) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogMessage_LogLevelEnum.Descriptor instead.
 func (LogMessage_LogLevelEnum) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{70, 0}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{54, 0}
 }
 
 type WebHeader struct {
@@ -2396,774 +2396,6 @@ func (x *WebRuntimeEntityExistsResponse) GetExists() bool {
 	return false
 }
 
-type WebRuntimeTempSetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
-	ExpirationMs  int64                  `protobuf:"varint,3,opt,name=expirationMs,proto3" json:"expirationMs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempSetRequest) Reset() {
-	*x = WebRuntimeTempSetRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempSetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempSetRequest) ProtoMessage() {}
-
-func (x *WebRuntimeTempSetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempSetRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempSetRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *WebRuntimeTempSetRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-func (x *WebRuntimeTempSetRequest) GetValue() string {
-	if x != nil {
-		return x.Value
-	}
-	return ""
-}
-
-func (x *WebRuntimeTempSetRequest) GetExpirationMs() int64 {
-	if x != nil {
-		return x.ExpirationMs
-	}
-	return 0
-}
-
-type WebRuntimeTempSetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempSetResponse) Reset() {
-	*x = WebRuntimeTempSetResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempSetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempSetResponse) ProtoMessage() {}
-
-func (x *WebRuntimeTempSetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempSetResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempSetResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *WebRuntimeTempSetResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-type WebRuntimeTempGetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempGetRequest) Reset() {
-	*x = WebRuntimeTempGetRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[40]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempGetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempGetRequest) ProtoMessage() {}
-
-func (x *WebRuntimeTempGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[40]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempGetRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempGetRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{40}
-}
-
-func (x *WebRuntimeTempGetRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-type WebRuntimeTempGetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempGetResponse) Reset() {
-	*x = WebRuntimeTempGetResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[41]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempGetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempGetResponse) ProtoMessage() {}
-
-func (x *WebRuntimeTempGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[41]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempGetResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempGetResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{41}
-}
-
-func (x *WebRuntimeTempGetResponse) GetValue() string {
-	if x != nil {
-		return x.Value
-	}
-	return ""
-}
-
-type WebRuntimeTempExpireRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	ExpirationMs  int64                  `protobuf:"varint,2,opt,name=expirationMs,proto3" json:"expirationMs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempExpireRequest) Reset() {
-	*x = WebRuntimeTempExpireRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempExpireRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempExpireRequest) ProtoMessage() {}
-
-func (x *WebRuntimeTempExpireRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempExpireRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempExpireRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{42}
-}
-
-func (x *WebRuntimeTempExpireRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-func (x *WebRuntimeTempExpireRequest) GetExpirationMs() int64 {
-	if x != nil {
-		return x.ExpirationMs
-	}
-	return 0
-}
-
-type WebRuntimeTempExpireResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempExpireResponse) Reset() {
-	*x = WebRuntimeTempExpireResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[43]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempExpireResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempExpireResponse) ProtoMessage() {}
-
-func (x *WebRuntimeTempExpireResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[43]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempExpireResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempExpireResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{43}
-}
-
-type WebRuntimeTempDelRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempDelRequest) Reset() {
-	*x = WebRuntimeTempDelRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[44]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempDelRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempDelRequest) ProtoMessage() {}
-
-func (x *WebRuntimeTempDelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[44]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempDelRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempDelRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{44}
-}
-
-func (x *WebRuntimeTempDelRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-type WebRuntimeTempDelResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeTempDelResponse) Reset() {
-	*x = WebRuntimeTempDelResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[45]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeTempDelResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeTempDelResponse) ProtoMessage() {}
-
-func (x *WebRuntimeTempDelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[45]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeTempDelResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeTempDelResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{45}
-}
-
-type WebRuntimeSortedSetAddRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Member        string                 `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
-	Score         float64                `protobuf:"fixed64,3,opt,name=score,proto3" json:"score,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetAddRequest) Reset() {
-	*x = WebRuntimeSortedSetAddRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[46]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetAddRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetAddRequest) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetAddRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[46]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetAddRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetAddRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{46}
-}
-
-func (x *WebRuntimeSortedSetAddRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-func (x *WebRuntimeSortedSetAddRequest) GetMember() string {
-	if x != nil {
-		return x.Member
-	}
-	return ""
-}
-
-func (x *WebRuntimeSortedSetAddRequest) GetScore() float64 {
-	if x != nil {
-		return x.Score
-	}
-	return 0
-}
-
-type WebRuntimeSortedSetAddResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        int64                  `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetAddResponse) Reset() {
-	*x = WebRuntimeSortedSetAddResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[47]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetAddResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetAddResponse) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetAddResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[47]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetAddResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetAddResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{47}
-}
-
-func (x *WebRuntimeSortedSetAddResponse) GetResult() int64 {
-	if x != nil {
-		return x.Result
-	}
-	return 0
-}
-
-type WebRuntimeSortedSetRemoveRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Member        string                 `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRemoveRequest) Reset() {
-	*x = WebRuntimeSortedSetRemoveRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[48]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRemoveRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRemoveRequest) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRemoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[48]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRemoveRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRemoveRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{48}
-}
-
-func (x *WebRuntimeSortedSetRemoveRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-func (x *WebRuntimeSortedSetRemoveRequest) GetMember() string {
-	if x != nil {
-		return x.Member
-	}
-	return ""
-}
-
-type WebRuntimeSortedSetRemoveResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        int64                  `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRemoveResponse) Reset() {
-	*x = WebRuntimeSortedSetRemoveResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[49]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRemoveResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRemoveResponse) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRemoveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[49]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRemoveResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRemoveResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{49}
-}
-
-func (x *WebRuntimeSortedSetRemoveResponse) GetResult() int64 {
-	if x != nil {
-		return x.Result
-	}
-	return 0
-}
-
-type WebRuntimeSortedSetRemoveRangeByRankRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Start         int64                  `protobuf:"varint,2,opt,name=start,proto3" json:"start,omitempty"`
-	Stop          int64                  `protobuf:"varint,3,opt,name=stop,proto3" json:"stop,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankRequest) Reset() {
-	*x = WebRuntimeSortedSetRemoveRangeByRankRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[50]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRemoveRangeByRankRequest) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[50]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRemoveRangeByRankRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRemoveRangeByRankRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{50}
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankRequest) GetStart() int64 {
-	if x != nil {
-		return x.Start
-	}
-	return 0
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankRequest) GetStop() int64 {
-	if x != nil {
-		return x.Stop
-	}
-	return 0
-}
-
-type WebRuntimeSortedSetRemoveRangeByRankResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        int64                  `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankResponse) Reset() {
-	*x = WebRuntimeSortedSetRemoveRangeByRankResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[51]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRemoveRangeByRankResponse) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[51]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRemoveRangeByRankResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRemoveRangeByRankResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{51}
-}
-
-func (x *WebRuntimeSortedSetRemoveRangeByRankResponse) GetResult() int64 {
-	if x != nil {
-		return x.Result
-	}
-	return 0
-}
-
-type WebRuntimeSortedSetRangeByScoreWithScoresRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Min           string                 `protobuf:"bytes,2,opt,name=min,proto3" json:"min,omitempty"`
-	Max           string                 `protobuf:"bytes,3,opt,name=max,proto3" json:"max,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresRequest) Reset() {
-	*x = WebRuntimeSortedSetRangeByScoreWithScoresRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[52]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRangeByScoreWithScoresRequest) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[52]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRangeByScoreWithScoresRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRangeByScoreWithScoresRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{52}
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresRequest) GetKey() string {
-	if x != nil {
-		return x.Key
-	}
-	return ""
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresRequest) GetMin() string {
-	if x != nil {
-		return x.Min
-	}
-	return ""
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresRequest) GetMax() string {
-	if x != nil {
-		return x.Max
-	}
-	return ""
-}
-
-type WebRuntimeSortedSetRangeByScoreWithScoresResponse struct {
-	state         protoimpl.MessageState                                      `protogen:"open.v1"`
-	Members       []*WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse) Reset() {
-	*x = WebRuntimeSortedSetRangeByScoreWithScoresResponse{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[53]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRangeByScoreWithScoresResponse) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[53]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRangeByScoreWithScoresResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRangeByScoreWithScoresResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{53}
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse) GetMembers() []*WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member {
-	if x != nil {
-		return x.Members
-	}
-	return nil
-}
-
 type DatabaseEntity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -3177,7 +2409,7 @@ type DatabaseEntity struct {
 
 func (x *DatabaseEntity) Reset() {
 	*x = DatabaseEntity{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[54]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3189,7 +2421,7 @@ func (x *DatabaseEntity) String() string {
 func (*DatabaseEntity) ProtoMessage() {}
 
 func (x *DatabaseEntity) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[54]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3202,7 +2434,7 @@ func (x *DatabaseEntity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseEntity.ProtoReflect.Descriptor instead.
 func (*DatabaseEntity) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{54}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *DatabaseEntity) GetId() string {
@@ -3253,7 +2485,7 @@ type DatabaseField struct {
 
 func (x *DatabaseField) Reset() {
 	*x = DatabaseField{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[55]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3265,7 +2497,7 @@ func (x *DatabaseField) String() string {
 func (*DatabaseField) ProtoMessage() {}
 
 func (x *DatabaseField) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[55]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3278,7 +2510,7 @@ func (x *DatabaseField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseField.ProtoReflect.Descriptor instead.
 func (*DatabaseField) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{55}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *DatabaseField) GetId() string {
@@ -3330,7 +2562,7 @@ type DatabaseNotificationConfig struct {
 
 func (x *DatabaseNotificationConfig) Reset() {
 	*x = DatabaseNotificationConfig{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[56]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3342,7 +2574,7 @@ func (x *DatabaseNotificationConfig) String() string {
 func (*DatabaseNotificationConfig) ProtoMessage() {}
 
 func (x *DatabaseNotificationConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[56]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3355,7 +2587,7 @@ func (x *DatabaseNotificationConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseNotificationConfig.ProtoReflect.Descriptor instead.
 func (*DatabaseNotificationConfig) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{56}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *DatabaseNotificationConfig) GetId() string {
@@ -3406,13 +2638,14 @@ type DatabaseNotification struct {
 	Current       *DatabaseField         `protobuf:"bytes,2,opt,name=current,proto3" json:"current,omitempty"`
 	Previous      *DatabaseField         `protobuf:"bytes,3,opt,name=previous,proto3" json:"previous,omitempty"`
 	Context       []*DatabaseField       `protobuf:"bytes,4,rep,name=context,proto3" json:"context,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,5,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DatabaseNotification) Reset() {
 	*x = DatabaseNotification{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[57]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3424,7 +2657,7 @@ func (x *DatabaseNotification) String() string {
 func (*DatabaseNotification) ProtoMessage() {}
 
 func (x *DatabaseNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[57]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3437,7 +2670,7 @@ func (x *DatabaseNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseNotification.ProtoReflect.Descriptor instead.
 func (*DatabaseNotification) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{57}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DatabaseNotification) GetToken() string {
@@ -3468,6 +2701,13 @@ func (x *DatabaseNotification) GetContext() []*DatabaseField {
 	return nil
 }
 
+func (x *DatabaseNotification) GetServiceId() string {
+	if x != nil {
+		return x.ServiceId
+	}
+	return ""
+}
+
 type DatabaseEntitySchema struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -3478,7 +2718,7 @@ type DatabaseEntitySchema struct {
 
 func (x *DatabaseEntitySchema) Reset() {
 	*x = DatabaseEntitySchema{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[58]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3490,7 +2730,7 @@ func (x *DatabaseEntitySchema) String() string {
 func (*DatabaseEntitySchema) ProtoMessage() {}
 
 func (x *DatabaseEntitySchema) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[58]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3503,7 +2743,7 @@ func (x *DatabaseEntitySchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseEntitySchema.ProtoReflect.Descriptor instead.
 func (*DatabaseEntitySchema) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{58}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *DatabaseEntitySchema) GetName() string {
@@ -3530,7 +2770,7 @@ type DatabaseFieldSchema struct {
 
 func (x *DatabaseFieldSchema) Reset() {
 	*x = DatabaseFieldSchema{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[59]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3542,7 +2782,7 @@ func (x *DatabaseFieldSchema) String() string {
 func (*DatabaseFieldSchema) ProtoMessage() {}
 
 func (x *DatabaseFieldSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[59]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3555,7 +2795,7 @@ func (x *DatabaseFieldSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseFieldSchema.ProtoReflect.Descriptor instead.
 func (*DatabaseFieldSchema) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{59}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *DatabaseFieldSchema) GetName() string {
@@ -3587,7 +2827,7 @@ type DatabaseRequest struct {
 
 func (x *DatabaseRequest) Reset() {
 	*x = DatabaseRequest{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[60]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3599,7 +2839,7 @@ func (x *DatabaseRequest) String() string {
 func (*DatabaseRequest) ProtoMessage() {}
 
 func (x *DatabaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[60]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3612,7 +2852,7 @@ func (x *DatabaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseRequest.ProtoReflect.Descriptor instead.
 func (*DatabaseRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{60}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *DatabaseRequest) GetId() string {
@@ -3675,7 +2915,7 @@ type DatabaseSnapshot struct {
 
 func (x *DatabaseSnapshot) Reset() {
 	*x = DatabaseSnapshot{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[61]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3687,7 +2927,7 @@ func (x *DatabaseSnapshot) String() string {
 func (*DatabaseSnapshot) ProtoMessage() {}
 
 func (x *DatabaseSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[61]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3700,7 +2940,7 @@ func (x *DatabaseSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseSnapshot.ProtoReflect.Descriptor instead.
 func (*DatabaseSnapshot) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{61}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *DatabaseSnapshot) GetEntities() []*DatabaseEntity {
@@ -3733,7 +2973,7 @@ type Int struct {
 
 func (x *Int) Reset() {
 	*x = Int{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[62]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3745,7 +2985,7 @@ func (x *Int) String() string {
 func (*Int) ProtoMessage() {}
 
 func (x *Int) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[62]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3758,7 +2998,7 @@ func (x *Int) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Int.ProtoReflect.Descriptor instead.
 func (*Int) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{62}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *Int) GetRaw() int64 {
@@ -3777,7 +3017,7 @@ type String struct {
 
 func (x *String) Reset() {
 	*x = String{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[63]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3789,7 +3029,7 @@ func (x *String) String() string {
 func (*String) ProtoMessage() {}
 
 func (x *String) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[63]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3802,7 +3042,7 @@ func (x *String) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use String.ProtoReflect.Descriptor instead.
 func (*String) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{63}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *String) GetRaw() string {
@@ -3821,7 +3061,7 @@ type Timestamp struct {
 
 func (x *Timestamp) Reset() {
 	*x = Timestamp{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[64]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3833,7 +3073,7 @@ func (x *Timestamp) String() string {
 func (*Timestamp) ProtoMessage() {}
 
 func (x *Timestamp) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[64]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3846,7 +3086,7 @@ func (x *Timestamp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Timestamp.ProtoReflect.Descriptor instead.
 func (*Timestamp) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{64}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *Timestamp) GetRaw() *timestamppb.Timestamp {
@@ -3865,7 +3105,7 @@ type Float struct {
 
 func (x *Float) Reset() {
 	*x = Float{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[65]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3877,7 +3117,7 @@ func (x *Float) String() string {
 func (*Float) ProtoMessage() {}
 
 func (x *Float) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[65]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3890,7 +3130,7 @@ func (x *Float) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Float.ProtoReflect.Descriptor instead.
 func (*Float) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{65}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *Float) GetRaw() float64 {
@@ -3909,7 +3149,7 @@ type Bool struct {
 
 func (x *Bool) Reset() {
 	*x = Bool{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[66]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3921,7 +3161,7 @@ func (x *Bool) String() string {
 func (*Bool) ProtoMessage() {}
 
 func (x *Bool) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[66]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3934,7 +3174,7 @@ func (x *Bool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bool.ProtoReflect.Descriptor instead.
 func (*Bool) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{66}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *Bool) GetRaw() bool {
@@ -3953,7 +3193,7 @@ type EntityReference struct {
 
 func (x *EntityReference) Reset() {
 	*x = EntityReference{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[67]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3965,7 +3205,7 @@ func (x *EntityReference) String() string {
 func (*EntityReference) ProtoMessage() {}
 
 func (x *EntityReference) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[67]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3978,7 +3218,7 @@ func (x *EntityReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EntityReference.ProtoReflect.Descriptor instead.
 func (*EntityReference) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{67}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *EntityReference) GetRaw() string {
@@ -3997,7 +3237,7 @@ type BinaryFile struct {
 
 func (x *BinaryFile) Reset() {
 	*x = BinaryFile{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[68]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4009,7 +3249,7 @@ func (x *BinaryFile) String() string {
 func (*BinaryFile) ProtoMessage() {}
 
 func (x *BinaryFile) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[68]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4022,7 +3262,7 @@ func (x *BinaryFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BinaryFile.ProtoReflect.Descriptor instead.
 func (*BinaryFile) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{68}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *BinaryFile) GetRaw() string {
@@ -4041,7 +3281,7 @@ type Transformation struct {
 
 func (x *Transformation) Reset() {
 	*x = Transformation{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[69]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4053,7 +3293,7 @@ func (x *Transformation) String() string {
 func (*Transformation) ProtoMessage() {}
 
 func (x *Transformation) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[69]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4066,7 +3306,7 @@ func (x *Transformation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transformation.ProtoReflect.Descriptor instead.
 func (*Transformation) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{69}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *Transformation) GetRaw() string {
@@ -4088,7 +3328,7 @@ type LogMessage struct {
 
 func (x *LogMessage) Reset() {
 	*x = LogMessage{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[70]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4100,7 +3340,7 @@ func (x *LogMessage) String() string {
 func (*LogMessage) ProtoMessage() {}
 
 func (x *LogMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[70]
+	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4113,7 +3353,7 @@ func (x *LogMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogMessage.ProtoReflect.Descriptor instead.
 func (*LogMessage) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{70}
+	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *LogMessage) GetApplication() string {
@@ -4142,58 +3382,6 @@ func (x *LogMessage) GetTimestamp() *timestamppb.Timestamp {
 		return x.Timestamp
 	}
 	return nil
-}
-
-type WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Score         float64                `protobuf:"fixed64,1,opt,name=score,proto3" json:"score,omitempty"`
-	Member        string                 `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) Reset() {
-	*x = WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member{}
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[71]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) ProtoMessage() {}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[71]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member.ProtoReflect.Descriptor instead.
-func (*WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) Descriptor() ([]byte, []int) {
-	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{53, 0}
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) GetScore() float64 {
-	if x != nil {
-		return x.Score
-	}
-	return 0
-}
-
-func (x *WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member) GetMember() string {
-	if x != nil {
-		return x.Member
-	}
-	return ""
 }
 
 var File_pkg_protobufs_protobufs_proto protoreflect.FileDescriptor
@@ -4462,84 +3650,7 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = []byte{
 	0x22, 0x38, 0x0a, 0x1e, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x45, 0x6e,
 	0x74, 0x69, 0x74, 0x79, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
 	0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x65, 0x78, 0x69, 0x73, 0x74, 0x73, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x08, 0x52, 0x06, 0x65, 0x78, 0x69, 0x73, 0x74, 0x73, 0x22, 0x66, 0x0a, 0x18, 0x57, 0x65,
-	0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d, 0x70, 0x53, 0x65, 0x74, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75,
-	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x22,
-	0x0a, 0x0c, 0x65, 0x78, 0x70, 0x69, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x73, 0x18, 0x03,
-	0x20, 0x01, 0x28, 0x03, 0x52, 0x0c, 0x65, 0x78, 0x70, 0x69, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e,
-	0x4d, 0x73, 0x22, 0x35, 0x0a, 0x19, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65,
-	0x54, 0x65, 0x6d, 0x70, 0x53, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x18, 0x0a, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08,
-	0x52, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x22, 0x2c, 0x0a, 0x18, 0x57, 0x65, 0x62,
-	0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d, 0x70, 0x47, 0x65, 0x74, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x22, 0x31, 0x0a, 0x19, 0x57, 0x65, 0x62, 0x52, 0x75,
-	0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d, 0x70, 0x47, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x53, 0x0a, 0x1b, 0x57, 0x65,
-	0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d, 0x70, 0x45, 0x78, 0x70, 0x69,
-	0x72, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x22, 0x0a, 0x0c, 0x65,
-	0x78, 0x70, 0x69, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x03, 0x52, 0x0c, 0x65, 0x78, 0x70, 0x69, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x73, 0x22,
-	0x1e, 0x0a, 0x1c, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d,
-	0x70, 0x45, 0x78, 0x70, 0x69, 0x72, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
-	0x2c, 0x0a, 0x18, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d,
-	0x70, 0x44, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b,
-	0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x22, 0x1b, 0x0a,
-	0x19, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x54, 0x65, 0x6d, 0x70, 0x44,
-	0x65, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x5f, 0x0a, 0x1d, 0x57, 0x65,
-	0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x53, 0x65,
-	0x74, 0x41, 0x64, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b,
-	0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x16, 0x0a,
-	0x06, 0x6d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d,
-	0x65, 0x6d, 0x62, 0x65, 0x72, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x63, 0x6f, 0x72, 0x65, 0x18, 0x03,
-	0x20, 0x01, 0x28, 0x01, 0x52, 0x05, 0x73, 0x63, 0x6f, 0x72, 0x65, 0x22, 0x38, 0x0a, 0x1e, 0x57,
-	0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x53,
-	0x65, 0x74, 0x41, 0x64, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a,
-	0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x72,
-	0x65, 0x73, 0x75, 0x6c, 0x74, 0x22, 0x4c, 0x0a, 0x20, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74,
-	0x69, 0x6d, 0x65, 0x53, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x53, 0x65, 0x74, 0x52, 0x65, 0x6d, 0x6f,
-	0x76, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x6d,
-	0x65, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d, 0x65, 0x6d,
-	0x62, 0x65, 0x72, 0x22, 0x3b, 0x0a, 0x21, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d,
-	0x65, 0x53, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x53, 0x65, 0x74, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75,
-	0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74,
-	0x22, 0x69, 0x0a, 0x2b, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x6f,
-	0x72, 0x74, 0x65, 0x64, 0x53, 0x65, 0x74, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x52, 0x61, 0x6e,
-	0x67, 0x65, 0x42, 0x79, 0x52, 0x61, 0x6e, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
-	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65,
-	0x79, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03,
-	0x52, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x73, 0x74, 0x6f, 0x70, 0x18,
-	0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x73, 0x74, 0x6f, 0x70, 0x22, 0x46, 0x0a, 0x2c, 0x57,
-	0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x53,
-	0x65, 0x74, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x42, 0x79, 0x52,
-	0x61, 0x6e, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72,
-	0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x72, 0x65, 0x73,
-	0x75, 0x6c, 0x74, 0x22, 0x68, 0x0a, 0x30, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d,
-	0x65, 0x53, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x53, 0x65, 0x74, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x42,
-	0x79, 0x53, 0x63, 0x6f, 0x72, 0x65, 0x57, 0x69, 0x74, 0x68, 0x53, 0x63, 0x6f, 0x72, 0x65, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6d, 0x69, 0x6e,
-	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6d, 0x69, 0x6e, 0x12, 0x10, 0x0a, 0x03, 0x6d,
-	0x61, 0x78, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6d, 0x61, 0x78, 0x22, 0xca, 0x01,
-	0x0a, 0x31, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x6f, 0x72, 0x74,
-	0x65, 0x64, 0x53, 0x65, 0x74, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x42, 0x79, 0x53, 0x63, 0x6f, 0x72,
-	0x65, 0x57, 0x69, 0x74, 0x68, 0x53, 0x63, 0x6f, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x12, 0x5d, 0x0a, 0x07, 0x6d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x73, 0x18, 0x01,
-	0x20, 0x03, 0x28, 0x0b, 0x32, 0x43, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73,
-	0x2e, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x53, 0x6f, 0x72, 0x74, 0x65,
-	0x64, 0x53, 0x65, 0x74, 0x52, 0x61, 0x6e, 0x67, 0x65, 0x42, 0x79, 0x53, 0x63, 0x6f, 0x72, 0x65,
-	0x57, 0x69, 0x74, 0x68, 0x53, 0x63, 0x6f, 0x72, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x2e, 0x4d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x52, 0x07, 0x6d, 0x65, 0x6d, 0x62, 0x65,
-	0x72, 0x73, 0x1a, 0x36, 0x0a, 0x06, 0x4d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x12, 0x14, 0x0a, 0x05,
-	0x73, 0x63, 0x6f, 0x72, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x01, 0x52, 0x05, 0x73, 0x63, 0x6f,
-	0x72, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x6d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x06, 0x6d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x22, 0xb4, 0x01, 0x0a, 0x0e, 0x44,
+	0x28, 0x08, 0x52, 0x06, 0x65, 0x78, 0x69, 0x73, 0x74, 0x73, 0x22, 0xb4, 0x01, 0x0a, 0x0e, 0x44,
 	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x12, 0x0e, 0x0a,
 	0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x12, 0x0a,
 	0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70,
@@ -4574,7 +3685,7 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = []byte{
 	0x66, 0x79, 0x4f, 0x6e, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x08,
 	0x52, 0x0e, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x4f, 0x6e, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65,
 	0x12, 0x1c, 0x0a, 0x09, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x64, 0x18, 0x06, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x09, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x64, 0x22, 0xca,
+	0x01, 0x28, 0x09, 0x52, 0x09, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x64, 0x22, 0xe9,
 	0x01, 0x0a, 0x14, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x4e, 0x6f, 0x74, 0x69, 0x66,
 	0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x14, 0x0a, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e,
 	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x12, 0x32, 0x0a,
@@ -4587,88 +3698,90 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = []byte{
 	0x72, 0x65, 0x76, 0x69, 0x6f, 0x75, 0x73, 0x12, 0x32, 0x0a, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65,
 	0x78, 0x74, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65,
-	0x6c, 0x64, 0x52, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x22, 0x62, 0x0a, 0x14, 0x44,
-	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68,
-	0x65, 0x6d, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x36, 0x0a, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64,
-	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65, 0x6c,
-	0x64, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73, 0x22,
-	0x3d, 0x0a, 0x13, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64,
-	0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79,
-	0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0xda,
-	0x02, 0x0a, 0x0f, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02,
-	0x69, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x12, 0x2a, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75,
-	0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x41, 0x6e, 0x79, 0x52, 0x05, 0x76,
-	0x61, 0x6c, 0x75, 0x65, 0x12, 0x32, 0x0a, 0x09, 0x77, 0x72, 0x69, 0x74, 0x65, 0x54, 0x69, 0x6d,
-	0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x73, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x77,
-	0x72, 0x69, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x2d, 0x0a, 0x08, 0x77, 0x72, 0x69, 0x74,
-	0x65, 0x72, 0x49, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x11, 0x2e, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x08, 0x77,
-	0x72, 0x69, 0x74, 0x65, 0x72, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65,
-	0x73, 0x73, 0x18, 0x06, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73,
-	0x73, 0x12, 0x43, 0x0a, 0x08, 0x77, 0x72, 0x69, 0x74, 0x65, 0x4f, 0x70, 0x74, 0x18, 0x07, 0x20,
-	0x01, 0x28, 0x0e, 0x32, 0x27, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e,
-	0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e,
-	0x57, 0x72, 0x69, 0x74, 0x65, 0x4f, 0x70, 0x74, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x08, 0x77, 0x72,
-	0x69, 0x74, 0x65, 0x4f, 0x70, 0x74, 0x22, 0x33, 0x0a, 0x0c, 0x57, 0x72, 0x69, 0x74, 0x65, 0x4f,
-	0x70, 0x74, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x10, 0x0a, 0x0c, 0x57, 0x52, 0x49, 0x54, 0x45, 0x5f,
-	0x4e, 0x4f, 0x52, 0x4d, 0x41, 0x4c, 0x10, 0x00, 0x12, 0x11, 0x0a, 0x0d, 0x57, 0x52, 0x49, 0x54,
-	0x45, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x53, 0x10, 0x01, 0x22, 0xc2, 0x01, 0x0a, 0x10,
-	0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74,
-	0x12, 0x35, 0x0a, 0x08, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03,
-	0x28, 0x0b, 0x32, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44,
-	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x08, 0x65,
-	0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x12, 0x30, 0x0a, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64,
-	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65, 0x6c,
-	0x64, 0x52, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73, 0x12, 0x45, 0x0a, 0x0d, 0x65, 0x6e, 0x74,
-	0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74,
-	0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d,
-	0x61, 0x52, 0x0d, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x73,
-	0x22, 0x17, 0x0a, 0x03, 0x49, 0x6e, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x03, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x1a, 0x0a, 0x06, 0x53, 0x74, 0x72,
-	0x69, 0x6e, 0x67, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x39, 0x0a, 0x09, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
-	0x6d, 0x70, 0x12, 0x2c, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
-	0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
-	0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x03, 0x72, 0x61, 0x77,
-	0x22, 0x19, 0x0a, 0x05, 0x46, 0x6c, 0x6f, 0x61, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x01, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x18, 0x0a, 0x04, 0x42,
-	0x6f, 0x6f, 0x6c, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08,
-	0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x23, 0x0a, 0x0f, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52,
-	0x65, 0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x1e, 0x0a, 0x0a, 0x42, 0x69,
-	0x6e, 0x61, 0x72, 0x79, 0x46, 0x69, 0x6c, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x22, 0x0a, 0x0e, 0x54, 0x72,
-	0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x10, 0x0a, 0x03,
-	0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x9d,
-	0x02, 0x0a, 0x0a, 0x4c, 0x6f, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x20, 0x0a,
-	0x0b, 0x61, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x0b, 0x61, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12,
-	0x38, 0x0a, 0x05, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x22,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x4c, 0x6f, 0x67, 0x4d, 0x65,
-	0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x45, 0x6e,
-	0x75, 0x6d, 0x52, 0x05, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x65, 0x73,
-	0x73, 0x61, 0x67, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65, 0x73, 0x73,
-	0x61, 0x67, 0x65, 0x12, 0x38, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
-	0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
-	0x6d, 0x70, 0x52, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0x5f, 0x0a,
-	0x0c, 0x4c, 0x6f, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a,
-	0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x09,
-	0x0a, 0x05, 0x54, 0x52, 0x41, 0x43, 0x45, 0x10, 0x01, 0x12, 0x09, 0x0a, 0x05, 0x44, 0x45, 0x42,
-	0x55, 0x47, 0x10, 0x02, 0x12, 0x08, 0x0a, 0x04, 0x49, 0x4e, 0x46, 0x4f, 0x10, 0x03, 0x12, 0x08,
-	0x0a, 0x04, 0x57, 0x41, 0x52, 0x4e, 0x10, 0x04, 0x12, 0x09, 0x0a, 0x05, 0x45, 0x52, 0x52, 0x4f,
-	0x52, 0x10, 0x05, 0x12, 0x09, 0x0a, 0x05, 0x50, 0x41, 0x4e, 0x49, 0x43, 0x10, 0x06, 0x42, 0x10,
-	0x5a, 0x0e, 0x71, 0x6c, 0x69, 0x62, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6c, 0x64, 0x52, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x12, 0x1d, 0x0a, 0x0a, 0x73,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x69, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x09, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x64, 0x22, 0x62, 0x0a, 0x14, 0x44, 0x61,
+	0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65,
+	0x6d, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x36, 0x0a, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73,
+	0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64,
+	0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73, 0x22, 0x3d,
+	0x0a, 0x13, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x53,
+	0x63, 0x68, 0x65, 0x6d, 0x61, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0xda, 0x02,
+	0x0a, 0x0f, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69,
+	0x64, 0x12, 0x14, 0x0a, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x12, 0x2a, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x41, 0x6e, 0x79, 0x52, 0x05, 0x76, 0x61,
+	0x6c, 0x75, 0x65, 0x12, 0x32, 0x0a, 0x09, 0x77, 0x72, 0x69, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x73, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x77, 0x72,
+	0x69, 0x74, 0x65, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x2d, 0x0a, 0x08, 0x77, 0x72, 0x69, 0x74, 0x65,
+	0x72, 0x49, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x11, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x08, 0x77, 0x72,
+	0x69, 0x74, 0x65, 0x72, 0x49, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73,
+	0x73, 0x18, 0x06, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73,
+	0x12, 0x43, 0x0a, 0x08, 0x77, 0x72, 0x69, 0x74, 0x65, 0x4f, 0x70, 0x74, 0x18, 0x07, 0x20, 0x01,
+	0x28, 0x0e, 0x32, 0x27, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44,
+	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x57,
+	0x72, 0x69, 0x74, 0x65, 0x4f, 0x70, 0x74, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x08, 0x77, 0x72, 0x69,
+	0x74, 0x65, 0x4f, 0x70, 0x74, 0x22, 0x33, 0x0a, 0x0c, 0x57, 0x72, 0x69, 0x74, 0x65, 0x4f, 0x70,
+	0x74, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x10, 0x0a, 0x0c, 0x57, 0x52, 0x49, 0x54, 0x45, 0x5f, 0x4e,
+	0x4f, 0x52, 0x4d, 0x41, 0x4c, 0x10, 0x00, 0x12, 0x11, 0x0a, 0x0d, 0x57, 0x52, 0x49, 0x54, 0x45,
+	0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x53, 0x10, 0x01, 0x22, 0xc2, 0x01, 0x0a, 0x10, 0x44,
+	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12,
+	0x35, 0x0a, 0x08, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
+	0x0b, 0x32, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61,
+	0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x08, 0x65, 0x6e,
+	0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x12, 0x30, 0x0a, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73,
+	0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64,
+	0x52, 0x06, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x73, 0x12, 0x45, 0x0a, 0x0d, 0x65, 0x6e, 0x74, 0x69,
+	0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61,
+	0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61,
+	0x52, 0x0d, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x73, 0x22,
+	0x17, 0x0a, 0x03, 0x49, 0x6e, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x03, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x1a, 0x0a, 0x06, 0x53, 0x74, 0x72, 0x69,
+	0x6e, 0x67, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x03, 0x72, 0x61, 0x77, 0x22, 0x39, 0x0a, 0x09, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
+	0x70, 0x12, 0x2c, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a,
+	0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
+	0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22,
+	0x19, 0x0a, 0x05, 0x46, 0x6c, 0x6f, 0x61, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x01, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x18, 0x0a, 0x04, 0x42, 0x6f,
+	0x6f, 0x6c, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52,
+	0x03, 0x72, 0x61, 0x77, 0x22, 0x23, 0x0a, 0x0f, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65,
+	0x66, 0x65, 0x72, 0x65, 0x6e, 0x63, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x1e, 0x0a, 0x0a, 0x42, 0x69, 0x6e,
+	0x61, 0x72, 0x79, 0x46, 0x69, 0x6c, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x72, 0x61, 0x77, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x22, 0x0a, 0x0e, 0x54, 0x72, 0x61,
+	0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x10, 0x0a, 0x03, 0x72,
+	0x61, 0x77, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x72, 0x61, 0x77, 0x22, 0x9d, 0x02,
+	0x0a, 0x0a, 0x4c, 0x6f, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x20, 0x0a, 0x0b,
+	0x61, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x0b, 0x61, 0x70, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x38,
+	0x0a, 0x05, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x22, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x4c, 0x6f, 0x67, 0x4d, 0x65, 0x73,
+	0x73, 0x61, 0x67, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x45, 0x6e, 0x75,
+	0x6d, 0x52, 0x05, 0x6c, 0x65, 0x76, 0x65, 0x6c, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73,
+	0x61, 0x67, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x12, 0x38, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x18,
+	0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
+	0x70, 0x52, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0x5f, 0x0a, 0x0c,
+	0x4c, 0x6f, 0x67, 0x4c, 0x65, 0x76, 0x65, 0x6c, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b,
+	0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x09, 0x0a,
+	0x05, 0x54, 0x52, 0x41, 0x43, 0x45, 0x10, 0x01, 0x12, 0x09, 0x0a, 0x05, 0x44, 0x45, 0x42, 0x55,
+	0x47, 0x10, 0x02, 0x12, 0x08, 0x0a, 0x04, 0x49, 0x4e, 0x46, 0x4f, 0x10, 0x03, 0x12, 0x08, 0x0a,
+	0x04, 0x57, 0x41, 0x52, 0x4e, 0x10, 0x04, 0x12, 0x09, 0x0a, 0x05, 0x45, 0x52, 0x52, 0x4f, 0x52,
+	0x10, 0x05, 0x12, 0x09, 0x0a, 0x05, 0x50, 0x41, 0x4e, 0x49, 0x43, 0x10, 0x06, 0x42, 0x10, 0x5a,
+	0x0e, 0x71, 0x6c, 0x69, 0x62, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -4684,146 +3797,128 @@ func file_pkg_protobufs_protobufs_proto_rawDescGZIP() []byte {
 }
 
 var file_pkg_protobufs_protobufs_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
-var file_pkg_protobufs_protobufs_proto_msgTypes = make([]protoimpl.MessageInfo, 72)
+var file_pkg_protobufs_protobufs_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
 var file_pkg_protobufs_protobufs_proto_goTypes = []any{
-	(WebHeader_AuthenticationStatusEnum)(0),                          // 0: protobufs.WebHeader.AuthenticationStatusEnum
-	(WebConfigCreateEntityResponse_StatusEnum)(0),                    // 1: protobufs.WebConfigCreateEntityResponse.StatusEnum
-	(WebConfigDeleteEntityResponse_StatusEnum)(0),                    // 2: protobufs.WebConfigDeleteEntityResponse.StatusEnum
-	(WebConfigGetEntityResponse_StatusEnum)(0),                       // 3: protobufs.WebConfigGetEntityResponse.StatusEnum
-	(WebConfigGetFieldSchemaResponse_StatusEnum)(0),                  // 4: protobufs.WebConfigGetFieldSchemaResponse.StatusEnum
-	(WebConfigGetEntitySchemaResponse_StatusEnum)(0),                 // 5: protobufs.WebConfigGetEntitySchemaResponse.StatusEnum
-	(WebConfigSetEntitySchemaResponse_StatusEnum)(0),                 // 6: protobufs.WebConfigSetEntitySchemaResponse.StatusEnum
-	(WebConfigCreateSnapshotResponse_StatusEnum)(0),                  // 7: protobufs.WebConfigCreateSnapshotResponse.StatusEnum
-	(WebConfigRestoreSnapshotResponse_StatusEnum)(0),                 // 8: protobufs.WebConfigRestoreSnapshotResponse.StatusEnum
-	(WebRuntimeDatabaseRequest_RequestTypeEnum)(0),                   // 9: protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
-	(WebRuntimeUnregisterNotificationResponse_StatusEnum)(0),         // 10: protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
-	(DatabaseRequest_WriteOptEnum)(0),                                // 11: protobufs.DatabaseRequest.WriteOptEnum
-	(LogMessage_LogLevelEnum)(0),                                     // 12: protobufs.LogMessage.LogLevelEnum
-	(*WebHeader)(nil),                                                // 13: protobufs.WebHeader
-	(*WebMessage)(nil),                                               // 14: protobufs.WebMessage
-	(*WebConfigCreateEntityRequest)(nil),                             // 15: protobufs.WebConfigCreateEntityRequest
-	(*WebConfigCreateEntityResponse)(nil),                            // 16: protobufs.WebConfigCreateEntityResponse
-	(*WebConfigDeleteEntityRequest)(nil),                             // 17: protobufs.WebConfigDeleteEntityRequest
-	(*WebConfigDeleteEntityResponse)(nil),                            // 18: protobufs.WebConfigDeleteEntityResponse
-	(*WebConfigGetEntityTypesRequest)(nil),                           // 19: protobufs.WebConfigGetEntityTypesRequest
-	(*WebConfigGetEntityTypesResponse)(nil),                          // 20: protobufs.WebConfigGetEntityTypesResponse
-	(*WebConfigGetEntityRequest)(nil),                                // 21: protobufs.WebConfigGetEntityRequest
-	(*WebConfigGetEntityResponse)(nil),                               // 22: protobufs.WebConfigGetEntityResponse
-	(*WebConfigGetFieldSchemaRequest)(nil),                           // 23: protobufs.WebConfigGetFieldSchemaRequest
-	(*WebConfigGetFieldSchemaResponse)(nil),                          // 24: protobufs.WebConfigGetFieldSchemaResponse
-	(*WebConfigGetEntitySchemaRequest)(nil),                          // 25: protobufs.WebConfigGetEntitySchemaRequest
-	(*WebConfigGetEntitySchemaResponse)(nil),                         // 26: protobufs.WebConfigGetEntitySchemaResponse
-	(*WebConfigSetEntitySchemaRequest)(nil),                          // 27: protobufs.WebConfigSetEntitySchemaRequest
-	(*WebConfigSetEntitySchemaResponse)(nil),                         // 28: protobufs.WebConfigSetEntitySchemaResponse
-	(*WebConfigCreateSnapshotRequest)(nil),                           // 29: protobufs.WebConfigCreateSnapshotRequest
-	(*WebConfigCreateSnapshotResponse)(nil),                          // 30: protobufs.WebConfigCreateSnapshotResponse
-	(*WebConfigRestoreSnapshotRequest)(nil),                          // 31: protobufs.WebConfigRestoreSnapshotRequest
-	(*WebConfigRestoreSnapshotResponse)(nil),                         // 32: protobufs.WebConfigRestoreSnapshotResponse
-	(*WebConfigGetRootRequest)(nil),                                  // 33: protobufs.WebConfigGetRootRequest
-	(*WebConfigGetRootResponse)(nil),                                 // 34: protobufs.WebConfigGetRootResponse
-	(*WebRuntimeDatabaseRequest)(nil),                                // 35: protobufs.WebRuntimeDatabaseRequest
-	(*WebRuntimeDatabaseResponse)(nil),                               // 36: protobufs.WebRuntimeDatabaseResponse
-	(*WebRuntimeRegisterNotificationRequest)(nil),                    // 37: protobufs.WebRuntimeRegisterNotificationRequest
-	(*WebRuntimeRegisterNotificationResponse)(nil),                   // 38: protobufs.WebRuntimeRegisterNotificationResponse
-	(*WebRuntimeGetNotificationsRequest)(nil),                        // 39: protobufs.WebRuntimeGetNotificationsRequest
-	(*WebRuntimeGetNotificationsResponse)(nil),                       // 40: protobufs.WebRuntimeGetNotificationsResponse
-	(*WebRuntimeUnregisterNotificationRequest)(nil),                  // 41: protobufs.WebRuntimeUnregisterNotificationRequest
-	(*WebRuntimeUnregisterNotificationResponse)(nil),                 // 42: protobufs.WebRuntimeUnregisterNotificationResponse
-	(*WebRuntimeGetDatabaseConnectionStatusRequest)(nil),             // 43: protobufs.WebRuntimeGetDatabaseConnectionStatusRequest
-	(*WebRuntimeGetDatabaseConnectionStatusResponse)(nil),            // 44: protobufs.WebRuntimeGetDatabaseConnectionStatusResponse
-	(*WebRuntimeGetEntitiesRequest)(nil),                             // 45: protobufs.WebRuntimeGetEntitiesRequest
-	(*WebRuntimeGetEntitiesResponse)(nil),                            // 46: protobufs.WebRuntimeGetEntitiesResponse
-	(*WebRuntimeFieldExistsRequest)(nil),                             // 47: protobufs.WebRuntimeFieldExistsRequest
-	(*WebRuntimeFieldExistsResponse)(nil),                            // 48: protobufs.WebRuntimeFieldExistsResponse
-	(*WebRuntimeEntityExistsRequest)(nil),                            // 49: protobufs.WebRuntimeEntityExistsRequest
-	(*WebRuntimeEntityExistsResponse)(nil),                           // 50: protobufs.WebRuntimeEntityExistsResponse
-	(*WebRuntimeTempSetRequest)(nil),                                 // 51: protobufs.WebRuntimeTempSetRequest
-	(*WebRuntimeTempSetResponse)(nil),                                // 52: protobufs.WebRuntimeTempSetResponse
-	(*WebRuntimeTempGetRequest)(nil),                                 // 53: protobufs.WebRuntimeTempGetRequest
-	(*WebRuntimeTempGetResponse)(nil),                                // 54: protobufs.WebRuntimeTempGetResponse
-	(*WebRuntimeTempExpireRequest)(nil),                              // 55: protobufs.WebRuntimeTempExpireRequest
-	(*WebRuntimeTempExpireResponse)(nil),                             // 56: protobufs.WebRuntimeTempExpireResponse
-	(*WebRuntimeTempDelRequest)(nil),                                 // 57: protobufs.WebRuntimeTempDelRequest
-	(*WebRuntimeTempDelResponse)(nil),                                // 58: protobufs.WebRuntimeTempDelResponse
-	(*WebRuntimeSortedSetAddRequest)(nil),                            // 59: protobufs.WebRuntimeSortedSetAddRequest
-	(*WebRuntimeSortedSetAddResponse)(nil),                           // 60: protobufs.WebRuntimeSortedSetAddResponse
-	(*WebRuntimeSortedSetRemoveRequest)(nil),                         // 61: protobufs.WebRuntimeSortedSetRemoveRequest
-	(*WebRuntimeSortedSetRemoveResponse)(nil),                        // 62: protobufs.WebRuntimeSortedSetRemoveResponse
-	(*WebRuntimeSortedSetRemoveRangeByRankRequest)(nil),              // 63: protobufs.WebRuntimeSortedSetRemoveRangeByRankRequest
-	(*WebRuntimeSortedSetRemoveRangeByRankResponse)(nil),             // 64: protobufs.WebRuntimeSortedSetRemoveRangeByRankResponse
-	(*WebRuntimeSortedSetRangeByScoreWithScoresRequest)(nil),         // 65: protobufs.WebRuntimeSortedSetRangeByScoreWithScoresRequest
-	(*WebRuntimeSortedSetRangeByScoreWithScoresResponse)(nil),        // 66: protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse
-	(*DatabaseEntity)(nil),                                           // 67: protobufs.DatabaseEntity
-	(*DatabaseField)(nil),                                            // 68: protobufs.DatabaseField
-	(*DatabaseNotificationConfig)(nil),                               // 69: protobufs.DatabaseNotificationConfig
-	(*DatabaseNotification)(nil),                                     // 70: protobufs.DatabaseNotification
-	(*DatabaseEntitySchema)(nil),                                     // 71: protobufs.DatabaseEntitySchema
-	(*DatabaseFieldSchema)(nil),                                      // 72: protobufs.DatabaseFieldSchema
-	(*DatabaseRequest)(nil),                                          // 73: protobufs.DatabaseRequest
-	(*DatabaseSnapshot)(nil),                                         // 74: protobufs.DatabaseSnapshot
-	(*Int)(nil),                                                      // 75: protobufs.Int
-	(*String)(nil),                                                   // 76: protobufs.String
-	(*Timestamp)(nil),                                                // 77: protobufs.Timestamp
-	(*Float)(nil),                                                    // 78: protobufs.Float
-	(*Bool)(nil),                                                     // 79: protobufs.Bool
-	(*EntityReference)(nil),                                          // 80: protobufs.EntityReference
-	(*BinaryFile)(nil),                                               // 81: protobufs.BinaryFile
-	(*Transformation)(nil),                                           // 82: protobufs.Transformation
-	(*LogMessage)(nil),                                               // 83: protobufs.LogMessage
-	(*WebRuntimeSortedSetRangeByScoreWithScoresResponse_Member)(nil), // 84: protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse.Member
-	(*timestamppb.Timestamp)(nil),                                    // 85: google.protobuf.Timestamp
-	(*anypb.Any)(nil),                                                // 86: google.protobuf.Any
+	(WebHeader_AuthenticationStatusEnum)(0),                  // 0: protobufs.WebHeader.AuthenticationStatusEnum
+	(WebConfigCreateEntityResponse_StatusEnum)(0),            // 1: protobufs.WebConfigCreateEntityResponse.StatusEnum
+	(WebConfigDeleteEntityResponse_StatusEnum)(0),            // 2: protobufs.WebConfigDeleteEntityResponse.StatusEnum
+	(WebConfigGetEntityResponse_StatusEnum)(0),               // 3: protobufs.WebConfigGetEntityResponse.StatusEnum
+	(WebConfigGetFieldSchemaResponse_StatusEnum)(0),          // 4: protobufs.WebConfigGetFieldSchemaResponse.StatusEnum
+	(WebConfigGetEntitySchemaResponse_StatusEnum)(0),         // 5: protobufs.WebConfigGetEntitySchemaResponse.StatusEnum
+	(WebConfigSetEntitySchemaResponse_StatusEnum)(0),         // 6: protobufs.WebConfigSetEntitySchemaResponse.StatusEnum
+	(WebConfigCreateSnapshotResponse_StatusEnum)(0),          // 7: protobufs.WebConfigCreateSnapshotResponse.StatusEnum
+	(WebConfigRestoreSnapshotResponse_StatusEnum)(0),         // 8: protobufs.WebConfigRestoreSnapshotResponse.StatusEnum
+	(WebRuntimeDatabaseRequest_RequestTypeEnum)(0),           // 9: protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
+	(WebRuntimeUnregisterNotificationResponse_StatusEnum)(0), // 10: protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
+	(DatabaseRequest_WriteOptEnum)(0),                        // 11: protobufs.DatabaseRequest.WriteOptEnum
+	(LogMessage_LogLevelEnum)(0),                             // 12: protobufs.LogMessage.LogLevelEnum
+	(*WebHeader)(nil),                                        // 13: protobufs.WebHeader
+	(*WebMessage)(nil),                                       // 14: protobufs.WebMessage
+	(*WebConfigCreateEntityRequest)(nil),                     // 15: protobufs.WebConfigCreateEntityRequest
+	(*WebConfigCreateEntityResponse)(nil),                    // 16: protobufs.WebConfigCreateEntityResponse
+	(*WebConfigDeleteEntityRequest)(nil),                     // 17: protobufs.WebConfigDeleteEntityRequest
+	(*WebConfigDeleteEntityResponse)(nil),                    // 18: protobufs.WebConfigDeleteEntityResponse
+	(*WebConfigGetEntityTypesRequest)(nil),                   // 19: protobufs.WebConfigGetEntityTypesRequest
+	(*WebConfigGetEntityTypesResponse)(nil),                  // 20: protobufs.WebConfigGetEntityTypesResponse
+	(*WebConfigGetEntityRequest)(nil),                        // 21: protobufs.WebConfigGetEntityRequest
+	(*WebConfigGetEntityResponse)(nil),                       // 22: protobufs.WebConfigGetEntityResponse
+	(*WebConfigGetFieldSchemaRequest)(nil),                   // 23: protobufs.WebConfigGetFieldSchemaRequest
+	(*WebConfigGetFieldSchemaResponse)(nil),                  // 24: protobufs.WebConfigGetFieldSchemaResponse
+	(*WebConfigGetEntitySchemaRequest)(nil),                  // 25: protobufs.WebConfigGetEntitySchemaRequest
+	(*WebConfigGetEntitySchemaResponse)(nil),                 // 26: protobufs.WebConfigGetEntitySchemaResponse
+	(*WebConfigSetEntitySchemaRequest)(nil),                  // 27: protobufs.WebConfigSetEntitySchemaRequest
+	(*WebConfigSetEntitySchemaResponse)(nil),                 // 28: protobufs.WebConfigSetEntitySchemaResponse
+	(*WebConfigCreateSnapshotRequest)(nil),                   // 29: protobufs.WebConfigCreateSnapshotRequest
+	(*WebConfigCreateSnapshotResponse)(nil),                  // 30: protobufs.WebConfigCreateSnapshotResponse
+	(*WebConfigRestoreSnapshotRequest)(nil),                  // 31: protobufs.WebConfigRestoreSnapshotRequest
+	(*WebConfigRestoreSnapshotResponse)(nil),                 // 32: protobufs.WebConfigRestoreSnapshotResponse
+	(*WebConfigGetRootRequest)(nil),                          // 33: protobufs.WebConfigGetRootRequest
+	(*WebConfigGetRootResponse)(nil),                         // 34: protobufs.WebConfigGetRootResponse
+	(*WebRuntimeDatabaseRequest)(nil),                        // 35: protobufs.WebRuntimeDatabaseRequest
+	(*WebRuntimeDatabaseResponse)(nil),                       // 36: protobufs.WebRuntimeDatabaseResponse
+	(*WebRuntimeRegisterNotificationRequest)(nil),            // 37: protobufs.WebRuntimeRegisterNotificationRequest
+	(*WebRuntimeRegisterNotificationResponse)(nil),           // 38: protobufs.WebRuntimeRegisterNotificationResponse
+	(*WebRuntimeGetNotificationsRequest)(nil),                // 39: protobufs.WebRuntimeGetNotificationsRequest
+	(*WebRuntimeGetNotificationsResponse)(nil),               // 40: protobufs.WebRuntimeGetNotificationsResponse
+	(*WebRuntimeUnregisterNotificationRequest)(nil),          // 41: protobufs.WebRuntimeUnregisterNotificationRequest
+	(*WebRuntimeUnregisterNotificationResponse)(nil),         // 42: protobufs.WebRuntimeUnregisterNotificationResponse
+	(*WebRuntimeGetDatabaseConnectionStatusRequest)(nil),     // 43: protobufs.WebRuntimeGetDatabaseConnectionStatusRequest
+	(*WebRuntimeGetDatabaseConnectionStatusResponse)(nil),    // 44: protobufs.WebRuntimeGetDatabaseConnectionStatusResponse
+	(*WebRuntimeGetEntitiesRequest)(nil),                     // 45: protobufs.WebRuntimeGetEntitiesRequest
+	(*WebRuntimeGetEntitiesResponse)(nil),                    // 46: protobufs.WebRuntimeGetEntitiesResponse
+	(*WebRuntimeFieldExistsRequest)(nil),                     // 47: protobufs.WebRuntimeFieldExistsRequest
+	(*WebRuntimeFieldExistsResponse)(nil),                    // 48: protobufs.WebRuntimeFieldExistsResponse
+	(*WebRuntimeEntityExistsRequest)(nil),                    // 49: protobufs.WebRuntimeEntityExistsRequest
+	(*WebRuntimeEntityExistsResponse)(nil),                   // 50: protobufs.WebRuntimeEntityExistsResponse
+	(*DatabaseEntity)(nil),                                   // 51: protobufs.DatabaseEntity
+	(*DatabaseField)(nil),                                    // 52: protobufs.DatabaseField
+	(*DatabaseNotificationConfig)(nil),                       // 53: protobufs.DatabaseNotificationConfig
+	(*DatabaseNotification)(nil),                             // 54: protobufs.DatabaseNotification
+	(*DatabaseEntitySchema)(nil),                             // 55: protobufs.DatabaseEntitySchema
+	(*DatabaseFieldSchema)(nil),                              // 56: protobufs.DatabaseFieldSchema
+	(*DatabaseRequest)(nil),                                  // 57: protobufs.DatabaseRequest
+	(*DatabaseSnapshot)(nil),                                 // 58: protobufs.DatabaseSnapshot
+	(*Int)(nil),                                              // 59: protobufs.Int
+	(*String)(nil),                                           // 60: protobufs.String
+	(*Timestamp)(nil),                                        // 61: protobufs.Timestamp
+	(*Float)(nil),                                            // 62: protobufs.Float
+	(*Bool)(nil),                                             // 63: protobufs.Bool
+	(*EntityReference)(nil),                                  // 64: protobufs.EntityReference
+	(*BinaryFile)(nil),                                       // 65: protobufs.BinaryFile
+	(*Transformation)(nil),                                   // 66: protobufs.Transformation
+	(*LogMessage)(nil),                                       // 67: protobufs.LogMessage
+	(*timestamppb.Timestamp)(nil),                            // 68: google.protobuf.Timestamp
+	(*anypb.Any)(nil),                                        // 69: google.protobuf.Any
 }
 var file_pkg_protobufs_protobufs_proto_depIdxs = []int32{
-	85, // 0: protobufs.WebHeader.timestamp:type_name -> google.protobuf.Timestamp
+	68, // 0: protobufs.WebHeader.timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 1: protobufs.WebHeader.authenticationStatus:type_name -> protobufs.WebHeader.AuthenticationStatusEnum
 	13, // 2: protobufs.WebMessage.header:type_name -> protobufs.WebHeader
-	86, // 3: protobufs.WebMessage.payload:type_name -> google.protobuf.Any
+	69, // 3: protobufs.WebMessage.payload:type_name -> google.protobuf.Any
 	1,  // 4: protobufs.WebConfigCreateEntityResponse.status:type_name -> protobufs.WebConfigCreateEntityResponse.StatusEnum
 	2,  // 5: protobufs.WebConfigDeleteEntityResponse.status:type_name -> protobufs.WebConfigDeleteEntityResponse.StatusEnum
 	3,  // 6: protobufs.WebConfigGetEntityResponse.status:type_name -> protobufs.WebConfigGetEntityResponse.StatusEnum
-	67, // 7: protobufs.WebConfigGetEntityResponse.entity:type_name -> protobufs.DatabaseEntity
+	51, // 7: protobufs.WebConfigGetEntityResponse.entity:type_name -> protobufs.DatabaseEntity
 	4,  // 8: protobufs.WebConfigGetFieldSchemaResponse.status:type_name -> protobufs.WebConfigGetFieldSchemaResponse.StatusEnum
-	72, // 9: protobufs.WebConfigGetFieldSchemaResponse.schema:type_name -> protobufs.DatabaseFieldSchema
+	56, // 9: protobufs.WebConfigGetFieldSchemaResponse.schema:type_name -> protobufs.DatabaseFieldSchema
 	5,  // 10: protobufs.WebConfigGetEntitySchemaResponse.status:type_name -> protobufs.WebConfigGetEntitySchemaResponse.StatusEnum
-	71, // 11: protobufs.WebConfigGetEntitySchemaResponse.schema:type_name -> protobufs.DatabaseEntitySchema
-	71, // 12: protobufs.WebConfigSetEntitySchemaRequest.schema:type_name -> protobufs.DatabaseEntitySchema
+	55, // 11: protobufs.WebConfigGetEntitySchemaResponse.schema:type_name -> protobufs.DatabaseEntitySchema
+	55, // 12: protobufs.WebConfigSetEntitySchemaRequest.schema:type_name -> protobufs.DatabaseEntitySchema
 	6,  // 13: protobufs.WebConfigSetEntitySchemaResponse.status:type_name -> protobufs.WebConfigSetEntitySchemaResponse.StatusEnum
 	7,  // 14: protobufs.WebConfigCreateSnapshotResponse.status:type_name -> protobufs.WebConfigCreateSnapshotResponse.StatusEnum
-	74, // 15: protobufs.WebConfigCreateSnapshotResponse.snapshot:type_name -> protobufs.DatabaseSnapshot
-	74, // 16: protobufs.WebConfigRestoreSnapshotRequest.snapshot:type_name -> protobufs.DatabaseSnapshot
+	58, // 15: protobufs.WebConfigCreateSnapshotResponse.snapshot:type_name -> protobufs.DatabaseSnapshot
+	58, // 16: protobufs.WebConfigRestoreSnapshotRequest.snapshot:type_name -> protobufs.DatabaseSnapshot
 	8,  // 17: protobufs.WebConfigRestoreSnapshotResponse.status:type_name -> protobufs.WebConfigRestoreSnapshotResponse.StatusEnum
 	9,  // 18: protobufs.WebRuntimeDatabaseRequest.requestType:type_name -> protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
-	73, // 19: protobufs.WebRuntimeDatabaseRequest.requests:type_name -> protobufs.DatabaseRequest
-	73, // 20: protobufs.WebRuntimeDatabaseResponse.response:type_name -> protobufs.DatabaseRequest
-	69, // 21: protobufs.WebRuntimeRegisterNotificationRequest.requests:type_name -> protobufs.DatabaseNotificationConfig
-	70, // 22: protobufs.WebRuntimeGetNotificationsResponse.notifications:type_name -> protobufs.DatabaseNotification
+	57, // 19: protobufs.WebRuntimeDatabaseRequest.requests:type_name -> protobufs.DatabaseRequest
+	57, // 20: protobufs.WebRuntimeDatabaseResponse.response:type_name -> protobufs.DatabaseRequest
+	53, // 21: protobufs.WebRuntimeRegisterNotificationRequest.requests:type_name -> protobufs.DatabaseNotificationConfig
+	54, // 22: protobufs.WebRuntimeGetNotificationsResponse.notifications:type_name -> protobufs.DatabaseNotification
 	10, // 23: protobufs.WebRuntimeUnregisterNotificationResponse.status:type_name -> protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
-	67, // 24: protobufs.WebRuntimeGetEntitiesResponse.entities:type_name -> protobufs.DatabaseEntity
-	84, // 25: protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse.members:type_name -> protobufs.WebRuntimeSortedSetRangeByScoreWithScoresResponse.Member
-	80, // 26: protobufs.DatabaseEntity.parent:type_name -> protobufs.EntityReference
-	80, // 27: protobufs.DatabaseEntity.children:type_name -> protobufs.EntityReference
-	86, // 28: protobufs.DatabaseField.value:type_name -> google.protobuf.Any
-	85, // 29: protobufs.DatabaseField.writeTime:type_name -> google.protobuf.Timestamp
-	68, // 30: protobufs.DatabaseNotification.current:type_name -> protobufs.DatabaseField
-	68, // 31: protobufs.DatabaseNotification.previous:type_name -> protobufs.DatabaseField
-	68, // 32: protobufs.DatabaseNotification.context:type_name -> protobufs.DatabaseField
-	72, // 33: protobufs.DatabaseEntitySchema.fields:type_name -> protobufs.DatabaseFieldSchema
-	86, // 34: protobufs.DatabaseRequest.value:type_name -> google.protobuf.Any
-	77, // 35: protobufs.DatabaseRequest.writeTime:type_name -> protobufs.Timestamp
-	76, // 36: protobufs.DatabaseRequest.writerId:type_name -> protobufs.String
-	11, // 37: protobufs.DatabaseRequest.writeOpt:type_name -> protobufs.DatabaseRequest.WriteOptEnum
-	67, // 38: protobufs.DatabaseSnapshot.entities:type_name -> protobufs.DatabaseEntity
-	68, // 39: protobufs.DatabaseSnapshot.fields:type_name -> protobufs.DatabaseField
-	71, // 40: protobufs.DatabaseSnapshot.entitySchemas:type_name -> protobufs.DatabaseEntitySchema
-	85, // 41: protobufs.Timestamp.raw:type_name -> google.protobuf.Timestamp
-	12, // 42: protobufs.LogMessage.level:type_name -> protobufs.LogMessage.LogLevelEnum
-	85, // 43: protobufs.LogMessage.timestamp:type_name -> google.protobuf.Timestamp
-	44, // [44:44] is the sub-list for method output_type
-	44, // [44:44] is the sub-list for method input_type
-	44, // [44:44] is the sub-list for extension type_name
-	44, // [44:44] is the sub-list for extension extendee
-	0,  // [0:44] is the sub-list for field type_name
+	51, // 24: protobufs.WebRuntimeGetEntitiesResponse.entities:type_name -> protobufs.DatabaseEntity
+	64, // 25: protobufs.DatabaseEntity.parent:type_name -> protobufs.EntityReference
+	64, // 26: protobufs.DatabaseEntity.children:type_name -> protobufs.EntityReference
+	69, // 27: protobufs.DatabaseField.value:type_name -> google.protobuf.Any
+	68, // 28: protobufs.DatabaseField.writeTime:type_name -> google.protobuf.Timestamp
+	52, // 29: protobufs.DatabaseNotification.current:type_name -> protobufs.DatabaseField
+	52, // 30: protobufs.DatabaseNotification.previous:type_name -> protobufs.DatabaseField
+	52, // 31: protobufs.DatabaseNotification.context:type_name -> protobufs.DatabaseField
+	56, // 32: protobufs.DatabaseEntitySchema.fields:type_name -> protobufs.DatabaseFieldSchema
+	69, // 33: protobufs.DatabaseRequest.value:type_name -> google.protobuf.Any
+	61, // 34: protobufs.DatabaseRequest.writeTime:type_name -> protobufs.Timestamp
+	60, // 35: protobufs.DatabaseRequest.writerId:type_name -> protobufs.String
+	11, // 36: protobufs.DatabaseRequest.writeOpt:type_name -> protobufs.DatabaseRequest.WriteOptEnum
+	51, // 37: protobufs.DatabaseSnapshot.entities:type_name -> protobufs.DatabaseEntity
+	52, // 38: protobufs.DatabaseSnapshot.fields:type_name -> protobufs.DatabaseField
+	55, // 39: protobufs.DatabaseSnapshot.entitySchemas:type_name -> protobufs.DatabaseEntitySchema
+	68, // 40: protobufs.Timestamp.raw:type_name -> google.protobuf.Timestamp
+	12, // 41: protobufs.LogMessage.level:type_name -> protobufs.LogMessage.LogLevelEnum
+	68, // 42: protobufs.LogMessage.timestamp:type_name -> google.protobuf.Timestamp
+	43, // [43:43] is the sub-list for method output_type
+	43, // [43:43] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_pkg_protobufs_protobufs_proto_init() }
@@ -4837,7 +3932,7 @@ func file_pkg_protobufs_protobufs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pkg_protobufs_protobufs_proto_rawDesc,
 			NumEnums:      13,
-			NumMessages:   72,
+			NumMessages:   55,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
