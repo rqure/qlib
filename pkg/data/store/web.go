@@ -528,28 +528,3 @@ func (s *Web) ProcessNotifications(ctx context.Context) {
 		}
 	}
 }
-
-// Implement remaining data.Store interface methods for temp storage and sorted sets
-func (s *Web) TempSet(ctx context.Context, key, value string, expiration time.Duration) bool {
-	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeTempSetRequest{
-		Key:          key,
-		Value:        value,
-		ExpirationMs: expiration.Milliseconds(),
-	})
-
-	response := s.sendAndWait(ctx, msg)
-	if response == nil {
-		log.Error("Received nil response")
-		return false
-	}
-
-	var resp protobufs.WebRuntimeTempSetResponse
-	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("Failed to unmarshal response: %v", err)
-		return false
-	}
-
-	return resp.Success
-}

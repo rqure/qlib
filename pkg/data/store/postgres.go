@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +21,63 @@ import (
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 )
+
+const createTablesSQL = `
+CREATE TABLE IF NOT EXISTS Entities (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_id TEXT,
+    type TEXT NOT NULL,
+    children TEXT[] NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS EntitySchema (
+    entity_type TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_type TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    PRIMARY KEY (entity_type, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS Strings (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TEXT,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL
+);
+
+-- Similar tables for other types...
+
+CREATE TABLE IF NOT EXISTS NotificationConfigEntityId (
+    id SERIAL PRIMARY KEY,
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    context_fields TEXT[] NOT NULL,
+    notify_on_change BOOLEAN NOT NULL,
+    service_id TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS NotificationConfigEntityType (
+    id SERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    context_fields TEXT[] NOT NULL,
+    notify_on_change BOOLEAN NOT NULL,
+    service_id TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Notifications (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP NOT NULL,
+    service TEXT NOT NULL,
+    acknowledged BOOLEAN NOT NULL DEFAULT false,
+    token TEXT NOT NULL,
+    current BYTEA NOT NULL,
+    previous BYTEA NOT NULL,
+    context BYTEA[] NOT NULL
+);
+`
 
 type PostgresConfig struct {
 	ConnectionString string
@@ -57,6 +115,12 @@ func (s *Postgres) Connect(ctx context.Context) {
 	}
 
 	s.pool = pool
+
+	if err := s.initializeDatabase(ctx); err != nil {
+		log.Error("Failed to initialize database: %v", err)
+		s.Disconnect(ctx)
+		return
+	}
 
 	// Listen for notifications
 	conn, err := s.pool.Acquire(ctx)
@@ -388,7 +452,7 @@ func (s *Postgres) convertFromValue(v data.Value) interface{} {
 	case v.IsEntityReference():
 		return v.GetEntityReference()
 	case v.IsTimestamp():
-		return v.GetTimestamp()
+		return v.GetTimestamp().Format(time.RFC3339Nano)
 	case v.IsTransformation():
 		return v.GetTransformation()
 	default:
@@ -416,7 +480,9 @@ func (s *Postgres) convertToValue(fieldType string, value interface{}) data.Valu
 	case "protobufs.EntityReference":
 		v.SetEntityReference(value)
 	case "protobufs.Timestamp":
-		v.SetTimestamp(value)
+		if ts, err := time.Parse(time.RFC3339Nano, value.(string)); err == nil {
+			v.SetTimestamp(ts)
+		}
 	case "protobufs.Transformation":
 		v.SetTransformation(value)
 	default:
@@ -454,9 +520,60 @@ func (s *Postgres) getServiceId() string {
 	return app.GetName()
 }
 
-func (s *Postgres) resolveIndirection(ctx context.Context, fieldName, entityId string) (string, string) {
-	// ... Implement indirection resolution ...
-	return fieldName, entityId
+func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entityId string) (string, string) {
+	fields := strings.Split(indirectField, "->")
+	if len(fields) == 1 {
+		return indirectField, entityId
+	}
+
+	currentEntityId := entityId
+	for _, f := range fields[:len(fields)-1] {
+		// Try field reference first
+		req := request.New().SetEntityId(currentEntityId).SetFieldName(f)
+		s.Read(ctx, req)
+		if req.IsSuccessful() {
+			v := req.GetValue()
+			if v.IsEntityReference() {
+				currentEntityId = v.GetEntityReference()
+				if currentEntityId == "" {
+					return "", ""
+				}
+				continue
+			}
+		}
+
+		// Try parent reference
+		entity := s.GetEntity(ctx, currentEntityId)
+		if entity == nil {
+			return "", ""
+		}
+
+		parentId := entity.GetParentId()
+		if parentId != "" {
+			parentEntity := s.GetEntity(ctx, parentId)
+			if parentEntity != nil && parentEntity.GetName() == f {
+				currentEntityId = parentId
+				continue
+			}
+		}
+
+		// Try child reference
+		found := false
+		for _, childId := range entity.GetChildrenIds() {
+			child := s.GetEntity(ctx, childId)
+			if child != nil && child.GetName() == f {
+				currentEntityId = childId
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return "", ""
+		}
+	}
+
+	return fields[len(fields)-1], currentEntityId
 }
 
 // ... Implement remaining Store interface methods ...
@@ -1030,6 +1147,11 @@ func (s *Postgres) initializeDatabase(ctx context.Context) error {
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, createTablesSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create tables: %v", err)
+	}
 
 	_, err = tx.Exec(ctx, createIndexesSQL)
 	if err != nil {
