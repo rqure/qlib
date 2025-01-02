@@ -930,8 +930,6 @@ func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entity
 	return fields[len(fields)-1], currentEntityId
 }
 
-// ... Implement remaining Store interface methods ...
-
 func (s *Postgres) CreateSnapshot(ctx context.Context) data.Snapshot {
 	ss := snapshot.New()
 
