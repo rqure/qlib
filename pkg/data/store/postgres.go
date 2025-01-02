@@ -150,6 +150,57 @@ func (s *Postgres) IsConnected(ctx context.Context) bool {
 	return s.pool.Ping(ctx) == nil
 }
 
+func (s *Postgres) GetEntity(ctx context.Context, entityId string) data.Entity {
+	row := s.pool.QueryRow(ctx, `
+		SELECT id, name, parent_id, type, children
+		FROM Entities
+		WHERE id = $1
+	`, entityId)
+
+	var e protobufs.DatabaseEntity
+	var children []string
+	err := row.Scan(&e.Id, &e.Name, &e.Parent, &e.Type, &children)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Error("Failed to get entity: %v", err)
+		}
+		return nil
+	}
+
+	e.Children = make([]*protobufs.EntityReference, len(children))
+	for i, child := range children {
+		e.Children[i] = &protobufs.EntityReference{Raw: child}
+	}
+
+	return entity.FromEntityPb(&e)
+}
+
+func (s *Postgres) SetEntity(ctx context.Context, e data.Entity) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		log.Error("Failed to begin transaction: %v", err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	// Update entity or create if it doesn't exist
+	_, err = tx.Exec(ctx, `
+		INSERT INTO Entities (id, name, parent_id, type, children)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (id) DO UPDATE
+		SET name = $2, parent_id = $3, type = $4, children = $5
+	`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType(), e.GetChildrenIds())
+	if err != nil {
+		log.Error("Failed to update entity: %v", err)
+		return
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Error("Failed to commit transaction: %v", err)
+	}
+}
+
 func (s *Postgres) CreateEntity(ctx context.Context, entityType, parentId, name string) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -195,31 +246,6 @@ func (s *Postgres) CreateEntity(ctx context.Context, entityType, parentId, name 
 	if err != nil {
 		log.Error("Failed to commit transaction: %v", err)
 	}
-}
-
-func (s *Postgres) GetEntity(ctx context.Context, entityId string) data.Entity {
-	row := s.pool.QueryRow(ctx, `
-		SELECT id, name, parent_id, type, children
-		FROM Entities
-		WHERE id = $1
-	`, entityId)
-
-	var e protobufs.DatabaseEntity
-	var children []string
-	err := row.Scan(&e.Id, &e.Name, &e.Parent, &e.Type, &children)
-	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			log.Error("Failed to get entity: %v", err)
-		}
-		return nil
-	}
-
-	e.Children = make([]*protobufs.EntityReference, len(children))
-	for i, child := range children {
-		e.Children[i] = &protobufs.EntityReference{Raw: child}
-	}
-
-	return entity.FromEntityPb(&e)
 }
 
 func (s *Postgres) Read(ctx context.Context, requests ...data.Request) {
@@ -356,7 +382,7 @@ func (s *Postgres) writeWithTx(ctx context.Context, tx pgx.Tx, r data.Request) {
 }
 
 func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r data.Request, o data.Request) {
-	notifications := []protobufs.DatabaseNotification{}
+	notifications := []*protobufs.DatabaseNotification{}
 
 	// Get entity-specific notifications
 	rows, err := tx.Query(ctx, `
@@ -370,7 +396,7 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 	}
 	defer rows.Close()
 
-	s.processNotificationRows(ctx, rows, r, o, &notifications)
+	s.processNotificationRows(ctx, rows, r, o, notifications)
 
 	// Get type-specific notifications
 	entity := s.GetEntity(ctx, r.GetEntityId())
@@ -386,12 +412,12 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 		}
 		defer rows.Close()
 
-		s.processNotificationRows(ctx, rows, r, o, &notifications)
+		s.processNotificationRows(ctx, rows, r, o, notifications)
 	}
 
 	// Insert notifications
 	for _, n := range notifications {
-		b, err := proto.Marshal(&n)
+		b, err := proto.Marshal(n)
 		if err != nil {
 			log.Error("Failed to marshal notification: %v", err)
 			continue
@@ -407,7 +433,7 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 	}
 }
 
-func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r data.Request, o data.Request, notifications *[]protobufs.DatabaseNotification) {
+func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r data.Request, o data.Request, notifications []*protobufs.DatabaseNotification) {
 	for rows.Next() {
 		var id int
 		var contextFields []string
@@ -444,7 +470,7 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 			}
 		}
 
-		*notifications = append(*notifications, protobufs.DatabaseNotification{
+		notifications = append(notifications, &protobufs.DatabaseNotification{
 			Token:     token,
 			ServiceId: serviceId,
 			Current:   field.ToFieldPb(field.FromRequest(r)),
