@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"encoding/base64"
@@ -150,20 +149,16 @@ type PostgresConfig struct {
 }
 
 type Postgres struct {
-	pool              *pgxpool.Pool
-	config            PostgresConfig
-	callbacks         map[string][]data.NotificationCallback
-	transformer       data.Transformer
-	newNotificationCh chan struct{}
-	cancelFunc        context.CancelFunc
-	wg                sync.WaitGroup
+	pool        *pgxpool.Pool
+	config      PostgresConfig
+	callbacks   map[string][]data.NotificationCallback
+	transformer data.Transformer
 }
 
 func NewPostgres(config PostgresConfig) data.Store {
 	s := &Postgres{
-		config:            config,
-		callbacks:         map[string][]data.NotificationCallback{},
-		newNotificationCh: make(chan struct{}, 1),
+		config:    config,
+		callbacks: map[string][]data.NotificationCallback{},
 	}
 	s.transformer = transformer.NewTransformer(s)
 	return s
@@ -191,63 +186,9 @@ func (s *Postgres) Connect(ctx context.Context) {
 		s.Disconnect(ctx)
 		return
 	}
-
-	// Create new context with cancel for the listener goroutine
-	listenerCtx, cancel := context.WithCancel(context.Background())
-	s.cancelFunc = cancel
-
-	// Setup notification listener on a dedicated connection
-	conn, err := s.pool.Acquire(ctx)
-	if err != nil {
-		log.Error("Failed to acquire connection: %v", err)
-		return
-	}
-
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		defer conn.Release()
-
-		_, err = conn.Exec(ctx, fmt.Sprintf("LISTEN %s", s.getServiceId()))
-		if err != nil {
-			log.Error("Failed to setup LISTEN: %v", err)
-			return
-		}
-
-		for {
-			select {
-			case <-listenerCtx.Done():
-				return
-			default:
-				notification, err := conn.Conn().WaitForNotification(listenerCtx)
-				if err != nil {
-					if listenerCtx.Err() != nil {
-						// Context cancelled, exit goroutine
-						return
-					}
-					log.Error("Error waiting for notification: %v", err)
-					continue
-				}
-
-				if notification.Channel == s.getServiceId() {
-					select {
-					case s.newNotificationCh <- struct{}{}:
-					case <-listenerCtx.Done():
-						return
-					}
-				}
-			}
-		}
-	}()
 }
 
 func (s *Postgres) Disconnect(ctx context.Context) {
-	if s.cancelFunc != nil {
-		s.cancelFunc()
-		s.wg.Wait()
-		s.cancelFunc = nil
-	}
-
 	if s.pool != nil {
 		s.pool.Close()
 		s.pool = nil
@@ -541,12 +482,6 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 		if err != nil {
 			log.Error("Failed to insert notification: %v", err)
 		}
-
-		// After creating notifications in the database, notify listeners
-		_, err = tx.Exec(ctx, "NOTIFY $1", n.ServiceId)
-		if err != nil {
-			log.Error("Failed to notify listeners: %v", err)
-		}
 	}
 }
 
@@ -601,58 +536,54 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 func (s *Postgres) ProcessNotifications(ctx context.Context) {
 	s.transformer.ProcessPending()
 
-	select {
-	case <-s.newNotificationCh:
-		tx, err := s.pool.Begin(ctx)
-		if err != nil {
-			log.Error("Failed to begin transaction: %v", err)
-			return
-		}
-		defer tx.Rollback(ctx)
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		log.Error("Failed to begin transaction: %v", err)
+		return
+	}
+	defer tx.Rollback(ctx)
 
-		// Select and delete notifications in one transaction to prevent duplicates
-		rows, err := tx.Query(ctx, `
+	// Select and delete notifications in one transaction to prevent duplicates
+	rows, err := tx.Query(ctx, `
             DELETE FROM Notifications 
             WHERE service_id = $1 
             AND timestamp > $2
             RETURNING notification
         `, s.getServiceId(), time.Now().Add(-NotificationExpiryDuration))
 
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Error("Failed to process notifications: %v", err)
+		}
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var notifStr string
+		err := rows.Scan(&notifStr)
 		if err != nil {
-			if !errors.Is(err, pgx.ErrNoRows) {
-				log.Error("Failed to process notifications: %v", err)
-			}
-			return
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var notifStr string
-			err := rows.Scan(&notifStr)
-			if err != nil {
-				log.Error("Failed to scan notification: %v", err)
-				continue
-			}
-
-			n, err := s.decodeNotification(notifStr)
-			if err != nil {
-				log.Error("Failed to decode notification: %v", err)
-				continue
-			}
-
-			if callbacks, ok := s.callbacks[n.Token]; ok {
-				notif := notification.FromPb(n)
-				for _, callback := range callbacks {
-					callback.Fn(ctx, notif)
-				}
-			}
+			log.Error("Failed to scan notification: %v", err)
+			continue
 		}
 
-		err = tx.Commit(ctx)
+		n, err := s.decodeNotification(notifStr)
 		if err != nil {
-			log.Error("Failed to commit notification processing: %v", err)
+			log.Error("Failed to decode notification: %v", err)
+			continue
 		}
-	default:
+
+		if callbacks, ok := s.callbacks[n.Token]; ok {
+			notif := notification.FromPb(n)
+			for _, callback := range callbacks {
+				callback.Fn(ctx, notif)
+			}
+		}
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Error("Failed to commit notification processing: %v", err)
 	}
 }
 
