@@ -420,18 +420,29 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 			continue
 		}
 
-		// Encode config as base64 like Redis does
-		config := notification.ToConfigPb(notification.New().
-			SetServiceId(serviceId).
-			SetContextFields(contextFields...).
-			SetNotifyOnChange(notifyOnChange))
+		// Create new notification config
+		nc := &protobufs.DatabaseNotificationConfig{
+			ServiceId:      serviceId,
+			ContextFields:  contextFields,
+			NotifyOnChange: notifyOnChange,
+		}
 
-		b, err := proto.Marshal(config)
+		b, err := proto.Marshal(nc)
 		if err != nil {
 			log.Error("Failed to marshal notification config: %v", err)
 			continue
 		}
 		token := base64.StdEncoding.EncodeToString(b)
+
+		// Create context fields
+		context := []*protobufs.DatabaseField{}
+		for _, cf := range contextFields {
+			cr := request.New().SetEntityId(r.GetEntityId()).SetFieldName(cf)
+			s.Read(ctx, cr)
+			if cr.IsSuccessful() {
+				context = append(context, field.ToFieldPb(field.FromRequest(cr)))
+			}
+		}
 
 		*notifications = append(*notifications, protobufs.DatabaseNotification{
 			Token:     token,
@@ -443,7 +454,48 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 	}
 }
 
-// Fix token handling in Notify
+// Fix notification processing to avoid lock copying
+func (s *Postgres) ProcessNotifications(ctx context.Context) {
+	s.transformer.ProcessPending()
+
+	rows, err := s.pool.Query(ctx, `
+        UPDATE Notifications 
+        SET acknowledged = true 
+        WHERE acknowledged = false AND service_id = $1
+        RETURNING notification
+    `, s.getServiceId())
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Error("Failed to process notifications: %v", err)
+		}
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var notificationBytes []byte
+		err := rows.Scan(&notificationBytes)
+		if err != nil {
+			log.Error("Failed to scan notification: %v", err)
+			continue
+		}
+
+		// Unmarshal into new notification instance to avoid lock copying
+		n := new(protobufs.DatabaseNotification)
+		if err := proto.Unmarshal(notificationBytes, n); err != nil {
+			log.Error("Failed to unmarshal notification: %v", err)
+			continue
+		}
+
+		if callbacks, ok := s.callbacks[n.Token]; ok {
+			notif := notification.FromPb(n)
+			for _, callback := range callbacks {
+				callback.Fn(ctx, notif)
+			}
+		}
+	}
+}
+
 func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
 	if nc.GetServiceId() == "" {
 		nc.SetServiceId(s.getServiceId())
@@ -493,45 +545,6 @@ func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb da
 	}
 
 	return notification.NewToken(token, s, cb)
-}
-
-func (s *Postgres) ProcessNotifications(ctx context.Context) {
-	s.transformer.ProcessPending()
-
-	rows, err := s.pool.Query(ctx, `
-        UPDATE Notifications 
-        SET acknowledged = true 
-        WHERE acknowledged = false AND service_id = $1
-        RETURNING notification
-    `, s.getServiceId())
-	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			log.Error("Failed to process notifications: %v", err)
-		}
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var notificationBytes []byte
-		err := rows.Scan(&notificationBytes)
-		if err != nil {
-			log.Error("Failed to scan notification: %v", err)
-			continue
-		}
-
-		n := &protobufs.DatabaseNotification{}
-		if err := proto.Unmarshal(notificationBytes, n); err != nil {
-			log.Error("Failed to unmarshal notification: %v", err)
-			continue
-		}
-
-		if callbacks, ok := s.callbacks[n.Token]; ok {
-			for _, callback := range callbacks {
-				callback.Fn(ctx, notification.FromPb(n))
-			}
-		}
-	}
 }
 
 // Fix DeleteEntity to clean up notifications
