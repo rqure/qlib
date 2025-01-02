@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"encoding/base64"
@@ -154,6 +155,8 @@ type Postgres struct {
 	callbacks         map[string][]data.NotificationCallback
 	transformer       data.Transformer
 	newNotificationCh chan struct{}
+	cancelFunc        context.CancelFunc
+	wg                sync.WaitGroup
 }
 
 func NewPostgres(config PostgresConfig) data.Store {
@@ -189,6 +192,10 @@ func (s *Postgres) Connect(ctx context.Context) {
 		return
 	}
 
+	// Create new context with cancel for the listener goroutine
+	listenerCtx, cancel := context.WithCancel(context.Background())
+	s.cancelFunc = cancel
+
 	// Setup notification listener on a dedicated connection
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
@@ -196,9 +203,12 @@ func (s *Postgres) Connect(ctx context.Context) {
 		return
 	}
 
+	s.wg.Add(1)
 	go func() {
-		_, err = conn.Exec(ctx, fmt.Sprintf("LISTEN %s", s.getServiceId()))
+		defer s.wg.Done()
 		defer conn.Release()
+
+		_, err = conn.Exec(ctx, fmt.Sprintf("LISTEN %s", s.getServiceId()))
 		if err != nil {
 			log.Error("Failed to setup LISTEN: %v", err)
 			return
@@ -206,12 +216,12 @@ func (s *Postgres) Connect(ctx context.Context) {
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-listenerCtx.Done():
 				return
 			default:
-				notification, err := conn.Conn().WaitForNotification(ctx)
+				notification, err := conn.Conn().WaitForNotification(listenerCtx)
 				if err != nil {
-					if ctx.Err() != nil {
+					if listenerCtx.Err() != nil {
 						// Context cancelled, exit goroutine
 						return
 					}
@@ -220,10 +230,9 @@ func (s *Postgres) Connect(ctx context.Context) {
 				}
 
 				if notification.Channel == s.getServiceId() {
-					// This will trigger ProcessNotifications to handle the new notification
 					select {
 					case s.newNotificationCh <- struct{}{}:
-					case <-ctx.Done():
+					case <-listenerCtx.Done():
 						return
 					}
 				}
@@ -233,6 +242,12 @@ func (s *Postgres) Connect(ctx context.Context) {
 }
 
 func (s *Postgres) Disconnect(ctx context.Context) {
+	if s.cancelFunc != nil {
+		s.cancelFunc()
+		s.wg.Wait()
+		s.cancelFunc = nil
+	}
+
 	if s.pool != nil {
 		s.pool.Close()
 		s.pool = nil
