@@ -84,16 +84,18 @@ type PostgresConfig struct {
 }
 
 type Postgres struct {
-	pool        *pgxpool.Pool
-	config      PostgresConfig
-	callbacks   map[string][]data.NotificationCallback
-	transformer data.Transformer
+	pool              *pgxpool.Pool
+	config            PostgresConfig
+	callbacks         map[string][]data.NotificationCallback
+	transformer       data.Transformer
+	newNotificationCh chan struct{}
 }
 
 func NewPostgres(config PostgresConfig) data.Store {
 	s := &Postgres{
-		config:    config,
-		callbacks: map[string][]data.NotificationCallback{},
+		config:            config,
+		callbacks:         map[string][]data.NotificationCallback{},
+		newNotificationCh: make(chan struct{}, 1),
 	}
 	s.transformer = transformer.NewTransformer(s)
 	return s
@@ -122,18 +124,47 @@ func (s *Postgres) Connect(ctx context.Context) {
 		return
 	}
 
-	// Listen for notifications
+	// Setup notification listener on a dedicated connection
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		log.Error("Failed to acquire connection: %v", err)
 		return
 	}
-	defer conn.Release()
 
-	_, err = conn.Exec(ctx, fmt.Sprintf("LISTEN %s", s.getServiceId()))
-	if err != nil {
-		log.Error("Failed to listen for notifications: %v", err)
-	}
+	go func() {
+		_, err = conn.Exec(ctx, fmt.Sprintf("LISTEN %s", s.getServiceId()))
+		defer conn.Release()
+		if err != nil {
+			log.Error("Failed to setup LISTEN: %v", err)
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				notification, err := conn.Conn().WaitForNotification(ctx)
+				if err != nil {
+					if ctx.Err() != nil {
+						// Context cancelled, exit goroutine
+						return
+					}
+					log.Error("Error waiting for notification: %v", err)
+					continue
+				}
+
+				if notification.Channel == s.getServiceId() {
+					// This will trigger ProcessNotifications to handle the new notification
+					select {
+					case s.newNotificationCh <- struct{}{}:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (s *Postgres) Disconnect(ctx context.Context) {
@@ -431,6 +462,14 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 			log.Error("Failed to insert notification: %v", err)
 		}
 	}
+
+	// After creating notifications in the database, notify listeners
+	for _, n := range notifications {
+		_, err = tx.Exec(ctx, "NOTIFY $1", n.ServiceId)
+		if err != nil {
+			log.Error("Failed to notify listeners: %v", err)
+		}
+	}
 }
 
 func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r data.Request, o data.Request, notifications []*protobufs.DatabaseNotification) {
@@ -484,41 +523,45 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 func (s *Postgres) ProcessNotifications(ctx context.Context) {
 	s.transformer.ProcessPending()
 
-	rows, err := s.pool.Query(ctx, `
+	select {
+	case <-s.newNotificationCh:
+		rows, err := s.pool.Query(ctx, `
         UPDATE Notifications 
         SET acknowledged = true 
         WHERE acknowledged = false AND service_id = $1
         RETURNING notification
     `, s.getServiceId())
-	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			log.Error("Failed to process notifications: %v", err)
-		}
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var notificationBytes []byte
-		err := rows.Scan(&notificationBytes)
 		if err != nil {
-			log.Error("Failed to scan notification: %v", err)
-			continue
+			if !errors.Is(err, pgx.ErrNoRows) {
+				log.Error("Failed to process notifications: %v", err)
+			}
+			return
 		}
+		defer rows.Close()
 
-		// Unmarshal into new notification instance to avoid lock copying
-		n := new(protobufs.DatabaseNotification)
-		if err := proto.Unmarshal(notificationBytes, n); err != nil {
-			log.Error("Failed to unmarshal notification: %v", err)
-			continue
-		}
+		for rows.Next() {
+			var notificationBytes []byte
+			err := rows.Scan(&notificationBytes)
+			if err != nil {
+				log.Error("Failed to scan notification: %v", err)
+				continue
+			}
 
-		if callbacks, ok := s.callbacks[n.Token]; ok {
-			notif := notification.FromPb(n)
-			for _, callback := range callbacks {
-				callback.Fn(ctx, notif)
+			// Unmarshal into new notification instance to avoid lock copying
+			n := new(protobufs.DatabaseNotification)
+			if err := proto.Unmarshal(notificationBytes, n); err != nil {
+				log.Error("Failed to unmarshal notification: %v", err)
+				continue
+			}
+
+			if callbacks, ok := s.callbacks[n.Token]; ok {
+				notif := notification.FromPb(n)
+				for _, callback := range callbacks {
+					callback.Fn(ctx, notif)
+				}
 			}
 		}
+	default:
 	}
 }
 
