@@ -79,6 +79,10 @@ CREATE TABLE IF NOT EXISTS Notifications (
 );
 `
 
+const (
+	NotificationExpiryDuration = time.Minute
+)
+
 type PostgresConfig struct {
 	ConnectionString string
 }
@@ -525,12 +529,22 @@ func (s *Postgres) ProcessNotifications(ctx context.Context) {
 
 	select {
 	case <-s.newNotificationCh:
-		rows, err := s.pool.Query(ctx, `
-        UPDATE Notifications 
-        SET acknowledged = true 
-        WHERE acknowledged = false AND service_id = $1
-        RETURNING notification
-    `, s.getServiceId())
+		tx, err := s.pool.Begin(ctx)
+		if err != nil {
+			log.Error("Failed to begin transaction: %v", err)
+			return
+		}
+		defer tx.Rollback(ctx)
+
+		// Select and delete notifications in one transaction to prevent duplicates
+		rows, err := tx.Query(ctx, `
+            DELETE FROM Notifications 
+            WHERE service_id = $1 
+            AND acknowledged = false 
+            AND timestamp > $2
+            RETURNING notification
+        `, s.getServiceId(), time.Now().Add(-NotificationExpiryDuration))
+
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				log.Error("Failed to process notifications: %v", err)
@@ -560,6 +574,11 @@ func (s *Postgres) ProcessNotifications(ctx context.Context) {
 					callback.Fn(ctx, notif)
 				}
 			}
+		}
+
+		err = tx.Commit(ctx)
+		if err != nil {
+			log.Error("Failed to commit notification processing: %v", err)
 		}
 	default:
 	}
@@ -1229,6 +1248,9 @@ CREATE INDEX IF NOT EXISTS idx_notif_config_type_field ON NotificationConfigEnti
 
 -- Add index for unacknowledged notifications
 CREATE INDEX IF NOT EXISTS idx_notifications_unack ON Notifications(acknowledged) WHERE NOT acknowledged;
+
+-- Add index for notification timestamps
+CREATE INDEX IF NOT EXISTS idx_notifications_timestamp ON Notifications(timestamp);
 `
 
 func (s *Postgres) initializeDatabase(ctx context.Context) error {
