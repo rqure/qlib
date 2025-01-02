@@ -222,14 +222,23 @@ func (s *Postgres) getEntityWithTx(ctx context.Context, entityId string, tx pgx.
 		`, entityId)
 	}
 
-	var e protobufs.DatabaseEntity
+	var name, parentId, entityType string
 	var children []string
-	err := row.Scan(&e.Id, &e.Name, &e.Parent, &e.Type, &children)
+	err := row.Scan(&entityId, &name, &parentId, &entityType, &children)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			log.Error("Failed to get entity: %v", err)
 		}
 		return nil
+	}
+
+	e := protobufs.DatabaseEntity{
+		Id:   entityId,
+		Name: name,
+		Parent: &protobufs.EntityReference{
+			Raw: parentId,
+		},
+		Type: entityType,
 	}
 
 	e.Children = make([]*protobufs.EntityReference, len(children))
