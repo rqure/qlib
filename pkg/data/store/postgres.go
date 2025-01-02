@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"encoding/base64"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +22,7 @@ import (
 	"github.com/rqure/qlib/pkg/data/transformer"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
+	"google.golang.org/protobuf/proto"
 )
 
 const createTablesSQL = `
@@ -70,12 +73,9 @@ CREATE TABLE IF NOT EXISTS NotificationConfigEntityType (
 CREATE TABLE IF NOT EXISTS Notifications (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP NOT NULL,
-    service TEXT NOT NULL,
+    service_id TEXT NOT NULL,
     acknowledged BOOLEAN NOT NULL DEFAULT false,
-    token TEXT NOT NULL,
-    current BYTEA NOT NULL,
-    previous BYTEA NOT NULL,
-    context BYTEA[] NOT NULL
+    notification BYTEA NOT NULL
 );
 `
 
@@ -391,10 +391,16 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 
 	// Insert notifications
 	for _, n := range notifications {
-		_, err := tx.Exec(ctx, `
-            INSERT INTO Notifications (timestamp, service, acknowledged, token, current, previous, context)
-            VALUES ($1, $2, false, $3, $4, $5, $6)
-        `, time.Now(), n.ServiceId, n.Token, n.Current, n.Previous, n.Context)
+		b, err := proto.Marshal(&n)
+		if err != nil {
+			log.Error("Failed to marshal notification: %v", err)
+			continue
+		}
+
+		_, err = tx.Exec(ctx, `
+            INSERT INTO Notifications (timestamp, service_id, acknowledged, notification)
+            VALUES ($1, $2, false, $3)
+        `, time.Now(), n.ServiceId, b)
 		if err != nil {
 			log.Error("Failed to insert notification: %v", err)
 		}
@@ -414,22 +420,190 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 			continue
 		}
 
-		// Create notification with context fields
-		context := []*protobufs.DatabaseField{}
-		for _, cf := range contextFields {
-			cr := request.New().SetEntityId(r.GetEntityId()).SetFieldName(cf)
-			s.Read(ctx, cr)
-			if cr.IsSuccessful() {
-				context = append(context, field.ToFieldPb(field.FromRequest(cr)))
-			}
+		// Encode config as base64 like Redis does
+		config := notification.ToConfigPb(notification.New().
+			SetServiceId(serviceId).
+			SetContextFields(contextFields...).
+			SetNotifyOnChange(notifyOnChange))
+
+		b, err := proto.Marshal(config)
+		if err != nil {
+			log.Error("Failed to marshal notification config: %v", err)
+			continue
 		}
+		token := base64.StdEncoding.EncodeToString(b)
 
 		*notifications = append(*notifications, protobufs.DatabaseNotification{
-			Token:    fmt.Sprintf("%d", id),
-			Current:  field.ToFieldPb(field.FromRequest(r)),
-			Previous: field.ToFieldPb(field.FromRequest(o)),
-			Context:  context,
+			Token:     token,
+			ServiceId: serviceId,
+			Current:   field.ToFieldPb(field.FromRequest(r)),
+			Previous:  field.ToFieldPb(field.FromRequest(o)),
+			Context:   context,
 		})
+	}
+}
+
+// Fix token handling in Notify
+func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+	if nc.GetServiceId() == "" {
+		nc.SetServiceId(s.getServiceId())
+	}
+
+	b, err := proto.Marshal(notification.ToConfigPb(nc))
+	if err != nil {
+		log.Error("Failed to marshal notification config: %v", err)
+		return notification.NewToken("", s, nil)
+	}
+
+	token := base64.StdEncoding.EncodeToString(b)
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		log.Error("Failed to begin transaction: %v", err)
+		return notification.NewToken("", s, nil)
+	}
+	defer tx.Rollback(ctx)
+
+	var id int
+	if nc.GetEntityId() != "" {
+		err = tx.QueryRow(ctx, `
+            INSERT INTO NotificationConfigEntityId (entity_id, field_name, context_fields, notify_on_change, service_id)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+        `, nc.GetEntityId(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
+	} else {
+		err = tx.QueryRow(ctx, `
+            INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+        `, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
+	}
+
+	if err != nil {
+		log.Error("Failed to create notification config: %v", err)
+		return notification.NewToken("", s, nil)
+	}
+
+	s.callbacks[token] = append(s.callbacks[token], cb)
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Error("Failed to commit notification config: %v", err)
+		return notification.NewToken("", s, nil)
+	}
+
+	return notification.NewToken(token, s, cb)
+}
+
+func (s *Postgres) ProcessNotifications(ctx context.Context) {
+	s.transformer.ProcessPending()
+
+	rows, err := s.pool.Query(ctx, `
+        UPDATE Notifications 
+        SET acknowledged = true 
+        WHERE acknowledged = false AND service_id = $1
+        RETURNING notification
+    `, s.getServiceId())
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Error("Failed to process notifications: %v", err)
+		}
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var notificationBytes []byte
+		err := rows.Scan(&notificationBytes)
+		if err != nil {
+			log.Error("Failed to scan notification: %v", err)
+			continue
+		}
+
+		n := &protobufs.DatabaseNotification{}
+		if err := proto.Unmarshal(notificationBytes, n); err != nil {
+			log.Error("Failed to unmarshal notification: %v", err)
+			continue
+		}
+
+		if callbacks, ok := s.callbacks[n.Token]; ok {
+			for _, callback := range callbacks {
+				callback.Fn(ctx, notification.FromPb(n))
+			}
+		}
+	}
+}
+
+// Fix DeleteEntity to clean up notifications
+func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		log.Error("Failed to begin transaction: %v", err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	// Get entity first to handle parent/child relationships
+	entity := s.GetEntity(ctx, entityId)
+	if entity == nil {
+		return
+	}
+
+	// Remove this entity from parent's children list
+	if entity.GetParentId() != "" {
+		_, err = tx.Exec(ctx, `
+            UPDATE Entities 
+            SET children = array_remove(children, $1)
+            WHERE id = $2
+        `, entityId, entity.GetParentId())
+		if err != nil {
+			log.Error("Failed to update parent entity: %v", err)
+			return
+		}
+	}
+
+	// Recursively delete children
+	for _, childId := range entity.GetChildrenIds() {
+		s.DeleteEntity(ctx, childId)
+	}
+
+	// Delete all field values
+	for _, table := range []string{"Strings", "BinaryFiles", "Ints", "Floats", "Bools",
+		"EntityReferences", "Timestamps", "Transformations"} {
+		_, err = tx.Exec(ctx, fmt.Sprintf(`
+            DELETE FROM %s WHERE entity_id = $1
+        `, table), entityId)
+		if err != nil {
+			log.Error("Failed to delete fields from %s: %v", table, err)
+			return
+		}
+	}
+
+	// Delete notification configs
+	_, err = tx.Exec(ctx, `
+        DELETE FROM NotificationConfigEntityId WHERE entity_id = $1;
+        DELETE FROM Notifications WHERE token IN (
+            SELECT base64(notification_pb) FROM NotificationConfigEntityId 
+            WHERE entity_id = $1
+        );
+    `, entityId)
+	if err != nil {
+		log.Error("Failed to delete notification configs: %v", err)
+		return
+	}
+
+	// Finally delete the entity itself
+	_, err = tx.Exec(ctx, `
+        DELETE FROM Entities WHERE id = $1
+    `, entityId)
+	if err != nil {
+		log.Error("Failed to delete entity: %v", err)
+		return
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Error("Failed to commit entity deletion: %v", err)
 	}
 }
 
@@ -724,75 +898,6 @@ func (s *Postgres) FindEntities(ctx context.Context, entityType string) []string
 	return entities
 }
 
-func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		log.Error("Failed to begin transaction: %v", err)
-		return nil
-	}
-	defer tx.Rollback(ctx)
-
-	var id int
-	if nc.GetEntityId() != "" {
-		err = tx.QueryRow(ctx, `
-            INSERT INTO NotificationConfigEntityId (entity_id, field_name, context_fields, notify_on_change, service_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id
-        `, nc.GetEntityId(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
-	} else {
-		err = tx.QueryRow(ctx, `
-            INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id
-        `, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
-	}
-
-	if err != nil {
-		log.Error("Failed to create notification config: %v", err)
-		return nil
-	}
-
-	token := fmt.Sprintf("%d", id)
-	s.callbacks[token] = append(s.callbacks[token], cb)
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		log.Error("Failed to commit notification config: %v", err)
-		return nil
-	}
-
-	return notification.NewToken(token, s, cb)
-}
-
-func (s *Postgres) ProcessNotifications(ctx context.Context) {
-	rows, err := s.pool.Query(ctx, `
-        UPDATE Notifications 
-        SET acknowledged = true 
-        WHERE acknowledged = false
-        RETURNING token, current, previous, context
-    `)
-	if err != nil {
-		log.Error("Failed to process notifications: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var n protobufs.DatabaseNotification
-		err := rows.Scan(&n.Token, &n.Current, &n.Previous, &n.Context)
-		if err != nil {
-			log.Error("Failed to scan notification: %v", err)
-			continue
-		}
-
-		if callbacks, ok := s.callbacks[n.Token]; ok {
-			for _, callback := range callbacks {
-				callback.Fn(ctx, notification.FromPb(&n))
-			}
-		}
-	}
-}
-
 func (s *Postgres) GetEntityTypes(ctx context.Context) []string {
 	rows, err := s.pool.Query(ctx, `
         SELECT DISTINCT entity_type FROM EntitySchema
@@ -1016,103 +1121,6 @@ func (s *Postgres) UnnotifyCallback(ctx context.Context, token string, callback 
 		s.Unnotify(ctx, token)
 	} else {
 		s.callbacks[token] = callbacks
-	}
-}
-
-func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		log.Error("Failed to begin transaction: %v", err)
-		return
-	}
-	defer tx.Rollback(ctx)
-
-	// Get entity first to handle parent/child relationships
-	entity := s.GetEntity(ctx, entityId)
-	if entity == nil {
-		return
-	}
-
-	// Remove this entity from parent's children list
-	if entity.GetParentId() != "" {
-		_, err = tx.Exec(ctx, `
-            UPDATE Entities 
-            SET children = array_remove(children, $1)
-            WHERE id = $2
-        `, entityId, entity.GetParentId())
-		if err != nil {
-			log.Error("Failed to update parent entity: %v", err)
-			return
-		}
-	}
-
-	// Recursively delete children
-	for _, childId := range entity.GetChildrenIds() {
-		s.DeleteEntity(ctx, childId)
-	}
-
-	// Delete all field values
-	for _, table := range []string{"Strings", "BinaryFiles", "Ints", "Floats", "Bools",
-		"EntityReferences", "Timestamps", "Transformations"} {
-		_, err = tx.Exec(ctx, fmt.Sprintf(`
-            DELETE FROM %s WHERE entity_id = $1
-        `, table), entityId)
-		if err != nil {
-			log.Error("Failed to delete fields from %s: %v", table, err)
-			return
-		}
-	}
-
-	// Delete notification configs
-	_, err = tx.Exec(ctx, `
-        DELETE FROM NotificationConfigEntityId WHERE entity_id = $1
-    `, entityId)
-	if err != nil {
-		log.Error("Failed to delete notification configs: %v", err)
-		return
-	}
-
-	// Finally delete the entity itself
-	_, err = tx.Exec(ctx, `
-        DELETE FROM Entities WHERE id = $1
-    `, entityId)
-	if err != nil {
-		log.Error("Failed to delete entity: %v", err)
-		return
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		log.Error("Failed to commit entity deletion: %v", err)
-	}
-}
-
-func (s *Postgres) SetEntity(ctx context.Context, e data.Entity) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		log.Error("Failed to begin transaction: %v", err)
-		return
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx, `
-        INSERT INTO Entities (id, name, parent_id, type, children)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (id) DO UPDATE
-        SET name = $2,
-            parent_id = $3,
-            type = $4,
-            children = $5
-    `, e.GetId(), e.GetName(), e.GetParentId(), e.GetType(), e.GetChildrenIds())
-
-	if err != nil {
-		log.Error("Failed to set entity: %v", err)
-		return
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		log.Error("Failed to commit entity update: %v", err)
 	}
 }
 
