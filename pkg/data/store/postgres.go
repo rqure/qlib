@@ -1309,16 +1309,6 @@ const createIndexesSQL = `
 CREATE INDEX IF NOT EXISTS idx_entities_type ON Entities(type);
 CREATE INDEX IF NOT EXISTS idx_entities_parent_id ON Entities(parent_id);
 
--- Add composite primary keys for field tables to ensure uniqueness
-ALTER TABLE Strings ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE BinaryFiles ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE Ints ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE Floats ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE Bools ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE EntityReferences ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE Timestamps ADD PRIMARY KEY (entity_id, field_name);
-ALTER TABLE Transformations ADD PRIMARY KEY (entity_id, field_name);
-
 -- Add indexes for notification queries
 CREATE INDEX IF NOT EXISTS idx_notif_config_entity_field ON NotificationConfigEntityId(entity_id, field_name);
 CREATE INDEX IF NOT EXISTS idx_notif_config_type_field ON NotificationConfigEntityType(entity_type, field_name);
