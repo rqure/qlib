@@ -878,11 +878,11 @@ func (s *Postgres) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 
 	// Restore schemas
 	for _, schema := range ss.GetSchemas() {
-		for _, field := range schema.GetFields() {
+		for i, field := range schema.GetFields() {
 			_, err := tx.Exec(ctx, `
                 INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
                 VALUES ($1, $2, $3, $4)
-            `, schema.GetType(), field.GetFieldName(), field.GetFieldType(), 0)
+            `, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
 			if err != nil {
 				log.Error("Failed to restore schema: %v", err)
 				continue
