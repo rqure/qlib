@@ -2,7 +2,6 @@ package binding
 
 import (
 	"context"
-	"time"
 
 	"github.com/rqure/qlib/pkg/data"
 )
@@ -105,38 +104,6 @@ func (m *MultiBinding) UnnotifyCallback(ctx context.Context, subscriptionId stri
 
 func (m *MultiBinding) ProcessNotifications(ctx context.Context) {
 	m.impl.ProcessNotifications(ctx)
-}
-
-func (m *MultiBinding) TempSet(ctx context.Context, key string, value string, expiration time.Duration) bool {
-	return m.impl.TempSet(ctx, key, value, expiration)
-}
-
-func (m *MultiBinding) TempGet(ctx context.Context, key string) string {
-	return m.impl.TempGet(ctx, key)
-}
-
-func (m *MultiBinding) TempExpire(ctx context.Context, key string, expiration time.Duration) {
-	m.impl.TempExpire(ctx, key, expiration)
-}
-
-func (m *MultiBinding) TempDel(ctx context.Context, key string) {
-	m.impl.TempDel(ctx, key)
-}
-
-func (m *MultiBinding) SortedSetAdd(ctx context.Context, key string, member string, score float64) int64 {
-	return m.impl.SortedSetAdd(ctx, key, member, score)
-}
-
-func (m *MultiBinding) SortedSetRemove(ctx context.Context, key string, member string) int64 {
-	return m.impl.SortedSetRemove(ctx, key, member)
-}
-
-func (m *MultiBinding) SortedSetRemoveRangeByRank(ctx context.Context, key string, start, stop int64) int64 {
-	return m.impl.SortedSetRemoveRangeByRank(ctx, key, start, stop)
-}
-
-func (m *MultiBinding) SortedSetRangeByScoreWithScores(ctx context.Context, key string, min, max string) []data.SortedSetMember {
-	return m.impl.SortedSetRangeByScoreWithScores(ctx, key, min, max)
 }
 
 // MultiBinding specific methods
