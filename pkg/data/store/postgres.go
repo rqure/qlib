@@ -47,10 +47,72 @@ CREATE TABLE IF NOT EXISTS Strings (
     field_name TEXT NOT NULL,
     field_value TEXT,
     write_time TIMESTAMP NOT NULL,
-    writer TEXT NOT NULL
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
 );
 
--- Similar tables for other types...
+CREATE TABLE IF NOT EXISTS BinaryFiles (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TEXT,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS Ints (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value BIGINT,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS Floats (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value DOUBLE PRECISION,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS Bools (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value BOOLEAN,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS EntityReferences (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TEXT,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS Timestamps (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TIMESTAMP,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS Transformations (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TEXT,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
 
 CREATE TABLE IF NOT EXISTS NotificationConfigEntityId (
     id SERIAL PRIMARY KEY,
@@ -74,7 +136,6 @@ CREATE TABLE IF NOT EXISTS Notifications (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP NOT NULL,
     service_id TEXT NOT NULL,
-    acknowledged BOOLEAN NOT NULL DEFAULT false,
     notification BYTEA NOT NULL
 );
 `
@@ -452,23 +513,21 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 
 	// Insert notifications
 	for _, n := range notifications {
-		b, err := proto.Marshal(n)
+		notifStr, err := s.encodeNotification(n)
 		if err != nil {
-			log.Error("Failed to marshal notification: %v", err)
+			log.Error("Failed to encode notification: %v", err)
 			continue
 		}
 
 		_, err = tx.Exec(ctx, `
-            INSERT INTO Notifications (timestamp, service_id, acknowledged, notification)
-            VALUES ($1, $2, false, $3)
-        `, time.Now(), n.ServiceId, b)
+            INSERT INTO Notifications (timestamp, service_id, notification)
+            VALUES ($1, $2, $3)
+        `, time.Now(), n.ServiceId, notifStr)
 		if err != nil {
 			log.Error("Failed to insert notification: %v", err)
 		}
-	}
 
-	// After creating notifications in the database, notify listeners
-	for _, n := range notifications {
+		// After creating notifications in the database, notify listeners
 		_, err = tx.Exec(ctx, "NOTIFY $1", n.ServiceId)
 		if err != nil {
 			log.Error("Failed to notify listeners: %v", err)
@@ -540,7 +599,6 @@ func (s *Postgres) ProcessNotifications(ctx context.Context) {
 		rows, err := tx.Query(ctx, `
             DELETE FROM Notifications 
             WHERE service_id = $1 
-            AND acknowledged = false 
             AND timestamp > $2
             RETURNING notification
         `, s.getServiceId(), time.Now().Add(-NotificationExpiryDuration))
@@ -554,17 +612,16 @@ func (s *Postgres) ProcessNotifications(ctx context.Context) {
 		defer rows.Close()
 
 		for rows.Next() {
-			var notificationBytes []byte
-			err := rows.Scan(&notificationBytes)
+			var notifStr string
+			err := rows.Scan(&notifStr)
 			if err != nil {
 				log.Error("Failed to scan notification: %v", err)
 				continue
 			}
 
-			// Unmarshal into new notification instance to avoid lock copying
-			n := new(protobufs.DatabaseNotification)
-			if err := proto.Unmarshal(notificationBytes, n); err != nil {
-				log.Error("Failed to unmarshal notification: %v", err)
+			n, err := s.decodeNotification(notifStr)
+			if err != nil {
+				log.Error("Failed to decode notification: %v", err)
 				continue
 			}
 
@@ -680,13 +737,20 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 		}
 	}
 
-	// Delete notification configs
+	// Delete notification configs and their notifications
 	_, err = tx.Exec(ctx, `
-        DELETE FROM NotificationConfigEntityId WHERE entity_id = $1;
-        DELETE FROM Notifications WHERE token IN (
-            SELECT base64(notification_pb) FROM NotificationConfigEntityId 
+        WITH deleted_configs AS (
+            DELETE FROM NotificationConfigEntityId 
             WHERE entity_id = $1
-        );
+            RETURNING service_id, 
+                     encode(
+                         notification::bytea, 
+                         'base64'
+                     ) as token
+        )
+        DELETE FROM Notifications 
+        WHERE service_id IN (SELECT service_id FROM deleted_configs)
+        AND notification::text = ANY(SELECT token FROM deleted_configs);
     `, entityId)
 	if err != nil {
 		log.Error("Failed to delete notification configs: %v", err)
@@ -1246,10 +1310,10 @@ ALTER TABLE Transformations ADD PRIMARY KEY (entity_id, field_name);
 CREATE INDEX IF NOT EXISTS idx_notif_config_entity_field ON NotificationConfigEntityId(entity_id, field_name);
 CREATE INDEX IF NOT EXISTS idx_notif_config_type_field ON NotificationConfigEntityType(entity_type, field_name);
 
--- Add index for unacknowledged notifications
-CREATE INDEX IF NOT EXISTS idx_notifications_unack ON Notifications(acknowledged) WHERE NOT acknowledged;
+-- Remove old index for unacknowledged notifications and add simpler index
+CREATE INDEX IF NOT EXISTS idx_notifications_service ON Notifications(service_id);
 
--- Add index for notification timestamps
+// Add index for notification timestamps
 CREATE INDEX IF NOT EXISTS idx_notifications_timestamp ON Notifications(timestamp);
 `
 
@@ -1355,4 +1419,27 @@ func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName str
 	if err != nil {
 		log.Error("Failed to commit field schema changes: %v", err)
 	}
+}
+
+// Add these helper methods near other helpers
+func (s *Postgres) encodeNotification(n *protobufs.DatabaseNotification) (string, error) {
+	b, err := proto.Marshal(n)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal notification: %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+func (s *Postgres) decodeNotification(str string) (*protobufs.DatabaseNotification, error) {
+	b, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode notification: %v", err)
+	}
+
+	n := &protobufs.DatabaseNotification{}
+	if err := proto.Unmarshal(b, n); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal notification: %v", err)
+	}
+
+	return n, nil
 }
