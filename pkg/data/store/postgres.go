@@ -203,11 +203,24 @@ func (s *Postgres) IsConnected(ctx context.Context) bool {
 }
 
 func (s *Postgres) GetEntity(ctx context.Context, entityId string) data.Entity {
-	row := s.pool.QueryRow(ctx, `
-		SELECT id, name, parent_id, type, children
-		FROM Entities
-		WHERE id = $1
-	`, entityId)
+	return s.getEntityWithTx(ctx, entityId, nil)
+}
+
+func (s *Postgres) getEntityWithTx(ctx context.Context, entityId string, tx pgx.Tx) data.Entity {
+	var row pgx.Row
+	if tx != nil {
+		row = tx.QueryRow(ctx, `
+			SELECT id, name, parent_id, type, children
+			FROM Entities
+			WHERE id = $1
+		`, entityId)
+	} else {
+		row = s.pool.QueryRow(ctx, `
+			SELECT id, name, parent_id, type, children
+			FROM Entities
+			WHERE id = $1
+		`, entityId)
+	}
 
 	var e protobufs.DatabaseEntity
 	var children []string
@@ -286,7 +299,7 @@ func (s *Postgres) CreateEntity(ctx context.Context, entityType, parentId, name 
 	}
 
 	// Initialize fields with default values
-	schema := s.GetEntitySchema(ctx, entityType)
+	schema := s.getEntitySchemaWithTx(ctx, entityType, tx)
 	if schema != nil {
 		for _, f := range schema.GetFields() {
 			req := request.New().SetEntityId(entityId).SetFieldName(f.GetFieldName())
@@ -300,55 +313,73 @@ func (s *Postgres) CreateEntity(ctx context.Context, entityType, parentId, name 
 	}
 }
 
-func (s *Postgres) Read(ctx context.Context, requests ...data.Request) {
-	for _, r := range requests {
-		indirectField, indirectEntity := s.resolveIndirection(ctx, r.GetFieldName(), r.GetEntityId())
-		if indirectField == "" || indirectEntity == "" {
-			continue
-		}
+func (s *Postgres) readWithTx(ctx context.Context, r data.Request, tx pgx.Tx) {
+	r.SetSuccessful(false)
 
-		entity := s.GetEntity(ctx, indirectEntity)
-		if entity == nil {
-			continue
-		}
+	indirectField, indirectEntity := s.resolveIndirectionWithTx(ctx, r.GetFieldName(), r.GetEntityId(), tx)
+	if indirectField == "" || indirectEntity == "" {
+		return
+	}
 
-		schema := s.GetFieldSchema(ctx, entity.GetType(), indirectField)
-		if schema == nil {
-			continue
-		}
+	entity := s.getEntityWithTx(ctx, indirectEntity, tx)
+	if entity == nil {
+		return
+	}
 
-		tableName := s.getTableForType(schema.GetFieldType())
-		if tableName == "" {
-			continue
-		}
+	schema := s.getFieldSchemaWithTx(ctx, entity.GetType(), indirectField, tx)
+	if schema == nil {
+		return
+	}
 
-		row := s.pool.QueryRow(ctx, fmt.Sprintf(`
+	tableName := s.getTableForType(schema.GetFieldType())
+	if tableName == "" {
+		return
+	}
+
+	row := tx.QueryRow(ctx, fmt.Sprintf(`
 			SELECT field_value, write_time, writer
 			FROM %s
 			WHERE entity_id = $1 AND field_name = $2
 		`, tableName), indirectEntity, indirectField)
 
-		var fieldValue interface{}
-		var writeTime time.Time
-		var writer string
+	var fieldValue interface{}
+	var writeTime time.Time
+	var writer string
 
-		err := row.Scan(&fieldValue, &writeTime, &writer)
-		if err != nil {
-			if !errors.Is(err, pgx.ErrNoRows) {
-				log.Error("Failed to read field: %v", err)
-			}
-			continue
+	err := row.Scan(&fieldValue, &writeTime, &writer)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Error("Failed to read field: %v", err)
 		}
+		return
+	}
 
-		value := s.convertToValue(schema.GetFieldType(), fieldValue)
-		if value == nil {
-			continue
-		}
+	value := s.convertToValue(schema.GetFieldType(), fieldValue)
+	if value == nil {
+		return
+	}
 
-		r.SetValue(value)
-		r.SetWriteTime(&writeTime)
-		r.SetWriter(&writer)
-		r.SetSuccessful(true)
+	r.SetValue(value)
+	r.SetWriteTime(&writeTime)
+	r.SetWriter(&writer)
+	r.SetSuccessful(true)
+}
+
+func (s *Postgres) Read(ctx context.Context, requests ...data.Request) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		log.Error("Failed to begin transaction: %v", err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	for _, r := range requests {
+		s.readWithTx(ctx, r, tx)
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		log.Error("Failed to commit transaction: %v", err)
 	}
 }
 
@@ -371,33 +402,56 @@ func (s *Postgres) Write(ctx context.Context, requests ...data.Request) {
 }
 
 func (s *Postgres) writeWithTx(ctx context.Context, tx pgx.Tx, r data.Request) {
-	indirectField, indirectEntity := s.resolveIndirection(ctx, r.GetFieldName(), r.GetEntityId())
+	indirectField, indirectEntity := s.resolveIndirectionWithTx(ctx, r.GetFieldName(), r.GetEntityId(), tx)
 	if indirectField == "" || indirectEntity == "" {
 		log.Error("Failed to resolve indirection")
 		return
 	}
 
-	entity := s.GetEntity(ctx, indirectEntity)
-	if entity == nil {
-		log.Error("Failed to get entity")
+	// Get entity and schema info in a single query
+	var entityType string
+	schema := &protobufs.DatabaseFieldSchema{}
+	err := tx.QueryRow(ctx, `
+		WITH entity_type AS (
+			SELECT type FROM Entities WHERE id = $1
+		)
+		SELECT 
+			entity_type.type,
+			EntitySchema.field_name,
+			EntitySchema.field_type
+		FROM entity_type
+		LEFT JOIN EntitySchema ON 
+			EntitySchema.entity_type = entity_type.type
+			AND EntitySchema.field_name = $2
+	`, indirectEntity, indirectField).Scan(&entityType, &schema.Name, &schema.Type)
+
+	if err != nil {
+		log.Error("Failed to get entity and schema info: %v", err)
 		return
 	}
 
-	schema := s.GetFieldSchema(ctx, entity.GetType(), indirectField)
-	if schema == nil {
-		log.Error("Failed to get field schema")
-		return
-	}
-
-	tableName := s.getTableForType(schema.GetFieldType())
+	tableName := s.getTableForType(schema.Type)
 	if tableName == "" {
 		log.Error("Invalid field type")
 		return
 	}
 
-	// Read existing value for notification
-	oldReq := request.New().SetEntityId(r.GetEntityId()).SetFieldName(r.GetFieldName())
-	s.Read(ctx, oldReq)
+	// Read existing value for notification in same transaction
+	var oldValue interface{}
+	var oldWriteTime time.Time
+	var oldWriter string
+	_ = tx.QueryRow(ctx, fmt.Sprintf(`
+		SELECT field_value, write_time, writer
+		FROM %s
+		WHERE entity_id = $1 AND field_name = $2
+	`, tableName), indirectEntity, indirectField).Scan(&oldValue, &oldWriteTime, &oldWriter)
+
+	oldReq := request.New().
+		SetEntityId(r.GetEntityId()).
+		SetFieldName(r.GetFieldName()).
+		SetValue(s.convertToValue(schema.Type, oldValue)).
+		SetWriteTime(&oldWriteTime).
+		SetWriter(&oldWriter)
 
 	writeTime := time.Now()
 	if r.GetWriteTime() != nil {
@@ -416,12 +470,12 @@ func (s *Postgres) writeWithTx(ctx context.Context, tx pgx.Tx, r data.Request) {
 	}
 
 	// Upsert the field value
-	_, err := tx.Exec(ctx, fmt.Sprintf(`
-        INSERT INTO %s (entity_id, field_name, field_value, write_time, writer)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (entity_id, field_name) 
-        DO UPDATE SET field_value = $3, write_time = $4, writer = $5
-    `, tableName), indirectEntity, indirectField, fieldValue, writeTime, writer)
+	_, err = tx.Exec(ctx, fmt.Sprintf(`
+		INSERT INTO %s (entity_id, field_name, field_value, write_time, writer)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (entity_id, field_name) 
+		DO UPDATE SET field_value = $3, write_time = $4, writer = $5
+	`, tableName), indirectEntity, indirectField, fieldValue, writeTime, writer)
 
 	if err != nil {
 		log.Error("Failed to write field: %v", err)
@@ -438,33 +492,33 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 
 	// Get entity-specific notifications
 	rows, err := tx.Query(ctx, `
-        SELECT id, context_fields, notify_on_change, service_id
-        FROM NotificationConfigEntityId
-        WHERE entity_id = $1 AND field_name = $2
-    `, r.GetEntityId(), r.GetFieldName())
+		SELECT id, context_fields, notify_on_change, service_id
+		FROM NotificationConfigEntityId
+		WHERE entity_id = $1 AND field_name = $2
+	`, r.GetEntityId(), r.GetFieldName())
 	if err != nil {
 		log.Error("Failed to get entity notifications: %v", err)
 		return
 	}
 	defer rows.Close()
 
-	s.processNotificationRows(ctx, rows, r, o, notifications)
+	s.processNotificationRows(ctx, rows, r, o, notifications, tx)
 
 	// Get type-specific notifications
-	entity := s.GetEntity(ctx, r.GetEntityId())
+	entity := s.getEntityWithTx(ctx, r.GetEntityId(), tx)
 	if entity != nil {
 		rows, err = tx.Query(ctx, `
-            SELECT id, context_fields, notify_on_change, service_id
-            FROM NotificationConfigEntityType
-            WHERE entity_type = $1 AND field_name = $2
-        `, entity.GetType(), r.GetFieldName())
+			SELECT id, context_fields, notify_on_change, service_id
+			FROM NotificationConfigEntityType
+			WHERE entity_type = $1 AND field_name = $2
+		`, entity.GetType(), r.GetFieldName())
 		if err != nil {
 			log.Error("Failed to get type notifications: %v", err)
 			return
 		}
 		defer rows.Close()
 
-		s.processNotificationRows(ctx, rows, r, o, notifications)
+		s.processNotificationRows(ctx, rows, r, o, notifications, tx)
 	}
 
 	// Insert notifications
@@ -476,16 +530,16 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, tx pgx.Tx, r 
 		}
 
 		_, err = tx.Exec(ctx, `
-            INSERT INTO Notifications (timestamp, service_id, notification)
-            VALUES ($1, $2, $3)
-        `, time.Now(), n.ServiceId, notifStr)
+			INSERT INTO Notifications (timestamp, service_id, notification)
+			VALUES ($1, $2, $3)
+		`, time.Now(), n.ServiceId, notifStr)
 		if err != nil {
 			log.Error("Failed to insert notification: %v", err)
 		}
 	}
 }
 
-func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r data.Request, o data.Request, notifications []*protobufs.DatabaseNotification) {
+func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r data.Request, o data.Request, notifications []*protobufs.DatabaseNotification, tx pgx.Tx) {
 	for rows.Next() {
 		var id int
 		var contextFields []string
@@ -516,7 +570,7 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 		context := []*protobufs.DatabaseField{}
 		for _, cf := range contextFields {
 			cr := request.New().SetEntityId(r.GetEntityId()).SetFieldName(cf)
-			s.Read(ctx, cr)
+			s.readWithTx(ctx, cr, tx)
 			if cr.IsSuccessful() {
 				context = append(context, field.ToFieldPb(field.FromRequest(cr)))
 			}
@@ -545,11 +599,11 @@ func (s *Postgres) ProcessNotifications(ctx context.Context) {
 
 	// Select and delete notifications in one transaction to prevent duplicates
 	rows, err := tx.Query(ctx, `
-            DELETE FROM Notifications 
-            WHERE service_id = $1 
-            AND timestamp > $2
-            RETURNING notification
-        `, s.getServiceId(), time.Now().Add(-NotificationExpiryDuration))
+			DELETE FROM Notifications 
+			WHERE service_id = $1 
+			AND timestamp > $2
+			RETURNING notification
+		`, s.getServiceId(), time.Now().Add(-NotificationExpiryDuration))
 
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -610,16 +664,16 @@ func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb da
 	var id int
 	if nc.GetEntityId() != "" {
 		err = tx.QueryRow(ctx, `
-            INSERT INTO NotificationConfigEntityId (entity_id, field_name, context_fields, notify_on_change, service_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id
-        `, nc.GetEntityId(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
+			INSERT INTO NotificationConfigEntityId (entity_id, field_name, context_fields, notify_on_change, service_id)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING id
+		`, nc.GetEntityId(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
 	} else {
 		err = tx.QueryRow(ctx, `
-            INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id
-        `, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
+			INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING id
+		`, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId()).Scan(&id)
 	}
 
 	if err != nil {
@@ -648,7 +702,7 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 	defer tx.Rollback(ctx)
 
 	// Get entity first to handle parent/child relationships
-	entity := s.GetEntity(ctx, entityId)
+	entity := s.getEntityWithTx(ctx, entityId, tx)
 	if entity == nil {
 		return
 	}
@@ -656,10 +710,10 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 	// Remove this entity from parent's children list
 	if entity.GetParentId() != "" {
 		_, err = tx.Exec(ctx, `
-            UPDATE Entities 
-            SET children = array_remove(children, $1)
-            WHERE id = $2
-        `, entityId, entity.GetParentId())
+			UPDATE Entities 
+			SET children = array_remove(children, $1)
+			WHERE id = $2
+		`, entityId, entity.GetParentId())
 		if err != nil {
 			log.Error("Failed to update parent entity: %v", err)
 			return
@@ -675,8 +729,8 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 	for _, table := range []string{"Strings", "BinaryFiles", "Ints", "Floats", "Bools",
 		"EntityReferences", "Timestamps", "Transformations"} {
 		_, err = tx.Exec(ctx, fmt.Sprintf(`
-            DELETE FROM %s WHERE entity_id = $1
-        `, table), entityId)
+			DELETE FROM %s WHERE entity_id = $1
+		`, table), entityId)
 		if err != nil {
 			log.Error("Failed to delete fields from %s: %v", table, err)
 			return
@@ -685,19 +739,19 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 
 	// Delete notification configs and their notifications
 	_, err = tx.Exec(ctx, `
-        WITH deleted_configs AS (
-            DELETE FROM NotificationConfigEntityId 
-            WHERE entity_id = $1
-            RETURNING service_id, 
-                     encode(
-                         notification::bytea, 
-                         'base64'
-                     ) as token
-        )
-        DELETE FROM Notifications 
-        WHERE service_id IN (SELECT service_id FROM deleted_configs)
-        AND notification::text = ANY(SELECT token FROM deleted_configs);
-    `, entityId)
+		WITH deleted_configs AS (
+			DELETE FROM NotificationConfigEntityId 
+			WHERE entity_id = $1
+			RETURNING service_id, 
+					 encode(
+						 notification::bytea, 
+						 'base64'
+					 ) as token
+		)
+		DELETE FROM Notifications 
+		WHERE service_id IN (SELECT service_id FROM deleted_configs)
+		AND notification::text = ANY(SELECT token FROM deleted_configs);
+	`, entityId)
 	if err != nil {
 		log.Error("Failed to delete notification configs: %v", err)
 		return
@@ -705,8 +759,8 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 
 	// Finally delete the entity itself
 	_, err = tx.Exec(ctx, `
-        DELETE FROM Entities WHERE id = $1
-    `, entityId)
+		DELETE FROM Entities WHERE id = $1
+	`, entityId)
 	if err != nil {
 		log.Error("Failed to delete entity: %v", err)
 		return
@@ -805,7 +859,7 @@ func (s *Postgres) getServiceId() string {
 	return app.GetName()
 }
 
-func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entityId string) (string, string) {
+func (s *Postgres) resolveIndirectionWithTx(ctx context.Context, indirectField, entityId string, tx pgx.Tx) (string, string) {
 	fields := strings.Split(indirectField, "->")
 	if len(fields) == 1 {
 		return indirectField, entityId
@@ -813,30 +867,46 @@ func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entity
 
 	currentEntityId := entityId
 	for _, f := range fields[:len(fields)-1] {
-		// Try field reference first
-		req := request.New().SetEntityId(currentEntityId).SetFieldName(f)
-		s.Read(ctx, req)
-		if req.IsSuccessful() {
-			v := req.GetValue()
-			if v.IsEntityReference() {
-				currentEntityId = v.GetEntityReference()
-				if currentEntityId == "" {
-					return "", ""
-				}
-				continue
-			}
-		}
+		// Get field reference and entity info in a single query
+		var fieldValue, entityName, parentId string
+		var childIds []string
 
-		// Try parent reference
-		entity := s.GetEntity(ctx, currentEntityId)
-		if entity == nil {
+		err := tx.QueryRow(ctx, `
+			WITH field_ref AS (
+				SELECT field_value 
+				FROM EntityReferences 
+				WHERE entity_id = $1 AND field_name = $2
+			),
+			entity_info AS (
+				SELECT name, parent_id, children
+				FROM Entities
+				WHERE id = $1
+			)
+			SELECT field_ref.field_value, entity_info.name, 
+				   entity_info.parent_id, entity_info.children
+			FROM field_ref
+			FULL OUTER JOIN entity_info ON TRUE
+		`, currentEntityId, f).Scan(&fieldValue, &entityName, &parentId, &childIds)
+
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			log.Error("Failed to resolve indirection: %v", err)
 			return "", ""
 		}
 
-		parentId := entity.GetParentId()
+		// Try field reference first
+		if fieldValue != "" {
+			currentEntityId = fieldValue
+			continue
+		}
+
+		// Try parent reference
 		if parentId != "" {
-			parentEntity := s.GetEntity(ctx, parentId)
-			if parentEntity != nil && parentEntity.GetName() == f {
+			var parentName string
+			err = tx.QueryRow(ctx, `
+				SELECT name FROM Entities WHERE id = $1
+			`, parentId).Scan(&parentName)
+
+			if err == nil && parentName == f {
 				currentEntityId = parentId
 				continue
 			}
@@ -844,9 +914,13 @@ func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entity
 
 		// Try child reference
 		found := false
-		for _, childId := range entity.GetChildrenIds() {
-			child := s.GetEntity(ctx, childId)
-			if child != nil && child.GetName() == f {
+		for _, childId := range childIds {
+			var childName string
+			err = tx.QueryRow(ctx, `
+				SELECT name FROM Entities WHERE id = $1
+			`, childId).Scan(&childName)
+
+			if err == nil && childName == f {
 				currentEntityId = childId
 				found = true
 				break
@@ -873,9 +947,9 @@ func (s *Postgres) CreateSnapshot(ctx context.Context) data.Snapshot {
 
 	// Get all entity types and their schemas
 	rows, err := tx.Query(ctx, `
-        SELECT DISTINCT entity_type 
-        FROM EntitySchema
-    `)
+		SELECT DISTINCT entity_type 
+		FROM EntitySchema
+	`)
 	if err != nil {
 		log.Error("Failed to get entity types: %v", err)
 		return ss
@@ -890,21 +964,21 @@ func (s *Postgres) CreateSnapshot(ctx context.Context) data.Snapshot {
 		}
 
 		// Add schema
-		schema := s.GetEntitySchema(ctx, entityType)
+		schema := s.getEntitySchemaWithTx(ctx, entityType, tx)
 		if schema != nil {
 			ss.AppendSchema(schema)
 
 			// Add entities of this type and their fields
-			entities := s.FindEntities(ctx, entityType)
+			entities := s.findEntitiesWithTx(ctx, entityType, tx)
 			for _, entityId := range entities {
-				entity := s.GetEntity(ctx, entityId)
+				entity := s.getEntityWithTx(ctx, entityId, tx)
 				if entity != nil {
 					ss.AppendEntity(entity)
 
 					// Add fields for this entity
 					for _, fieldName := range schema.GetFieldNames() {
 						req := request.New().SetEntityId(entityId).SetFieldName(fieldName)
-						s.Read(ctx, req)
+						s.readWithTx(ctx, req, tx)
 						if req.IsSuccessful() {
 							ss.AppendField(field.FromRequest(req))
 						}
@@ -927,20 +1001,20 @@ func (s *Postgres) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 
 	// Clear existing data
 	_, err = tx.Exec(ctx, `
-        TRUNCATE TABLE Entities CASCADE;
-        TRUNCATE TABLE EntitySchema CASCADE;
-        TRUNCATE TABLE Strings CASCADE;
-        TRUNCATE TABLE BinaryFiles CASCADE;
-        TRUNCATE TABLE Ints CASCADE;
-        TRUNCATE TABLE Floats CASCADE;
-        TRUNCATE TABLE Bools CASCADE;
-        TRUNCATE TABLE EntityReferences CASCADE;
-        TRUNCATE TABLE Timestamps CASCADE;
-        TRUNCATE TABLE Transformations CASCADE;
-        TRUNCATE TABLE Notifications CASCADE;
-        TRUNCATE TABLE NotificationConfigEntityId CASCADE;
-        TRUNCATE TABLE NotificationConfigEntityType CASCADE;
-    `)
+		TRUNCATE TABLE Entities CASCADE;
+		TRUNCATE TABLE EntitySchema CASCADE;
+		TRUNCATE TABLE Strings CASCADE;
+		TRUNCATE TABLE BinaryFiles CASCADE;
+		TRUNCATE TABLE Ints CASCADE;
+		TRUNCATE TABLE Floats CASCADE;
+		TRUNCATE TABLE Bools CASCADE;
+		TRUNCATE TABLE EntityReferences CASCADE;
+		TRUNCATE TABLE Timestamps CASCADE;
+		TRUNCATE TABLE Transformations CASCADE;
+		TRUNCATE TABLE Notifications CASCADE;
+		TRUNCATE TABLE NotificationConfigEntityId CASCADE;
+		TRUNCATE TABLE NotificationConfigEntityType CASCADE;
+	`)
 	if err != nil {
 		log.Error("Failed to clear existing data: %v", err)
 		return
@@ -950,9 +1024,9 @@ func (s *Postgres) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	for _, schema := range ss.GetSchemas() {
 		for i, field := range schema.GetFields() {
 			_, err := tx.Exec(ctx, `
-                INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
-                VALUES ($1, $2, $3, $4)
-            `, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
+				INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
+				VALUES ($1, $2, $3, $4)
+			`, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
 			if err != nil {
 				log.Error("Failed to restore schema: %v", err)
 				continue
@@ -963,9 +1037,9 @@ func (s *Postgres) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	// Restore entities
 	for _, e := range ss.GetEntities() {
 		_, err := tx.Exec(ctx, `
-            INSERT INTO Entities (id, name, parent_id, type, children)
-            VALUES ($1, $2, $3, $4, $5)
-        `, e.GetId(), e.GetName(), e.GetParentId(), e.GetType(), e.GetChildrenIds())
+			INSERT INTO Entities (id, name, parent_id, type, children)
+			VALUES ($1, $2, $3, $4, $5)
+		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType(), e.GetChildrenIds())
 		if err != nil {
 			log.Error("Failed to restore entity: %v", err)
 			continue
@@ -985,82 +1059,142 @@ func (s *Postgres) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	}
 }
 
-func (s *Postgres) FindEntities(ctx context.Context, entityType string) []string {
+func (s *Postgres) findEntitiesWithTx(ctx context.Context, entityType string, tx pgx.Tx) []string {
+	processRows := func(rows pgx.Rows) []string {
+		var entities []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				log.Error("Failed to scan entity ID: %v", err)
+				continue
+			}
+			entities = append(entities, id)
+		}
+		return entities
+	}
+
+	if tx != nil {
+		rows, err := tx.Query(ctx, `
+		SELECT id FROM Entities WHERE type = $1
+	`, entityType)
+		if err != nil {
+			log.Error("Failed to find entities: %v", err)
+			return []string{}
+		}
+		defer rows.Close()
+		return processRows(rows)
+	}
+
 	rows, err := s.pool.Query(ctx, `
-        SELECT id FROM Entities WHERE type = $1
-    `, entityType)
+		SELECT id FROM Entities WHERE type = $1
+	`, entityType)
 	if err != nil {
 		log.Error("Failed to find entities: %v", err)
-		return nil
+		return []string{}
 	}
 	defer rows.Close()
+	return processRows(rows)
+}
 
-	var entities []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			log.Error("Failed to scan entity ID: %v", err)
-			continue
+func (s *Postgres) FindEntities(ctx context.Context, entityType string) []string {
+	return s.findEntitiesWithTx(ctx, entityType, nil)
+}
+
+func (s *Postgres) getEntityTypesWithTx(ctx context.Context, tx pgx.Tx) []string {
+	processRows := func(rows pgx.Rows) []string {
+		var types []string
+		for rows.Next() {
+			var entityType string
+			if err := rows.Scan(&entityType); err != nil {
+				log.Error("Failed to scan entity type: %v", err)
+				continue
+			}
+			types = append(types, entityType)
 		}
-		entities = append(entities, id)
+		return types
 	}
-	return entities
+
+	if tx != nil {
+		rows, err := tx.Query(ctx, `
+		SELECT DISTINCT entity_type FROM EntitySchema
+	`)
+		if err != nil {
+			log.Error("Failed to get entity types: %v", err)
+			return []string{}
+		}
+		defer rows.Close()
+		return processRows(rows)
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT entity_type FROM EntitySchema
+	`)
+	if err != nil {
+		log.Error("Failed to get entity types: %v", err)
+		return []string{}
+	}
+	defer rows.Close()
+	return processRows(rows)
 }
 
 func (s *Postgres) GetEntityTypes(ctx context.Context) []string {
-	rows, err := s.pool.Query(ctx, `
-        SELECT DISTINCT entity_type FROM EntitySchema
-    `)
-	if err != nil {
-		log.Error("Failed to get entity types: %v", err)
-		return nil
-	}
-	defer rows.Close()
-
-	var types []string
-	for rows.Next() {
-		var entityType string
-		if err := rows.Scan(&entityType); err != nil {
-			log.Error("Failed to scan entity type: %v", err)
-			continue
-		}
-		types = append(types, entityType)
-	}
-	return types
+	return s.getEntityTypesWithTx(ctx, nil)
 }
 
-func (s *Postgres) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
+func (s *Postgres) getEntitySchemaWithTx(ctx context.Context, entityType string, tx pgx.Tx) data.EntitySchema {
+	processRows := func(rows pgx.Rows) data.EntitySchema {
+		schema := entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{})
+		schema.SetType(entityType)
+		var fields []data.FieldSchema
+
+		for rows.Next() {
+			var fieldName, fieldType string
+			var rank int
+			if err := rows.Scan(&fieldName, &fieldType, &rank); err != nil {
+				log.Error("Failed to scan field schema: %v", err)
+				continue
+			}
+			fields = append(fields, field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
+				Name: fieldName,
+				Type: fieldType,
+			}))
+		}
+
+		schema.SetFields(fields)
+		return schema
+	}
+
+	if tx != nil {
+		rows, err := tx.Query(ctx, `
+		SELECT field_name, field_type, rank
+		FROM EntitySchema
+		WHERE entity_type = $1
+		ORDER BY rank
+	`, entityType)
+		if err != nil {
+			log.Error("Failed to get entity schema: %v", err)
+			return nil
+		}
+		defer rows.Close()
+		return processRows(rows)
+	}
+
 	rows, err := s.pool.Query(ctx, `
-        SELECT field_name, field_type, rank
-        FROM EntitySchema
-        WHERE entity_type = $1
-        ORDER BY rank
-    `, entityType)
+		SELECT field_name, field_type, rank
+		FROM EntitySchema
+		WHERE entity_type = $1
+		ORDER BY rank
+	`, entityType)
 	if err != nil {
 		log.Error("Failed to get entity schema: %v", err)
 		return nil
 	}
 	defer rows.Close()
+	return processRows(rows)
+}
 
-	schema := entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{})
-	schema.SetType(entityType)
-	var fields []data.FieldSchema
-
-	for rows.Next() {
-		var fieldName, fieldType string
-		var rank int
-		if err := rows.Scan(&fieldName, &fieldType, &rank); err != nil {
-			log.Error("Failed to scan field schema: %v", err)
-			continue
-		}
-		fields = append(fields, field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
-			Name: fieldName,
-			Type: fieldType,
-		}))
-	}
-
-	schema.SetFields(fields)
-	return schema
+func (s *Postgres) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
+	return s.getEntitySchemaWithTx(ctx, entityType, nil)
 }
 
 func (s *Postgres) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
@@ -1072,12 +1206,12 @@ func (s *Postgres) SetEntitySchema(ctx context.Context, schema data.EntitySchema
 	defer tx.Rollback(ctx)
 
 	// Get existing schema for comparison
-	oldSchema := s.GetEntitySchema(ctx, schema.GetType())
+	oldSchema := s.getEntitySchemaWithTx(ctx, schema.GetType(), tx)
 
 	// Delete existing schema
 	_, err = tx.Exec(ctx, `
-        DELETE FROM EntitySchema WHERE entity_type = $1
-    `, schema.GetType())
+		DELETE FROM EntitySchema WHERE entity_type = $1
+	`, schema.GetType())
 	if err != nil {
 		log.Error("Failed to delete existing schema: %v", err)
 		return
@@ -1086,9 +1220,9 @@ func (s *Postgres) SetEntitySchema(ctx context.Context, schema data.EntitySchema
 	// Insert new schema
 	for i, field := range schema.GetFields() {
 		_, err = tx.Exec(ctx, `
-            INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
-            VALUES ($1, $2, $3, $4)
-        `, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
+			INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
+			VALUES ($1, $2, $3, $4)
+		`, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
 		if err != nil {
 			log.Error("Failed to insert field schema: %v", err)
 			return
@@ -1129,7 +1263,7 @@ func (s *Postgres) SetEntitySchema(ctx context.Context, schema data.EntitySchema
 		}
 
 		// Update existing entities
-		entities := s.FindEntities(ctx, schema.GetType())
+		entities := s.findEntitiesWithTx(ctx, schema.GetType(), tx)
 		for _, entityId := range entities {
 			// Remove deleted fields
 			for _, fieldName := range removedFields {
@@ -1138,9 +1272,9 @@ func (s *Postgres) SetEntitySchema(ctx context.Context, schema data.EntitySchema
 					continue
 				}
 				_, err = tx.Exec(ctx, fmt.Sprintf(`
-                    DELETE FROM %s 
-                    WHERE entity_id = $1 AND field_name = $2
-                `, tableName), entityId, fieldName)
+					DELETE FROM %s 
+					WHERE entity_id = $1 AND field_name = $2
+				`, tableName), entityId, fieldName)
 				if err != nil {
 					log.Error("Failed to delete field: %v", err)
 					continue
@@ -1164,8 +1298,8 @@ func (s *Postgres) SetEntitySchema(ctx context.Context, schema data.EntitySchema
 func (s *Postgres) EntityExists(ctx context.Context, entityId string) bool {
 	var exists bool
 	err := s.pool.QueryRow(ctx, `
-        SELECT EXISTS(SELECT 1 FROM Entities WHERE id = $1)
-    `, entityId).Scan(&exists)
+		SELECT EXISTS(SELECT 1 FROM Entities WHERE id = $1)
+	`, entityId).Scan(&exists)
 	if err != nil {
 		log.Error("Failed to check entity existence: %v", err)
 		return false
@@ -1176,11 +1310,11 @@ func (s *Postgres) EntityExists(ctx context.Context, entityId string) bool {
 func (s *Postgres) FieldExists(ctx context.Context, fieldName, entityType string) bool {
 	var exists bool
 	err := s.pool.QueryRow(ctx, `
-        SELECT EXISTS(
-            SELECT 1 FROM EntitySchema 
-            WHERE entity_type = $1 AND field_name = $2
-        )
-    `, entityType, fieldName).Scan(&exists)
+		SELECT EXISTS(
+			SELECT 1 FROM EntitySchema 
+			WHERE entity_type = $1 AND field_name = $2
+		)
+	`, entityType, fieldName).Scan(&exists)
 	if err != nil {
 		log.Error("Failed to check field existence: %v", err)
 		return false
@@ -1198,9 +1332,9 @@ func (s *Postgres) Unnotify(ctx context.Context, token string) {
 
 	// Delete from both config tables since we don't know which one contains the token
 	_, err = tx.Exec(ctx, `
-        DELETE FROM NotificationConfigEntityId WHERE id = $1;
-        DELETE FROM NotificationConfigEntityType WHERE id = $1;
-    `, token)
+		DELETE FROM NotificationConfigEntityId WHERE id = $1;
+		DELETE FROM NotificationConfigEntityType WHERE id = $1;
+	`, token)
 	if err != nil {
 		log.Error("Failed to delete notification config: %v", err)
 		return
@@ -1271,19 +1405,24 @@ func (s *Postgres) initializeDatabase(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
-func (s *Postgres) GetFieldSchema(ctx context.Context, entityType, fieldName string) data.FieldSchema {
-	row := s.pool.QueryRow(ctx, `
-        SELECT field_name, field_type
-        FROM EntitySchema
-        WHERE entity_type = $1 AND field_name = $2
-    `, entityType, fieldName)
-
-	var schema struct {
-		fieldName string
-		fieldType string
+func (s *Postgres) getFieldSchemaWithTx(ctx context.Context, entityType, fieldName string, tx pgx.Tx) data.FieldSchema {
+	var row pgx.Row
+	if tx != nil {
+		row = tx.QueryRow(ctx, `
+			SELECT field_name, field_type
+			FROM EntitySchema
+			WHERE entity_type = $1 AND field_name = $2
+		`, entityType, fieldName)
+	} else {
+		row = s.pool.QueryRow(ctx, `
+			SELECT field_name, field_type
+			FROM EntitySchema
+			WHERE entity_type = $1 AND field_name = $2
+		`, entityType, fieldName)
 	}
 
-	err := row.Scan(&schema.fieldName, &schema.fieldType)
+	schema := &protobufs.DatabaseFieldSchema{}
+	err := row.Scan(&schema.Name, &schema.Type)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			log.Error("Failed to get field schema: %v", err)
@@ -1291,10 +1430,11 @@ func (s *Postgres) GetFieldSchema(ctx context.Context, entityType, fieldName str
 		return nil
 	}
 
-	return field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
-		Name: schema.fieldName,
-		Type: schema.fieldType,
-	})
+	return field.FromSchemaPb(schema)
+}
+
+func (s *Postgres) GetFieldSchema(ctx context.Context, entityType, fieldName string) data.FieldSchema {
+	return s.getFieldSchemaWithTx(ctx, entityType, fieldName, nil)
 }
 
 func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {
@@ -1306,15 +1446,15 @@ func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName str
 	defer tx.Rollback(ctx)
 
 	// Get current schema to handle field type changes
-	oldSchema := s.GetFieldSchema(ctx, entityType, fieldName)
+	oldSchema := s.getFieldSchemaWithTx(ctx, entityType, fieldName, tx)
 
 	// Update or insert the field schema
 	_, err = tx.Exec(ctx, `
-        INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
-        VALUES ($1, $2, $3, 0)
-        ON CONFLICT (entity_type, field_name) 
-        DO UPDATE SET field_type = $3
-    `, entityType, fieldName, schema.GetFieldType())
+		INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
+		VALUES ($1, $2, $3, 0)
+		ON CONFLICT (entity_type, field_name) 
+		DO UPDATE SET field_type = $3
+	`, entityType, fieldName, schema.GetFieldType())
 
 	if err != nil {
 		log.Error("Failed to set field schema: %v", err)
@@ -1329,11 +1469,11 @@ func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName str
 		if oldTable != "" && newTable != "" {
 			// Delete old field values
 			_, err = tx.Exec(ctx, fmt.Sprintf(`
-                DELETE FROM %s 
-                WHERE entity_id IN (
-                    SELECT id FROM Entities WHERE type = $1
-                ) AND field_name = $2
-            `, oldTable), entityType, fieldName)
+				DELETE FROM %s 
+				WHERE entity_id IN (
+					SELECT id FROM Entities WHERE type = $1
+				) AND field_name = $2
+			`, oldTable), entityType, fieldName)
 
 			if err != nil {
 				log.Error("Failed to delete old field values: %v", err)
@@ -1342,7 +1482,7 @@ func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName str
 		}
 
 		// Initialize new field values for all entities of this type
-		entities := s.FindEntities(ctx, entityType)
+		entities := s.findEntitiesWithTx(ctx, entityType, tx)
 		for _, entityId := range entities {
 			req := request.New().SetEntityId(entityId).SetFieldName(fieldName)
 			s.writeWithTx(ctx, tx, req)
