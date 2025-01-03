@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +20,8 @@ import (
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const createTablesSQL = `
@@ -328,22 +329,26 @@ func (s *Postgres) Read(ctx context.Context, requests ...data.Request) {
 
 			indirectField, indirectEntity := s.resolveIndirection(ctx, r.GetFieldName(), r.GetEntityId())
 			if indirectField == "" || indirectEntity == "" {
-				return
+				log.Error("Failed to resolve indirection for: %s->%s", r.GetEntityId(), r.GetFieldName())
+				continue
 			}
 
 			entity := s.GetEntity(ctx, indirectEntity)
 			if entity == nil {
-				return
+				log.Error("Failed to get entity: %s", indirectEntity)
+				continue
 			}
 
 			schema := s.GetFieldSchema(ctx, entity.GetType(), indirectField)
 			if schema == nil {
-				return
+				log.Error("Failed to get field schema: %s->%s", entity.GetType(), indirectField)
+				continue
 			}
 
 			tableName := s.getTableForType(schema.GetFieldType())
 			if tableName == "" {
-				return
+				log.Error("Invalid field type %s for field %s->%s", schema.GetFieldType(), entity.GetType(), indirectField)
+				continue
 			}
 
 			row := tx.QueryRow(ctx, fmt.Sprintf(`
@@ -361,12 +366,14 @@ func (s *Postgres) Read(ctx context.Context, requests ...data.Request) {
 				if !errors.Is(err, pgx.ErrNoRows) {
 					log.Error("Failed to read field: %v", err)
 				}
-				return
+
+				continue
 			}
 
 			value := s.convertToValue(schema.GetFieldType(), fieldValue)
 			if value == nil {
-				return
+				log.Error("Failed to convert value for field %s->%s", entity.GetType(), indirectField)
+				continue
 			}
 
 			r.SetValue(value)
@@ -382,8 +389,8 @@ func (s *Postgres) Write(ctx context.Context, requests ...data.Request) {
 		for _, r := range requests {
 			indirectField, indirectEntity := s.resolveIndirection(ctx, r.GetFieldName(), r.GetEntityId())
 			if indirectField == "" || indirectEntity == "" {
-				log.Error("Failed to resolve indirection")
-				return
+				log.Error("Failed to resolve indirection for: %s->%s", r.GetEntityId(), r.GetFieldName())
+				continue
 			}
 
 			// Get entity and schema info in a single query
@@ -405,46 +412,57 @@ func (s *Postgres) Write(ctx context.Context, requests ...data.Request) {
 
 			if err != nil {
 				log.Error("Failed to get entity and schema info: %v", err)
-				return
+				continue
 			}
 
 			tableName := s.getTableForType(schema.Type)
 			if tableName == "" {
-				log.Error("Invalid field type")
-				return
+				log.Error("Invalid field type %s for field %s->%s", schema.Type, entityType, indirectField)
+				continue
 			}
 
-			// Read existing value for notification in same transaction
-			var oldValue interface{}
-			var oldWriteTime time.Time
-			var oldWriter string
-			_ = tx.QueryRow(ctx, fmt.Sprintf(`
-				SELECT field_value, write_time, writer
-				FROM %s
-				WHERE entity_id = $1 AND field_name = $2
-			`, tableName), indirectEntity, indirectField).Scan(&oldValue, &oldWriteTime, &oldWriter)
-
-			oldReq := request.New().
-				SetEntityId(r.GetEntityId()).
-				SetFieldName(r.GetFieldName()).
-				SetValue(s.convertToValue(schema.Type, oldValue)).
-				SetWriteTime(&oldWriteTime).
-				SetWriter(&oldWriter)
-
-			writeTime := time.Now()
-			if r.GetWriteTime() != nil {
-				writeTime = *r.GetWriteTime()
+			if r.GetValue().IsNil() {
+				r.SetValue(field.FromAnyPb(s.fieldTypeToProtoType(schema.Type)))
+			} else {
+				v := field.FromAnyPb(s.fieldTypeToProtoType(schema.Type))
+				if r.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
+					log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", r.GetEntityId(), req.GetFieldName(), r.GetValue().GetType(), v.GetType())
+					r.SetValue(v)
+				}
 			}
 
-			writer := ""
-			if r.GetWriter() != nil {
-				writer = *r.GetWriter()
+			oldReq := request.New().SetEntityId(r.GetEntityId()).SetFieldName(r.GetFieldName())
+			s.Read(ctx, oldReq)
+
+			// Set the value in the database
+			// Note that for a transformation, we don't actually write the value to the database
+			// unless the new value is a transformation. This is because the transformation is
+			// executed by the transformer, which will write the result to the database.
+			if oldReq.IsSuccessful() && oldReq.GetValue().IsTransformation() && !r.GetValue().IsTransformation() {
+				src := oldReq.GetValue().GetTransformation()
+				s.transformer.Transform(ctx, src, r)
+				r.SetValue(oldReq.GetValue())
+			} else if oldReq.IsSuccessful() && r.GetWriteOpt() == data.WriteChanges {
+				if proto.Equal(field.ToAnyPb(oldReq.GetValue()), field.ToAnyPb(r.GetValue())) {
+					r.SetSuccessful(true)
+					continue
+				}
 			}
 
-			fieldValue := s.convertFromValue(r.GetValue())
+			fieldValue := s.fieldValueToInterface(r.GetValue())
 			if fieldValue == nil {
-				log.Error("Failed to convert value")
-				return
+				log.Error("Failed to convert value for field %s->%s", entityType, indirectField)
+				continue
+			}
+
+			if r.GetWriteTime() == nil {
+				wt := time.Now()
+				r.SetWriteTime(&wt)
+			}
+
+			if r.GetWriter() == nil {
+				wr := ""
+				r.SetWriter(&wr)
 			}
 
 			// Upsert the field value
@@ -453,11 +471,11 @@ func (s *Postgres) Write(ctx context.Context, requests ...data.Request) {
 				VALUES ($1, $2, $3, $4, $5)
 				ON CONFLICT (entity_id, field_name) 
 				DO UPDATE SET field_value = $3, write_time = $4, writer = $5
-			`, tableName), indirectEntity, indirectField, fieldValue, writeTime, writer)
+			`, tableName), indirectEntity, indirectField, fieldValue, *r.GetWriteTime(), *r.GetWriter())
 
 			if err != nil {
 				log.Error("Failed to write field: %v", err)
-				return
+				continue
 			}
 
 			// Handle notifications
@@ -726,7 +744,7 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 	})
 }
 
-func (s *Postgres) convertFromValue(v data.Value) interface{} {
+func (s *Postgres) fieldValueToInterface(v data.Value) interface{} {
 	if v == nil || v.IsNil() {
 		return nil
 	}
@@ -745,7 +763,7 @@ func (s *Postgres) convertFromValue(v data.Value) interface{} {
 	case v.IsEntityReference():
 		return v.GetEntityReference()
 	case v.IsTimestamp():
-		return v.GetTimestamp().Format(time.RFC3339Nano)
+		return v.GetTimestamp()
 	case v.IsTransformation():
 		return v.GetTransformation()
 	default:
@@ -813,93 +831,77 @@ func (s *Postgres) getTableForType(fieldType string) string {
 	}
 }
 
+func (s *Postgres) fieldTypeToProtoType(fieldType string) *anypb.Any {
+	switch fieldType {
+	case "protobufs.Int":
+		a, err := anypb.New(&protobufs.Int{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.Float":
+		a, err := anypb.New(&protobufs.Float{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.String":
+		a, err := anypb.New(&protobufs.String{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.Bool":
+		a, err := anypb.New(&protobufs.Bool{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.BinaryFile":
+		a, err := anypb.New(&protobufs.BinaryFile{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.EntityReference":
+		a, err := anypb.New(&protobufs.EntityReference{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.Timestamp":
+		a, err := anypb.New(&protobufs.Timestamp{
+			Raw: timestamppb.New(time.Unix(0, 0)),
+		})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "protobufs.Transformation":
+		a, err := anypb.New(&protobufs.Transformation{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	default:
+		return nil
+	}
+}
+
 func (s *Postgres) getServiceId() string {
 	return app.GetName()
 }
 
 func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entityId string) (string, string) {
-	fields := strings.Split(indirectField, "->")
-	if len(fields) == 1 {
-		return indirectField, entityId
-	}
 
-	currentEntityId := entityId
-	for _, f := range fields[:len(fields)-1] {
-		// Get field reference and entity info in a single query
-		var fieldValue, entityName, parentId string
-		var childIds []string
-
-		var err error
-		s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-			err = tx.QueryRow(ctx, `
-				WITH field_ref AS (
-					SELECT field_value 
-					FROM EntityReferences 
-					WHERE entity_id = $1 AND field_name = $2
-				),
-				entity_info AS (
-					SELECT name, parent_id, children
-					FROM Entities
-					WHERE id = $1
-				)
-				SELECT field_ref.field_value, entity_info.name, 
-					entity_info.parent_id, entity_info.children
-				FROM field_ref
-				FULL OUTER JOIN entity_info ON TRUE
-			`, currentEntityId, f).Scan(&fieldValue, &entityName, &parentId, &childIds)
-		})
-
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			log.Error("Failed to resolve indirection: %v", err)
-			return "", ""
-		}
-
-		// Try field reference first
-		if fieldValue != "" {
-			currentEntityId = fieldValue
-			continue
-		}
-
-		// Try parent reference
-		if parentId != "" {
-			var parentName string
-
-			s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-				err = tx.QueryRow(ctx, `
-					SELECT name FROM Entities WHERE id = $1
-				`, parentId).Scan(&parentName)
-			})
-
-			if err == nil && parentName == f {
-				currentEntityId = parentId
-				continue
-			}
-		}
-
-		// Try child reference
-		found := false
-		for _, childId := range childIds {
-			var childName string
-
-			s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-				err = tx.QueryRow(ctx, `
-					SELECT name FROM Entities WHERE id = $1
-				`, childId).Scan(&childName)
-			})
-
-			if err == nil && childName == f {
-				currentEntityId = childId
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return "", ""
-		}
-	}
-
-	return fields[len(fields)-1], currentEntityId
 }
 
 func (s *Postgres) CreateSnapshot(ctx context.Context) data.Snapshot {
