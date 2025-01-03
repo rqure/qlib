@@ -30,8 +30,7 @@ CREATE TABLE IF NOT EXISTS Entities (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     parent_id TEXT,
-    type TEXT NOT NULL,
-    children TEXT[] NOT NULL
+    type TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS EntitySchema (
@@ -223,20 +222,42 @@ func (s *Postgres) GetEntity(ctx context.Context, entityId string) data.Entity {
 	var e data.Entity
 
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		// First get the entity's basic info
 		row := tx.QueryRow(ctx, `
-		SELECT id, name, parent_id, type, children
+		SELECT id, name, parent_id, type
 		FROM Entities
 		WHERE id = $1
-	`, entityId)
+		`, entityId)
 
 		var name, parentId, entityType string
-		var children []string
-		err := row.Scan(&entityId, &name, &parentId, &entityType, &children)
+		err := row.Scan(&entityId, &name, &parentId, &entityType)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				log.Error("Failed to get entity: %v", err)
 			}
 			return
+		}
+
+		// Then get children using parent_id relationship
+		rows, err := tx.Query(ctx, `
+		SELECT id
+		FROM Entities
+		WHERE parent_id = $1
+		`, entityId)
+		if err != nil {
+			log.Error("Failed to get children: %v", err)
+			return
+		}
+		defer rows.Close()
+
+		var children []string
+		for rows.Next() {
+			var childId string
+			if err := rows.Scan(&childId); err != nil {
+				log.Error("Failed to scan child id: %v", err)
+				continue
+			}
+			children = append(children, childId)
 		}
 
 		de := &protobufs.DatabaseEntity{
@@ -263,11 +284,11 @@ func (s *Postgres) SetEntity(ctx context.Context, e data.Entity) {
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Update entity or create if it doesn't exist
 		_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, name, parent_id, type, children)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO Entities (id, name, parent_id, type)
+			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (id) DO UPDATE
-			SET name = $2, parent_id = $3, type = $4, children = $5
-		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType(), e.GetChildrenIds())
+			SET name = $2, parent_id = $3, type = $4
+		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType())
 
 		if err != nil {
 			log.Error("Failed to update entity: %v", err)
@@ -280,26 +301,13 @@ func (s *Postgres) CreateEntity(ctx context.Context, entityType, parentId, name 
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		entityId := uuid.New().String()
 		_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, name, parent_id, type, children)
-			VALUES ($1, $2, $3, $4, $5)
-		`, entityId, name, parentId, entityType, []string{})
+			INSERT INTO Entities (id, name, parent_id, type)
+			VALUES ($1, $2, $3, $4)
+		`, entityId, name, parentId, entityType)
 
 		if err != nil {
 			log.Error("Failed to create entity: %v", err)
 			return
-		}
-
-		if parentId != "" {
-			_, err = tx.Exec(ctx, `
-			UPDATE Entities 
-			SET children = array_append(children, $1)
-			WHERE id = $2
-		`, entityId, parentId)
-
-			if err != nil {
-				log.Error("Failed to update parent entity: %v", err)
-				return
-			}
 		}
 
 		// Initialize fields with default values
@@ -674,27 +682,23 @@ func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb da
 // Fix DeleteEntity to clean up notifications
 func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		// Get entity first to handle parent/child relationships
-		entity := s.GetEntity(ctx, entityId)
-		if entity == nil {
+		// Get children using parent_id relationship
+		rows, err := tx.Query(ctx, `
+			SELECT id FROM Entities WHERE parent_id = $1
+		`, entityId)
+		if err != nil {
+			log.Error("Failed to get children: %v", err)
 			return
 		}
-
-		// Remove this entity from parent's children list
-		if entity.GetParentId() != "" {
-			_, err := tx.Exec(ctx, `
-			UPDATE Entities 
-			SET children = array_remove(children, $1)
-			WHERE id = $2
-		`, entityId, entity.GetParentId())
-			if err != nil {
-				log.Error("Failed to update parent entity: %v", err)
-				return
-			}
-		}
+		defer rows.Close()
 
 		// Recursively delete children
-		for _, childId := range entity.GetChildrenIds() {
+		for rows.Next() {
+			var childId string
+			if err := rows.Scan(&childId); err != nil {
+				log.Error("Failed to scan child id: %v", err)
+				continue
+			}
 			s.DeleteEntity(ctx, childId)
 		}
 
@@ -702,8 +706,8 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 		for _, table := range []string{"Strings", "BinaryFiles", "Ints", "Floats", "Bools",
 			"EntityReferences", "Timestamps", "Transformations"} {
 			_, err := tx.Exec(ctx, fmt.Sprintf(`
-			DELETE FROM %s WHERE entity_id = $1
-		`, table), entityId)
+				DELETE FROM %s WHERE entity_id = $1
+			`, table), entityId)
 			if err != nil {
 				log.Error("Failed to delete fields from %s: %v", table, err)
 				return
@@ -711,20 +715,20 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 		}
 
 		// Delete notification configs and their notifications
-		_, err := tx.Exec(ctx, `
-		WITH deleted_configs AS (
-			DELETE FROM NotificationConfigEntityId 
-			WHERE entity_id = $1
-			RETURNING service_id, 
-					 encode(
-						 notification::bytea, 
-						 'base64'
-					 ) as token
-		)
-		DELETE FROM Notifications 
-		WHERE service_id IN (SELECT service_id FROM deleted_configs)
-		AND notification::text = ANY(SELECT token FROM deleted_configs);
-	`, entityId)
+		_, err = tx.Exec(ctx, `
+			WITH deleted_configs AS (
+				DELETE FROM NotificationConfigEntityId 
+				WHERE entity_id = $1
+				RETURNING service_id, 
+						encode(
+							notification::bytea, 
+							'base64'
+						) as token
+			)
+			DELETE FROM Notifications 
+			WHERE service_id IN (SELECT service_id FROM deleted_configs)
+			AND notification::text = ANY(SELECT token FROM deleted_configs);
+		`, entityId)
 		if err != nil {
 			log.Error("Failed to delete notification configs: %v", err)
 			return
@@ -732,8 +736,8 @@ func (s *Postgres) DeleteEntity(ctx context.Context, entityId string) {
 
 		// Finally delete the entity itself
 		_, err = tx.Exec(ctx, `
-		DELETE FROM Entities WHERE id = $1
-	`, entityId)
+			DELETE FROM Entities WHERE id = $1
+		`, entityId)
 		if err != nil {
 			log.Error("Failed to delete entity: %v", err)
 			return
@@ -1008,9 +1012,9 @@ func (s *Postgres) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 		// Restore entities
 		for _, e := range ss.GetEntities() {
 			_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, name, parent_id, type, children)
-			VALUES ($1, $2, $3, $4, $5)
-		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType(), e.GetChildrenIds())
+			INSERT INTO Entities (id, name, parent_id, type)
+			VALUES ($1, $2, $3, $4)
+		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType())
 			if err != nil {
 				log.Error("Failed to restore entity: %v", err)
 				continue
@@ -1272,14 +1276,14 @@ func (s *Postgres) Unnotify(ctx context.Context, token string) {
 			WHERE service_id = $1 
 			AND entity_id = $2 
 			AND field_name = $3
-		`, nc.ServiceId, nc.Id, nc.Field)
+			`, nc.ServiceId, nc.Id, nc.Field)
 		} else {
 			_, err = tx.Exec(ctx, `
 			DELETE FROM NotificationConfigEntityType 
 			WHERE service_id = $1 
 			AND entity_type = $2 
 			AND field_name = $3
-		`, nc.ServiceId, nc.Type, nc.Field)
+			`, nc.ServiceId, nc.Type, nc.Field)
 		}
 
 		if err != nil {
