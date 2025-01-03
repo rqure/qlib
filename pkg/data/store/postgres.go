@@ -659,7 +659,7 @@ func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb da
 		} else {
 			_, err := tx.Exec(ctx, `
 				INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id, token)
-				VALUES ($1, $2, $3, $4, $5)
+				VALUES ($1, $2, $3, $4, $5, $6)
 			`, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId(), token)
 
 			if err != nil {
