@@ -508,16 +508,16 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, r data.Reques
 
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, n := range notifications {
-			notifStr, err := s.encodeNotification(n)
+			notifBytes, err := proto.Marshal(n)
 			if err != nil {
-				log.Error("Failed to encode notification: %v", err)
+				log.Error("Failed to marshal notification: %v", err)
 				continue
 			}
 
 			_, err = tx.Exec(ctx, `
 				INSERT INTO Notifications (timestamp, service_id, notification)
 				VALUES ($1, $2, $3)
-			`, time.Now(), n.ServiceId, notifStr)
+			`, time.Now(), n.ServiceId, notifBytes)
 			if err != nil {
 				log.Error("Failed to insert notification: %v", err)
 			}
@@ -608,16 +608,16 @@ func (s *Postgres) ProcessNotifications(ctx context.Context) {
 		defer rows.Close()
 
 		for rows.Next() {
-			var notifStr string
-			err := rows.Scan(&notifStr)
+			var notifBytes []byte
+			err := rows.Scan(&notifBytes)
 			if err != nil {
 				log.Error("Failed to scan notification: %v", err)
 				continue
 			}
 
-			n, err := s.decodeNotification(notifStr)
-			if err != nil {
-				log.Error("Failed to decode notification: %v", err)
+			n := &protobufs.DatabaseNotification{}
+			if err := proto.Unmarshal(notifBytes, n); err != nil {
+				log.Error("Failed to unmarshal notification: %v", err)
 				continue
 			}
 
@@ -1419,27 +1419,4 @@ func (s *Postgres) SetFieldSchema(ctx context.Context, entityType, fieldName str
 			}
 		}
 	})
-}
-
-// Add these helper methods near other helpers
-func (s *Postgres) encodeNotification(n *protobufs.DatabaseNotification) (string, error) {
-	b, err := proto.Marshal(n)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal notification: %v", err)
-	}
-	return base64.StdEncoding.EncodeToString(b), nil
-}
-
-func (s *Postgres) decodeNotification(str string) (*protobufs.DatabaseNotification, error) {
-	b, err := base64.StdEncoding.DecodeString(str)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode notification: %v", err)
-	}
-
-	n := &protobufs.DatabaseNotification{}
-	if err := proto.Unmarshal(b, n); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal notification: %v", err)
-	}
-
-	return n, nil
 }
