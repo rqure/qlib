@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -426,7 +427,7 @@ func (s *Postgres) Write(ctx context.Context, requests ...data.Request) {
 			} else {
 				v := field.FromAnyPb(s.fieldTypeToProtoType(schema.Type))
 				if r.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
-					log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", r.GetEntityId(), req.GetFieldName(), r.GetValue().GetType(), v.GetType())
+					log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", r.GetEntityId(), r.GetFieldName(), r.GetValue().GetType(), v.GetType())
 					r.SetValue(v)
 				}
 			}
@@ -901,7 +902,74 @@ func (s *Postgres) getServiceId() string {
 }
 
 func (s *Postgres) resolveIndirection(ctx context.Context, indirectField, entityId string) (string, string) {
+	fields := strings.Split(indirectField, "->")
 
+	if len(fields) == 1 {
+		return indirectField, entityId
+	}
+
+	for _, f := range fields[:len(fields)-1] {
+		r := request.New().SetEntityId(entityId).SetFieldName(f)
+
+		s.Read(ctx, r)
+
+		if r.IsSuccessful() {
+			v := r.GetValue()
+			if v.IsEntityReference() {
+				entityId = v.GetEntityReference()
+
+				if entityId == "" {
+					log.Error("Failed to resolve entity reference: %v", r)
+					return "", ""
+				}
+
+				continue
+			}
+
+			log.Error("Field is not an entity reference: %v", r)
+			return "", ""
+		}
+
+		// Fallback to parent entity reference by name
+		entity := s.GetEntity(ctx, entityId)
+		if entity == nil {
+			log.Error("Failed to get entity: %v", entityId)
+			return "", ""
+		}
+
+		parentId := entity.GetParentId()
+		if parentId != "" {
+			parentEntity := s.GetEntity(ctx, parentId)
+
+			if parentEntity != nil && parentEntity.GetName() == f {
+				entityId = parentId
+				continue
+			}
+		}
+
+		// Fallback to child entity reference by name
+		foundChild := false
+		for _, childId := range entity.GetChildrenIds() {
+			childEntity := s.GetEntity(ctx, childId)
+			if childEntity == nil {
+				log.Error("Failed to get child entity: %v", childId)
+				continue
+			}
+
+			if childEntity.GetName() == f {
+				entityId = childId
+				foundChild = true
+				break
+			}
+		}
+
+		if !foundChild {
+			log.Error("Failed to find child entity: %v", f)
+			return "", ""
+		}
+	}
+
+	return fields[len(fields)-1], entityId
 }
 
 func (s *Postgres) CreateSnapshot(ctx context.Context) data.Snapshot {
