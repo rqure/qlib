@@ -91,7 +91,11 @@ func (c *ConfigWrapper) GetFieldName() string {
 }
 
 func (c *ConfigWrapper) GetContextFields() []string {
-	return c.impl.ContextFields
+	if c.impl.ContextFields != nil {
+		return c.impl.ContextFields
+	}
+
+	return []string{}
 }
 
 func (c *ConfigWrapper) GetNotifyOnChange() bool {

@@ -1343,14 +1343,19 @@ func (s *Postgres) Unnotify(ctx context.Context, token string) {
 	}
 	defer tx.Rollback(ctx)
 
-	// Delete from both config tables since we don't know which one contains the token
+	// Split into separate delete statements
 	_, err = tx.Exec(ctx, `
-		DELETE FROM NotificationConfigEntityId WHERE id = $1;
-		DELETE FROM NotificationConfigEntityType WHERE id = $1;
+		DELETE FROM NotificationConfigEntityId WHERE id = $1
 	`, token)
 	if err != nil {
-		log.Error("Failed to delete notification config: %v", err)
-		return
+		log.Error("Failed to delete entity notification config: %v", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		DELETE FROM NotificationConfigEntityType WHERE id = $1
+	`, token)
+	if err != nil {
+		log.Error("Failed to delete type notification config: %v", err)
 	}
 
 	delete(s.callbacks, token)
