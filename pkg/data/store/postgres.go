@@ -1343,19 +1343,39 @@ func (s *Postgres) Unnotify(ctx context.Context, token string) {
 	}
 	defer tx.Rollback(ctx)
 
-	// Split into separate delete statements
-	_, err = tx.Exec(ctx, `
-		DELETE FROM NotificationConfigEntityId WHERE id = $1
-	`, token)
+	// Decode the token to get the notification config
+	b, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		log.Error("Failed to delete entity notification config: %v", err)
+		log.Error("Failed to decode token: %v", err)
+		return
 	}
 
-	_, err = tx.Exec(ctx, `
-		DELETE FROM NotificationConfigEntityType WHERE id = $1
-	`, token)
+	nc := &protobufs.DatabaseNotificationConfig{}
+	if err := proto.Unmarshal(b, nc); err != nil {
+		log.Error("Failed to unmarshal notification config: %v", err)
+		return
+	}
+
+	// Delete based on service_id and other matching fields
+	if nc.Id != "" {
+		_, err = tx.Exec(ctx, `
+			DELETE FROM NotificationConfigEntityId 
+			WHERE service_id = $1 
+			AND entity_id = $2 
+			AND field_name = $3
+		`, nc.ServiceId, nc.Id, nc.Field)
+	} else {
+		_, err = tx.Exec(ctx, `
+			DELETE FROM NotificationConfigEntityType 
+			WHERE service_id = $1 
+			AND entity_type = $2 
+			AND field_name = $3
+		`, nc.ServiceId, nc.Type, nc.Field)
+	}
+
 	if err != nil {
-		log.Error("Failed to delete type notification config: %v", err)
+		log.Error("Failed to delete notification config: %v", err)
+		return
 	}
 
 	delete(s.callbacks, token)
