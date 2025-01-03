@@ -828,8 +828,12 @@ func (s *Postgres) convertToValue(fieldType string, value interface{}) data.Valu
 	case "protobufs.EntityReference":
 		v.SetEntityReference(value)
 	case "protobufs.Timestamp":
-		if ts, err := time.Parse(time.RFC3339Nano, value.(string)); err == nil {
-			v.SetTimestamp(ts)
+		switch t := value.(type) {
+		case time.Time:
+			v.SetTimestamp(t)
+		default:
+			log.Error("Invalid timestamp type: %T", value)
+			return nil
 		}
 	case "protobufs.Transformation":
 		v.SetTransformation(value)
