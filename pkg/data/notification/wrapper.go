@@ -1,9 +1,13 @@
 package notification
 
 import (
+	"encoding/base64"
+
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
+	"google.golang.org/protobuf/proto"
 )
 
 type NotificationWrapper struct {
@@ -38,6 +42,24 @@ func ToConfigPb(n data.NotificationConfig) *protobufs.DatabaseNotificationConfig
 
 func FromPb(impl *protobufs.DatabaseNotification) data.Notification {
 	return &NotificationWrapper{
+		impl: impl,
+	}
+}
+
+func FromToken(token string) data.NotificationConfig {
+	b, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		log.Error("Failed to decode notification token: %v", err)
+		return nil
+	}
+
+	impl := &protobufs.DatabaseNotificationConfig{}
+	if err := proto.Unmarshal(b, impl); err != nil {
+		log.Error("Failed to unmarshal notification token: %v", err)
+		return nil
+	}
+
+	return &ConfigWrapper{
 		impl: impl,
 	}
 }
@@ -104,6 +126,16 @@ func (c *ConfigWrapper) GetNotifyOnChange() bool {
 
 func (c *ConfigWrapper) GetServiceId() string {
 	return c.impl.ServiceId
+}
+
+func (c *ConfigWrapper) GetToken() string {
+	b, err := proto.Marshal(c.impl)
+	if err != nil {
+		log.Error("Failed to marshal notification config: %v", err)
+		return ""
+	}
+
+	return base64.StdEncoding.EncodeToString(b)
 }
 
 func (c *ConfigWrapper) SetEntityId(id string) data.NotificationConfig {

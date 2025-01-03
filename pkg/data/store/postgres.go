@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/base64"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -119,7 +117,8 @@ CREATE TABLE IF NOT EXISTS NotificationConfigEntityId (
     field_name TEXT NOT NULL,
     context_fields TEXT[] NOT NULL,
     notify_on_change BOOLEAN NOT NULL,
-    service_id TEXT NOT NULL
+    service_id TEXT NOT NULL,
+	token TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS NotificationConfigEntityType (
@@ -128,7 +127,8 @@ CREATE TABLE IF NOT EXISTS NotificationConfigEntityType (
     field_name TEXT NOT NULL,
     context_fields TEXT[] NOT NULL,
     notify_on_change BOOLEAN NOT NULL,
-    service_id TEXT NOT NULL
+    service_id TEXT NOT NULL,
+	token TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Notifications (
@@ -472,7 +472,7 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, r data.Reques
 
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		rows, err := tx.Query(ctx, `
-		SELECT id, context_fields, notify_on_change, service_id
+		SELECT id, context_fields, notify_on_change, service_id, token
 		FROM NotificationConfigEntityId
 		WHERE entity_id = $1 AND field_name = $2
 	`, r.GetEntityId(), r.GetFieldName())
@@ -493,7 +493,7 @@ func (s *Postgres) triggerNotificationsWithTx(ctx context.Context, r data.Reques
 		}
 
 		rows, err := tx.Query(ctx, `
-			SELECT id, context_fields, notify_on_change, service_id
+			SELECT id, context_fields, notify_on_change, service_id, token
 			FROM NotificationConfigEntityType
 			WHERE entity_type = $1 AND field_name = $2
 		`, entity.GetType(), r.GetFieldName())
@@ -533,26 +533,13 @@ func (s *Postgres) processNotificationRows(ctx context.Context, rows pgx.Rows, r
 		var contextFields []string
 		var notifyOnChange bool
 		var serviceId string
+		var token string
 
-		err := rows.Scan(&id, &contextFields, &notifyOnChange, &serviceId)
+		err := rows.Scan(&id, &contextFields, &notifyOnChange, &serviceId, &token)
 		if err != nil {
 			log.Error("Failed to scan notification config: %v", err)
 			continue
 		}
-
-		// Create new notification config
-		nc := &protobufs.DatabaseNotificationConfig{
-			ServiceId:      serviceId,
-			ContextFields:  contextFields,
-			NotifyOnChange: notifyOnChange,
-		}
-
-		b, err := proto.Marshal(nc)
-		if err != nil {
-			log.Error("Failed to marshal notification config: %v", err)
-			continue
-		}
-		token := base64.StdEncoding.EncodeToString(b)
 
 		// Create context fields
 		context := []*protobufs.DatabaseField{}
@@ -636,21 +623,15 @@ func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb da
 		nc.SetServiceId(s.getServiceId())
 	}
 
-	b, err := proto.Marshal(notification.ToConfigPb(nc))
-	if err != nil {
-		log.Error("Failed to marshal notification config: %v", err)
-		return notification.NewToken("", s, nil)
-	}
-
-	token := base64.StdEncoding.EncodeToString(b)
+	token := nc.GetToken()
 
 	var n data.NotificationToken
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		if nc.GetEntityId() != "" {
 			_, err := tx.Exec(ctx, `
-				INSERT INTO NotificationConfigEntityId (entity_id, field_name, context_fields, notify_on_change, service_id)
-				VALUES ($1, $2, $3, $4, $5)
-			`, nc.GetEntityId(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId())
+				INSERT INTO NotificationConfigEntityId (entity_id, field_name, context_fields, notify_on_change, service_id, token)
+				VALUES ($1, $2, $3, $4, $5, $6)
+			`, nc.GetEntityId(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId(), token)
 
 			if err != nil {
 				log.Error("Failed to create notification config: %v", err)
@@ -658,9 +639,9 @@ func (s *Postgres) Notify(ctx context.Context, nc data.NotificationConfig, cb da
 			}
 		} else {
 			_, err := tx.Exec(ctx, `
-				INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id)
+				INSERT INTO NotificationConfigEntityType (entity_type, field_name, context_fields, notify_on_change, service_id, token)
 				VALUES ($1, $2, $3, $4, $5)
-			`, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId())
+			`, nc.GetEntityType(), nc.GetFieldName(), nc.GetContextFields(), nc.GetNotifyOnChange(), nc.GetServiceId(), token)
 
 			if err != nil {
 				log.Error("Failed to create notification config: %v", err)
@@ -1255,35 +1236,31 @@ func (s *Postgres) FieldExists(ctx context.Context, fieldName, entityType string
 }
 
 func (s *Postgres) Unnotify(ctx context.Context, token string) {
-	// Decode the token to get the notification config
-	b, err := base64.StdEncoding.DecodeString(token)
-	if err != nil {
-		log.Error("Failed to decode token: %v", err)
-		return
-	}
+	nc := notification.FromToken(token)
 
-	nc := &protobufs.DatabaseNotificationConfig{}
-	if err := proto.Unmarshal(b, nc); err != nil {
-		log.Error("Failed to unmarshal notification config: %v", err)
+	if nc == nil {
+		log.Error("Invalid notification token: %s", token)
 		return
 	}
 
 	s.withTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		var err error
+
 		// Delete based on service_id and other matching fields
-		if nc.Id != "" {
+		if nc.GetEntityId() != "" {
 			_, err = tx.Exec(ctx, `
 			DELETE FROM NotificationConfigEntityId 
 			WHERE service_id = $1 
 			AND entity_id = $2 
 			AND field_name = $3
-			`, nc.ServiceId, nc.Id, nc.Field)
+			`, nc.GetServiceId(), nc.GetEntityId(), nc.GetFieldName())
 		} else {
 			_, err = tx.Exec(ctx, `
 			DELETE FROM NotificationConfigEntityType 
 			WHERE service_id = $1 
 			AND entity_type = $2 
 			AND field_name = $3
-			`, nc.ServiceId, nc.Type, nc.Field)
+			`, nc.GetServiceId(), nc.GetEntityType(), nc.GetFieldName())
 		}
 
 		if err != nil {

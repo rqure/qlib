@@ -17,6 +17,7 @@ type NotificationConfig interface {
 	GetContextFields() []string
 	GetNotifyOnChange() bool
 	GetServiceId() string
+	GetToken() string
 
 	SetEntityId(string) NotificationConfig
 	SetEntityType(string) NotificationConfig
