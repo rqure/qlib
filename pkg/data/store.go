@@ -4,11 +4,6 @@ import (
 	"context"
 )
 
-type SortedSetMember struct {
-	Score  float64
-	Member string
-}
-
 type Store interface {
 	Connect(context.Context)
 	Disconnect(context.Context)

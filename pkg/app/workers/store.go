@@ -14,8 +14,9 @@ import (
 )
 
 type Store struct {
-	Connected    signalslots.Signal
-	Disconnected signalslots.Signal
+	Connected     signalslots.Signal
+	Disconnected  signalslots.Signal
+	SchemaUpdated signalslots.Signal
 
 	store       data.Store
 	isConnected bool
@@ -70,15 +71,28 @@ func (w *Store) onConnected(ctx context.Context) {
 	for _, token := range w.notificationTokens {
 		token.Unbind(ctx)
 	}
+
 	w.notificationTokens = make([]data.NotificationToken, 0)
 
+	w.notificationTokens = append(w.notificationTokens,
+		w.store.Notify(
+			ctx,
+			notification.NewConfig().
+				SetEntityType("Root").
+				SetFieldName("SchemaUpdateTrigger"),
+			notification.NewCallback(func(ctx context.Context, n data.Notification) {
+				w.SchemaUpdated.Emit(ctx)
+			})),
+	)
+
 	services := query.New(w.store).
-		ForType("Service").
+		Select("LogLevel", "QLibLogLevel").
+		From("Service").
 		Where("ApplicationName").Equals(app.GetName()).
 		Execute(ctx)
 
 	for _, service := range services {
-		logLevel := service.GetField("LogLevel").ReadInt(ctx)
+		logLevel := service.GetField("LogLevel").GetInt()
 		log.SetLevel(log.Level(logLevel))
 
 		w.notificationTokens = append(w.notificationTokens, w.store.Notify(
@@ -90,7 +104,7 @@ func (w *Store) onConnected(ctx context.Context) {
 			notification.NewCallback(w.onLogLevelChanged),
 		))
 
-		qlibLogLevel := service.GetField("QLibLogLevel").ReadInt(ctx)
+		qlibLogLevel := service.GetField("QLibLogLevel").GetInt()
 		log.SetLibLevel(log.Level(qlibLogLevel))
 
 		w.notificationTokens = append(w.notificationTokens, w.store.Notify(
@@ -106,6 +120,8 @@ func (w *Store) onConnected(ctx context.Context) {
 	log.Info("Connection status changed to [CONNECTED]")
 
 	w.Connected.Emit(ctx)
+
+	w.SchemaUpdated.Emit(ctx)
 }
 
 func (w *Store) onDisconnected() {

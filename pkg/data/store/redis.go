@@ -28,6 +28,11 @@ const (
 	MaxStreamLength = 50
 )
 
+type SortedSetMember struct {
+	Score  float64
+	Member string
+}
+
 type RedisConfig struct {
 	Address  string
 	Password string
@@ -79,7 +84,7 @@ type Redis struct {
 	transformer         data.Transformer
 }
 
-func NewRedis(config RedisConfig) data.Store {
+func NewRedis(config RedisConfig) *Redis {
 	s := &Redis{
 		config:              config,
 		callbacks:           map[string][]data.NotificationCallback{},
@@ -906,4 +911,79 @@ func (s *Redis) triggerNotifications(ctx context.Context, r data.Request, o data
 
 func (s *Redis) getServiceId() string {
 	return app.GetName()
+}
+
+func (s *Redis) TempSet(ctx context.Context, key, value string, expiration time.Duration) bool {
+	r, err := s.client.SetNX(ctx, key, value, expiration).Result()
+	if err != nil {
+		return false
+	}
+
+	return r
+}
+
+func (s *Redis) TempGet(ctx context.Context, key string) string {
+	r, err := s.client.Get(ctx, key).Result()
+	if err != nil {
+		return ""
+	}
+
+	return r
+}
+
+func (s *Redis) TempExpire(ctx context.Context, key string, expiration time.Duration) {
+	s.client.Expire(ctx, key, expiration)
+}
+
+func (s *Redis) TempDel(ctx context.Context, key string) {
+	s.client.Del(ctx, key)
+}
+
+func (s *Redis) SortedSetAdd(ctx context.Context, key string, member string, score float64) int64 {
+	result, err := s.client.ZAdd(ctx, key, redis.Z{
+		Score:  score,
+		Member: member,
+	}).Result()
+	if err != nil {
+		log.Error("Failed to add member to sorted set: %v", err)
+		return 0
+	}
+	return result
+}
+
+func (s *Redis) SortedSetRemove(ctx context.Context, key string, member string) int64 {
+	result, err := s.client.ZRem(ctx, key, member).Result()
+	if err != nil {
+		log.Error("Failed to remove member from sorted set: %v", err)
+		return 0
+	}
+	return result
+}
+
+func (s *Redis) SortedSetRemoveRangeByRank(ctx context.Context, key string, start, stop int64) int64 {
+	result, err := s.client.ZRemRangeByRank(ctx, key, start, stop).Result()
+	if err != nil {
+		log.Error("Failed to remove range from sorted set: %v", err)
+		return 0
+	}
+	return result
+}
+
+func (s *Redis) SortedSetRangeByScoreWithScores(ctx context.Context, key string, min, max string) []SortedSetMember {
+	result, err := s.client.ZRangeByScoreWithScores(ctx, key, &redis.ZRangeBy{
+		Min: min,
+		Max: max,
+	}).Result()
+	if err != nil {
+		log.Error("Failed to get range from sorted set: %v", err)
+		return nil
+	}
+	members := make([]SortedSetMember, len(result))
+	for i, z := range result {
+		members[i] = SortedSetMember{
+			Score:  z.Score,
+			Member: z.Member.(string),
+		}
+	}
+	return members
 }
