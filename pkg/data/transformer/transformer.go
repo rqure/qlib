@@ -26,7 +26,7 @@ func (t *Transformer) Transform(ctx context.Context, src string, req data.Reques
 		return
 	}
 
-	f := binding.NewField(t.store.impl, req.GetEntityId(), req.GetFieldName())
+	f := binding.NewField(&t.store.impl, req.GetEntityId(), req.GetFieldName())
 	f.SetValue(req.GetValue())
 
 	script := tengo.NewScript([]byte(src))

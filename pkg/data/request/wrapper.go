@@ -134,3 +134,17 @@ func (r *Wrapper) SetWriteOpt(opt data.WriteOpt) data.Request {
 	}
 	return r
 }
+
+func (r *Wrapper) Clone() data.Request {
+	return &Wrapper{
+		impl: &protobufs.DatabaseRequest{
+			Id:        r.impl.Id,
+			Field:     r.impl.Field,
+			WriteTime: r.impl.WriteTime,
+			WriterId:  r.impl.WriterId,
+			Value:     r.impl.Value,
+			Success:   r.impl.Success,
+			WriteOpt:  r.impl.WriteOpt,
+		},
+	}
+}

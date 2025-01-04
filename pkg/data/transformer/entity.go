@@ -89,7 +89,7 @@ func (te *TengoEntity) GetField(ctx context.Context, args ...tengo.Object) (teng
 		}
 	}
 
-	f := binding.NewField(te.s, te.e.GetId(), fn)
+	f := binding.NewField(&te.s, te.e.GetId(), fn)
 
 	return NewTengoField(f).ToTengoMap(ctx), nil
 }

@@ -87,7 +87,11 @@ func (m *MultiBinding) Read(ctx context.Context, reqs ...data.Request) {
 }
 
 func (m *MultiBinding) Write(ctx context.Context, reqs ...data.Request) {
-	m.writeReqs = append(m.writeReqs, reqs...)
+	cloned := make([]data.Request, len(reqs))
+	for i, r := range reqs {
+		cloned[i] = r.Clone()
+	}
+	m.writeReqs = append(m.writeReqs, cloned...)
 }
 
 func (m *MultiBinding) Notify(ctx context.Context, config data.NotificationConfig, callback data.NotificationCallback) data.NotificationToken {

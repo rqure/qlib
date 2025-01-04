@@ -10,11 +10,11 @@ import (
 )
 
 type Field struct {
-	store data.Store
+	store *data.Store
 	req   data.Request
 }
 
-func NewField(store data.Store, entityId, fieldName string) data.FieldBinding {
+func NewField(store *data.Store, entityId, fieldName string) data.FieldBinding {
 	r := request.New().SetEntityId(entityId).SetFieldName(fieldName)
 	return &Field{
 		store: store,
@@ -44,7 +44,7 @@ func (b *Field) GetValue() data.Value {
 
 func (b *Field) WriteValue(ctx context.Context, v data.Value) data.FieldBinding {
 	b.req.SetValue(v)
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	return b
 }
@@ -77,7 +77,7 @@ func (b *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBin
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -113,7 +113,7 @@ func (b *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldB
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -149,7 +149,7 @@ func (b *Field) WriteString(ctx context.Context, args ...interface{}) data.Field
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -185,7 +185,7 @@ func (b *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBi
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -221,7 +221,7 @@ func (b *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.F
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -257,7 +257,7 @@ func (b *Field) WriteEntityReference(ctx context.Context, args ...interface{}) d
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -293,7 +293,7 @@ func (b *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.Fi
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -329,7 +329,7 @@ func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) da
 		}
 	}
 
-	b.store.Write(ctx, b.req)
+	b.withStore().Write(ctx, b.req)
 
 	// Clear settings for future use
 	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
@@ -338,47 +338,47 @@ func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) da
 }
 
 func (b *Field) ReadValue(ctx context.Context) data.Value {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue()
 }
 
 func (b *Field) ReadInt(ctx context.Context) int64 {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetInt()
 }
 
 func (b *Field) ReadFloat(ctx context.Context) float64 {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetFloat()
 }
 
 func (b *Field) ReadString(ctx context.Context) string {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetString()
 }
 
 func (b *Field) ReadBool(ctx context.Context) bool {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetBool()
 }
 
 func (b *Field) ReadBinaryFile(ctx context.Context) string {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetBinaryFile()
 }
 
 func (b *Field) ReadEntityReference(ctx context.Context) string {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetEntityReference()
 }
 
 func (b *Field) ReadTimestamp(ctx context.Context) time.Time {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetTimestamp()
 }
 
 func (b *Field) ReadTransformation(ctx context.Context) string {
-	b.store.Read(ctx, b.req)
+	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue().GetTransformation()
 }
 
@@ -449,4 +449,8 @@ func (b *Field) GetTransformation() string {
 func (b *Field) SetValue(v data.Value) data.FieldBinding {
 	b.req.SetValue(v)
 	return b
+}
+
+func (b *Field) withStore() data.Store {
+	return *b.store
 }

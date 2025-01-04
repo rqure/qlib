@@ -26,4 +26,6 @@ type Request interface {
 
 	GetWriteOpt() WriteOpt
 	SetWriteOpt(WriteOpt) Request
+
+	Clone() Request
 }

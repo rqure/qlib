@@ -141,7 +141,7 @@ func (e *Entity) GetField(fieldName string) data.FieldBinding {
 	}
 
 	if e.fields[fieldName] == nil {
-		e.fields[fieldName] = NewField(e.store, e.GetId(), fieldName)
+		e.fields[fieldName] = NewField(&e.store, e.GetId(), fieldName)
 	}
 
 	return e.fields[fieldName]
