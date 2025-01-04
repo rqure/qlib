@@ -63,6 +63,8 @@ func NewLeadership(ds data.Store) *Leadership {
 		isStoreValid:   false,
 
 		candidate: candidate.New(ls, ds),
+
+		connectionCheckTicker: time.NewTicker(5 * time.Second),
 	}
 
 	return w
