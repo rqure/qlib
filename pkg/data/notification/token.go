@@ -8,14 +8,14 @@ import (
 
 type Token struct {
 	subscriptionId string
-	store          data.Store
+	manager        data.NotificationManager
 	callback       data.NotificationCallback
 }
 
-func NewToken(subscriptionId string, store data.Store, callback data.NotificationCallback) data.NotificationToken {
+func NewToken(subscriptionId string, store data.NotificationManager, callback data.NotificationCallback) data.NotificationToken {
 	return &Token{
 		subscriptionId: subscriptionId,
-		store:          store,
+		manager:        store,
 		callback:       callback,
 	}
 }
@@ -26,8 +26,8 @@ func (t *Token) Id() string {
 
 func (t *Token) Unbind(ctx context.Context) {
 	if t.callback != nil {
-		t.store.UnnotifyCallback(ctx, t.subscriptionId, t.callback)
+		t.manager.UnnotifyCallback(ctx, t.subscriptionId, t.callback)
 	} else {
-		t.store.Unnotify(ctx, t.subscriptionId)
+		t.manager.Unnotify(ctx, t.subscriptionId)
 	}
 }

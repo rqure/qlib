@@ -77,6 +77,18 @@ func (m *MultiBinding) GetEntitySchema(ctx context.Context, entityType string) d
 	return m.impl.GetEntitySchema(ctx, entityType)
 }
 
+func (m *MultiBinding) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
+	return m.impl.GetFieldSchema(ctx, fieldName, entityType)
+}
+
+func (m *MultiBinding) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {
+	m.impl.SetFieldSchema(ctx, entityType, fieldName, schema)
+}
+
+func (m *MultiBinding) TriggerNotifications(ctx context.Context, curr data.Request, prev data.Request) {
+	m.impl.TriggerNotifications(ctx, curr, prev)
+}
+
 func (m *MultiBinding) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
 	m.impl.SetEntitySchema(ctx, schema)
 }
