@@ -368,6 +368,281 @@ if err := validator.ValidateFields(ctx); err != nil {
    - Clean up entity references in MultiBinding sessions
    - Use snapshots judiciously as they hold entire database state
 
+### Naming Conventions
+
+Entity and field names in qlib follow strict naming conventions:
+
+1. **Pascal Case**
+   - Entity types must use PascalCase (e.g., `DeviceController`, `LightSwitch`)
+   - Field names must use PascalCase (e.g., `CurrentState`, `LastUpdateTime`)
+   - This applies to both schema definitions and runtime operations
+
+```go
+// Correct naming
+schema := schema.New("LightController").
+    AddField("PowerState", "string").
+    AddField("BrightnessLevel", "int").
+    AddField("LastStateChange", "timestamp")
+
+// Incorrect naming - will cause validation errors
+schema := schema.New("light_controller").
+    AddField("power_state", "string").
+    AddField("brightnessLevel", "int")
+```
+
+### Field Indirection
+
+qlib supports referencing fields relative to an entity using the `->` delimiter. This powerful feature allows you to:
+- Reference fields in parent or child entities
+- Navigate the entity tree
+- Create dynamic field references
+
+```go
+// Basic field indirection syntax:
+// EntityReference->FieldName
+
+// Examples:
+store.Write(ctx,
+    request.New().
+        SetEntityId(deviceId).
+        SetFieldName("Controller->Status").  // References Status field in Controller entity
+        SetValue(value.NewString("ON")),
+)
+
+// Multiple levels of indirection
+store.Notify(
+    ctx,
+    notification.NewConfig().
+        SetEntityType("Device").
+        SetFieldName("Zone->Building->Status").  // References Building's Status via Zone
+        SetContextFields(
+            "Name",
+            "Parent->Name",           // Get parent entity's Name
+            "Zone->BuildingName",     // Get BuildingName from Zone entity
+        ),
+    notification.NewCallback(func(ctx context.Context, n data.Notification) {
+        deviceName := n.GetContext(0).GetValue().GetString()
+        parentName := n.GetContext(1).GetValue().GetString()
+        buildingName := n.GetContext(2).GetValue().GetString()
+    }),
+)
+
+// Using EntityReference fields
+schema := schema.New("Device").
+    AddField("Controller", "entityref").     // References another entity
+    AddField("Zone", "entityref")
+
+// Query using indirection
+devices := query.New(store).
+    Select(
+        "Name",
+        "Controller->Status",         // Status from referenced Controller
+        "Zone->Building->Address",    // Address from Building referenced by Zone
+    ).
+    From("Device").
+    Where("Controller->Type").Equals("MainController").
+    Execute(ctx)
+```
+
+Common Use Cases for Indirection:
+1. **Hierarchical Data Access**
+   ```go
+   // Access parent data
+   "Parent->Name"
+   "Parent->Parent->Type"
+   
+   // Access child data
+   "MainController->Status"
+   "SubDevices->Count"
+   ```
+
+2. **Cross-Entity Relationships**
+   ```go
+   // Reference through entity reference fields
+   "Zone->Controller->Status"
+   "Building->MainPower->State"
+   ```
+
+3. **Dynamic Configuration**
+   ```go
+   // Use indirection in configuration entities
+   "ConfigSource->Settings->UpdateInterval"
+   "Template->DefaultValues->State"
+   ```
+
+4. **Notification Context**
+   ```go
+   notification.NewConfig().
+       SetEntityType("Device").
+       SetFieldName("Status").
+       SetContextFields(
+           "Name",
+           "Parent->Location",
+           "Zone->Building->Name",
+           "Controller->Type",
+       )
+   ```
+
+Best Practices for Indirection:
+1. **Depth Management**
+   - Keep indirection chains reasonably short
+   - Consider creating direct references for frequently used deep paths
+   - Document complex indirection paths
+
+2. **Performance**
+   - Cache frequently accessed indirect values when possible
+   - Use MultiBinding for batch operations with indirection
+   - Include necessary context fields in notifications to avoid additional lookups
+
+3. **Error Handling**
+   - Validate entity references exist before using indirection
+   - Handle missing intermediate entities gracefully
+   - Log invalid indirection paths for debugging
+
+### Field Value Validation
+
+qlib enforces strict type validation for field values. Each field type has specific validation rules:
+
+1. **Int**
+   ```go
+   // Valid int assignments
+   field.WriteInt(ctx, 42)
+   field.WriteInt(ctx, int64(1000))
+   
+   // Invalid - will cause validation error
+   field.WriteInt(ctx, "42")    // string not allowed
+   field.WriteInt(ctx, 3.14)    // float not allowed
+   ```
+
+2. **Float**
+   ```go
+   // Valid float assignments
+   field.WriteFloat(ctx, 3.14)
+   field.WriteFloat(ctx, float64(1.0))
+   
+   // Integer values are automatically converted
+   field.WriteFloat(ctx, 42)    // becomes 42.0
+   ```
+
+3. **String**
+   ```go
+   // Valid string assignments
+   field.WriteString(ctx, "hello")
+   
+   // Non-string values must be explicitly converted
+   field.WriteString(ctx, fmt.Sprintf("%d", 42))
+   ```
+
+4. **Bool**
+   ```go
+   // Valid boolean assignments
+   field.WriteBool(ctx, true)
+   field.WriteBool(ctx, false)
+   
+   // Invalid - will cause validation error
+   field.WriteBool(ctx, "true")   // string not allowed
+   field.WriteBool(ctx, 1)        // int not allowed
+   ```
+
+5. **Timestamp**
+   ```go
+   // Valid timestamp assignments
+   field.WriteTimestamp(ctx, time.Now())
+   field.WriteTimestamp(ctx, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+   ```
+
+6. **EntityReference**
+   ```go
+   // Valid entity reference assignments
+   field.WriteEntityReference(ctx, "DeviceId123")
+   
+   // Best practice: validate entity exists
+   if store.EntityExists(ctx, "DeviceId123") {
+       field.WriteEntityReference(ctx, "DeviceId123")
+   }
+   ```
+
+7. **BinaryFile**
+   ```go
+   // Valid binary file assignments
+   content := []byte{...}
+   encoded := data.FileEncode(content)
+   field.WriteBinaryFile(ctx, encoded)
+   
+   // Reading binary files
+   encoded := field.ReadBinaryFile(ctx)
+   content := data.FileDecode(encoded)
+   ```
+
+8. **Transformation**
+   ```go
+   // Transformation fields contain scripts/expressions
+   field.WriteTransformation(ctx, "value * 2")
+   field.WriteTransformation(ctx, "Parent->Value + 10")
+   ```
+
+Best Practices for Field Values:
+
+1. **Type Safety**
+   ```go
+   // Use type-specific methods
+   if field.IsInt() {
+       value := field.ReadInt(ctx)
+   } else if field.IsString() {
+       value := field.ReadString(ctx)
+   }
+   ```
+
+2. **Null Values**
+   ```go
+   // Check for nil values
+   if !field.GetValue().IsNil() {
+       value := field.ReadString(ctx)
+   }
+   ```
+
+3. **Value Conversion**
+   ```go
+   // Convert values explicitly when needed
+   intValue := int64(field.ReadFloat(ctx))
+   strValue := fmt.Sprintf("%d", field.ReadInt(ctx))
+   ```
+
+4. **Batch Updates**
+   ```go
+   // Use MultiBinding for multiple value updates
+   multi := binding.NewMulti(store)
+   entity := multi.GetEntityById(ctx, entityId)
+   
+   entity.GetField("IntValue").WriteInt(ctx, 42)
+   entity.GetField("FloatValue").WriteFloat(ctx, 3.14)
+   entity.GetField("StringValue").WriteString(ctx, "hello")
+   
+   multi.Commit(ctx)
+   ```
+
+5. **Error Handling**
+   ```go
+   // Handle type conversion errors
+   field := entity.GetField("Value")
+   if !field.IsFloat() {
+       log.Error("Expected float field")
+       return
+   }
+   value := field.ReadFloat(ctx)
+   ```
+
+6. **Value Validation in Schema**
+   ```go
+   // Define field types in schema
+   schema := schema.New("Device").
+       AddField("Status", "string").
+       AddField("Temperature", "float").
+       AddField("IsActive", "bool").
+       AddField("LastUpdate", "timestamp").
+       AddField("Controller", "entityref")
+   ```
+
 ## Leadership Election
 
 qlib provides built-in support for high availability through leadership election. This ensures that in a distributed setup, only one instance of your application is the active leader.
@@ -778,3 +1053,211 @@ func main() {
 - `Q_LEADER_STORE_ADDR`: Redis address for leadership election (default: "redis:6379")
 - `Q_LEADER_STORE_PASSWORD`: Redis password
 - `Q_IN_DOCKER`: Set when running in Docker container
+
+## Application Lifecycle Management
+
+Applications in qlib follow a strict initialization and shutdown sequence to ensure proper resource management and graceful termination.
+
+### Initialization Sequence
+
+```go
+func main() {
+    // Create application with unique name
+    app := app.NewApplication("myapp")
+
+    // Configure workers before Execute()
+    storeWorker := workers.NewStore(myStore)
+    webWorker := workers.NewWeb(":8080")
+    
+    // Order matters - add core workers first
+    app.AddWorker(storeWorker)
+    app.AddWorker(leadershipWorker)
+    app.AddWorker(webWorker)
+    app.AddWorker(myBusinessWorker)
+
+    // Execute handles init/deinit
+    app.Execute()
+}
+```
+
+### Worker Initialization
+
+Workers should properly initialize their resources:
+
+```go
+type MyWorker struct {
+    store data.Store
+    subscriptions []data.NotificationToken
+}
+
+func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
+    // Set up notification subscriptions
+    w.subscriptions = append(w.subscriptions,
+        w.store.Notify(ctx,
+            notification.NewConfig().
+                SetEntityType("Device").
+                SetFieldName("Status"),
+            notification.NewCallback(w.onStatusChange),
+        ),
+    )
+
+    // Initialize resources with timeout
+    timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
+    
+    if err := w.initializeResource(timeoutCtx); err != nil {
+        log.Panic("Failed to initialize: %v", err)
+    }
+}
+```
+
+### Graceful Shutdown
+
+Workers must clean up resources on shutdown:
+
+```go
+func (w *MyWorker) Deinit(ctx context.Context) {
+    // Unsubscribe from notifications
+    for _, sub := range w.subscriptions {
+        sub.Unbind(ctx)
+    }
+
+    // Close connections
+    if w.conn != nil {
+        w.conn.Close()
+    }
+
+    // Wait for pending operations
+    w.wg.Wait()
+}
+```
+
+### Error Handling
+
+Best practices for handling errors in workers:
+
+```go
+func (w *MyWorker) DoWork(ctx context.Context) {
+    // Check context cancellation
+    if ctx.Err() != nil {
+        return
+    }
+
+    // Handle recoverable errors
+    if err := w.doSomething(ctx); err != nil {
+        log.Error("Operation failed: %v", err)
+        // Update status to reflect error
+        w.store.Write(ctx,
+            request.New().
+                SetEntityId(w.entityId).
+                SetFieldName("Error").
+                SetValue(value.NewString(err.Error())),
+        )
+        return
+    }
+
+    // Handle fatal errors
+    if err := w.criticalOperation(ctx); err != nil {
+        log.Panic("Critical error: %v", err)
+        // Application will shut down
+    }
+}
+```
+
+### Startup Dependencies
+
+Managing worker dependencies:
+
+```go
+type MyWorker struct {
+    store data.Store
+    isStoreConnected bool
+}
+
+func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
+    // Subscribe to store connection status
+    w.store.Connected().Connect(func(ctx context.Context) {
+        w.isStoreConnected = true
+    })
+    
+    w.store.Disconnected().Connect(func(ctx context.Context) {
+        w.isStoreConnected = false
+    })
+}
+
+func (w *MyWorker) DoWork(ctx context.Context) {
+    // Wait for dependencies
+    if !w.isStoreConnected {
+        return
+    }
+    
+    // Proceed with work
+}
+```
+
+### Signal Handling
+
+The application handles system signals:
+
+```go
+func main() {
+    app := app.NewApplication("myapp")
+    
+    // App.Execute() handles:
+    // - SIGINT (Ctrl+C)
+    // - SIGTERM
+    // 
+    // Workers get ctx.Done() on signal
+    app.Execute()
+}
+
+// In your worker
+func (w *MyWorker) DoWork(ctx context.Context) {
+    select {
+    case <-ctx.Done():
+        // Clean up and return
+        return
+    default:
+        // Do work
+    }
+}
+```
+
+### Environment Configuration
+
+Environment variables that affect application behavior:
+
+```bash
+# Application identification
+APP_NAME=myapp                  # Override application name
+Q_IN_DOCKER=true               # Running in container
+
+# Store configuration
+Q_LEADER_STORE_ADDR=redis:6379 # Leadership store address
+Q_LEADER_STORE_PASSWORD=secret # Leadership store password
+
+# Runtime behavior
+Q_LOG_LEVEL=INFO              # Application log level
+Q_LIB_LOG_LEVEL=WARN         # Library log level
+```
+
+Best Practices:
+1. **Worker State**
+   - Initialize all state in Init()
+   - Clean up all resources in Deinit()
+   - Use context cancellation for termination
+
+2. **Resource Management**
+   - Track and clean up subscriptions
+   - Close connections and channels
+   - Wait for goroutines to finish
+
+3. **Error Handling**
+   - Use log.Error for recoverable errors
+   - Use log.Panic for fatal errors
+   - Update entity status on errors
+
+4. **Dependencies**
+   - Check dependency status before operations
+   - Handle dependency failures gracefully
+   - Implement proper retry logic
