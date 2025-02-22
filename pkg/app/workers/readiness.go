@@ -25,6 +25,55 @@ func (f ReadinessCriteriaFunc) IsReady() bool {
 	return f()
 }
 
+type StoreConnectedCriteria struct {
+	isConnected bool
+}
+
+func (c *StoreConnectedCriteria) IsReady() bool {
+	return c.isConnected
+}
+
+func (c *StoreConnectedCriteria) OnStoreConnected() {
+	c.isConnected = true
+}
+
+func (c *StoreConnectedCriteria) OnStoreDisconnected() {
+	c.isConnected = false
+}
+
+func NewStoreConnectedCriteria(s Store) ReadinessCriteria {
+	c := &StoreConnectedCriteria{
+		isConnected: false,
+	}
+
+	s.Connected.Connect(c.OnStoreConnected)
+	s.Disconnected.Connect(c.OnStoreDisconnected)
+
+	return c
+}
+
+type SchemaValidityCriteria struct {
+	isValid bool
+}
+
+func (c *SchemaValidityCriteria) IsReady() bool {
+	return c.isValid
+}
+
+func (c *SchemaValidityCriteria) OnSchemaUpdated() {
+
+}
+
+func NewSchemaValidityCriteria(s Store) ReadinessCriteria {
+	c := &SchemaValidityCriteria{
+		isValid: false,
+	}
+
+	s.SchemaUpdated.Connect(c.OnSchemaUpdated)
+
+	return c
+}
+
 type Readiness struct {
 	BecameReady    signalslots.Signal
 	BecameNotReady signalslots.Signal
