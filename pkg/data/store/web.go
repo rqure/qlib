@@ -311,6 +311,65 @@ func (s *Web) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
 	s.sendAndWait(ctx, msg)
 }
 
+func (s *Web) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
+	msg := web.NewMessage()
+	msg.Header = &protobufs.WebHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntitySchemaRequest{
+		Type: entityType,
+	})
+
+	response := s.sendAndWait(ctx, msg)
+	if response == nil {
+		log.Error("Received nil response")
+		return nil
+	}
+
+	var resp protobufs.WebConfigGetEntitySchemaResponse
+	if err := response.Payload.UnmarshalTo(&resp); err != nil {
+		log.Error("Failed to unmarshal response: %v", err)
+		return nil
+	}
+
+	if resp.Status != protobufs.WebConfigGetEntitySchemaResponse_SUCCESS {
+		return nil
+	}
+
+	for _, f := range resp.Schema.GetFields() {
+		if f.GetName() == fieldName {
+			return field.FromSchemaPb(f)
+		}
+	}
+
+	return nil
+}
+
+func (s *Web) SetFieldSchema(ctx context.Context, fieldName, entityType string, schema data.FieldSchema) {
+	entitySchema := s.GetEntitySchema(ctx, entityType)
+	if entitySchema == nil {
+		log.Error("Failed to get entity schema")
+		return
+	}
+
+	fields := entitySchema.GetFields()
+	newFields := make([]data.FieldSchema, 0, len(fields))
+	updated := false
+	for _, f := range fields {
+		if f.GetFieldName() == fieldName {
+			newFields = append(newFields, schema)
+			updated = true
+		} else {
+			newFields = append(newFields, f)
+		}
+	}
+
+	if !updated {
+		newFields = append(newFields, schema)
+	}
+
+	entitySchema.SetFields(newFields)
+	s.SetEntitySchema(ctx, entitySchema)
+}
+
 func (s *Web) Read(ctx context.Context, requests ...data.Request) {
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
@@ -527,4 +586,8 @@ func (s *Web) ProcessNotifications(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (s *Web) TriggerNotifications(ctx context.Context, curr data.Request, prev data.Request) {
+	// Not supported
 }
