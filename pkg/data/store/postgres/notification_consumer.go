@@ -8,9 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
-	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/notification"
-	"github.com/rqure/qlib/pkg/data/request"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/proto"
@@ -20,132 +18,26 @@ const (
 	NotificationExpiryDuration = time.Minute
 )
 
-type NotificationManager struct {
-	core          Core
-	entityManager data.EntityManager
-	fieldOperator data.FieldOperator
-	transformer   data.Transformer
+type NotificationConsumer struct {
+	core        Core
+	transformer data.Transformer
 
 	callbacks map[string][]data.NotificationCallback
 }
 
-func NewNotificationManager(core Core) data.NotificationManager {
-	return &NotificationManager{
+func NewNotificationManager(core Core) data.NotificationConsumer {
+	return &NotificationConsumer{
 		core:      core,
 		callbacks: map[string][]data.NotificationCallback{},
 	}
 }
 
-func (s *NotificationManager) SetEntityManager(entityManager data.EntityManager) {
-	s.entityManager = entityManager
-}
-
-func (s *NotificationManager) SetFieldOperator(fieldOperator data.FieldOperator) {
-	s.fieldOperator = fieldOperator
-}
-
-func (s *NotificationManager) SetTransformer(transformer data.Transformer) {
-	s.transformer = transformer
-}
-
-func (s *NotificationManager) TriggerNotifications(ctx context.Context, curr data.Request, prev data.Request) {
-	notifications := []*protobufs.DatabaseNotification{}
-
-	s.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		rows, err := tx.Query(ctx, `
-		SELECT id, context_fields, notify_on_change, service_id, token
-		FROM NotificationConfigEntityId
-		WHERE entity_id = $1 AND field_name = $2
-	`, curr.GetEntityId(), curr.GetFieldName())
-		if err != nil {
-			log.Error("Failed to get entity notifications: %v", err)
-			return
-		}
-		defer rows.Close()
-
-		notifications = append(notifications, s.processNotificationRows(ctx, rows, curr, prev)...)
-	})
-
-	s.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		entity := s.entityManager.GetEntity(ctx, curr.GetEntityId())
-		if entity == nil {
-			log.Error("Failed to get entity")
-			return
-		}
-
-		rows, err := tx.Query(ctx, `
-			SELECT id, context_fields, notify_on_change, service_id, token
-			FROM NotificationConfigEntityType
-			WHERE entity_type = $1 AND field_name = $2
-		`, entity.GetType(), curr.GetFieldName())
-		if err != nil {
-			log.Error("Failed to get type notifications: %v", err)
-			return
-		}
-		defer rows.Close()
-
-		notifications = append(notifications, s.processNotificationRows(ctx, rows, curr, prev)...)
-	})
-
-	s.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		for _, n := range notifications {
-			notifBytes, err := proto.Marshal(n)
-			if err != nil {
-				log.Error("Failed to marshal notification: %v", err)
-				continue
-			}
-
-			_, err = tx.Exec(ctx, `
-				INSERT INTO Notifications (timestamp, service_id, notification)
-				VALUES ($1, $2, $3)
-			`, time.Now(), n.ServiceId, notifBytes)
-			if err != nil {
-				log.Error("Failed to insert notification: %v", err)
-			}
-		}
-	})
-}
-
-func (s *NotificationManager) processNotificationRows(ctx context.Context, rows pgx.Rows, r data.Request, o data.Request) []*protobufs.DatabaseNotification {
-	notifications := []*protobufs.DatabaseNotification{}
-
-	for rows.Next() {
-		var id int
-		var contextFields []string
-		var notifyOnChange bool
-		var serviceId string
-		var token string
-
-		err := rows.Scan(&id, &contextFields, &notifyOnChange, &serviceId, &token)
-		if err != nil {
-			log.Error("Failed to scan notification config: %v", err)
-			continue
-		}
-
-		// Create context fields
-		context := []*protobufs.DatabaseField{}
-		for _, cf := range contextFields {
-			cr := request.New().SetEntityId(r.GetEntityId()).SetFieldName(cf)
-			s.fieldOperator.Read(ctx, cr)
-			if cr.IsSuccessful() {
-				context = append(context, field.ToFieldPb(field.FromRequest(cr)))
-			}
-		}
-
-		notifications = append(notifications, &protobufs.DatabaseNotification{
-			Token:     token,
-			ServiceId: serviceId,
-			Current:   field.ToFieldPb(field.FromRequest(r)),
-			Previous:  field.ToFieldPb(field.FromRequest(o)),
-			Context:   context,
-		})
-	}
-
-	return notifications
+func (me *NotificationConsumer) SetTransformer(transformer data.Transformer) {
+	me.transformer = transformer
 }
 
 // Fix notification processing to avoid lock copying
-func (me *NotificationManager) ProcessNotifications(ctx context.Context) {
+func (me *NotificationConsumer) ProcessNotifications(ctx context.Context) {
 	me.transformer.ProcessPending()
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -199,7 +91,7 @@ func (me *NotificationManager) ProcessNotifications(ctx context.Context) {
 	})
 }
 
-func (me *NotificationManager) Notify(ctx context.Context, nc data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+func (me *NotificationConsumer) Notify(ctx context.Context, nc data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
 	if nc.GetServiceId() == "" {
 		nc.SetServiceId(me.getServiceId())
 	}
@@ -241,11 +133,11 @@ func (me *NotificationManager) Notify(ctx context.Context, nc data.NotificationC
 	return n
 }
 
-func (me *NotificationManager) getServiceId() string {
+func (me *NotificationConsumer) getServiceId() string {
 	return app.GetName()
 }
 
-func (me *NotificationManager) Unnotify(ctx context.Context, token string) {
+func (me *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 	nc := notification.FromToken(token)
 
 	if nc == nil {
@@ -282,7 +174,7 @@ func (me *NotificationManager) Unnotify(ctx context.Context, token string) {
 	})
 }
 
-func (me *NotificationManager) UnnotifyCallback(ctx context.Context, token string, callback data.NotificationCallback) {
+func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token string, callback data.NotificationCallback) {
 	if me.callbacks[token] == nil {
 		return
 	}

@@ -38,12 +38,15 @@ type FieldOperator interface {
 	Write(context.Context, ...Request)
 }
 
-type NotificationManager interface {
-	TriggerNotifications(ctx context.Context, curr Request, prev Request)
+type NotificationConsumer interface {
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) NotificationToken
 	Unnotify(ctx context.Context, subscriptionId string)
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
 	ProcessNotifications(context.Context)
+}
+
+type NotificationPublisher interface {
+	TriggerNotifications(ctx context.Context, curr Request, prev Request)
 }
 
 type Store interface {
@@ -52,5 +55,6 @@ type Store interface {
 	EntityManager
 	SchemaManager
 	FieldOperator
-	NotificationManager
+	NotificationConsumer
+	NotificationPublisher
 }

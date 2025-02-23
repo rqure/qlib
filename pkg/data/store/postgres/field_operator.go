@@ -17,11 +17,11 @@ import (
 )
 
 type FieldOperator struct {
-	core                Core
-	schemaManager       data.SchemaManager
-	entityManager       data.EntityManager
-	notificationManager data.NotificationManager
-	transformer         data.Transformer
+	core                  Core
+	schemaManager         data.SchemaManager
+	entityManager         data.EntityManager
+	notificationPublisher data.NotificationPublisher
+	transformer           data.Transformer
 }
 
 func NewFieldOperator(core Core) data.FieldOperator {
@@ -38,8 +38,8 @@ func (me *FieldOperator) SetEntityManager(entityManager data.EntityManager) {
 	me.entityManager = entityManager
 }
 
-func (me *FieldOperator) SetNotificationManager(notificationManager data.NotificationManager) {
-	me.notificationManager = notificationManager
+func (me *FieldOperator) SetNotificationPublisher(publisher data.NotificationPublisher) {
+	me.notificationPublisher = publisher
 }
 
 func (me *FieldOperator) SetTransformer(transformer data.Transformer) {
@@ -203,7 +203,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			}
 
 			// Handle notifications
-			me.notificationManager.TriggerNotifications(ctx, r, oldReq)
+			me.notificationPublisher.TriggerNotifications(ctx, r, oldReq)
 			r.SetSuccessful(true)
 		}
 	})

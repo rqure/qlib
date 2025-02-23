@@ -8,11 +8,11 @@ import (
 
 type Token struct {
 	subscriptionId string
-	manager        data.NotificationManager
+	manager        data.NotificationConsumer
 	callback       data.NotificationCallback
 }
 
-func NewToken(subscriptionId string, store data.NotificationManager, callback data.NotificationCallback) data.NotificationToken {
+func NewToken(subscriptionId string, store data.NotificationConsumer, callback data.NotificationCallback) data.NotificationToken {
 	return &Token{
 		subscriptionId: subscriptionId,
 		manager:        store,

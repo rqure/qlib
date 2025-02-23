@@ -26,8 +26,8 @@ type coreInternal struct {
 	config Config
 }
 
-func NewCore() Core {
-	return &coreInternal{}
+func NewCore(config Config) Core {
+	return &coreInternal{config: config}
 }
 
 func (me *coreInternal) SetPool(pool *pgxpool.Pool) {
