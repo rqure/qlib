@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/signalslots"
 	"github.com/rqure/qlib/pkg/signalslots/signal"
 )
@@ -53,20 +54,26 @@ func NewStoreConnectedCriteria(s Store) ReadinessCriteria {
 }
 
 type SchemaValidityCriteria struct {
-	isValid bool
+	isValid   bool
+	validator data.EntityFieldValidator
 }
 
 func (c *SchemaValidityCriteria) IsReady() bool {
 	return c.isValid
 }
 
-func (c *SchemaValidityCriteria) OnSchemaUpdated() {
+func (c *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
+	c.isValid = true
 
+	if err := c.validator.ValidateFields(ctx); err != nil {
+		c.isValid = false
+	}
 }
 
 func NewSchemaValidityCriteria(s Store) ReadinessCriteria {
 	c := &SchemaValidityCriteria{
-		isValid: false,
+		isValid:   false,
+		validator: data.NewEntityFieldValidator(s.store),
 	}
 
 	s.SchemaUpdated.Connect(c.OnSchemaUpdated)
@@ -75,8 +82,8 @@ func NewSchemaValidityCriteria(s Store) ReadinessCriteria {
 }
 
 type Readiness struct {
-	BecameReady    signalslots.Signal
-	BecameNotReady signalslots.Signal
+	BecameReady   signalslots.Signal
+	BecameUnready signalslots.Signal
 
 	criterias []ReadinessCriteria
 	state     ReadinessState
@@ -84,8 +91,8 @@ type Readiness struct {
 
 func NewReadiness() *Readiness {
 	w := &Readiness{
-		BecameReady:    signal.New(),
-		BecameNotReady: signal.New(),
+		BecameReady:   signal.New(),
+		BecameUnready: signal.New(),
 
 		criterias: []ReadinessCriteria{},
 		state:     NotReady,
@@ -147,6 +154,6 @@ func (w *Readiness) setState(state ReadinessState) {
 	if state == Ready {
 		w.BecameReady.Emit()
 	} else {
-		w.BecameNotReady.Emit()
+		w.BecameUnready.Emit()
 	}
 }

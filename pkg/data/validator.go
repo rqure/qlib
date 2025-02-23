@@ -25,7 +25,7 @@ func NewEntityFieldValidator(store Store) EntityFieldValidator {
 		store: store,
 		entities: map[string][]string{
 			"Root":    {"SchemaUpdateTrigger"},
-			"Service": {"Leader", "Candidates", "HeartbeatTrigger", "ApplicationName", "FailOverTrigger", "LogLevel", "QLibLogLevel"},
+			"Service": {"HeartbeatTrigger", "ApplicationName", "LogLevel", "QLibLogLevel"},
 		},
 	}
 }
