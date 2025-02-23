@@ -20,7 +20,7 @@ type Store struct {
 
 type ConfigFn func(*Store)
 
-func Connection(address string) ConfigFn {
+func PersistOverPostgres(address string) ConfigFn {
 	return func(store *Store) {
 		core := postgres.NewCore(postgres.Config{ConnectionString: address})
 
@@ -29,15 +29,22 @@ func Connection(address string) ConfigFn {
 		store.ModifiableEntityManager = postgres.NewEntityManager(core)
 		store.ModifiableFieldOperator = postgres.NewFieldOperator(core)
 		store.ModifiableSnapshotManager = postgres.NewSnapshotManager(core)
+	}
+}
+
+func NotifyOverPostgres(address string) ConfigFn {
+	return func(store *Store) {
+		core := postgres.NewCore(postgres.Config{ConnectionString: address})
+
 		store.ModifiableNotificationConsumer = postgres.NewNotificationConsumer(core)
 		store.ModifiableNotificationPublisher = postgres.NewNotificationPublisher(core)
-
-		store.transformer = transformer.NewTransformer(store)
 	}
 }
 
 func New(fn ...ConfigFn) data.Store {
 	store := &Store{}
+
+	store.transformer = transformer.NewTransformer(store)
 
 	for _, f := range fn {
 		f(store)
