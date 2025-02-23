@@ -19,6 +19,10 @@ func NewConnector(core Core) data.Connector {
 }
 
 func (me *Connector) Connect(ctx context.Context) {
+	if me.IsConnected(ctx) {
+		return
+	}
+
 	me.Disconnect(ctx)
 
 	config, err := pgxpool.ParseConfig(me.core.GetConfig().ConnectionString)

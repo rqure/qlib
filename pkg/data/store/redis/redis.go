@@ -1,4 +1,4 @@
-package store
+package redis
 
 import (
 	"context"
@@ -575,7 +575,7 @@ func (s *Redis) Write(ctx context.Context, requests ...data.Request) {
 		_, err = s.client.Set(ctx, s.keygen.GetFieldKey(indirectField, indirectEntity), base64.StdEncoding.EncodeToString(b), 0).Result()
 
 		// Notify listeners of the change
-		s.TriggerNotifications(ctx, req, oldReq)
+		s.PublishNotifications(ctx, req, oldReq)
 
 		if err != nil {
 			log.Error("Failed to write field: %v", err)
@@ -770,7 +770,7 @@ func (s *Redis) ResolveIndirection(ctx context.Context, indirectField, entityId 
 	return fields[len(fields)-1], entityId
 }
 
-func (s *Redis) TriggerNotifications(ctx context.Context, r data.Request, o data.Request) {
+func (s *Redis) PublishNotifications(ctx context.Context, r data.Request, o data.Request) {
 	// failed to read old value (it may not exist initially)
 	if !o.IsSuccessful() {
 		log.Warn("Failed to read old value: %v", o)

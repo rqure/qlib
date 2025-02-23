@@ -114,7 +114,7 @@ type ModifiableNotificationConsumer interface {
 }
 
 type NotificationPublisher interface {
-	TriggerNotifications(ctx context.Context, curr Request, prev Request)
+	PublishNotifications(ctx context.Context, curr Request, prev Request)
 }
 
 type ModifiableNotificationPublisher interface {

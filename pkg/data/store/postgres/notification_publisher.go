@@ -71,7 +71,7 @@ func (me *NotificationPublisher) processNotificationRows(ctx context.Context, ro
 	return notifications
 }
 
-func (me *NotificationPublisher) TriggerNotifications(ctx context.Context, curr data.Request, prev data.Request) {
+func (me *NotificationPublisher) PublishNotifications(ctx context.Context, curr data.Request, prev data.Request) {
 	notifications := []*protobufs.DatabaseNotification{}
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {

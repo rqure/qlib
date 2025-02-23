@@ -588,6 +588,6 @@ func (s *Web) ProcessNotifications(ctx context.Context) {
 	}
 }
 
-func (s *Web) TriggerNotifications(ctx context.Context, curr data.Request, prev data.Request) {
+func (s *Web) PublishNotifications(ctx context.Context, curr data.Request, prev data.Request) {
 	// Not supported
 }

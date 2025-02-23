@@ -3,11 +3,13 @@ package store
 import (
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/store/postgres"
+	"github.com/rqure/qlib/pkg/data/store/redis"
 	"github.com/rqure/qlib/pkg/data/transformer"
 )
 
 type Store struct {
-	data.Connector
+	MultiConnector
+
 	data.ModifiableEntityManager
 	data.ModifiableFieldOperator
 	data.ModifiableNotificationConsumer
@@ -15,7 +17,7 @@ type Store struct {
 	data.ModifiableSchemaManager
 	data.ModifiableSnapshotManager
 
-	transformer data.Transformer
+	data.Transformer
 }
 
 type ConfigFn func(*Store)
@@ -24,7 +26,7 @@ func PersistOverPostgres(address string) ConfigFn {
 	return func(store *Store) {
 		core := postgres.NewCore(postgres.Config{ConnectionString: address})
 
-		store.Connector = postgres.NewConnector(core)
+		store.MultiConnector.AddConnector(postgres.NewConnector(core))
 		store.ModifiableSchemaManager = postgres.NewSchemaManager(core)
 		store.ModifiableEntityManager = postgres.NewEntityManager(core)
 		store.ModifiableFieldOperator = postgres.NewFieldOperator(core)
@@ -41,10 +43,38 @@ func NotifyOverPostgres(address string) ConfigFn {
 	}
 }
 
+func PersistOverRedis(address string, password string) ConfigFn {
+	return func(store *Store) {
+		core := redis.NewCore(redis.Config{
+			Address:  address,
+			Password: password,
+		})
+
+		store.MultiConnector.AddConnector(redis.NewConnector(core))
+		store.ModifiableSchemaManager = redis.NewSchemaManager(core)
+		store.ModifiableEntityManager = redis.NewEntityManager(core)
+		store.ModifiableFieldOperator = redis.NewFieldOperator(core)
+		store.ModifiableSnapshotManager = redis.NewSnapshotManager(core)
+	}
+}
+
+func NotifyOverRedis(address string, password string) ConfigFn {
+	return func(store *Store) {
+		core := redis.NewCore(redis.Config{
+			Address:  address,
+			Password: password,
+		})
+
+		store.ModifiableNotificationConsumer = redis.NewNotificationConsumer(core)
+		store.ModifiableNotificationPublisher = redis.NewNotificationPublisher(core)
+	}
+}
+
 func New(fn ...ConfigFn) data.Store {
 	store := &Store{}
 
-	store.transformer = transformer.NewTransformer(store)
+	store.MultiConnector = NewMultiConnector()
+	store.Transformer = transformer.NewTransformer(store)
 
 	for _, f := range fn {
 		f(store)
@@ -56,7 +86,7 @@ func New(fn ...ConfigFn) data.Store {
 	store.ModifiableNotificationPublisher.SetEntityManager(store.ModifiableEntityManager)
 	store.ModifiableNotificationPublisher.SetFieldOperator(store.ModifiableFieldOperator)
 
-	store.ModifiableNotificationConsumer.SetTransformer(store.transformer)
+	store.ModifiableNotificationConsumer.SetTransformer(store.Transformer)
 
 	store.ModifiableSchemaManager.SetEntityManager(store.ModifiableEntityManager)
 	store.ModifiableSchemaManager.SetFieldOperator(store.ModifiableFieldOperator)
@@ -64,7 +94,7 @@ func New(fn ...ConfigFn) data.Store {
 	store.ModifiableFieldOperator.SetSchemaManager(store.ModifiableSchemaManager)
 	store.ModifiableFieldOperator.SetEntityManager(store.ModifiableEntityManager)
 	store.ModifiableFieldOperator.SetNotificationPublisher(store.ModifiableNotificationPublisher)
-	store.ModifiableFieldOperator.SetTransformer(store.transformer)
+	store.ModifiableFieldOperator.SetTransformer(store.Transformer)
 
 	store.ModifiableSnapshotManager.SetSchemaManager(store.ModifiableSchemaManager)
 	store.ModifiableSnapshotManager.SetEntityManager(store.ModifiableEntityManager)

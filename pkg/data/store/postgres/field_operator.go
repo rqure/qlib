@@ -203,7 +203,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			}
 
 			// Handle notifications
-			me.notificationPublisher.TriggerNotifications(ctx, r, oldReq)
+			me.notificationPublisher.PublishNotifications(ctx, r, oldReq)
 			r.SetSuccessful(true)
 		}
 	})
