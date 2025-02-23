@@ -19,7 +19,7 @@ type NotificationPublisher struct {
 	fieldOperator data.FieldOperator
 }
 
-func NewNotificationPublisher(core Core) data.NotificationPublisher {
+func NewNotificationPublisher(core Core) data.ModifiableNotificationPublisher {
 	return &NotificationPublisher{
 		core: core,
 	}

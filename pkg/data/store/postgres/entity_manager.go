@@ -20,7 +20,7 @@ type EntityManager struct {
 	fieldOperator data.FieldOperator
 }
 
-func NewEntityManager(core Core) data.EntityManager {
+func NewEntityManager(core Core) data.ModifiableEntityManager {
 	return &EntityManager{
 		core: core,
 	}

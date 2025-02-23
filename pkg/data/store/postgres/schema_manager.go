@@ -20,7 +20,7 @@ type SchemaManager struct {
 	fieldOperator data.FieldOperator
 }
 
-func NewSchemaManager(core Core) data.SchemaManager {
+func NewSchemaManager(core Core) data.ModifiableSchemaManager {
 	return &SchemaManager{
 		core: core,
 	}

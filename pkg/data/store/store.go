@@ -6,57 +6,62 @@ import (
 	"github.com/rqure/qlib/pkg/data/transformer"
 )
 
-type storeInternal interface {
-	postgres.Core
-}
-
 type Store struct {
-	storeInternal
-
 	data.Connector
-	data.EntityManager
-	data.FieldOperator
-	data.NotificationConsumer
-	data.NotificationPublisher
-	data.SchemaManager
-	data.SnapshotManager
+	data.ModifiableEntityManager
+	data.ModifiableFieldOperator
+	data.ModifiableNotificationConsumer
+	data.ModifiableNotificationPublisher
+	data.ModifiableSchemaManager
+	data.ModifiableSnapshotManager
 
 	transformer data.Transformer
 }
 
-func New() data.Store {
-	core := postgres.NewCore(postgres.Config{})
-	store := &Store{
-		storeInternal:         core,
-		Connector:             postgres.NewConnector(core),
-		SchemaManager:         postgres.NewSchemaManager(core),
-		EntityManager:         postgres.NewEntityManager(core),
-		FieldOperator:         postgres.NewFieldOperator(core),
-		SnapshotManager:       postgres.NewSnapshotManager(core),
-		NotificationConsumer:  postgres.NewNotificationManager(core),
-		NotificationPublisher: postgres.NewNotificationPublisher(core),
+type ConfigFn func(*Store)
+
+func Connection(address string) ConfigFn {
+	return func(store *Store) {
+		core := postgres.NewCore(postgres.Config{ConnectionString: address})
+
+		store.Connector = postgres.NewConnector(core)
+		store.ModifiableSchemaManager = postgres.NewSchemaManager(core)
+		store.ModifiableEntityManager = postgres.NewEntityManager(core)
+		store.ModifiableFieldOperator = postgres.NewFieldOperator(core)
+		store.ModifiableSnapshotManager = postgres.NewSnapshotManager(core)
+		store.ModifiableNotificationConsumer = postgres.NewNotificationConsumer(core)
+		store.ModifiableNotificationPublisher = postgres.NewNotificationPublisher(core)
+
+		store.transformer = transformer.NewTransformer(store)
+	}
+}
+
+func New(fn ...ConfigFn) data.Store {
+	store := &Store{}
+
+	for _, f := range fn {
+		f(store)
 	}
 
-	store.transformer = transformer.NewTransformer(store)
-	store.EntityManager.(*postgres.EntityManager).SetFieldOperator(store.FieldOperator)
-	store.EntityManager.(*postgres.EntityManager).SetSchemaManager(store.SchemaManager)
+	store.ModifiableEntityManager.SetFieldOperator(store.ModifiableFieldOperator)
+	store.ModifiableEntityManager.SetSchemaManager(store.ModifiableSchemaManager)
 
-	store.NotificationPublisher.(*postgres.NotificationPublisher).SetEntityManager(store.EntityManager)
-	store.NotificationPublisher.(*postgres.NotificationPublisher).SetFieldOperator(store.FieldOperator)
+	store.ModifiableNotificationPublisher.SetEntityManager(store.ModifiableEntityManager)
+	store.ModifiableNotificationPublisher.SetFieldOperator(store.ModifiableFieldOperator)
 
-	store.NotificationConsumer.(*postgres.NotificationConsumer).SetTransformer(store.transformer)
+	store.ModifiableNotificationConsumer.SetTransformer(store.transformer)
 
-	store.SchemaManager.(*postgres.SchemaManager).SetEntityManager(store.EntityManager)
-	store.SchemaManager.(*postgres.SchemaManager).SetFieldOperator(store.FieldOperator)
+	store.ModifiableSchemaManager.SetEntityManager(store.ModifiableEntityManager)
+	store.ModifiableSchemaManager.SetFieldOperator(store.ModifiableFieldOperator)
 
-	store.FieldOperator.(*postgres.FieldOperator).SetSchemaManager(store.SchemaManager)
-	store.FieldOperator.(*postgres.FieldOperator).SetEntityManager(store.EntityManager)
-	store.FieldOperator.(*postgres.FieldOperator).SetNotificationPublisher(store.NotificationPublisher)
-	store.FieldOperator.(*postgres.FieldOperator).SetTransformer(store.transformer)
+	store.ModifiableFieldOperator.SetSchemaManager(store.ModifiableSchemaManager)
+	store.ModifiableFieldOperator.SetEntityManager(store.ModifiableEntityManager)
+	store.ModifiableFieldOperator.SetNotificationPublisher(store.ModifiableNotificationPublisher)
+	store.ModifiableFieldOperator.SetTransformer(store.transformer)
 
-	store.SnapshotManager.(*postgres.SnapshotManager).SetSchemaManager(store.SchemaManager)
-	store.SnapshotManager.(*postgres.SnapshotManager).SetEntityManager(store.EntityManager)
-	store.SnapshotManager.(*postgres.SnapshotManager).SetFieldOperator(store.FieldOperator)
+	store.ModifiableSnapshotManager.SetSchemaManager(store.ModifiableSchemaManager)
+	store.ModifiableSnapshotManager.SetEntityManager(store.ModifiableEntityManager)
+	store.ModifiableSnapshotManager.SetFieldOperator(store.ModifiableFieldOperator)
 
 	return store
 }

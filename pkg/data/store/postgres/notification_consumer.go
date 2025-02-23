@@ -25,7 +25,7 @@ type NotificationConsumer struct {
 	callbacks map[string][]data.NotificationCallback
 }
 
-func NewNotificationManager(core Core) data.NotificationConsumer {
+func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 	return &NotificationConsumer{
 		core:      core,
 		callbacks: map[string][]data.NotificationCallback{},

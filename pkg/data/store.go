@@ -4,6 +4,34 @@ import (
 	"context"
 )
 
+type EntityManagerSetter interface {
+	SetEntityManager(EntityManager)
+}
+
+type SchemaManagerSetter interface {
+	SetSchemaManager(SchemaManager)
+}
+
+type FieldOperatorSetter interface {
+	SetFieldOperator(FieldOperator)
+}
+
+type NotificationPublisherSetter interface {
+	SetNotificationPublisher(NotificationPublisher)
+}
+
+type NotificationConsumerSetter interface {
+	SetNotificationConsumer(NotificationConsumer)
+}
+
+type SnapshotManagerSetter interface {
+	SetSnapshotManager(SnapshotManager)
+}
+
+type TransformerSetter interface {
+	SetTransformer(Transformer)
+}
+
 type Connector interface {
 	Connect(context.Context)
 	Disconnect(context.Context)
@@ -15,6 +43,13 @@ type SnapshotManager interface {
 	RestoreSnapshot(context.Context, Snapshot)
 }
 
+type ModifiableSnapshotManager interface {
+	SchemaManagerSetter
+	EntityManagerSetter
+	FieldOperatorSetter
+	SnapshotManager
+}
+
 type EntityManager interface {
 	CreateEntity(ctx context.Context, entityType, parentId, name string)
 	GetEntity(ctx context.Context, entityId string) Entity
@@ -22,6 +57,12 @@ type EntityManager interface {
 	DeleteEntity(ctx context.Context, entityId string)
 	FindEntities(ctx context.Context, entityType string) []string
 	GetEntityTypes(ctx context.Context) []string
+}
+
+type ModifiableEntityManager interface {
+	SchemaManagerSetter
+	FieldOperatorSetter
+	EntityManager
 }
 
 type SchemaManager interface {
@@ -33,9 +74,31 @@ type SchemaManager interface {
 	SetFieldSchema(ctx context.Context, entityType, fieldName string, schema FieldSchema)
 }
 
-type FieldOperator interface {
+type ModifiableSchemaManager interface {
+	EntityManagerSetter
+	FieldOperatorSetter
+	SchemaManager
+}
+
+type FieldReader interface {
 	Read(context.Context, ...Request)
+}
+
+type FieldWriter interface {
 	Write(context.Context, ...Request)
+}
+
+type FieldOperator interface {
+	FieldReader
+	FieldWriter
+}
+
+type ModifiableFieldOperator interface {
+	SchemaManagerSetter
+	EntityManagerSetter
+	NotificationPublisherSetter
+	TransformerSetter
+	FieldOperator
 }
 
 type NotificationConsumer interface {
@@ -45,8 +108,19 @@ type NotificationConsumer interface {
 	ProcessNotifications(context.Context)
 }
 
+type ModifiableNotificationConsumer interface {
+	TransformerSetter
+	NotificationConsumer
+}
+
 type NotificationPublisher interface {
 	TriggerNotifications(ctx context.Context, curr Request, prev Request)
+}
+
+type ModifiableNotificationPublisher interface {
+	EntityManagerSetter
+	FieldOperatorSetter
+	NotificationPublisher
 }
 
 type Store interface {

@@ -19,7 +19,7 @@ type SnapshotManager struct {
 	fieldOperator data.FieldOperator
 }
 
-func NewSnapshotManager(core Core) data.SnapshotManager {
+func NewSnapshotManager(core Core) data.ModifiableSnapshotManager {
 	return &SnapshotManager{
 		core: core,
 	}

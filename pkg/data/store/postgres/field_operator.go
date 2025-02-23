@@ -24,7 +24,7 @@ type FieldOperator struct {
 	transformer           data.Transformer
 }
 
-func NewFieldOperator(core Core) data.FieldOperator {
+func NewFieldOperator(core Core) data.ModifiableFieldOperator {
 	return &FieldOperator{
 		core: core,
 	}
