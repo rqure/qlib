@@ -13,6 +13,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const MaxStreamLength = 50
+
 type NotificationPublisher struct {
 	core          Core
 	entityManager data.EntityManager
