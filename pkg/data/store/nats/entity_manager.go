@@ -33,7 +33,7 @@ func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, 
 		Name:     name,
 	}
 
-	e.core.Publish(e.core.GetKeyGenerator().GetEntitySubject(name), msg)
+	e.core.Publish(e.core.GetKeyGenerator().GetReadSubject(), msg)
 }
 
 func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
@@ -41,7 +41,7 @@ func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Ent
 		Id: entityId,
 	}
 
-	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetEntitySubject(entityId), msg)
+	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -63,7 +63,7 @@ func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 		Id: entityId,
 	}
 
-	e.core.Publish(e.core.GetKeyGenerator().GetEntitySubject(entityId), msg)
+	e.core.Publish(e.core.GetKeyGenerator().GetReadSubject(), msg)
 }
 
 func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
@@ -71,7 +71,7 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 		EntityType: entityType,
 	}
 
-	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetEntityTypeSubject(entityType), msg)
+	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}

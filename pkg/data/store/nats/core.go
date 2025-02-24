@@ -7,6 +7,7 @@ import (
 	"time"
 
 	natsgo "github.com/nats-io/nats.go" // Changed import name to avoid conflict
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"google.golang.org/protobuf/proto"
@@ -23,11 +24,11 @@ type Core interface {
 	IsConnected(ctx context.Context) bool
 	Publish(subject string, msg proto.Message) error
 	Request(ctx context.Context, subject string, msg proto.Message) (*protobufs.ApiMessage, error)
-	Subscribe(subject string, handler func(msg *natsgo.Msg))
+	Subscribe(subject string, handler natsgo.MsgHandler)
 	SetConfig(config Config)
 	GetConfig() Config
 	GetKeyGenerator() KeyGenerator
-	QueueSubscribe(subject, queue string, handler func(msg *natsgo.Msg))
+	QueueSubscribe(subject string, handler natsgo.MsgHandler)
 }
 
 type coreInternal struct {
@@ -135,7 +136,7 @@ func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Me
 	return &respMsg, nil
 }
 
-func (c *coreInternal) Subscribe(subject string, handler func(msg *natsgo.Msg)) {
+func (c *coreInternal) Subscribe(subject string, handler natsgo.MsgHandler) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -153,7 +154,7 @@ func (c *coreInternal) Subscribe(subject string, handler func(msg *natsgo.Msg)) 
 	c.subs = append(c.subs, sub)
 }
 
-func (c *coreInternal) QueueSubscribe(subject, queue string, handler func(msg *natsgo.Msg)) {
+func (c *coreInternal) QueueSubscribe(subject string, handler natsgo.MsgHandler) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -162,7 +163,7 @@ func (c *coreInternal) QueueSubscribe(subject, queue string, handler func(msg *n
 		return
 	}
 
-	sub, err := c.conn.QueueSubscribe(subject, queue, handler)
+	sub, err := c.conn.QueueSubscribe(subject, app.GetName(), handler)
 	if err != nil {
 		log.Error("Failed to queue subscribe: %v", err)
 		return

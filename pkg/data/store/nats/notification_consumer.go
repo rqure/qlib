@@ -34,8 +34,7 @@ func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 
 	// Subscribe using queue group for the service
 	subject := core.GetKeyGenerator().GetNotificationSubject()
-	queue := core.GetKeyGenerator().GetNotificationQueueGroup(app.GetName())
-	core.QueueSubscribe(subject, queue, consumer.handleNotification)
+	core.QueueSubscribe(subject, consumer.handleNotification)
 	return consumer
 }
 
@@ -91,7 +90,7 @@ func (n *NotificationConsumer) sendNotify(ctx context.Context, config data.Notif
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	}
 
-	resp, err := n.core.Request(ctx, n.core.GetKeyGenerator().GetNotificationRegisterSubject(), msg)
+	resp, err := n.core.Request(ctx, n.core.GetKeyGenerator().GetNotificationSubject(), msg)
 	if err != nil {
 		return "", err
 	}
@@ -127,7 +126,7 @@ func (n *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 		Tokens: []string{token},
 	}
 
-	n.core.Publish(n.core.GetKeyGenerator().GetNotificationUnregisterSubject(), msg)
+	n.core.Publish(n.core.GetKeyGenerator().GetNotificationSubject(), msg)
 	delete(n.callbacks, token)
 }
 

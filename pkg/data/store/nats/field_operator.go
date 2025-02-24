@@ -47,7 +47,7 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 		msg.Requests[i] = request.ToPb(r)
 	}
 
-	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetFieldSubject(requests[0].GetFieldName(), requests[0].GetEntityId()), msg)
+	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return
 	}
@@ -84,7 +84,7 @@ func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 		msg.Requests[i] = request.ToPb(r)
 	}
 
-	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetFieldSubject(requests[0].GetFieldName(), requests[0].GetEntityId()), msg)
+	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
 		return
 	}

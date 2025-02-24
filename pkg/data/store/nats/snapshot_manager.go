@@ -34,7 +34,7 @@ func (s *SnapshotManager) SetFieldOperator(fo data.FieldOperator) {
 func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 	msg := &protobufs.ApiConfigCreateSnapshotRequest{}
 
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetSnapshotCreateSubject(), msg)
+	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -56,5 +56,5 @@ func (s *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot)
 		Snapshot: snapshot.ToPb(ss),
 	}
 
-	s.core.Publish(s.core.GetKeyGenerator().GetSnapshotRestoreSubject(), msg)
+	s.core.Publish(s.core.GetKeyGenerator().GetWriteSubject(), msg)
 }

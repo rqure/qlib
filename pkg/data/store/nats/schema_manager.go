@@ -32,7 +32,7 @@ func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool 
 		EntityId: entityId,
 	}
 
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetEntityExistsSubject(), msg)
+	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return false
 	}
@@ -51,7 +51,7 @@ func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType s
 		EntityType: entityType,
 	}
 
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetFieldExistsSubject(), msg)
+	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return false
 	}
@@ -69,7 +69,7 @@ func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) 
 		Type: entityType,
 	}
 
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetEntitySchemaSubject(entityType), msg)
+	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -91,7 +91,7 @@ func (s *SchemaManager) SetEntitySchema(ctx context.Context, schema data.EntityS
 		Schema: entity.ToSchemaPb(schema),
 	}
 
-	s.core.Publish(s.core.GetKeyGenerator().GetEntitySchemaSubject(schema.GetType()), msg)
+	s.core.Publish(s.core.GetKeyGenerator().GetWriteSubject(), msg)
 }
 
 func (s *SchemaManager) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {

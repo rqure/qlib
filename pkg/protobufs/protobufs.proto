@@ -179,13 +179,6 @@ message ApiRuntimeRegisterNotificationResponse {
     repeated string tokens = 1;
 }
 
-message ApiRuntimeGetNotificationsRequest {
-}
-
-message ApiRuntimeGetNotificationsResponse {
-    repeated DatabaseNotification notifications = 1;
-}
-
 message ApiRuntimeUnregisterNotificationRequest {
     repeated string tokens = 1;
 }

@@ -87,31 +87,4 @@ CREATE TABLE IF NOT EXISTS Transformations (
     writer TEXT NOT NULL,
     PRIMARY KEY (entity_id, field_name)
 );
-
-CREATE TABLE IF NOT EXISTS NotificationConfigEntityId (
-    id SERIAL PRIMARY KEY,
-    entity_id TEXT NOT NULL,
-    field_name TEXT NOT NULL,
-    context_fields TEXT[] NOT NULL,
-    notify_on_change BOOLEAN NOT NULL,
-    service_id TEXT NOT NULL,
-	token TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS NotificationConfigEntityType (
-    id SERIAL PRIMARY KEY,
-    entity_type TEXT NOT NULL,
-    field_name TEXT NOT NULL,
-    context_fields TEXT[] NOT NULL,
-    notify_on_change BOOLEAN NOT NULL,
-    service_id TEXT NOT NULL,
-	token TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS Notifications (
-    id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMP NOT NULL,
-    service_id TEXT NOT NULL,
-    notification BYTEA NOT NULL
-);
 `
