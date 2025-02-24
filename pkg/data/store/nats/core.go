@@ -14,8 +14,7 @@ import (
 )
 
 type Config struct {
-	Address   string
-	ServiceId string // Added for queue group identification
+	Address string
 }
 
 type Core interface {

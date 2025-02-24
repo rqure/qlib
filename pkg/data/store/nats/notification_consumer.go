@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/nats-io/nats.go"
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/notification"
 	"github.com/rqure/qlib/pkg/log"
@@ -27,7 +28,7 @@ func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 
 	// Subscribe using queue group for the service
 	subject := core.GetKeyGenerator().GetNotificationSubject()
-	queue := core.GetKeyGenerator().GetNotificationQueueGroup(core.GetConfig().ServiceId)
+	queue := core.GetKeyGenerator().GetNotificationQueueGroup(app.GetName())
 	core.QueueSubscribe(subject, queue, consumer.handleNotification)
 	return consumer
 }
