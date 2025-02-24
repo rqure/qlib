@@ -1,4 +1,4 @@
-package web
+package nats
 
 import (
 	"context"
@@ -6,10 +6,7 @@ import (
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/request"
-	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
-	web "github.com/rqure/qlib/pkg/web/go"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type FieldOperator struct {
@@ -41,32 +38,26 @@ func (f *FieldOperator) SetTransformer(t data.Transformer) {
 }
 
 func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
-	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-
-	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
-	for i, r := range requests {
-		dbRequests[i] = request.ToPb(r)
-	}
-
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeDatabaseRequest{
+	msg := &protobufs.WebRuntimeDatabaseRequest{
 		RequestType: protobufs.WebRuntimeDatabaseRequest_READ,
-		Requests:    dbRequests,
-	})
+		Requests:    make([]*protobufs.DatabaseRequest, len(requests)),
+	}
 
-	response := f.core.SendAndWait(ctx, msg)
-	if response == nil {
-		log.Error("Received nil response")
+	for i, r := range requests {
+		msg.Requests[i] = request.ToPb(r)
+	}
+
+	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetFieldSubject(requests[0].GetFieldName(), requests[0].GetEntityId()), msg)
+	if err != nil {
 		return
 	}
 
-	var resp protobufs.WebRuntimeDatabaseResponse
-	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("Failed to unmarshal response: %v", err)
+	var response protobufs.WebRuntimeDatabaseResponse
+	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return
 	}
 
-	for i, r := range resp.Response {
+	for i, r := range response.Response {
 		if i >= len(requests) {
 			break
 		}
@@ -84,32 +75,26 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 }
 
 func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
-	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-
-	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
-	for i, r := range requests {
-		dbRequests[i] = request.ToPb(r)
-	}
-
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeDatabaseRequest{
+	msg := &protobufs.WebRuntimeDatabaseRequest{
 		RequestType: protobufs.WebRuntimeDatabaseRequest_WRITE,
-		Requests:    dbRequests,
-	})
+		Requests:    make([]*protobufs.DatabaseRequest, len(requests)),
+	}
 
-	response := f.core.SendAndWait(ctx, msg)
-	if response == nil {
-		log.Error("Received nil response")
+	for i, r := range requests {
+		msg.Requests[i] = request.ToPb(r)
+	}
+
+	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetFieldSubject(requests[0].GetFieldName(), requests[0].GetEntityId()), msg)
+	if err != nil {
 		return
 	}
 
-	var resp protobufs.WebRuntimeDatabaseResponse
-	if err := response.Payload.UnmarshalTo(&resp); err != nil {
-		log.Error("Failed to unmarshal response: %v", err)
+	var response protobufs.WebRuntimeDatabaseResponse
+	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return
 	}
 
-	for i, r := range resp.Response {
+	for i, r := range response.Response {
 		if i >= len(requests) {
 			break
 		}
