@@ -23,542 +23,542 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type WebHeader_AuthenticationStatusEnum int32
+type ApiHeader_AuthenticationStatusEnum int32
 
 const (
-	WebHeader_UNSPECIFIED     WebHeader_AuthenticationStatusEnum = 0
-	WebHeader_AUTHENTICATED   WebHeader_AuthenticationStatusEnum = 1
-	WebHeader_UNAUTHENTICATED WebHeader_AuthenticationStatusEnum = 2
+	ApiHeader_UNSPECIFIED     ApiHeader_AuthenticationStatusEnum = 0
+	ApiHeader_AUTHENTICATED   ApiHeader_AuthenticationStatusEnum = 1
+	ApiHeader_UNAUTHENTICATED ApiHeader_AuthenticationStatusEnum = 2
 )
 
-// Enum value maps for WebHeader_AuthenticationStatusEnum.
+// Enum value maps for ApiHeader_AuthenticationStatusEnum.
 var (
-	WebHeader_AuthenticationStatusEnum_name = map[int32]string{
+	ApiHeader_AuthenticationStatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "AUTHENTICATED",
 		2: "UNAUTHENTICATED",
 	}
-	WebHeader_AuthenticationStatusEnum_value = map[string]int32{
+	ApiHeader_AuthenticationStatusEnum_value = map[string]int32{
 		"UNSPECIFIED":     0,
 		"AUTHENTICATED":   1,
 		"UNAUTHENTICATED": 2,
 	}
 )
 
-func (x WebHeader_AuthenticationStatusEnum) Enum() *WebHeader_AuthenticationStatusEnum {
-	p := new(WebHeader_AuthenticationStatusEnum)
+func (x ApiHeader_AuthenticationStatusEnum) Enum() *ApiHeader_AuthenticationStatusEnum {
+	p := new(ApiHeader_AuthenticationStatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebHeader_AuthenticationStatusEnum) String() string {
+func (x ApiHeader_AuthenticationStatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebHeader_AuthenticationStatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiHeader_AuthenticationStatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[0].Descriptor()
 }
 
-func (WebHeader_AuthenticationStatusEnum) Type() protoreflect.EnumType {
+func (ApiHeader_AuthenticationStatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[0]
 }
 
-func (x WebHeader_AuthenticationStatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiHeader_AuthenticationStatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebHeader_AuthenticationStatusEnum.Descriptor instead.
-func (WebHeader_AuthenticationStatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiHeader_AuthenticationStatusEnum.Descriptor instead.
+func (ApiHeader_AuthenticationStatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{0, 0}
 }
 
-type WebConfigCreateEntityResponse_StatusEnum int32
+type ApiConfigCreateEntityResponse_StatusEnum int32
 
 const (
-	WebConfigCreateEntityResponse_UNSPECIFIED WebConfigCreateEntityResponse_StatusEnum = 0
-	WebConfigCreateEntityResponse_SUCCESS     WebConfigCreateEntityResponse_StatusEnum = 1
-	WebConfigCreateEntityResponse_FAILURE     WebConfigCreateEntityResponse_StatusEnum = 2
+	ApiConfigCreateEntityResponse_UNSPECIFIED ApiConfigCreateEntityResponse_StatusEnum = 0
+	ApiConfigCreateEntityResponse_SUCCESS     ApiConfigCreateEntityResponse_StatusEnum = 1
+	ApiConfigCreateEntityResponse_FAILURE     ApiConfigCreateEntityResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigCreateEntityResponse_StatusEnum.
+// Enum value maps for ApiConfigCreateEntityResponse_StatusEnum.
 var (
-	WebConfigCreateEntityResponse_StatusEnum_name = map[int32]string{
+	ApiConfigCreateEntityResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigCreateEntityResponse_StatusEnum_value = map[string]int32{
+	ApiConfigCreateEntityResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigCreateEntityResponse_StatusEnum) Enum() *WebConfigCreateEntityResponse_StatusEnum {
-	p := new(WebConfigCreateEntityResponse_StatusEnum)
+func (x ApiConfigCreateEntityResponse_StatusEnum) Enum() *ApiConfigCreateEntityResponse_StatusEnum {
+	p := new(ApiConfigCreateEntityResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigCreateEntityResponse_StatusEnum) String() string {
+func (x ApiConfigCreateEntityResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigCreateEntityResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigCreateEntityResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[1].Descriptor()
 }
 
-func (WebConfigCreateEntityResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigCreateEntityResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[1]
 }
 
-func (x WebConfigCreateEntityResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigCreateEntityResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigCreateEntityResponse_StatusEnum.Descriptor instead.
-func (WebConfigCreateEntityResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigCreateEntityResponse_StatusEnum.Descriptor instead.
+func (ApiConfigCreateEntityResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{3, 0}
 }
 
-type WebConfigDeleteEntityResponse_StatusEnum int32
+type ApiConfigDeleteEntityResponse_StatusEnum int32
 
 const (
-	WebConfigDeleteEntityResponse_UNSPECIFIED WebConfigDeleteEntityResponse_StatusEnum = 0
-	WebConfigDeleteEntityResponse_SUCCESS     WebConfigDeleteEntityResponse_StatusEnum = 1
-	WebConfigDeleteEntityResponse_FAILURE     WebConfigDeleteEntityResponse_StatusEnum = 2
+	ApiConfigDeleteEntityResponse_UNSPECIFIED ApiConfigDeleteEntityResponse_StatusEnum = 0
+	ApiConfigDeleteEntityResponse_SUCCESS     ApiConfigDeleteEntityResponse_StatusEnum = 1
+	ApiConfigDeleteEntityResponse_FAILURE     ApiConfigDeleteEntityResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigDeleteEntityResponse_StatusEnum.
+// Enum value maps for ApiConfigDeleteEntityResponse_StatusEnum.
 var (
-	WebConfigDeleteEntityResponse_StatusEnum_name = map[int32]string{
+	ApiConfigDeleteEntityResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigDeleteEntityResponse_StatusEnum_value = map[string]int32{
+	ApiConfigDeleteEntityResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigDeleteEntityResponse_StatusEnum) Enum() *WebConfigDeleteEntityResponse_StatusEnum {
-	p := new(WebConfigDeleteEntityResponse_StatusEnum)
+func (x ApiConfigDeleteEntityResponse_StatusEnum) Enum() *ApiConfigDeleteEntityResponse_StatusEnum {
+	p := new(ApiConfigDeleteEntityResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigDeleteEntityResponse_StatusEnum) String() string {
+func (x ApiConfigDeleteEntityResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigDeleteEntityResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigDeleteEntityResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[2].Descriptor()
 }
 
-func (WebConfigDeleteEntityResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigDeleteEntityResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[2]
 }
 
-func (x WebConfigDeleteEntityResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigDeleteEntityResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigDeleteEntityResponse_StatusEnum.Descriptor instead.
-func (WebConfigDeleteEntityResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigDeleteEntityResponse_StatusEnum.Descriptor instead.
+func (ApiConfigDeleteEntityResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{5, 0}
 }
 
-type WebConfigGetEntityResponse_StatusEnum int32
+type ApiConfigGetEntityResponse_StatusEnum int32
 
 const (
-	WebConfigGetEntityResponse_UNSPECIFIED WebConfigGetEntityResponse_StatusEnum = 0
-	WebConfigGetEntityResponse_SUCCESS     WebConfigGetEntityResponse_StatusEnum = 1
-	WebConfigGetEntityResponse_FAILURE     WebConfigGetEntityResponse_StatusEnum = 2
+	ApiConfigGetEntityResponse_UNSPECIFIED ApiConfigGetEntityResponse_StatusEnum = 0
+	ApiConfigGetEntityResponse_SUCCESS     ApiConfigGetEntityResponse_StatusEnum = 1
+	ApiConfigGetEntityResponse_FAILURE     ApiConfigGetEntityResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigGetEntityResponse_StatusEnum.
+// Enum value maps for ApiConfigGetEntityResponse_StatusEnum.
 var (
-	WebConfigGetEntityResponse_StatusEnum_name = map[int32]string{
+	ApiConfigGetEntityResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigGetEntityResponse_StatusEnum_value = map[string]int32{
+	ApiConfigGetEntityResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigGetEntityResponse_StatusEnum) Enum() *WebConfigGetEntityResponse_StatusEnum {
-	p := new(WebConfigGetEntityResponse_StatusEnum)
+func (x ApiConfigGetEntityResponse_StatusEnum) Enum() *ApiConfigGetEntityResponse_StatusEnum {
+	p := new(ApiConfigGetEntityResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigGetEntityResponse_StatusEnum) String() string {
+func (x ApiConfigGetEntityResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigGetEntityResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigGetEntityResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[3].Descriptor()
 }
 
-func (WebConfigGetEntityResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigGetEntityResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[3]
 }
 
-func (x WebConfigGetEntityResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigGetEntityResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigGetEntityResponse_StatusEnum.Descriptor instead.
-func (WebConfigGetEntityResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntityResponse_StatusEnum.Descriptor instead.
+func (ApiConfigGetEntityResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{9, 0}
 }
 
-type WebConfigGetFieldSchemaResponse_StatusEnum int32
+type ApiConfigGetFieldSchemaResponse_StatusEnum int32
 
 const (
-	WebConfigGetFieldSchemaResponse_UNSPECIFIED WebConfigGetFieldSchemaResponse_StatusEnum = 0
-	WebConfigGetFieldSchemaResponse_SUCCESS     WebConfigGetFieldSchemaResponse_StatusEnum = 1
-	WebConfigGetFieldSchemaResponse_FAILURE     WebConfigGetFieldSchemaResponse_StatusEnum = 2
+	ApiConfigGetFieldSchemaResponse_UNSPECIFIED ApiConfigGetFieldSchemaResponse_StatusEnum = 0
+	ApiConfigGetFieldSchemaResponse_SUCCESS     ApiConfigGetFieldSchemaResponse_StatusEnum = 1
+	ApiConfigGetFieldSchemaResponse_FAILURE     ApiConfigGetFieldSchemaResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigGetFieldSchemaResponse_StatusEnum.
+// Enum value maps for ApiConfigGetFieldSchemaResponse_StatusEnum.
 var (
-	WebConfigGetFieldSchemaResponse_StatusEnum_name = map[int32]string{
+	ApiConfigGetFieldSchemaResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigGetFieldSchemaResponse_StatusEnum_value = map[string]int32{
+	ApiConfigGetFieldSchemaResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigGetFieldSchemaResponse_StatusEnum) Enum() *WebConfigGetFieldSchemaResponse_StatusEnum {
-	p := new(WebConfigGetFieldSchemaResponse_StatusEnum)
+func (x ApiConfigGetFieldSchemaResponse_StatusEnum) Enum() *ApiConfigGetFieldSchemaResponse_StatusEnum {
+	p := new(ApiConfigGetFieldSchemaResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigGetFieldSchemaResponse_StatusEnum) String() string {
+func (x ApiConfigGetFieldSchemaResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigGetFieldSchemaResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigGetFieldSchemaResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[4].Descriptor()
 }
 
-func (WebConfigGetFieldSchemaResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigGetFieldSchemaResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[4]
 }
 
-func (x WebConfigGetFieldSchemaResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigGetFieldSchemaResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigGetFieldSchemaResponse_StatusEnum.Descriptor instead.
-func (WebConfigGetFieldSchemaResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetFieldSchemaResponse_StatusEnum.Descriptor instead.
+func (ApiConfigGetFieldSchemaResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{11, 0}
 }
 
-type WebConfigGetEntitySchemaResponse_StatusEnum int32
+type ApiConfigGetEntitySchemaResponse_StatusEnum int32
 
 const (
-	WebConfigGetEntitySchemaResponse_UNSPECIFIED WebConfigGetEntitySchemaResponse_StatusEnum = 0
-	WebConfigGetEntitySchemaResponse_SUCCESS     WebConfigGetEntitySchemaResponse_StatusEnum = 1
-	WebConfigGetEntitySchemaResponse_FAILURE     WebConfigGetEntitySchemaResponse_StatusEnum = 2
+	ApiConfigGetEntitySchemaResponse_UNSPECIFIED ApiConfigGetEntitySchemaResponse_StatusEnum = 0
+	ApiConfigGetEntitySchemaResponse_SUCCESS     ApiConfigGetEntitySchemaResponse_StatusEnum = 1
+	ApiConfigGetEntitySchemaResponse_FAILURE     ApiConfigGetEntitySchemaResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigGetEntitySchemaResponse_StatusEnum.
+// Enum value maps for ApiConfigGetEntitySchemaResponse_StatusEnum.
 var (
-	WebConfigGetEntitySchemaResponse_StatusEnum_name = map[int32]string{
+	ApiConfigGetEntitySchemaResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigGetEntitySchemaResponse_StatusEnum_value = map[string]int32{
+	ApiConfigGetEntitySchemaResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigGetEntitySchemaResponse_StatusEnum) Enum() *WebConfigGetEntitySchemaResponse_StatusEnum {
-	p := new(WebConfigGetEntitySchemaResponse_StatusEnum)
+func (x ApiConfigGetEntitySchemaResponse_StatusEnum) Enum() *ApiConfigGetEntitySchemaResponse_StatusEnum {
+	p := new(ApiConfigGetEntitySchemaResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigGetEntitySchemaResponse_StatusEnum) String() string {
+func (x ApiConfigGetEntitySchemaResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigGetEntitySchemaResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigGetEntitySchemaResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[5].Descriptor()
 }
 
-func (WebConfigGetEntitySchemaResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigGetEntitySchemaResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[5]
 }
 
-func (x WebConfigGetEntitySchemaResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigGetEntitySchemaResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigGetEntitySchemaResponse_StatusEnum.Descriptor instead.
-func (WebConfigGetEntitySchemaResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntitySchemaResponse_StatusEnum.Descriptor instead.
+func (ApiConfigGetEntitySchemaResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{13, 0}
 }
 
-type WebConfigSetEntitySchemaResponse_StatusEnum int32
+type ApiConfigSetEntitySchemaResponse_StatusEnum int32
 
 const (
-	WebConfigSetEntitySchemaResponse_UNSPECIFIED WebConfigSetEntitySchemaResponse_StatusEnum = 0
-	WebConfigSetEntitySchemaResponse_SUCCESS     WebConfigSetEntitySchemaResponse_StatusEnum = 1
-	WebConfigSetEntitySchemaResponse_FAILURE     WebConfigSetEntitySchemaResponse_StatusEnum = 2
+	ApiConfigSetEntitySchemaResponse_UNSPECIFIED ApiConfigSetEntitySchemaResponse_StatusEnum = 0
+	ApiConfigSetEntitySchemaResponse_SUCCESS     ApiConfigSetEntitySchemaResponse_StatusEnum = 1
+	ApiConfigSetEntitySchemaResponse_FAILURE     ApiConfigSetEntitySchemaResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigSetEntitySchemaResponse_StatusEnum.
+// Enum value maps for ApiConfigSetEntitySchemaResponse_StatusEnum.
 var (
-	WebConfigSetEntitySchemaResponse_StatusEnum_name = map[int32]string{
+	ApiConfigSetEntitySchemaResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigSetEntitySchemaResponse_StatusEnum_value = map[string]int32{
+	ApiConfigSetEntitySchemaResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigSetEntitySchemaResponse_StatusEnum) Enum() *WebConfigSetEntitySchemaResponse_StatusEnum {
-	p := new(WebConfigSetEntitySchemaResponse_StatusEnum)
+func (x ApiConfigSetEntitySchemaResponse_StatusEnum) Enum() *ApiConfigSetEntitySchemaResponse_StatusEnum {
+	p := new(ApiConfigSetEntitySchemaResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigSetEntitySchemaResponse_StatusEnum) String() string {
+func (x ApiConfigSetEntitySchemaResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigSetEntitySchemaResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigSetEntitySchemaResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[6].Descriptor()
 }
 
-func (WebConfigSetEntitySchemaResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigSetEntitySchemaResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[6]
 }
 
-func (x WebConfigSetEntitySchemaResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigSetEntitySchemaResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigSetEntitySchemaResponse_StatusEnum.Descriptor instead.
-func (WebConfigSetEntitySchemaResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigSetEntitySchemaResponse_StatusEnum.Descriptor instead.
+func (ApiConfigSetEntitySchemaResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{15, 0}
 }
 
-type WebConfigCreateSnapshotResponse_StatusEnum int32
+type ApiConfigCreateSnapshotResponse_StatusEnum int32
 
 const (
-	WebConfigCreateSnapshotResponse_UNSPECIFIED WebConfigCreateSnapshotResponse_StatusEnum = 0
-	WebConfigCreateSnapshotResponse_SUCCESS     WebConfigCreateSnapshotResponse_StatusEnum = 1
-	WebConfigCreateSnapshotResponse_FAILURE     WebConfigCreateSnapshotResponse_StatusEnum = 2
+	ApiConfigCreateSnapshotResponse_UNSPECIFIED ApiConfigCreateSnapshotResponse_StatusEnum = 0
+	ApiConfigCreateSnapshotResponse_SUCCESS     ApiConfigCreateSnapshotResponse_StatusEnum = 1
+	ApiConfigCreateSnapshotResponse_FAILURE     ApiConfigCreateSnapshotResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigCreateSnapshotResponse_StatusEnum.
+// Enum value maps for ApiConfigCreateSnapshotResponse_StatusEnum.
 var (
-	WebConfigCreateSnapshotResponse_StatusEnum_name = map[int32]string{
+	ApiConfigCreateSnapshotResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigCreateSnapshotResponse_StatusEnum_value = map[string]int32{
+	ApiConfigCreateSnapshotResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigCreateSnapshotResponse_StatusEnum) Enum() *WebConfigCreateSnapshotResponse_StatusEnum {
-	p := new(WebConfigCreateSnapshotResponse_StatusEnum)
+func (x ApiConfigCreateSnapshotResponse_StatusEnum) Enum() *ApiConfigCreateSnapshotResponse_StatusEnum {
+	p := new(ApiConfigCreateSnapshotResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigCreateSnapshotResponse_StatusEnum) String() string {
+func (x ApiConfigCreateSnapshotResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigCreateSnapshotResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigCreateSnapshotResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[7].Descriptor()
 }
 
-func (WebConfigCreateSnapshotResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigCreateSnapshotResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[7]
 }
 
-func (x WebConfigCreateSnapshotResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigCreateSnapshotResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigCreateSnapshotResponse_StatusEnum.Descriptor instead.
-func (WebConfigCreateSnapshotResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigCreateSnapshotResponse_StatusEnum.Descriptor instead.
+func (ApiConfigCreateSnapshotResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{17, 0}
 }
 
-type WebConfigRestoreSnapshotResponse_StatusEnum int32
+type ApiConfigRestoreSnapshotResponse_StatusEnum int32
 
 const (
-	WebConfigRestoreSnapshotResponse_UNSPECIFIED WebConfigRestoreSnapshotResponse_StatusEnum = 0
-	WebConfigRestoreSnapshotResponse_SUCCESS     WebConfigRestoreSnapshotResponse_StatusEnum = 1
-	WebConfigRestoreSnapshotResponse_FAILURE     WebConfigRestoreSnapshotResponse_StatusEnum = 2
+	ApiConfigRestoreSnapshotResponse_UNSPECIFIED ApiConfigRestoreSnapshotResponse_StatusEnum = 0
+	ApiConfigRestoreSnapshotResponse_SUCCESS     ApiConfigRestoreSnapshotResponse_StatusEnum = 1
+	ApiConfigRestoreSnapshotResponse_FAILURE     ApiConfigRestoreSnapshotResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebConfigRestoreSnapshotResponse_StatusEnum.
+// Enum value maps for ApiConfigRestoreSnapshotResponse_StatusEnum.
 var (
-	WebConfigRestoreSnapshotResponse_StatusEnum_name = map[int32]string{
+	ApiConfigRestoreSnapshotResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebConfigRestoreSnapshotResponse_StatusEnum_value = map[string]int32{
+	ApiConfigRestoreSnapshotResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebConfigRestoreSnapshotResponse_StatusEnum) Enum() *WebConfigRestoreSnapshotResponse_StatusEnum {
-	p := new(WebConfigRestoreSnapshotResponse_StatusEnum)
+func (x ApiConfigRestoreSnapshotResponse_StatusEnum) Enum() *ApiConfigRestoreSnapshotResponse_StatusEnum {
+	p := new(ApiConfigRestoreSnapshotResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebConfigRestoreSnapshotResponse_StatusEnum) String() string {
+func (x ApiConfigRestoreSnapshotResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebConfigRestoreSnapshotResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiConfigRestoreSnapshotResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[8].Descriptor()
 }
 
-func (WebConfigRestoreSnapshotResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiConfigRestoreSnapshotResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[8]
 }
 
-func (x WebConfigRestoreSnapshotResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiConfigRestoreSnapshotResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebConfigRestoreSnapshotResponse_StatusEnum.Descriptor instead.
-func (WebConfigRestoreSnapshotResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigRestoreSnapshotResponse_StatusEnum.Descriptor instead.
+func (ApiConfigRestoreSnapshotResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{19, 0}
 }
 
-type WebRuntimeDatabaseRequest_RequestTypeEnum int32
+type ApiRuntimeDatabaseRequest_RequestTypeEnum int32
 
 const (
-	WebRuntimeDatabaseRequest_UNSPECIFIED WebRuntimeDatabaseRequest_RequestTypeEnum = 0
-	WebRuntimeDatabaseRequest_READ        WebRuntimeDatabaseRequest_RequestTypeEnum = 1
-	WebRuntimeDatabaseRequest_WRITE       WebRuntimeDatabaseRequest_RequestTypeEnum = 2
+	ApiRuntimeDatabaseRequest_UNSPECIFIED ApiRuntimeDatabaseRequest_RequestTypeEnum = 0
+	ApiRuntimeDatabaseRequest_READ        ApiRuntimeDatabaseRequest_RequestTypeEnum = 1
+	ApiRuntimeDatabaseRequest_WRITE       ApiRuntimeDatabaseRequest_RequestTypeEnum = 2
 )
 
-// Enum value maps for WebRuntimeDatabaseRequest_RequestTypeEnum.
+// Enum value maps for ApiRuntimeDatabaseRequest_RequestTypeEnum.
 var (
-	WebRuntimeDatabaseRequest_RequestTypeEnum_name = map[int32]string{
+	ApiRuntimeDatabaseRequest_RequestTypeEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "READ",
 		2: "WRITE",
 	}
-	WebRuntimeDatabaseRequest_RequestTypeEnum_value = map[string]int32{
+	ApiRuntimeDatabaseRequest_RequestTypeEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"READ":        1,
 		"WRITE":       2,
 	}
 )
 
-func (x WebRuntimeDatabaseRequest_RequestTypeEnum) Enum() *WebRuntimeDatabaseRequest_RequestTypeEnum {
-	p := new(WebRuntimeDatabaseRequest_RequestTypeEnum)
+func (x ApiRuntimeDatabaseRequest_RequestTypeEnum) Enum() *ApiRuntimeDatabaseRequest_RequestTypeEnum {
+	p := new(ApiRuntimeDatabaseRequest_RequestTypeEnum)
 	*p = x
 	return p
 }
 
-func (x WebRuntimeDatabaseRequest_RequestTypeEnum) String() string {
+func (x ApiRuntimeDatabaseRequest_RequestTypeEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebRuntimeDatabaseRequest_RequestTypeEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiRuntimeDatabaseRequest_RequestTypeEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[9].Descriptor()
 }
 
-func (WebRuntimeDatabaseRequest_RequestTypeEnum) Type() protoreflect.EnumType {
+func (ApiRuntimeDatabaseRequest_RequestTypeEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[9]
 }
 
-func (x WebRuntimeDatabaseRequest_RequestTypeEnum) Number() protoreflect.EnumNumber {
+func (x ApiRuntimeDatabaseRequest_RequestTypeEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebRuntimeDatabaseRequest_RequestTypeEnum.Descriptor instead.
-func (WebRuntimeDatabaseRequest_RequestTypeEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeDatabaseRequest_RequestTypeEnum.Descriptor instead.
+func (ApiRuntimeDatabaseRequest_RequestTypeEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{22, 0}
 }
 
-type WebRuntimeUnregisterNotificationResponse_StatusEnum int32
+type ApiRuntimeUnregisterNotificationResponse_StatusEnum int32
 
 const (
-	WebRuntimeUnregisterNotificationResponse_UNSPECIFIED WebRuntimeUnregisterNotificationResponse_StatusEnum = 0
-	WebRuntimeUnregisterNotificationResponse_SUCCESS     WebRuntimeUnregisterNotificationResponse_StatusEnum = 1
-	WebRuntimeUnregisterNotificationResponse_FAILURE     WebRuntimeUnregisterNotificationResponse_StatusEnum = 2
+	ApiRuntimeUnregisterNotificationResponse_UNSPECIFIED ApiRuntimeUnregisterNotificationResponse_StatusEnum = 0
+	ApiRuntimeUnregisterNotificationResponse_SUCCESS     ApiRuntimeUnregisterNotificationResponse_StatusEnum = 1
+	ApiRuntimeUnregisterNotificationResponse_FAILURE     ApiRuntimeUnregisterNotificationResponse_StatusEnum = 2
 )
 
-// Enum value maps for WebRuntimeUnregisterNotificationResponse_StatusEnum.
+// Enum value maps for ApiRuntimeUnregisterNotificationResponse_StatusEnum.
 var (
-	WebRuntimeUnregisterNotificationResponse_StatusEnum_name = map[int32]string{
+	ApiRuntimeUnregisterNotificationResponse_StatusEnum_name = map[int32]string{
 		0: "UNSPECIFIED",
 		1: "SUCCESS",
 		2: "FAILURE",
 	}
-	WebRuntimeUnregisterNotificationResponse_StatusEnum_value = map[string]int32{
+	ApiRuntimeUnregisterNotificationResponse_StatusEnum_value = map[string]int32{
 		"UNSPECIFIED": 0,
 		"SUCCESS":     1,
 		"FAILURE":     2,
 	}
 )
 
-func (x WebRuntimeUnregisterNotificationResponse_StatusEnum) Enum() *WebRuntimeUnregisterNotificationResponse_StatusEnum {
-	p := new(WebRuntimeUnregisterNotificationResponse_StatusEnum)
+func (x ApiRuntimeUnregisterNotificationResponse_StatusEnum) Enum() *ApiRuntimeUnregisterNotificationResponse_StatusEnum {
+	p := new(ApiRuntimeUnregisterNotificationResponse_StatusEnum)
 	*p = x
 	return p
 }
 
-func (x WebRuntimeUnregisterNotificationResponse_StatusEnum) String() string {
+func (x ApiRuntimeUnregisterNotificationResponse_StatusEnum) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (WebRuntimeUnregisterNotificationResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
+func (ApiRuntimeUnregisterNotificationResponse_StatusEnum) Descriptor() protoreflect.EnumDescriptor {
 	return file_pkg_protobufs_protobufs_proto_enumTypes[10].Descriptor()
 }
 
-func (WebRuntimeUnregisterNotificationResponse_StatusEnum) Type() protoreflect.EnumType {
+func (ApiRuntimeUnregisterNotificationResponse_StatusEnum) Type() protoreflect.EnumType {
 	return &file_pkg_protobufs_protobufs_proto_enumTypes[10]
 }
 
-func (x WebRuntimeUnregisterNotificationResponse_StatusEnum) Number() protoreflect.EnumNumber {
+func (x ApiRuntimeUnregisterNotificationResponse_StatusEnum) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use WebRuntimeUnregisterNotificationResponse_StatusEnum.Descriptor instead.
-func (WebRuntimeUnregisterNotificationResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeUnregisterNotificationResponse_StatusEnum.Descriptor instead.
+func (ApiRuntimeUnregisterNotificationResponse_StatusEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{29, 0}
 }
 
@@ -669,29 +669,29 @@ func (LogMessage_LogLevelEnum) EnumDescriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{54, 0}
 }
 
-type WebHeader struct {
+type ApiHeader struct {
 	state                protoimpl.MessageState             `protogen:"open.v1"`
 	Id                   string                             `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Timestamp            *timestamppb.Timestamp             `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	AuthenticationStatus WebHeader_AuthenticationStatusEnum `protobuf:"varint,3,opt,name=authenticationStatus,proto3,enum=protobufs.WebHeader_AuthenticationStatusEnum" json:"authenticationStatus,omitempty"`
+	AuthenticationStatus ApiHeader_AuthenticationStatusEnum `protobuf:"varint,3,opt,name=authenticationStatus,proto3,enum=protobufs.ApiHeader_AuthenticationStatusEnum" json:"authenticationStatus,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
-func (x *WebHeader) Reset() {
-	*x = WebHeader{}
+func (x *ApiHeader) Reset() {
+	*x = ApiHeader{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebHeader) String() string {
+func (x *ApiHeader) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebHeader) ProtoMessage() {}
+func (*ApiHeader) ProtoMessage() {}
 
-func (x *WebHeader) ProtoReflect() protoreflect.Message {
+func (x *ApiHeader) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -703,54 +703,54 @@ func (x *WebHeader) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebHeader.ProtoReflect.Descriptor instead.
-func (*WebHeader) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiHeader.ProtoReflect.Descriptor instead.
+func (*ApiHeader) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WebHeader) GetId() string {
+func (x *ApiHeader) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *WebHeader) GetTimestamp() *timestamppb.Timestamp {
+func (x *ApiHeader) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Timestamp
 	}
 	return nil
 }
 
-func (x *WebHeader) GetAuthenticationStatus() WebHeader_AuthenticationStatusEnum {
+func (x *ApiHeader) GetAuthenticationStatus() ApiHeader_AuthenticationStatusEnum {
 	if x != nil {
 		return x.AuthenticationStatus
 	}
-	return WebHeader_UNSPECIFIED
+	return ApiHeader_UNSPECIFIED
 }
 
-type WebMessage struct {
+type ApiMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Header        *WebHeader             `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	Header        *ApiHeader             `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Payload       *anypb.Any             `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebMessage) Reset() {
-	*x = WebMessage{}
+func (x *ApiMessage) Reset() {
+	*x = ApiMessage{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebMessage) String() string {
+func (x *ApiMessage) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebMessage) ProtoMessage() {}
+func (*ApiMessage) ProtoMessage() {}
 
-func (x *WebMessage) ProtoReflect() protoreflect.Message {
+func (x *ApiMessage) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -762,26 +762,26 @@ func (x *WebMessage) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebMessage.ProtoReflect.Descriptor instead.
-func (*WebMessage) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiMessage.ProtoReflect.Descriptor instead.
+func (*ApiMessage) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *WebMessage) GetHeader() *WebHeader {
+func (x *ApiMessage) GetHeader() *ApiHeader {
 	if x != nil {
 		return x.Header
 	}
 	return nil
 }
 
-func (x *WebMessage) GetPayload() *anypb.Any {
+func (x *ApiMessage) GetPayload() *anypb.Any {
 	if x != nil {
 		return x.Payload
 	}
 	return nil
 }
 
-type WebConfigCreateEntityRequest struct {
+type ApiConfigCreateEntityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -790,20 +790,20 @@ type WebConfigCreateEntityRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigCreateEntityRequest) Reset() {
-	*x = WebConfigCreateEntityRequest{}
+func (x *ApiConfigCreateEntityRequest) Reset() {
+	*x = ApiConfigCreateEntityRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigCreateEntityRequest) String() string {
+func (x *ApiConfigCreateEntityRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigCreateEntityRequest) ProtoMessage() {}
+func (*ApiConfigCreateEntityRequest) ProtoMessage() {}
 
-func (x *WebConfigCreateEntityRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigCreateEntityRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -815,54 +815,54 @@ func (x *WebConfigCreateEntityRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigCreateEntityRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigCreateEntityRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigCreateEntityRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigCreateEntityRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *WebConfigCreateEntityRequest) GetType() string {
+func (x *ApiConfigCreateEntityRequest) GetType() string {
 	if x != nil {
 		return x.Type
 	}
 	return ""
 }
 
-func (x *WebConfigCreateEntityRequest) GetName() string {
+func (x *ApiConfigCreateEntityRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *WebConfigCreateEntityRequest) GetParentId() string {
+func (x *ApiConfigCreateEntityRequest) GetParentId() string {
 	if x != nil {
 		return x.ParentId
 	}
 	return ""
 }
 
-type WebConfigCreateEntityResponse struct {
+type ApiConfigCreateEntityResponse struct {
 	state         protoimpl.MessageState                   `protogen:"open.v1"`
-	Status        WebConfigCreateEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigCreateEntityResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigCreateEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigCreateEntityResponse_StatusEnum" json:"status,omitempty"`
 	Id            string                                   `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigCreateEntityResponse) Reset() {
-	*x = WebConfigCreateEntityResponse{}
+func (x *ApiConfigCreateEntityResponse) Reset() {
+	*x = ApiConfigCreateEntityResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigCreateEntityResponse) String() string {
+func (x *ApiConfigCreateEntityResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigCreateEntityResponse) ProtoMessage() {}
+func (*ApiConfigCreateEntityResponse) ProtoMessage() {}
 
-func (x *WebConfigCreateEntityResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigCreateEntityResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -874,46 +874,46 @@ func (x *WebConfigCreateEntityResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigCreateEntityResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigCreateEntityResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigCreateEntityResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigCreateEntityResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *WebConfigCreateEntityResponse) GetStatus() WebConfigCreateEntityResponse_StatusEnum {
+func (x *ApiConfigCreateEntityResponse) GetStatus() ApiConfigCreateEntityResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigCreateEntityResponse_UNSPECIFIED
+	return ApiConfigCreateEntityResponse_UNSPECIFIED
 }
 
-func (x *WebConfigCreateEntityResponse) GetId() string {
+func (x *ApiConfigCreateEntityResponse) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type WebConfigDeleteEntityRequest struct {
+type ApiConfigDeleteEntityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigDeleteEntityRequest) Reset() {
-	*x = WebConfigDeleteEntityRequest{}
+func (x *ApiConfigDeleteEntityRequest) Reset() {
+	*x = ApiConfigDeleteEntityRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigDeleteEntityRequest) String() string {
+func (x *ApiConfigDeleteEntityRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigDeleteEntityRequest) ProtoMessage() {}
+func (*ApiConfigDeleteEntityRequest) ProtoMessage() {}
 
-func (x *WebConfigDeleteEntityRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigDeleteEntityRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -925,39 +925,39 @@ func (x *WebConfigDeleteEntityRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigDeleteEntityRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigDeleteEntityRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigDeleteEntityRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigDeleteEntityRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *WebConfigDeleteEntityRequest) GetId() string {
+func (x *ApiConfigDeleteEntityRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type WebConfigDeleteEntityResponse struct {
+type ApiConfigDeleteEntityResponse struct {
 	state         protoimpl.MessageState                   `protogen:"open.v1"`
-	Status        WebConfigDeleteEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigDeleteEntityResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigDeleteEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigDeleteEntityResponse_StatusEnum" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigDeleteEntityResponse) Reset() {
-	*x = WebConfigDeleteEntityResponse{}
+func (x *ApiConfigDeleteEntityResponse) Reset() {
+	*x = ApiConfigDeleteEntityResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigDeleteEntityResponse) String() string {
+func (x *ApiConfigDeleteEntityResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigDeleteEntityResponse) ProtoMessage() {}
+func (*ApiConfigDeleteEntityResponse) ProtoMessage() {}
 
-func (x *WebConfigDeleteEntityResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigDeleteEntityResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -969,38 +969,38 @@ func (x *WebConfigDeleteEntityResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigDeleteEntityResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigDeleteEntityResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigDeleteEntityResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigDeleteEntityResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *WebConfigDeleteEntityResponse) GetStatus() WebConfigDeleteEntityResponse_StatusEnum {
+func (x *ApiConfigDeleteEntityResponse) GetStatus() ApiConfigDeleteEntityResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigDeleteEntityResponse_UNSPECIFIED
+	return ApiConfigDeleteEntityResponse_UNSPECIFIED
 }
 
-type WebConfigGetEntityTypesRequest struct {
+type ApiConfigGetEntityTypesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetEntityTypesRequest) Reset() {
-	*x = WebConfigGetEntityTypesRequest{}
+func (x *ApiConfigGetEntityTypesRequest) Reset() {
+	*x = ApiConfigGetEntityTypesRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetEntityTypesRequest) String() string {
+func (x *ApiConfigGetEntityTypesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetEntityTypesRequest) ProtoMessage() {}
+func (*ApiConfigGetEntityTypesRequest) ProtoMessage() {}
 
-func (x *WebConfigGetEntityTypesRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetEntityTypesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1012,32 +1012,32 @@ func (x *WebConfigGetEntityTypesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetEntityTypesRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigGetEntityTypesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntityTypesRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetEntityTypesRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{6}
 }
 
-type WebConfigGetEntityTypesResponse struct {
+type ApiConfigGetEntityTypesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Types         []string               `protobuf:"bytes,1,rep,name=types,proto3" json:"types,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetEntityTypesResponse) Reset() {
-	*x = WebConfigGetEntityTypesResponse{}
+func (x *ApiConfigGetEntityTypesResponse) Reset() {
+	*x = ApiConfigGetEntityTypesResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetEntityTypesResponse) String() string {
+func (x *ApiConfigGetEntityTypesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetEntityTypesResponse) ProtoMessage() {}
+func (*ApiConfigGetEntityTypesResponse) ProtoMessage() {}
 
-func (x *WebConfigGetEntityTypesResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetEntityTypesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1049,39 +1049,39 @@ func (x *WebConfigGetEntityTypesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetEntityTypesResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigGetEntityTypesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntityTypesResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetEntityTypesResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *WebConfigGetEntityTypesResponse) GetTypes() []string {
+func (x *ApiConfigGetEntityTypesResponse) GetTypes() []string {
 	if x != nil {
 		return x.Types
 	}
 	return nil
 }
 
-type WebConfigGetEntityRequest struct {
+type ApiConfigGetEntityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetEntityRequest) Reset() {
-	*x = WebConfigGetEntityRequest{}
+func (x *ApiConfigGetEntityRequest) Reset() {
+	*x = ApiConfigGetEntityRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetEntityRequest) String() string {
+func (x *ApiConfigGetEntityRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetEntityRequest) ProtoMessage() {}
+func (*ApiConfigGetEntityRequest) ProtoMessage() {}
 
-func (x *WebConfigGetEntityRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetEntityRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1093,40 +1093,40 @@ func (x *WebConfigGetEntityRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetEntityRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigGetEntityRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntityRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetEntityRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *WebConfigGetEntityRequest) GetId() string {
+func (x *ApiConfigGetEntityRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type WebConfigGetEntityResponse struct {
+type ApiConfigGetEntityResponse struct {
 	state         protoimpl.MessageState                `protogen:"open.v1"`
-	Status        WebConfigGetEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigGetEntityResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigGetEntityResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigGetEntityResponse_StatusEnum" json:"status,omitempty"`
 	Entity        *DatabaseEntity                       `protobuf:"bytes,2,opt,name=entity,proto3" json:"entity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetEntityResponse) Reset() {
-	*x = WebConfigGetEntityResponse{}
+func (x *ApiConfigGetEntityResponse) Reset() {
+	*x = ApiConfigGetEntityResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetEntityResponse) String() string {
+func (x *ApiConfigGetEntityResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetEntityResponse) ProtoMessage() {}
+func (*ApiConfigGetEntityResponse) ProtoMessage() {}
 
-func (x *WebConfigGetEntityResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetEntityResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1138,46 +1138,46 @@ func (x *WebConfigGetEntityResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetEntityResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigGetEntityResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntityResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetEntityResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *WebConfigGetEntityResponse) GetStatus() WebConfigGetEntityResponse_StatusEnum {
+func (x *ApiConfigGetEntityResponse) GetStatus() ApiConfigGetEntityResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigGetEntityResponse_UNSPECIFIED
+	return ApiConfigGetEntityResponse_UNSPECIFIED
 }
 
-func (x *WebConfigGetEntityResponse) GetEntity() *DatabaseEntity {
+func (x *ApiConfigGetEntityResponse) GetEntity() *DatabaseEntity {
 	if x != nil {
 		return x.Entity
 	}
 	return nil
 }
 
-type WebConfigGetFieldSchemaRequest struct {
+type ApiConfigGetFieldSchemaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetFieldSchemaRequest) Reset() {
-	*x = WebConfigGetFieldSchemaRequest{}
+func (x *ApiConfigGetFieldSchemaRequest) Reset() {
+	*x = ApiConfigGetFieldSchemaRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetFieldSchemaRequest) String() string {
+func (x *ApiConfigGetFieldSchemaRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetFieldSchemaRequest) ProtoMessage() {}
+func (*ApiConfigGetFieldSchemaRequest) ProtoMessage() {}
 
-func (x *WebConfigGetFieldSchemaRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetFieldSchemaRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1189,40 +1189,40 @@ func (x *WebConfigGetFieldSchemaRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetFieldSchemaRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigGetFieldSchemaRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetFieldSchemaRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetFieldSchemaRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *WebConfigGetFieldSchemaRequest) GetField() string {
+func (x *ApiConfigGetFieldSchemaRequest) GetField() string {
 	if x != nil {
 		return x.Field
 	}
 	return ""
 }
 
-type WebConfigGetFieldSchemaResponse struct {
+type ApiConfigGetFieldSchemaResponse struct {
 	state         protoimpl.MessageState                     `protogen:"open.v1"`
-	Status        WebConfigGetFieldSchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigGetFieldSchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigGetFieldSchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigGetFieldSchemaResponse_StatusEnum" json:"status,omitempty"`
 	Schema        *DatabaseFieldSchema                       `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetFieldSchemaResponse) Reset() {
-	*x = WebConfigGetFieldSchemaResponse{}
+func (x *ApiConfigGetFieldSchemaResponse) Reset() {
+	*x = ApiConfigGetFieldSchemaResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetFieldSchemaResponse) String() string {
+func (x *ApiConfigGetFieldSchemaResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetFieldSchemaResponse) ProtoMessage() {}
+func (*ApiConfigGetFieldSchemaResponse) ProtoMessage() {}
 
-func (x *WebConfigGetFieldSchemaResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetFieldSchemaResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1234,46 +1234,46 @@ func (x *WebConfigGetFieldSchemaResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetFieldSchemaResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigGetFieldSchemaResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetFieldSchemaResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetFieldSchemaResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *WebConfigGetFieldSchemaResponse) GetStatus() WebConfigGetFieldSchemaResponse_StatusEnum {
+func (x *ApiConfigGetFieldSchemaResponse) GetStatus() ApiConfigGetFieldSchemaResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigGetFieldSchemaResponse_UNSPECIFIED
+	return ApiConfigGetFieldSchemaResponse_UNSPECIFIED
 }
 
-func (x *WebConfigGetFieldSchemaResponse) GetSchema() *DatabaseFieldSchema {
+func (x *ApiConfigGetFieldSchemaResponse) GetSchema() *DatabaseFieldSchema {
 	if x != nil {
 		return x.Schema
 	}
 	return nil
 }
 
-type WebConfigGetEntitySchemaRequest struct {
+type ApiConfigGetEntitySchemaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetEntitySchemaRequest) Reset() {
-	*x = WebConfigGetEntitySchemaRequest{}
+func (x *ApiConfigGetEntitySchemaRequest) Reset() {
+	*x = ApiConfigGetEntitySchemaRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetEntitySchemaRequest) String() string {
+func (x *ApiConfigGetEntitySchemaRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetEntitySchemaRequest) ProtoMessage() {}
+func (*ApiConfigGetEntitySchemaRequest) ProtoMessage() {}
 
-func (x *WebConfigGetEntitySchemaRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetEntitySchemaRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1285,40 +1285,40 @@ func (x *WebConfigGetEntitySchemaRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetEntitySchemaRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigGetEntitySchemaRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntitySchemaRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetEntitySchemaRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *WebConfigGetEntitySchemaRequest) GetType() string {
+func (x *ApiConfigGetEntitySchemaRequest) GetType() string {
 	if x != nil {
 		return x.Type
 	}
 	return ""
 }
 
-type WebConfigGetEntitySchemaResponse struct {
+type ApiConfigGetEntitySchemaResponse struct {
 	state         protoimpl.MessageState                      `protogen:"open.v1"`
-	Status        WebConfigGetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigGetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigGetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigGetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
 	Schema        *DatabaseEntitySchema                       `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetEntitySchemaResponse) Reset() {
-	*x = WebConfigGetEntitySchemaResponse{}
+func (x *ApiConfigGetEntitySchemaResponse) Reset() {
+	*x = ApiConfigGetEntitySchemaResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetEntitySchemaResponse) String() string {
+func (x *ApiConfigGetEntitySchemaResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetEntitySchemaResponse) ProtoMessage() {}
+func (*ApiConfigGetEntitySchemaResponse) ProtoMessage() {}
 
-func (x *WebConfigGetEntitySchemaResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetEntitySchemaResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1330,46 +1330,46 @@ func (x *WebConfigGetEntitySchemaResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetEntitySchemaResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigGetEntitySchemaResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetEntitySchemaResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetEntitySchemaResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *WebConfigGetEntitySchemaResponse) GetStatus() WebConfigGetEntitySchemaResponse_StatusEnum {
+func (x *ApiConfigGetEntitySchemaResponse) GetStatus() ApiConfigGetEntitySchemaResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigGetEntitySchemaResponse_UNSPECIFIED
+	return ApiConfigGetEntitySchemaResponse_UNSPECIFIED
 }
 
-func (x *WebConfigGetEntitySchemaResponse) GetSchema() *DatabaseEntitySchema {
+func (x *ApiConfigGetEntitySchemaResponse) GetSchema() *DatabaseEntitySchema {
 	if x != nil {
 		return x.Schema
 	}
 	return nil
 }
 
-type WebConfigSetEntitySchemaRequest struct {
+type ApiConfigSetEntitySchemaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Schema        *DatabaseEntitySchema  `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigSetEntitySchemaRequest) Reset() {
-	*x = WebConfigSetEntitySchemaRequest{}
+func (x *ApiConfigSetEntitySchemaRequest) Reset() {
+	*x = ApiConfigSetEntitySchemaRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigSetEntitySchemaRequest) String() string {
+func (x *ApiConfigSetEntitySchemaRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigSetEntitySchemaRequest) ProtoMessage() {}
+func (*ApiConfigSetEntitySchemaRequest) ProtoMessage() {}
 
-func (x *WebConfigSetEntitySchemaRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigSetEntitySchemaRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1381,39 +1381,39 @@ func (x *WebConfigSetEntitySchemaRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigSetEntitySchemaRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigSetEntitySchemaRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigSetEntitySchemaRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigSetEntitySchemaRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *WebConfigSetEntitySchemaRequest) GetSchema() *DatabaseEntitySchema {
+func (x *ApiConfigSetEntitySchemaRequest) GetSchema() *DatabaseEntitySchema {
 	if x != nil {
 		return x.Schema
 	}
 	return nil
 }
 
-type WebConfigSetEntitySchemaResponse struct {
+type ApiConfigSetEntitySchemaResponse struct {
 	state         protoimpl.MessageState                      `protogen:"open.v1"`
-	Status        WebConfigSetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigSetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigSetEntitySchemaResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigSetEntitySchemaResponse_StatusEnum" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigSetEntitySchemaResponse) Reset() {
-	*x = WebConfigSetEntitySchemaResponse{}
+func (x *ApiConfigSetEntitySchemaResponse) Reset() {
+	*x = ApiConfigSetEntitySchemaResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigSetEntitySchemaResponse) String() string {
+func (x *ApiConfigSetEntitySchemaResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigSetEntitySchemaResponse) ProtoMessage() {}
+func (*ApiConfigSetEntitySchemaResponse) ProtoMessage() {}
 
-func (x *WebConfigSetEntitySchemaResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigSetEntitySchemaResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1425,38 +1425,38 @@ func (x *WebConfigSetEntitySchemaResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigSetEntitySchemaResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigSetEntitySchemaResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigSetEntitySchemaResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigSetEntitySchemaResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *WebConfigSetEntitySchemaResponse) GetStatus() WebConfigSetEntitySchemaResponse_StatusEnum {
+func (x *ApiConfigSetEntitySchemaResponse) GetStatus() ApiConfigSetEntitySchemaResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigSetEntitySchemaResponse_UNSPECIFIED
+	return ApiConfigSetEntitySchemaResponse_UNSPECIFIED
 }
 
-type WebConfigCreateSnapshotRequest struct {
+type ApiConfigCreateSnapshotRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigCreateSnapshotRequest) Reset() {
-	*x = WebConfigCreateSnapshotRequest{}
+func (x *ApiConfigCreateSnapshotRequest) Reset() {
+	*x = ApiConfigCreateSnapshotRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigCreateSnapshotRequest) String() string {
+func (x *ApiConfigCreateSnapshotRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigCreateSnapshotRequest) ProtoMessage() {}
+func (*ApiConfigCreateSnapshotRequest) ProtoMessage() {}
 
-func (x *WebConfigCreateSnapshotRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigCreateSnapshotRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1468,33 +1468,33 @@ func (x *WebConfigCreateSnapshotRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigCreateSnapshotRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigCreateSnapshotRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigCreateSnapshotRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigCreateSnapshotRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{16}
 }
 
-type WebConfigCreateSnapshotResponse struct {
+type ApiConfigCreateSnapshotResponse struct {
 	state         protoimpl.MessageState                     `protogen:"open.v1"`
-	Status        WebConfigCreateSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigCreateSnapshotResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigCreateSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigCreateSnapshotResponse_StatusEnum" json:"status,omitempty"`
 	Snapshot      *DatabaseSnapshot                          `protobuf:"bytes,2,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigCreateSnapshotResponse) Reset() {
-	*x = WebConfigCreateSnapshotResponse{}
+func (x *ApiConfigCreateSnapshotResponse) Reset() {
+	*x = ApiConfigCreateSnapshotResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigCreateSnapshotResponse) String() string {
+func (x *ApiConfigCreateSnapshotResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigCreateSnapshotResponse) ProtoMessage() {}
+func (*ApiConfigCreateSnapshotResponse) ProtoMessage() {}
 
-func (x *WebConfigCreateSnapshotResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigCreateSnapshotResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1506,46 +1506,46 @@ func (x *WebConfigCreateSnapshotResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigCreateSnapshotResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigCreateSnapshotResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigCreateSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigCreateSnapshotResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *WebConfigCreateSnapshotResponse) GetStatus() WebConfigCreateSnapshotResponse_StatusEnum {
+func (x *ApiConfigCreateSnapshotResponse) GetStatus() ApiConfigCreateSnapshotResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigCreateSnapshotResponse_UNSPECIFIED
+	return ApiConfigCreateSnapshotResponse_UNSPECIFIED
 }
 
-func (x *WebConfigCreateSnapshotResponse) GetSnapshot() *DatabaseSnapshot {
+func (x *ApiConfigCreateSnapshotResponse) GetSnapshot() *DatabaseSnapshot {
 	if x != nil {
 		return x.Snapshot
 	}
 	return nil
 }
 
-type WebConfigRestoreSnapshotRequest struct {
+type ApiConfigRestoreSnapshotRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Snapshot      *DatabaseSnapshot      `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigRestoreSnapshotRequest) Reset() {
-	*x = WebConfigRestoreSnapshotRequest{}
+func (x *ApiConfigRestoreSnapshotRequest) Reset() {
+	*x = ApiConfigRestoreSnapshotRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigRestoreSnapshotRequest) String() string {
+func (x *ApiConfigRestoreSnapshotRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigRestoreSnapshotRequest) ProtoMessage() {}
+func (*ApiConfigRestoreSnapshotRequest) ProtoMessage() {}
 
-func (x *WebConfigRestoreSnapshotRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigRestoreSnapshotRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1557,39 +1557,39 @@ func (x *WebConfigRestoreSnapshotRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigRestoreSnapshotRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigRestoreSnapshotRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigRestoreSnapshotRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigRestoreSnapshotRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *WebConfigRestoreSnapshotRequest) GetSnapshot() *DatabaseSnapshot {
+func (x *ApiConfigRestoreSnapshotRequest) GetSnapshot() *DatabaseSnapshot {
 	if x != nil {
 		return x.Snapshot
 	}
 	return nil
 }
 
-type WebConfigRestoreSnapshotResponse struct {
+type ApiConfigRestoreSnapshotResponse struct {
 	state         protoimpl.MessageState                      `protogen:"open.v1"`
-	Status        WebConfigRestoreSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebConfigRestoreSnapshotResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiConfigRestoreSnapshotResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiConfigRestoreSnapshotResponse_StatusEnum" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigRestoreSnapshotResponse) Reset() {
-	*x = WebConfigRestoreSnapshotResponse{}
+func (x *ApiConfigRestoreSnapshotResponse) Reset() {
+	*x = ApiConfigRestoreSnapshotResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigRestoreSnapshotResponse) String() string {
+func (x *ApiConfigRestoreSnapshotResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigRestoreSnapshotResponse) ProtoMessage() {}
+func (*ApiConfigRestoreSnapshotResponse) ProtoMessage() {}
 
-func (x *WebConfigRestoreSnapshotResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigRestoreSnapshotResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1601,38 +1601,38 @@ func (x *WebConfigRestoreSnapshotResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigRestoreSnapshotResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigRestoreSnapshotResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigRestoreSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigRestoreSnapshotResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *WebConfigRestoreSnapshotResponse) GetStatus() WebConfigRestoreSnapshotResponse_StatusEnum {
+func (x *ApiConfigRestoreSnapshotResponse) GetStatus() ApiConfigRestoreSnapshotResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebConfigRestoreSnapshotResponse_UNSPECIFIED
+	return ApiConfigRestoreSnapshotResponse_UNSPECIFIED
 }
 
-type WebConfigGetRootRequest struct {
+type ApiConfigGetRootRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetRootRequest) Reset() {
-	*x = WebConfigGetRootRequest{}
+func (x *ApiConfigGetRootRequest) Reset() {
+	*x = ApiConfigGetRootRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetRootRequest) String() string {
+func (x *ApiConfigGetRootRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetRootRequest) ProtoMessage() {}
+func (*ApiConfigGetRootRequest) ProtoMessage() {}
 
-func (x *WebConfigGetRootRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetRootRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1644,32 +1644,32 @@ func (x *WebConfigGetRootRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetRootRequest.ProtoReflect.Descriptor instead.
-func (*WebConfigGetRootRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetRootRequest.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetRootRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{20}
 }
 
-type WebConfigGetRootResponse struct {
+type ApiConfigGetRootResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RootId        string                 `protobuf:"bytes,1,opt,name=rootId,proto3" json:"rootId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebConfigGetRootResponse) Reset() {
-	*x = WebConfigGetRootResponse{}
+func (x *ApiConfigGetRootResponse) Reset() {
+	*x = ApiConfigGetRootResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebConfigGetRootResponse) String() string {
+func (x *ApiConfigGetRootResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebConfigGetRootResponse) ProtoMessage() {}
+func (*ApiConfigGetRootResponse) ProtoMessage() {}
 
-func (x *WebConfigGetRootResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiConfigGetRootResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1681,40 +1681,40 @@ func (x *WebConfigGetRootResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebConfigGetRootResponse.ProtoReflect.Descriptor instead.
-func (*WebConfigGetRootResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiConfigGetRootResponse.ProtoReflect.Descriptor instead.
+func (*ApiConfigGetRootResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *WebConfigGetRootResponse) GetRootId() string {
+func (x *ApiConfigGetRootResponse) GetRootId() string {
 	if x != nil {
 		return x.RootId
 	}
 	return ""
 }
 
-type WebRuntimeDatabaseRequest struct {
+type ApiRuntimeDatabaseRequest struct {
 	state         protoimpl.MessageState                    `protogen:"open.v1"`
-	RequestType   WebRuntimeDatabaseRequest_RequestTypeEnum `protobuf:"varint,1,opt,name=requestType,proto3,enum=protobufs.WebRuntimeDatabaseRequest_RequestTypeEnum" json:"requestType,omitempty"`
+	RequestType   ApiRuntimeDatabaseRequest_RequestTypeEnum `protobuf:"varint,1,opt,name=requestType,proto3,enum=protobufs.ApiRuntimeDatabaseRequest_RequestTypeEnum" json:"requestType,omitempty"`
 	Requests      []*DatabaseRequest                        `protobuf:"bytes,2,rep,name=requests,proto3" json:"requests,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeDatabaseRequest) Reset() {
-	*x = WebRuntimeDatabaseRequest{}
+func (x *ApiRuntimeDatabaseRequest) Reset() {
+	*x = ApiRuntimeDatabaseRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeDatabaseRequest) String() string {
+func (x *ApiRuntimeDatabaseRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeDatabaseRequest) ProtoMessage() {}
+func (*ApiRuntimeDatabaseRequest) ProtoMessage() {}
 
-func (x *WebRuntimeDatabaseRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeDatabaseRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1726,46 +1726,46 @@ func (x *WebRuntimeDatabaseRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeDatabaseRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeDatabaseRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeDatabaseRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeDatabaseRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *WebRuntimeDatabaseRequest) GetRequestType() WebRuntimeDatabaseRequest_RequestTypeEnum {
+func (x *ApiRuntimeDatabaseRequest) GetRequestType() ApiRuntimeDatabaseRequest_RequestTypeEnum {
 	if x != nil {
 		return x.RequestType
 	}
-	return WebRuntimeDatabaseRequest_UNSPECIFIED
+	return ApiRuntimeDatabaseRequest_UNSPECIFIED
 }
 
-func (x *WebRuntimeDatabaseRequest) GetRequests() []*DatabaseRequest {
+func (x *ApiRuntimeDatabaseRequest) GetRequests() []*DatabaseRequest {
 	if x != nil {
 		return x.Requests
 	}
 	return nil
 }
 
-type WebRuntimeDatabaseResponse struct {
+type ApiRuntimeDatabaseResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Response      []*DatabaseRequest     `protobuf:"bytes,2,rep,name=response,proto3" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeDatabaseResponse) Reset() {
-	*x = WebRuntimeDatabaseResponse{}
+func (x *ApiRuntimeDatabaseResponse) Reset() {
+	*x = ApiRuntimeDatabaseResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeDatabaseResponse) String() string {
+func (x *ApiRuntimeDatabaseResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeDatabaseResponse) ProtoMessage() {}
+func (*ApiRuntimeDatabaseResponse) ProtoMessage() {}
 
-func (x *WebRuntimeDatabaseResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeDatabaseResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1777,39 +1777,39 @@ func (x *WebRuntimeDatabaseResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeDatabaseResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeDatabaseResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeDatabaseResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeDatabaseResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *WebRuntimeDatabaseResponse) GetResponse() []*DatabaseRequest {
+func (x *ApiRuntimeDatabaseResponse) GetResponse() []*DatabaseRequest {
 	if x != nil {
 		return x.Response
 	}
 	return nil
 }
 
-type WebRuntimeRegisterNotificationRequest struct {
+type ApiRuntimeRegisterNotificationRequest struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
 	Requests      []*DatabaseNotificationConfig `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeRegisterNotificationRequest) Reset() {
-	*x = WebRuntimeRegisterNotificationRequest{}
+func (x *ApiRuntimeRegisterNotificationRequest) Reset() {
+	*x = ApiRuntimeRegisterNotificationRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeRegisterNotificationRequest) String() string {
+func (x *ApiRuntimeRegisterNotificationRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeRegisterNotificationRequest) ProtoMessage() {}
+func (*ApiRuntimeRegisterNotificationRequest) ProtoMessage() {}
 
-func (x *WebRuntimeRegisterNotificationRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeRegisterNotificationRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1821,39 +1821,39 @@ func (x *WebRuntimeRegisterNotificationRequest) ProtoReflect() protoreflect.Mess
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeRegisterNotificationRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeRegisterNotificationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeRegisterNotificationRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeRegisterNotificationRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *WebRuntimeRegisterNotificationRequest) GetRequests() []*DatabaseNotificationConfig {
+func (x *ApiRuntimeRegisterNotificationRequest) GetRequests() []*DatabaseNotificationConfig {
 	if x != nil {
 		return x.Requests
 	}
 	return nil
 }
 
-type WebRuntimeRegisterNotificationResponse struct {
+type ApiRuntimeRegisterNotificationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Tokens        []string               `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeRegisterNotificationResponse) Reset() {
-	*x = WebRuntimeRegisterNotificationResponse{}
+func (x *ApiRuntimeRegisterNotificationResponse) Reset() {
+	*x = ApiRuntimeRegisterNotificationResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeRegisterNotificationResponse) String() string {
+func (x *ApiRuntimeRegisterNotificationResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeRegisterNotificationResponse) ProtoMessage() {}
+func (*ApiRuntimeRegisterNotificationResponse) ProtoMessage() {}
 
-func (x *WebRuntimeRegisterNotificationResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeRegisterNotificationResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1865,38 +1865,38 @@ func (x *WebRuntimeRegisterNotificationResponse) ProtoReflect() protoreflect.Mes
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeRegisterNotificationResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeRegisterNotificationResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeRegisterNotificationResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeRegisterNotificationResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *WebRuntimeRegisterNotificationResponse) GetTokens() []string {
+func (x *ApiRuntimeRegisterNotificationResponse) GetTokens() []string {
 	if x != nil {
 		return x.Tokens
 	}
 	return nil
 }
 
-type WebRuntimeGetNotificationsRequest struct {
+type ApiRuntimeGetNotificationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeGetNotificationsRequest) Reset() {
-	*x = WebRuntimeGetNotificationsRequest{}
+func (x *ApiRuntimeGetNotificationsRequest) Reset() {
+	*x = ApiRuntimeGetNotificationsRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeGetNotificationsRequest) String() string {
+func (x *ApiRuntimeGetNotificationsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeGetNotificationsRequest) ProtoMessage() {}
+func (*ApiRuntimeGetNotificationsRequest) ProtoMessage() {}
 
-func (x *WebRuntimeGetNotificationsRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeGetNotificationsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1908,32 +1908,32 @@ func (x *WebRuntimeGetNotificationsRequest) ProtoReflect() protoreflect.Message 
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeGetNotificationsRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeGetNotificationsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeGetNotificationsRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeGetNotificationsRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{26}
 }
 
-type WebRuntimeGetNotificationsResponse struct {
+type ApiRuntimeGetNotificationsResponse struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	Notifications []*DatabaseNotification `protobuf:"bytes,1,rep,name=notifications,proto3" json:"notifications,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeGetNotificationsResponse) Reset() {
-	*x = WebRuntimeGetNotificationsResponse{}
+func (x *ApiRuntimeGetNotificationsResponse) Reset() {
+	*x = ApiRuntimeGetNotificationsResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeGetNotificationsResponse) String() string {
+func (x *ApiRuntimeGetNotificationsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeGetNotificationsResponse) ProtoMessage() {}
+func (*ApiRuntimeGetNotificationsResponse) ProtoMessage() {}
 
-func (x *WebRuntimeGetNotificationsResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeGetNotificationsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1945,39 +1945,39 @@ func (x *WebRuntimeGetNotificationsResponse) ProtoReflect() protoreflect.Message
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeGetNotificationsResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeGetNotificationsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeGetNotificationsResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeGetNotificationsResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *WebRuntimeGetNotificationsResponse) GetNotifications() []*DatabaseNotification {
+func (x *ApiRuntimeGetNotificationsResponse) GetNotifications() []*DatabaseNotification {
 	if x != nil {
 		return x.Notifications
 	}
 	return nil
 }
 
-type WebRuntimeUnregisterNotificationRequest struct {
+type ApiRuntimeUnregisterNotificationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Tokens        []string               `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeUnregisterNotificationRequest) Reset() {
-	*x = WebRuntimeUnregisterNotificationRequest{}
+func (x *ApiRuntimeUnregisterNotificationRequest) Reset() {
+	*x = ApiRuntimeUnregisterNotificationRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeUnregisterNotificationRequest) String() string {
+func (x *ApiRuntimeUnregisterNotificationRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeUnregisterNotificationRequest) ProtoMessage() {}
+func (*ApiRuntimeUnregisterNotificationRequest) ProtoMessage() {}
 
-func (x *WebRuntimeUnregisterNotificationRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeUnregisterNotificationRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1989,39 +1989,39 @@ func (x *WebRuntimeUnregisterNotificationRequest) ProtoReflect() protoreflect.Me
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeUnregisterNotificationRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeUnregisterNotificationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeUnregisterNotificationRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeUnregisterNotificationRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *WebRuntimeUnregisterNotificationRequest) GetTokens() []string {
+func (x *ApiRuntimeUnregisterNotificationRequest) GetTokens() []string {
 	if x != nil {
 		return x.Tokens
 	}
 	return nil
 }
 
-type WebRuntimeUnregisterNotificationResponse struct {
+type ApiRuntimeUnregisterNotificationResponse struct {
 	state         protoimpl.MessageState                              `protogen:"open.v1"`
-	Status        WebRuntimeUnregisterNotificationResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.WebRuntimeUnregisterNotificationResponse_StatusEnum" json:"status,omitempty"`
+	Status        ApiRuntimeUnregisterNotificationResponse_StatusEnum `protobuf:"varint,1,opt,name=status,proto3,enum=protobufs.ApiRuntimeUnregisterNotificationResponse_StatusEnum" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeUnregisterNotificationResponse) Reset() {
-	*x = WebRuntimeUnregisterNotificationResponse{}
+func (x *ApiRuntimeUnregisterNotificationResponse) Reset() {
+	*x = ApiRuntimeUnregisterNotificationResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeUnregisterNotificationResponse) String() string {
+func (x *ApiRuntimeUnregisterNotificationResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeUnregisterNotificationResponse) ProtoMessage() {}
+func (*ApiRuntimeUnregisterNotificationResponse) ProtoMessage() {}
 
-func (x *WebRuntimeUnregisterNotificationResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeUnregisterNotificationResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2033,38 +2033,38 @@ func (x *WebRuntimeUnregisterNotificationResponse) ProtoReflect() protoreflect.M
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeUnregisterNotificationResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeUnregisterNotificationResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeUnregisterNotificationResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeUnregisterNotificationResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *WebRuntimeUnregisterNotificationResponse) GetStatus() WebRuntimeUnregisterNotificationResponse_StatusEnum {
+func (x *ApiRuntimeUnregisterNotificationResponse) GetStatus() ApiRuntimeUnregisterNotificationResponse_StatusEnum {
 	if x != nil {
 		return x.Status
 	}
-	return WebRuntimeUnregisterNotificationResponse_UNSPECIFIED
+	return ApiRuntimeUnregisterNotificationResponse_UNSPECIFIED
 }
 
-type WebRuntimeGetDatabaseConnectionStatusRequest struct {
+type ApiRuntimeGetDatabaseConnectionStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeGetDatabaseConnectionStatusRequest) Reset() {
-	*x = WebRuntimeGetDatabaseConnectionStatusRequest{}
+func (x *ApiRuntimeGetDatabaseConnectionStatusRequest) Reset() {
+	*x = ApiRuntimeGetDatabaseConnectionStatusRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeGetDatabaseConnectionStatusRequest) String() string {
+func (x *ApiRuntimeGetDatabaseConnectionStatusRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeGetDatabaseConnectionStatusRequest) ProtoMessage() {}
+func (*ApiRuntimeGetDatabaseConnectionStatusRequest) ProtoMessage() {}
 
-func (x *WebRuntimeGetDatabaseConnectionStatusRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeGetDatabaseConnectionStatusRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2076,32 +2076,32 @@ func (x *WebRuntimeGetDatabaseConnectionStatusRequest) ProtoReflect() protorefle
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeGetDatabaseConnectionStatusRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeGetDatabaseConnectionStatusRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeGetDatabaseConnectionStatusRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeGetDatabaseConnectionStatusRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{30}
 }
 
-type WebRuntimeGetDatabaseConnectionStatusResponse struct {
+type ApiRuntimeGetDatabaseConnectionStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Connected     bool                   `protobuf:"varint,1,opt,name=connected,proto3" json:"connected,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeGetDatabaseConnectionStatusResponse) Reset() {
-	*x = WebRuntimeGetDatabaseConnectionStatusResponse{}
+func (x *ApiRuntimeGetDatabaseConnectionStatusResponse) Reset() {
+	*x = ApiRuntimeGetDatabaseConnectionStatusResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeGetDatabaseConnectionStatusResponse) String() string {
+func (x *ApiRuntimeGetDatabaseConnectionStatusResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeGetDatabaseConnectionStatusResponse) ProtoMessage() {}
+func (*ApiRuntimeGetDatabaseConnectionStatusResponse) ProtoMessage() {}
 
-func (x *WebRuntimeGetDatabaseConnectionStatusResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeGetDatabaseConnectionStatusResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2113,39 +2113,39 @@ func (x *WebRuntimeGetDatabaseConnectionStatusResponse) ProtoReflect() protorefl
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeGetDatabaseConnectionStatusResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeGetDatabaseConnectionStatusResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeGetDatabaseConnectionStatusResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeGetDatabaseConnectionStatusResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *WebRuntimeGetDatabaseConnectionStatusResponse) GetConnected() bool {
+func (x *ApiRuntimeGetDatabaseConnectionStatusResponse) GetConnected() bool {
 	if x != nil {
 		return x.Connected
 	}
 	return false
 }
 
-type WebRuntimeGetEntitiesRequest struct {
+type ApiRuntimeGetEntitiesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntityType    string                 `protobuf:"bytes,1,opt,name=entityType,proto3" json:"entityType,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeGetEntitiesRequest) Reset() {
-	*x = WebRuntimeGetEntitiesRequest{}
+func (x *ApiRuntimeGetEntitiesRequest) Reset() {
+	*x = ApiRuntimeGetEntitiesRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeGetEntitiesRequest) String() string {
+func (x *ApiRuntimeGetEntitiesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeGetEntitiesRequest) ProtoMessage() {}
+func (*ApiRuntimeGetEntitiesRequest) ProtoMessage() {}
 
-func (x *WebRuntimeGetEntitiesRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeGetEntitiesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2157,39 +2157,39 @@ func (x *WebRuntimeGetEntitiesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeGetEntitiesRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeGetEntitiesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeGetEntitiesRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeGetEntitiesRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{32}
 }
 
-func (x *WebRuntimeGetEntitiesRequest) GetEntityType() string {
+func (x *ApiRuntimeGetEntitiesRequest) GetEntityType() string {
 	if x != nil {
 		return x.EntityType
 	}
 	return ""
 }
 
-type WebRuntimeGetEntitiesResponse struct {
+type ApiRuntimeGetEntitiesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entities      []*DatabaseEntity      `protobuf:"bytes,1,rep,name=entities,proto3" json:"entities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeGetEntitiesResponse) Reset() {
-	*x = WebRuntimeGetEntitiesResponse{}
+func (x *ApiRuntimeGetEntitiesResponse) Reset() {
+	*x = ApiRuntimeGetEntitiesResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeGetEntitiesResponse) String() string {
+func (x *ApiRuntimeGetEntitiesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeGetEntitiesResponse) ProtoMessage() {}
+func (*ApiRuntimeGetEntitiesResponse) ProtoMessage() {}
 
-func (x *WebRuntimeGetEntitiesResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeGetEntitiesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2201,19 +2201,19 @@ func (x *WebRuntimeGetEntitiesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeGetEntitiesResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeGetEntitiesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeGetEntitiesResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeGetEntitiesResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *WebRuntimeGetEntitiesResponse) GetEntities() []*DatabaseEntity {
+func (x *ApiRuntimeGetEntitiesResponse) GetEntities() []*DatabaseEntity {
 	if x != nil {
 		return x.Entities
 	}
 	return nil
 }
 
-type WebRuntimeFieldExistsRequest struct {
+type ApiRuntimeFieldExistsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FieldName     string                 `protobuf:"bytes,1,opt,name=fieldName,proto3" json:"fieldName,omitempty"`
 	EntityType    string                 `protobuf:"bytes,2,opt,name=entityType,proto3" json:"entityType,omitempty"`
@@ -2221,20 +2221,20 @@ type WebRuntimeFieldExistsRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeFieldExistsRequest) Reset() {
-	*x = WebRuntimeFieldExistsRequest{}
+func (x *ApiRuntimeFieldExistsRequest) Reset() {
+	*x = ApiRuntimeFieldExistsRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeFieldExistsRequest) String() string {
+func (x *ApiRuntimeFieldExistsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeFieldExistsRequest) ProtoMessage() {}
+func (*ApiRuntimeFieldExistsRequest) ProtoMessage() {}
 
-func (x *WebRuntimeFieldExistsRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeFieldExistsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2246,46 +2246,46 @@ func (x *WebRuntimeFieldExistsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeFieldExistsRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeFieldExistsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeFieldExistsRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeFieldExistsRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *WebRuntimeFieldExistsRequest) GetFieldName() string {
+func (x *ApiRuntimeFieldExistsRequest) GetFieldName() string {
 	if x != nil {
 		return x.FieldName
 	}
 	return ""
 }
 
-func (x *WebRuntimeFieldExistsRequest) GetEntityType() string {
+func (x *ApiRuntimeFieldExistsRequest) GetEntityType() string {
 	if x != nil {
 		return x.EntityType
 	}
 	return ""
 }
 
-type WebRuntimeFieldExistsResponse struct {
+type ApiRuntimeFieldExistsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Exists        bool                   `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeFieldExistsResponse) Reset() {
-	*x = WebRuntimeFieldExistsResponse{}
+func (x *ApiRuntimeFieldExistsResponse) Reset() {
+	*x = ApiRuntimeFieldExistsResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeFieldExistsResponse) String() string {
+func (x *ApiRuntimeFieldExistsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeFieldExistsResponse) ProtoMessage() {}
+func (*ApiRuntimeFieldExistsResponse) ProtoMessage() {}
 
-func (x *WebRuntimeFieldExistsResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeFieldExistsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2297,39 +2297,39 @@ func (x *WebRuntimeFieldExistsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeFieldExistsResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeFieldExistsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeFieldExistsResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeFieldExistsResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *WebRuntimeFieldExistsResponse) GetExists() bool {
+func (x *ApiRuntimeFieldExistsResponse) GetExists() bool {
 	if x != nil {
 		return x.Exists
 	}
 	return false
 }
 
-type WebRuntimeEntityExistsRequest struct {
+type ApiRuntimeEntityExistsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntityId      string                 `protobuf:"bytes,1,opt,name=entityId,proto3" json:"entityId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeEntityExistsRequest) Reset() {
-	*x = WebRuntimeEntityExistsRequest{}
+func (x *ApiRuntimeEntityExistsRequest) Reset() {
+	*x = ApiRuntimeEntityExistsRequest{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeEntityExistsRequest) String() string {
+func (x *ApiRuntimeEntityExistsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeEntityExistsRequest) ProtoMessage() {}
+func (*ApiRuntimeEntityExistsRequest) ProtoMessage() {}
 
-func (x *WebRuntimeEntityExistsRequest) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeEntityExistsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2341,39 +2341,39 @@ func (x *WebRuntimeEntityExistsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeEntityExistsRequest.ProtoReflect.Descriptor instead.
-func (*WebRuntimeEntityExistsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeEntityExistsRequest.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeEntityExistsRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{36}
 }
 
-func (x *WebRuntimeEntityExistsRequest) GetEntityId() string {
+func (x *ApiRuntimeEntityExistsRequest) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
 	return ""
 }
 
-type WebRuntimeEntityExistsResponse struct {
+type ApiRuntimeEntityExistsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Exists        bool                   `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WebRuntimeEntityExistsResponse) Reset() {
-	*x = WebRuntimeEntityExistsResponse{}
+func (x *ApiRuntimeEntityExistsResponse) Reset() {
+	*x = ApiRuntimeEntityExistsResponse{}
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WebRuntimeEntityExistsResponse) String() string {
+func (x *ApiRuntimeEntityExistsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WebRuntimeEntityExistsResponse) ProtoMessage() {}
+func (*ApiRuntimeEntityExistsResponse) ProtoMessage() {}
 
-func (x *WebRuntimeEntityExistsResponse) ProtoReflect() protoreflect.Message {
+func (x *ApiRuntimeEntityExistsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_protobufs_protobufs_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2385,12 +2385,12 @@ func (x *WebRuntimeEntityExistsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WebRuntimeEntityExistsResponse.ProtoReflect.Descriptor instead.
-func (*WebRuntimeEntityExistsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApiRuntimeEntityExistsResponse.ProtoReflect.Descriptor instead.
+func (*ApiRuntimeEntityExistsResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_protobufs_protobufs_proto_rawDescGZIP(), []int{37}
 }
 
-func (x *WebRuntimeEntityExistsResponse) GetExists() bool {
+func (x *ApiRuntimeEntityExistsResponse) GetExists() bool {
 	if x != nil {
 		return x.Exists
 	}
@@ -3394,7 +3394,7 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x74, 0x69, 0x6d, 0x65,
 	0x73, 0x74, 0x61, 0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x19, 0x67, 0x6f, 0x6f,
 	0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x61, 0x6e, 0x79,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x8d, 0x02, 0x0a, 0x09, 0x57, 0x65, 0x62, 0x48, 0x65,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x8d, 0x02, 0x0a, 0x09, 0x41, 0x70, 0x69, 0x48, 0x65,
 	0x61, 0x64, 0x65, 0x72, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
 	0x52, 0x02, 0x69, 0x64, 0x12, 0x38, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
 	0x70, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
@@ -3402,7 +3402,7 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x61, 0x6d, 0x70, 0x52, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x12, 0x61,
 	0x0a, 0x14, 0x61, 0x75, 0x74, 0x68, 0x65, 0x6e, 0x74, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e,
 	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x2d, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x48, 0x65, 0x61, 0x64,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x48, 0x65, 0x61, 0x64,
 	0x65, 0x72, 0x2e, 0x41, 0x75, 0x74, 0x68, 0x65, 0x6e, 0x74, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f,
 	0x6e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x14, 0x61, 0x75, 0x74,
 	0x68, 0x65, 0x6e, 0x74, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x74, 0x61, 0x74, 0x75,
@@ -3411,24 +3411,24 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x11,
 	0x0a, 0x0d, 0x41, 0x55, 0x54, 0x48, 0x45, 0x4e, 0x54, 0x49, 0x43, 0x41, 0x54, 0x45, 0x44, 0x10,
 	0x01, 0x12, 0x13, 0x0a, 0x0f, 0x55, 0x4e, 0x41, 0x55, 0x54, 0x48, 0x45, 0x4e, 0x54, 0x49, 0x43,
-	0x41, 0x54, 0x45, 0x44, 0x10, 0x02, 0x22, 0x6a, 0x0a, 0x0a, 0x57, 0x65, 0x62, 0x4d, 0x65, 0x73,
+	0x41, 0x54, 0x45, 0x44, 0x10, 0x02, 0x22, 0x6a, 0x0a, 0x0a, 0x41, 0x70, 0x69, 0x4d, 0x65, 0x73,
 	0x73, 0x61, 0x67, 0x65, 0x12, 0x2c, 0x0a, 0x06, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73,
-	0x2e, 0x57, 0x65, 0x62, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x52, 0x06, 0x68, 0x65, 0x61, 0x64,
+	0x2e, 0x41, 0x70, 0x69, 0x48, 0x65, 0x61, 0x64, 0x65, 0x72, 0x52, 0x06, 0x68, 0x65, 0x61, 0x64,
 	0x65, 0x72, 0x12, 0x2e, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x18, 0x02, 0x20,
 	0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f,
 	0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x41, 0x6e, 0x79, 0x52, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f,
-	0x61, 0x64, 0x22, 0x62, 0x0a, 0x1c, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43,
+	0x61, 0x64, 0x22, 0x62, 0x0a, 0x1c, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43,
 	0x72, 0x65, 0x61, 0x74, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65,
 	0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
 	0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61,
 	0x72, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61,
-	0x72, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x22, 0xb5, 0x01, 0x0a, 0x1d, 0x57, 0x65, 0x62, 0x43, 0x6f,
+	0x72, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x22, 0xb5, 0x01, 0x0a, 0x1d, 0x41, 0x70, 0x69, 0x43, 0x6f,
 	0x6e, 0x66, 0x69, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4b, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74,
 	0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x33, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43, 0x72,
+	0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43, 0x72,
 	0x65, 0x61, 0x74, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
 	0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73,
 	0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28,
@@ -3436,32 +3436,32 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49,
 	0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10,
 	0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x2e,
-	0x0a, 0x1c, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x44, 0x65, 0x6c, 0x65, 0x74,
+	0x0a, 0x1c, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x44, 0x65, 0x6c, 0x65, 0x74,
 	0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e,
 	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0xa5,
-	0x01, 0x0a, 0x1d, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x44, 0x65, 0x6c, 0x65,
+	0x01, 0x0a, 0x1d, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x44, 0x65, 0x6c, 0x65,
 	0x74, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
 	0x12, 0x4b, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e,
-	0x32, 0x33, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62,
+	0x32, 0x33, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69,
 	0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x45, 0x6e, 0x74, 0x69,
 	0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75,
 	0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x22, 0x37, 0x0a,
 	0x0a, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55,
 	0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07,
 	0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49,
-	0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x20, 0x0a, 0x1e, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e,
+	0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x20, 0x0a, 0x1e, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e,
 	0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x54, 0x79, 0x70, 0x65,
-	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x37, 0x0a, 0x1f, 0x57, 0x65, 0x62, 0x43,
+	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x37, 0x0a, 0x1f, 0x41, 0x70, 0x69, 0x43,
 	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x54, 0x79,
 	0x70, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x74,
 	0x79, 0x70, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x05, 0x74, 0x79, 0x70, 0x65,
-	0x73, 0x22, 0x2b, 0x0a, 0x19, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65,
+	0x73, 0x22, 0x2b, 0x0a, 0x19, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65,
 	0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e,
 	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0xd2,
-	0x01, 0x0a, 0x1a, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45,
+	0x01, 0x0a, 0x1a, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45,
 	0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x48, 0x0a,
 	0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x30, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e,
 	0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x73, 0x70,
 	0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52,
 	0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x31, 0x0a, 0x06, 0x65, 0x6e, 0x74, 0x69, 0x74,
@@ -3471,14 +3471,14 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50,
 	0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x55, 0x43,
 	0x43, 0x45, 0x53, 0x53, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49, 0x4c, 0x55, 0x52,
-	0x45, 0x10, 0x02, 0x22, 0x36, 0x0a, 0x1e, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x45, 0x10, 0x02, 0x22, 0x36, 0x0a, 0x1e, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
 	0x47, 0x65, 0x74, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x65,
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x22, 0xe1, 0x01, 0x0a, 0x1f,
-	0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x46, 0x69, 0x65, 0x6c,
+	0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x46, 0x69, 0x65, 0x6c,
 	0x64, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
 	0x4d, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32,
-	0x35, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43,
+	0x35, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43,
 	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x53, 0x63, 0x68,
 	0x65, 0x6d, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74,
 	0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x36,
@@ -3489,14 +3489,14 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46,
 	0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53,
 	0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22,
-	0x35, 0x0a, 0x1f, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45,
+	0x35, 0x0a, 0x1f, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45,
 	0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65,
 	0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0xe4, 0x01, 0x0a, 0x20, 0x57, 0x65, 0x62, 0x43, 0x6f,
+	0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0xe4, 0x01, 0x0a, 0x20, 0x41, 0x70, 0x69, 0x43, 0x6f,
 	0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68,
 	0x65, 0x6d, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4e, 0x0a, 0x06, 0x73,
 	0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x36, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69,
+	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69,
 	0x67, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45,
 	0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x37, 0x0a, 0x06, 0x73,
@@ -3507,29 +3507,29 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45,
 	0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10, 0x01,
 	0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x5a, 0x0a,
-	0x1f, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x74,
+	0x1f, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x74,
 	0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x12, 0x37, 0x0a, 0x06, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b,
 	0x32, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74,
 	0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68, 0x65, 0x6d,
-	0x61, 0x52, 0x06, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x22, 0xab, 0x01, 0x0a, 0x20, 0x57, 0x65,
-	0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79,
+	0x61, 0x52, 0x06, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x22, 0xab, 0x01, 0x0a, 0x20, 0x41, 0x70,
+	0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79,
 	0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4e,
 	0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x36,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43, 0x6f,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43, 0x6f,
 	0x6e, 0x66, 0x69, 0x67, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x53, 0x63, 0x68,
 	0x65, 0x6d, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74,
 	0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x22, 0x37,
 	0x0a, 0x0a, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b,
 	0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a,
 	0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41,
-	0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x20, 0x0a, 0x1e, 0x57, 0x65, 0x62, 0x43, 0x6f,
+	0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x20, 0x0a, 0x1e, 0x41, 0x70, 0x69, 0x43, 0x6f,
 	0x6e, 0x66, 0x69, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68,
-	0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0xe2, 0x01, 0x0a, 0x1f, 0x57, 0x65,
-	0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x6e, 0x61,
+	0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0xe2, 0x01, 0x0a, 0x1f, 0x41, 0x70,
+	0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x6e, 0x61,
 	0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4d, 0x0a,
 	0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x35, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e,
 	0x66, 0x69, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f,
 	0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
 	0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x37, 0x0a, 0x08,
@@ -3540,32 +3540,32 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49,
 	0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10,
 	0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x5a,
-	0x0a, 0x1f, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73, 0x74, 0x6f,
+	0x0a, 0x1f, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73, 0x74, 0x6f,
 	0x72, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x12, 0x37, 0x0a, 0x08, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e,
 	0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74,
-	0x52, 0x08, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x22, 0xab, 0x01, 0x0a, 0x20, 0x57,
-	0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x53,
+	0x52, 0x08, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x22, 0xab, 0x01, 0x0a, 0x20, 0x41,
+	0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x53,
 	0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
 	0x4e, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32,
-	0x36, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x43,
+	0x36, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x43,
 	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x65, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x53, 0x6e, 0x61, 0x70,
 	0x73, 0x68, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61,
 	0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x22,
 	0x37, 0x0a, 0x0a, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a,
 	0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b,
 	0x0a, 0x07, 0x53, 0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46,
-	0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x19, 0x0a, 0x17, 0x57, 0x65, 0x62, 0x43,
+	0x41, 0x49, 0x4c, 0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x19, 0x0a, 0x17, 0x41, 0x70, 0x69, 0x43,
 	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x47, 0x65, 0x74, 0x52, 0x6f, 0x6f, 0x74, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x22, 0x32, 0x0a, 0x18, 0x57, 0x65, 0x62, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x65, 0x73, 0x74, 0x22, 0x32, 0x0a, 0x18, 0x41, 0x70, 0x69, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67,
 	0x47, 0x65, 0x74, 0x52, 0x6f, 0x6f, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
 	0x16, 0x0a, 0x06, 0x72, 0x6f, 0x6f, 0x74, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x06, 0x72, 0x6f, 0x6f, 0x74, 0x49, 0x64, 0x22, 0xe4, 0x01, 0x0a, 0x19, 0x57, 0x65, 0x62, 0x52,
+	0x06, 0x72, 0x6f, 0x6f, 0x74, 0x49, 0x64, 0x22, 0xe4, 0x01, 0x0a, 0x19, 0x41, 0x70, 0x69, 0x52,
 	0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65,
 	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x56, 0x0a, 0x0b, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x54, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x34, 0x2e, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d,
+	0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d,
 	0x65, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x54, 0x79, 0x70, 0x65, 0x45, 0x6e, 0x75, 0x6d,
 	0x52, 0x0b, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x54, 0x79, 0x70, 0x65, 0x12, 0x36, 0x0a,
@@ -3576,79 +3576,79 @@ var file_pkg_protobufs_protobufs_proto_rawDesc = string([]byte{
 	0x54, 0x79, 0x70, 0x65, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e, 0x53, 0x50,
 	0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x08, 0x0a, 0x04, 0x52, 0x45, 0x41,
 	0x44, 0x10, 0x01, 0x12, 0x09, 0x0a, 0x05, 0x57, 0x52, 0x49, 0x54, 0x45, 0x10, 0x02, 0x22, 0x54,
-	0x0a, 0x1a, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x44, 0x61, 0x74, 0x61,
+	0x0a, 0x1a, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x44, 0x61, 0x74, 0x61,
 	0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x36, 0x0a, 0x08,
 	0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1a,
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62,
 	0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x08, 0x72, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x6a, 0x0a, 0x25, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x6a, 0x0a, 0x25, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69,
 	0x6d, 0x65, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69,
 	0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x41, 0x0a,
 	0x08, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32,
 	0x25, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61,
 	0x62, 0x61, 0x73, 0x65, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e,
 	0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x08, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x73,
-	0x22, 0x40, 0x0a, 0x26, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x52, 0x65,
+	0x22, 0x40, 0x0a, 0x26, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x52, 0x65,
 	0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69,
 	0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x74, 0x6f,
 	0x6b, 0x65, 0x6e, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x06, 0x74, 0x6f, 0x6b, 0x65,
-	0x6e, 0x73, 0x22, 0x23, 0x0a, 0x21, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65,
+	0x6e, 0x73, 0x22, 0x23, 0x0a, 0x21, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65,
 	0x47, 0x65, 0x74, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x6b, 0x0a, 0x22, 0x57, 0x65, 0x62, 0x52, 0x75,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x6b, 0x0a, 0x22, 0x41, 0x70, 0x69, 0x52, 0x75,
 	0x6e, 0x74, 0x69, 0x6d, 0x65, 0x47, 0x65, 0x74, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61,
 	0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x45, 0x0a,
 	0x0d, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x01,
 	0x20, 0x03, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73,
 	0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63,
 	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0d, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74,
-	0x69, 0x6f, 0x6e, 0x73, 0x22, 0x41, 0x0a, 0x27, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69,
+	0x69, 0x6f, 0x6e, 0x73, 0x22, 0x41, 0x0a, 0x27, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69,
 	0x6d, 0x65, 0x55, 0x6e, 0x72, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x4e, 0x6f, 0x74, 0x69,
 	0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
 	0x16, 0x0a, 0x06, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52,
-	0x06, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x73, 0x22, 0xbb, 0x01, 0x0a, 0x28, 0x57, 0x65, 0x62, 0x52,
+	0x06, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x73, 0x22, 0xbb, 0x01, 0x0a, 0x28, 0x41, 0x70, 0x69, 0x52,
 	0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x55, 0x6e, 0x72, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72,
 	0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70,
 	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x56, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x0e, 0x32, 0x3e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x73,
-	0x2e, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x55, 0x6e, 0x72, 0x65, 0x67,
+	0x2e, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x55, 0x6e, 0x72, 0x65, 0x67,
 	0x69, 0x73, 0x74, 0x65, 0x72, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f,
 	0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73,
 	0x45, 0x6e, 0x75, 0x6d, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x22, 0x37, 0x0a, 0x0a,
 	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x45, 0x6e, 0x75, 0x6d, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e,
 	0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x53,
 	0x55, 0x43, 0x43, 0x45, 0x53, 0x53, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x41, 0x49, 0x4c,
-	0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x2e, 0x0a, 0x2c, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74,
+	0x55, 0x52, 0x45, 0x10, 0x02, 0x22, 0x2e, 0x0a, 0x2c, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74,
 	0x69, 0x6d, 0x65, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x43, 0x6f,
 	0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x4d, 0x0a, 0x2d, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x4d, 0x0a, 0x2d, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74,
 	0x69, 0x6d, 0x65, 0x47, 0x65, 0x74, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x43, 0x6f,
 	0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65,
 	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63,
 	0x74, 0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x09, 0x63, 0x6f, 0x6e, 0x6e, 0x65,
-	0x63, 0x74, 0x65, 0x64, 0x22, 0x3e, 0x0a, 0x1c, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69,
+	0x63, 0x74, 0x65, 0x64, 0x22, 0x3e, 0x0a, 0x1c, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69,
 	0x6d, 0x65, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x12, 0x1e, 0x0a, 0x0a, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x54, 0x79,
 	0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79,
-	0x54, 0x79, 0x70, 0x65, 0x22, 0x56, 0x0a, 0x1d, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69,
+	0x54, 0x79, 0x70, 0x65, 0x22, 0x56, 0x0a, 0x1d, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69,
 	0x6d, 0x65, 0x47, 0x65, 0x74, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x52, 0x65, 0x73,
 	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x35, 0x0a, 0x08, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65,
 	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
 	0x75, 0x66, 0x73, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x45, 0x6e, 0x74, 0x69,
 	0x74, 0x79, 0x52, 0x08, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x69, 0x65, 0x73, 0x22, 0x5c, 0x0a, 0x1c,
-	0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x45,
+	0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x45,
 	0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09,
 	0x66, 0x69, 0x65, 0x6c, 0x64, 0x4e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
 	0x09, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x1e, 0x0a, 0x0a, 0x65, 0x6e,
 	0x74, 0x69, 0x74, 0x79, 0x54, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a,
-	0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x54, 0x79, 0x70, 0x65, 0x22, 0x37, 0x0a, 0x1d, 0x57, 0x65,
-	0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x45, 0x78, 0x69,
+	0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x54, 0x79, 0x70, 0x65, 0x22, 0x37, 0x0a, 0x1d, 0x41, 0x70,
+	0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x45, 0x78, 0x69,
 	0x73, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x65,
 	0x78, 0x69, 0x73, 0x74, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x65, 0x78, 0x69,
-	0x73, 0x74, 0x73, 0x22, 0x3b, 0x0a, 0x1d, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d,
+	0x73, 0x74, 0x73, 0x22, 0x3b, 0x0a, 0x1d, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d,
 	0x65, 0x45, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x49, 0x64,
 	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x49, 0x64,
-	0x22, 0x38, 0x0a, 0x1e, 0x57, 0x65, 0x62, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x45, 0x6e,
+	0x22, 0x38, 0x0a, 0x1e, 0x41, 0x70, 0x69, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x45, 0x6e,
 	0x74, 0x69, 0x74, 0x79, 0x45, 0x78, 0x69, 0x73, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
 	0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x65, 0x78, 0x69, 0x73, 0x74, 0x73, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x08, 0x52, 0x06, 0x65, 0x78, 0x69, 0x73, 0x74, 0x73, 0x22, 0xb4, 0x01, 0x0a, 0x0e, 0x44,
@@ -3800,57 +3800,57 @@ func file_pkg_protobufs_protobufs_proto_rawDescGZIP() []byte {
 var file_pkg_protobufs_protobufs_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
 var file_pkg_protobufs_protobufs_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
 var file_pkg_protobufs_protobufs_proto_goTypes = []any{
-	(WebHeader_AuthenticationStatusEnum)(0),                  // 0: protobufs.WebHeader.AuthenticationStatusEnum
-	(WebConfigCreateEntityResponse_StatusEnum)(0),            // 1: protobufs.WebConfigCreateEntityResponse.StatusEnum
-	(WebConfigDeleteEntityResponse_StatusEnum)(0),            // 2: protobufs.WebConfigDeleteEntityResponse.StatusEnum
-	(WebConfigGetEntityResponse_StatusEnum)(0),               // 3: protobufs.WebConfigGetEntityResponse.StatusEnum
-	(WebConfigGetFieldSchemaResponse_StatusEnum)(0),          // 4: protobufs.WebConfigGetFieldSchemaResponse.StatusEnum
-	(WebConfigGetEntitySchemaResponse_StatusEnum)(0),         // 5: protobufs.WebConfigGetEntitySchemaResponse.StatusEnum
-	(WebConfigSetEntitySchemaResponse_StatusEnum)(0),         // 6: protobufs.WebConfigSetEntitySchemaResponse.StatusEnum
-	(WebConfigCreateSnapshotResponse_StatusEnum)(0),          // 7: protobufs.WebConfigCreateSnapshotResponse.StatusEnum
-	(WebConfigRestoreSnapshotResponse_StatusEnum)(0),         // 8: protobufs.WebConfigRestoreSnapshotResponse.StatusEnum
-	(WebRuntimeDatabaseRequest_RequestTypeEnum)(0),           // 9: protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
-	(WebRuntimeUnregisterNotificationResponse_StatusEnum)(0), // 10: protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
+	(ApiHeader_AuthenticationStatusEnum)(0),                  // 0: protobufs.ApiHeader.AuthenticationStatusEnum
+	(ApiConfigCreateEntityResponse_StatusEnum)(0),            // 1: protobufs.ApiConfigCreateEntityResponse.StatusEnum
+	(ApiConfigDeleteEntityResponse_StatusEnum)(0),            // 2: protobufs.ApiConfigDeleteEntityResponse.StatusEnum
+	(ApiConfigGetEntityResponse_StatusEnum)(0),               // 3: protobufs.ApiConfigGetEntityResponse.StatusEnum
+	(ApiConfigGetFieldSchemaResponse_StatusEnum)(0),          // 4: protobufs.ApiConfigGetFieldSchemaResponse.StatusEnum
+	(ApiConfigGetEntitySchemaResponse_StatusEnum)(0),         // 5: protobufs.ApiConfigGetEntitySchemaResponse.StatusEnum
+	(ApiConfigSetEntitySchemaResponse_StatusEnum)(0),         // 6: protobufs.ApiConfigSetEntitySchemaResponse.StatusEnum
+	(ApiConfigCreateSnapshotResponse_StatusEnum)(0),          // 7: protobufs.ApiConfigCreateSnapshotResponse.StatusEnum
+	(ApiConfigRestoreSnapshotResponse_StatusEnum)(0),         // 8: protobufs.ApiConfigRestoreSnapshotResponse.StatusEnum
+	(ApiRuntimeDatabaseRequest_RequestTypeEnum)(0),           // 9: protobufs.ApiRuntimeDatabaseRequest.RequestTypeEnum
+	(ApiRuntimeUnregisterNotificationResponse_StatusEnum)(0), // 10: protobufs.ApiRuntimeUnregisterNotificationResponse.StatusEnum
 	(DatabaseRequest_WriteOptEnum)(0),                        // 11: protobufs.DatabaseRequest.WriteOptEnum
 	(LogMessage_LogLevelEnum)(0),                             // 12: protobufs.LogMessage.LogLevelEnum
-	(*WebHeader)(nil),                                        // 13: protobufs.WebHeader
-	(*WebMessage)(nil),                                       // 14: protobufs.WebMessage
-	(*WebConfigCreateEntityRequest)(nil),                     // 15: protobufs.WebConfigCreateEntityRequest
-	(*WebConfigCreateEntityResponse)(nil),                    // 16: protobufs.WebConfigCreateEntityResponse
-	(*WebConfigDeleteEntityRequest)(nil),                     // 17: protobufs.WebConfigDeleteEntityRequest
-	(*WebConfigDeleteEntityResponse)(nil),                    // 18: protobufs.WebConfigDeleteEntityResponse
-	(*WebConfigGetEntityTypesRequest)(nil),                   // 19: protobufs.WebConfigGetEntityTypesRequest
-	(*WebConfigGetEntityTypesResponse)(nil),                  // 20: protobufs.WebConfigGetEntityTypesResponse
-	(*WebConfigGetEntityRequest)(nil),                        // 21: protobufs.WebConfigGetEntityRequest
-	(*WebConfigGetEntityResponse)(nil),                       // 22: protobufs.WebConfigGetEntityResponse
-	(*WebConfigGetFieldSchemaRequest)(nil),                   // 23: protobufs.WebConfigGetFieldSchemaRequest
-	(*WebConfigGetFieldSchemaResponse)(nil),                  // 24: protobufs.WebConfigGetFieldSchemaResponse
-	(*WebConfigGetEntitySchemaRequest)(nil),                  // 25: protobufs.WebConfigGetEntitySchemaRequest
-	(*WebConfigGetEntitySchemaResponse)(nil),                 // 26: protobufs.WebConfigGetEntitySchemaResponse
-	(*WebConfigSetEntitySchemaRequest)(nil),                  // 27: protobufs.WebConfigSetEntitySchemaRequest
-	(*WebConfigSetEntitySchemaResponse)(nil),                 // 28: protobufs.WebConfigSetEntitySchemaResponse
-	(*WebConfigCreateSnapshotRequest)(nil),                   // 29: protobufs.WebConfigCreateSnapshotRequest
-	(*WebConfigCreateSnapshotResponse)(nil),                  // 30: protobufs.WebConfigCreateSnapshotResponse
-	(*WebConfigRestoreSnapshotRequest)(nil),                  // 31: protobufs.WebConfigRestoreSnapshotRequest
-	(*WebConfigRestoreSnapshotResponse)(nil),                 // 32: protobufs.WebConfigRestoreSnapshotResponse
-	(*WebConfigGetRootRequest)(nil),                          // 33: protobufs.WebConfigGetRootRequest
-	(*WebConfigGetRootResponse)(nil),                         // 34: protobufs.WebConfigGetRootResponse
-	(*WebRuntimeDatabaseRequest)(nil),                        // 35: protobufs.WebRuntimeDatabaseRequest
-	(*WebRuntimeDatabaseResponse)(nil),                       // 36: protobufs.WebRuntimeDatabaseResponse
-	(*WebRuntimeRegisterNotificationRequest)(nil),            // 37: protobufs.WebRuntimeRegisterNotificationRequest
-	(*WebRuntimeRegisterNotificationResponse)(nil),           // 38: protobufs.WebRuntimeRegisterNotificationResponse
-	(*WebRuntimeGetNotificationsRequest)(nil),                // 39: protobufs.WebRuntimeGetNotificationsRequest
-	(*WebRuntimeGetNotificationsResponse)(nil),               // 40: protobufs.WebRuntimeGetNotificationsResponse
-	(*WebRuntimeUnregisterNotificationRequest)(nil),          // 41: protobufs.WebRuntimeUnregisterNotificationRequest
-	(*WebRuntimeUnregisterNotificationResponse)(nil),         // 42: protobufs.WebRuntimeUnregisterNotificationResponse
-	(*WebRuntimeGetDatabaseConnectionStatusRequest)(nil),     // 43: protobufs.WebRuntimeGetDatabaseConnectionStatusRequest
-	(*WebRuntimeGetDatabaseConnectionStatusResponse)(nil),    // 44: protobufs.WebRuntimeGetDatabaseConnectionStatusResponse
-	(*WebRuntimeGetEntitiesRequest)(nil),                     // 45: protobufs.WebRuntimeGetEntitiesRequest
-	(*WebRuntimeGetEntitiesResponse)(nil),                    // 46: protobufs.WebRuntimeGetEntitiesResponse
-	(*WebRuntimeFieldExistsRequest)(nil),                     // 47: protobufs.WebRuntimeFieldExistsRequest
-	(*WebRuntimeFieldExistsResponse)(nil),                    // 48: protobufs.WebRuntimeFieldExistsResponse
-	(*WebRuntimeEntityExistsRequest)(nil),                    // 49: protobufs.WebRuntimeEntityExistsRequest
-	(*WebRuntimeEntityExistsResponse)(nil),                   // 50: protobufs.WebRuntimeEntityExistsResponse
+	(*ApiHeader)(nil),                                        // 13: protobufs.ApiHeader
+	(*ApiMessage)(nil),                                       // 14: protobufs.ApiMessage
+	(*ApiConfigCreateEntityRequest)(nil),                     // 15: protobufs.ApiConfigCreateEntityRequest
+	(*ApiConfigCreateEntityResponse)(nil),                    // 16: protobufs.ApiConfigCreateEntityResponse
+	(*ApiConfigDeleteEntityRequest)(nil),                     // 17: protobufs.ApiConfigDeleteEntityRequest
+	(*ApiConfigDeleteEntityResponse)(nil),                    // 18: protobufs.ApiConfigDeleteEntityResponse
+	(*ApiConfigGetEntityTypesRequest)(nil),                   // 19: protobufs.ApiConfigGetEntityTypesRequest
+	(*ApiConfigGetEntityTypesResponse)(nil),                  // 20: protobufs.ApiConfigGetEntityTypesResponse
+	(*ApiConfigGetEntityRequest)(nil),                        // 21: protobufs.ApiConfigGetEntityRequest
+	(*ApiConfigGetEntityResponse)(nil),                       // 22: protobufs.ApiConfigGetEntityResponse
+	(*ApiConfigGetFieldSchemaRequest)(nil),                   // 23: protobufs.ApiConfigGetFieldSchemaRequest
+	(*ApiConfigGetFieldSchemaResponse)(nil),                  // 24: protobufs.ApiConfigGetFieldSchemaResponse
+	(*ApiConfigGetEntitySchemaRequest)(nil),                  // 25: protobufs.ApiConfigGetEntitySchemaRequest
+	(*ApiConfigGetEntitySchemaResponse)(nil),                 // 26: protobufs.ApiConfigGetEntitySchemaResponse
+	(*ApiConfigSetEntitySchemaRequest)(nil),                  // 27: protobufs.ApiConfigSetEntitySchemaRequest
+	(*ApiConfigSetEntitySchemaResponse)(nil),                 // 28: protobufs.ApiConfigSetEntitySchemaResponse
+	(*ApiConfigCreateSnapshotRequest)(nil),                   // 29: protobufs.ApiConfigCreateSnapshotRequest
+	(*ApiConfigCreateSnapshotResponse)(nil),                  // 30: protobufs.ApiConfigCreateSnapshotResponse
+	(*ApiConfigRestoreSnapshotRequest)(nil),                  // 31: protobufs.ApiConfigRestoreSnapshotRequest
+	(*ApiConfigRestoreSnapshotResponse)(nil),                 // 32: protobufs.ApiConfigRestoreSnapshotResponse
+	(*ApiConfigGetRootRequest)(nil),                          // 33: protobufs.ApiConfigGetRootRequest
+	(*ApiConfigGetRootResponse)(nil),                         // 34: protobufs.ApiConfigGetRootResponse
+	(*ApiRuntimeDatabaseRequest)(nil),                        // 35: protobufs.ApiRuntimeDatabaseRequest
+	(*ApiRuntimeDatabaseResponse)(nil),                       // 36: protobufs.ApiRuntimeDatabaseResponse
+	(*ApiRuntimeRegisterNotificationRequest)(nil),            // 37: protobufs.ApiRuntimeRegisterNotificationRequest
+	(*ApiRuntimeRegisterNotificationResponse)(nil),           // 38: protobufs.ApiRuntimeRegisterNotificationResponse
+	(*ApiRuntimeGetNotificationsRequest)(nil),                // 39: protobufs.ApiRuntimeGetNotificationsRequest
+	(*ApiRuntimeGetNotificationsResponse)(nil),               // 40: protobufs.ApiRuntimeGetNotificationsResponse
+	(*ApiRuntimeUnregisterNotificationRequest)(nil),          // 41: protobufs.ApiRuntimeUnregisterNotificationRequest
+	(*ApiRuntimeUnregisterNotificationResponse)(nil),         // 42: protobufs.ApiRuntimeUnregisterNotificationResponse
+	(*ApiRuntimeGetDatabaseConnectionStatusRequest)(nil),     // 43: protobufs.ApiRuntimeGetDatabaseConnectionStatusRequest
+	(*ApiRuntimeGetDatabaseConnectionStatusResponse)(nil),    // 44: protobufs.ApiRuntimeGetDatabaseConnectionStatusResponse
+	(*ApiRuntimeGetEntitiesRequest)(nil),                     // 45: protobufs.ApiRuntimeGetEntitiesRequest
+	(*ApiRuntimeGetEntitiesResponse)(nil),                    // 46: protobufs.ApiRuntimeGetEntitiesResponse
+	(*ApiRuntimeFieldExistsRequest)(nil),                     // 47: protobufs.ApiRuntimeFieldExistsRequest
+	(*ApiRuntimeFieldExistsResponse)(nil),                    // 48: protobufs.ApiRuntimeFieldExistsResponse
+	(*ApiRuntimeEntityExistsRequest)(nil),                    // 49: protobufs.ApiRuntimeEntityExistsRequest
+	(*ApiRuntimeEntityExistsResponse)(nil),                   // 50: protobufs.ApiRuntimeEntityExistsResponse
 	(*DatabaseEntity)(nil),                                   // 51: protobufs.DatabaseEntity
 	(*DatabaseField)(nil),                                    // 52: protobufs.DatabaseField
 	(*DatabaseNotificationConfig)(nil),                       // 53: protobufs.DatabaseNotificationConfig
@@ -3872,31 +3872,31 @@ var file_pkg_protobufs_protobufs_proto_goTypes = []any{
 	(*anypb.Any)(nil),                                        // 69: google.protobuf.Any
 }
 var file_pkg_protobufs_protobufs_proto_depIdxs = []int32{
-	68, // 0: protobufs.WebHeader.timestamp:type_name -> google.protobuf.Timestamp
-	0,  // 1: protobufs.WebHeader.authenticationStatus:type_name -> protobufs.WebHeader.AuthenticationStatusEnum
-	13, // 2: protobufs.WebMessage.header:type_name -> protobufs.WebHeader
-	69, // 3: protobufs.WebMessage.payload:type_name -> google.protobuf.Any
-	1,  // 4: protobufs.WebConfigCreateEntityResponse.status:type_name -> protobufs.WebConfigCreateEntityResponse.StatusEnum
-	2,  // 5: protobufs.WebConfigDeleteEntityResponse.status:type_name -> protobufs.WebConfigDeleteEntityResponse.StatusEnum
-	3,  // 6: protobufs.WebConfigGetEntityResponse.status:type_name -> protobufs.WebConfigGetEntityResponse.StatusEnum
-	51, // 7: protobufs.WebConfigGetEntityResponse.entity:type_name -> protobufs.DatabaseEntity
-	4,  // 8: protobufs.WebConfigGetFieldSchemaResponse.status:type_name -> protobufs.WebConfigGetFieldSchemaResponse.StatusEnum
-	56, // 9: protobufs.WebConfigGetFieldSchemaResponse.schema:type_name -> protobufs.DatabaseFieldSchema
-	5,  // 10: protobufs.WebConfigGetEntitySchemaResponse.status:type_name -> protobufs.WebConfigGetEntitySchemaResponse.StatusEnum
-	55, // 11: protobufs.WebConfigGetEntitySchemaResponse.schema:type_name -> protobufs.DatabaseEntitySchema
-	55, // 12: protobufs.WebConfigSetEntitySchemaRequest.schema:type_name -> protobufs.DatabaseEntitySchema
-	6,  // 13: protobufs.WebConfigSetEntitySchemaResponse.status:type_name -> protobufs.WebConfigSetEntitySchemaResponse.StatusEnum
-	7,  // 14: protobufs.WebConfigCreateSnapshotResponse.status:type_name -> protobufs.WebConfigCreateSnapshotResponse.StatusEnum
-	58, // 15: protobufs.WebConfigCreateSnapshotResponse.snapshot:type_name -> protobufs.DatabaseSnapshot
-	58, // 16: protobufs.WebConfigRestoreSnapshotRequest.snapshot:type_name -> protobufs.DatabaseSnapshot
-	8,  // 17: protobufs.WebConfigRestoreSnapshotResponse.status:type_name -> protobufs.WebConfigRestoreSnapshotResponse.StatusEnum
-	9,  // 18: protobufs.WebRuntimeDatabaseRequest.requestType:type_name -> protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum
-	57, // 19: protobufs.WebRuntimeDatabaseRequest.requests:type_name -> protobufs.DatabaseRequest
-	57, // 20: protobufs.WebRuntimeDatabaseResponse.response:type_name -> protobufs.DatabaseRequest
-	53, // 21: protobufs.WebRuntimeRegisterNotificationRequest.requests:type_name -> protobufs.DatabaseNotificationConfig
-	54, // 22: protobufs.WebRuntimeGetNotificationsResponse.notifications:type_name -> protobufs.DatabaseNotification
-	10, // 23: protobufs.WebRuntimeUnregisterNotificationResponse.status:type_name -> protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum
-	51, // 24: protobufs.WebRuntimeGetEntitiesResponse.entities:type_name -> protobufs.DatabaseEntity
+	68, // 0: protobufs.ApiHeader.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 1: protobufs.ApiHeader.authenticationStatus:type_name -> protobufs.ApiHeader.AuthenticationStatusEnum
+	13, // 2: protobufs.ApiMessage.header:type_name -> protobufs.ApiHeader
+	69, // 3: protobufs.ApiMessage.payload:type_name -> google.protobuf.Any
+	1,  // 4: protobufs.ApiConfigCreateEntityResponse.status:type_name -> protobufs.ApiConfigCreateEntityResponse.StatusEnum
+	2,  // 5: protobufs.ApiConfigDeleteEntityResponse.status:type_name -> protobufs.ApiConfigDeleteEntityResponse.StatusEnum
+	3,  // 6: protobufs.ApiConfigGetEntityResponse.status:type_name -> protobufs.ApiConfigGetEntityResponse.StatusEnum
+	51, // 7: protobufs.ApiConfigGetEntityResponse.entity:type_name -> protobufs.DatabaseEntity
+	4,  // 8: protobufs.ApiConfigGetFieldSchemaResponse.status:type_name -> protobufs.ApiConfigGetFieldSchemaResponse.StatusEnum
+	56, // 9: protobufs.ApiConfigGetFieldSchemaResponse.schema:type_name -> protobufs.DatabaseFieldSchema
+	5,  // 10: protobufs.ApiConfigGetEntitySchemaResponse.status:type_name -> protobufs.ApiConfigGetEntitySchemaResponse.StatusEnum
+	55, // 11: protobufs.ApiConfigGetEntitySchemaResponse.schema:type_name -> protobufs.DatabaseEntitySchema
+	55, // 12: protobufs.ApiConfigSetEntitySchemaRequest.schema:type_name -> protobufs.DatabaseEntitySchema
+	6,  // 13: protobufs.ApiConfigSetEntitySchemaResponse.status:type_name -> protobufs.ApiConfigSetEntitySchemaResponse.StatusEnum
+	7,  // 14: protobufs.ApiConfigCreateSnapshotResponse.status:type_name -> protobufs.ApiConfigCreateSnapshotResponse.StatusEnum
+	58, // 15: protobufs.ApiConfigCreateSnapshotResponse.snapshot:type_name -> protobufs.DatabaseSnapshot
+	58, // 16: protobufs.ApiConfigRestoreSnapshotRequest.snapshot:type_name -> protobufs.DatabaseSnapshot
+	8,  // 17: protobufs.ApiConfigRestoreSnapshotResponse.status:type_name -> protobufs.ApiConfigRestoreSnapshotResponse.StatusEnum
+	9,  // 18: protobufs.ApiRuntimeDatabaseRequest.requestType:type_name -> protobufs.ApiRuntimeDatabaseRequest.RequestTypeEnum
+	57, // 19: protobufs.ApiRuntimeDatabaseRequest.requests:type_name -> protobufs.DatabaseRequest
+	57, // 20: protobufs.ApiRuntimeDatabaseResponse.response:type_name -> protobufs.DatabaseRequest
+	53, // 21: protobufs.ApiRuntimeRegisterNotificationRequest.requests:type_name -> protobufs.DatabaseNotificationConfig
+	54, // 22: protobufs.ApiRuntimeGetNotificationsResponse.notifications:type_name -> protobufs.DatabaseNotification
+	10, // 23: protobufs.ApiRuntimeUnregisterNotificationResponse.status:type_name -> protobufs.ApiRuntimeUnregisterNotificationResponse.StatusEnum
+	51, // 24: protobufs.ApiRuntimeGetEntitiesResponse.entities:type_name -> protobufs.DatabaseEntity
 	64, // 25: protobufs.DatabaseEntity.parent:type_name -> protobufs.EntityReference
 	64, // 26: protobufs.DatabaseEntity.children:type_name -> protobufs.EntityReference
 	69, // 27: protobufs.DatabaseField.value:type_name -> google.protobuf.Any
