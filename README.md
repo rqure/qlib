@@ -97,6 +97,45 @@ store.Notify(
 
 The Store interface is the core component for data persistence and real-time updates. It provides a rich API for managing entities, fields, and notifications.
 
+### Store Configuration
+
+The store supports multiple backend configurations that can be mixed and matched:
+
+```go
+// Create store with web backend
+store := store.New(
+    store.CommunicateOverWeb("localhost:8080"),
+)
+
+// Create store with Redis backend
+store := store.New(
+    store.CommunicateOverRedis("redis:6379", "password"),
+)
+
+// Create store with Postgres backend
+store := store.New(
+    store.CommunicateOverPostgres("postgres://user:pass@localhost:5432/db"),
+)
+
+// Create store with NATS backend
+store := store.New(
+    store.CommunicateOverNats("nats://localhost:4222"),
+)
+
+// Mix multiple backends
+store := store.New(
+    store.PersistOverPostgres("postgres://user:pass@localhost:5432/db"),
+    store.NotifyOverNats("nats://localhost:4222"),
+)
+```
+
+Each backend configuration function sets up the appropriate components for:
+- Entity management
+- Field operations
+- Schema management
+- Notifications
+- Snapshots
+
 ### Basic Store Operations
 
 ```go
@@ -643,116 +682,86 @@ Best Practices for Field Values:
        AddField("Controller", "entityref")
    ```
 
-## Leadership Election
+## Application Readiness
 
-qlib provides built-in support for high availability through leadership election. This ensures that in a distributed setup, only one instance of your application is the active leader.
+qlib provides built-in support for application readiness checks through the Readiness worker. This ensures your application only becomes active when all required dependencies and conditions are met.
 
-### Leadership Worker
+### Readiness Worker
 
-The Leadership worker manages the election process:
+The Readiness worker manages the application's ready state:
 
 ```go
-// Create leadership worker
-leaderWorker := workers.NewLeadership(store)
+// Create readiness worker
+readinessWorker := workers.NewReadiness()
 
-// Add availability criteria
-leaderWorker.AddAvailabilityCriteria(func() bool {
+// Add readiness criteria
+readinessWorker.AddCriteria(workers.NewStoreConnectedCriteria(store))
+readinessWorker.AddCriteria(workers.NewSchemaValidityCriteria(store))
+
+// Add custom criteria
+readinessWorker.AddCriteria(workers.ReadinessCriteriaFunc(func() bool {
     return myCondition // e.g., database is connected
+}))
+
+// Handle readiness changes
+readinessWorker.BecameReady.Connect(func() {
+    // Application is now ready
 })
 
-// Handle leadership changes
-leaderWorker.BecameLeader().Connect(func(ctx context.Context) {
-    // This instance is now the leader
-})
-
-leaderWorker.BecameFollower().Connect(func(ctx context.Context) {
-    // This instance is now a follower
-})
-
-leaderWorker.LosingLeadership().Connect(func(ctx context.Context) {
-    // Cleanup before losing leadership
+readinessWorker.BecameUnready.Connect(func() {
+    // Application is no longer ready
 })
 
 // Add to application
-app.AddWorker(leaderWorker)
+app.AddWorker(readinessWorker)
 ```
 
-### Leadership Store
+### Best Practices for Readiness
 
-The leadership election uses Redis for coordination:
+1. **Critical Dependencies**
+   - Add criteria for all critical services
+   - Monitor connection states
+   - Validate required configurations
 
-```go
-type LeadershipStore interface {
-    Connect(context.Context)
-    Disconnect(context.Context)
-    IsConnected(context.Context) bool
-    
-    // Leadership management
-    AcquireLock(ctx context.Context, key string) bool
-    ReleaseLock(ctx context.Context, key string)
-    RefreshLock(ctx context.Context, key string) bool
-}
-```
+2. **Schema Validation**
+   - Use SchemaValidityCriteria to ensure schema integrity
+   - Validate required fields exist
+   - Check field types match expectations
 
-### Configuration
+3. **Custom Conditions**
+   - Implement custom ReadinessCriteria for specific needs
+   - Keep criteria checks lightweight
+   - Avoid blocking operations
 
-Leadership election can be configured through environment variables:
+4. **Monitoring**
+   - Track readiness state changes
+   - Log criteria failures
+   - Implement health checks based on readiness
 
-```bash
-# Redis connection for leadership coordination
-Q_LEADER_STORE_ADDR=redis:6379
-Q_LEADER_STORE_PASSWORD=mypassword
-
-# Instance identification
-Q_IN_DOCKER=true  # Uses container hostname as instance ID
-```
-
-### Best Practices for High Availability
-
-1. **Multiple Instances**
-   - Run multiple instances of your application
-   - Configure each instance with the same Redis endpoint
-   - Use different instance IDs for each instance
-
-2. **Graceful Leadership Transitions**
-   - Handle BecameLeader/BecameFollower signals
-   - Clean up resources on LosingLeadership
-   - Implement proper shutdown procedures
-
-3. **Monitoring**
-   - Track leadership status changes
-   - Monitor Redis connection health
-   - Log leadership transitions
-
-4. **Leader-Only Operations**
-   - Restrict certain operations to leader instance
-   - Handle failover scenarios gracefully
-   - Use leader status for write operations
-
-Example leadership-aware worker:
+Example readiness-aware worker:
 
 ```go
 type MyWorker struct {
-    isLeader bool
+    isReady bool
 }
 
 func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
-    leadership.BecameLeader().Connect(func(ctx context.Context) {
-        w.isLeader = true
-        // Start leader-only operations
+    readiness.BecameReady.Connect(func() {
+        w.isReady = true
+        // Start operations
     })
     
-    leadership.BecameFollower().Connect(func(ctx context.Context) {
-        w.isLeader = false
-        // Stop leader-only operations
+    readiness.BecameUnready.Connect(func() {
+        w.isReady = false
+        // Stop operations
     })
 }
 
 func (w *MyWorker) DoWork(ctx context.Context) {
-    if (!w.isLeader) {
-        return // Only leader performs this work
+    if (!w.isReady) {
+        return // Only work when ready
     }
-    // Perform leader-only operations
+    // Perform operations
 }
 ```
 
@@ -761,12 +770,12 @@ func (w *MyWorker) DoWork(ctx context.Context) {
 The library uses Protocol Buffers for structured web communication over WebSocket connections. Messages follow a standard format:
 
 ```protobuf
-message WebMessage {
-    WebHeader header = 1;
+message ApiMessage {
+    ApiHeader header = 1;
     google.protobuf.Any payload = 2;
 }
 
-message WebHeader {
+message ApiHeader {
     string id = 1;
     google.protobuf.Timestamp timestamp = 2;
     AuthenticationStatusEnum authenticationStatus = 3;
@@ -805,20 +814,20 @@ client.SetMessageHandler(func(c web.Client, m web.Message) {
 ### Common Message Types
 
 - Database Operations:
-  - `WebRuntimeDatabaseRequest`: Read/write field values
-  - `WebConfigCreateEntityRequest`: Create new entities
-  - `WebConfigDeleteEntityRequest`: Delete entities
-  - `WebConfigGetEntityRequest`: Retrieve entity details
+  - `ApiRuntimeDatabaseRequest`: Read/write field values
+  - `ApiConfigCreateEntityRequest`: Create new entities
+  - `ApiConfigDeleteEntityRequest`: Delete entities
+  - `ApiConfigGetEntityRequest`: Retrieve entity details
 
 - Schema Operations:
-  - `WebConfigGetEntitySchemaRequest`: Get entity type schema
-  - `WebConfigSetEntitySchemaRequest`: Update entity schema
-  - `WebConfigGetEntityTypesRequest`: List available entity types
+  - `ApiConfigGetEntitySchemaRequest`: Get entity type schema
+  - `ApiConfigSetEntitySchemaRequest`: Update entity schema
+  - `ApiConfigGetEntityTypesRequest`: List available entity types
 
 - Notifications:
-  - `WebRuntimeRegisterNotificationRequest`: Subscribe to changes
-  - `WebRuntimeGetNotificationsRequest`: Get pending notifications
-  - `WebRuntimeUnregisterNotificationRequest`: Remove subscriptions
+  - `ApiRuntimeRegisterNotificationRequest`: Subscribe to changes
+  - `ApiRuntimeGetNotificationsRequest`: Get pending notifications
+  - `ApiRuntimeUnregisterNotificationRequest`: Remove subscriptions
 
 Example database operation:
 
@@ -830,7 +839,7 @@ client.Write(&protobufs.ApiMessage{
         Timestamp: timestamppb.Now(),
     },
     Payload: &anypb.Any{
-        TypeUrl: "WebRuntimeDatabaseRequest",
+        TypeUrl: "ApiRuntimeDatabaseRequest",
         Value: &protobufs.ApiRuntimeDatabaseRequest{
             RequestType: protobufs.ApiRuntimeDatabaseRequest_READ,
             Requests: []*protobufs.DatabaseRequest{
@@ -1050,9 +1059,9 @@ func main() {
 
 ## Environment Variables
 
-- `Q_LEADER_STORE_ADDR`: Redis address for leadership election (default: "redis:6379")
-- `Q_LEADER_STORE_PASSWORD`: Redis password
 - `Q_IN_DOCKER`: Set when running in Docker container
+- `Q_LOG_LEVEL`: Application log level
+- `Q_LIB_LOG_LEVEL`: Library log level
 
 ## Application Lifecycle Management
 
