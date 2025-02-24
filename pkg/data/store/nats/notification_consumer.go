@@ -44,7 +44,7 @@ func (n *NotificationConsumer) SetTransformer(t data.Transformer) {
 }
 
 func (n *NotificationConsumer) handleNotification(msg *nats.Msg) {
-	webMsg := &protobufs.WebMessage{}
+	webMsg := &protobufs.ApiMessage{}
 	if err := proto.Unmarshal(msg.Data, webMsg); err != nil {
 		log.Error("Failed to unmarshal web message: %v", err)
 		return
@@ -87,7 +87,7 @@ func (n *NotificationConsumer) sendNotify(ctx context.Context, config data.Notif
 		config.SetServiceId(app.GetName())
 	}
 
-	msg := &protobufs.WebRuntimeRegisterNotificationRequest{
+	msg := &protobufs.ApiRuntimeRegisterNotificationRequest{
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	}
 
@@ -96,7 +96,7 @@ func (n *NotificationConsumer) sendNotify(ctx context.Context, config data.Notif
 		return "", err
 	}
 
-	var response protobufs.WebRuntimeRegisterNotificationResponse
+	var response protobufs.ApiRuntimeRegisterNotificationResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return "", err
 	}
@@ -123,7 +123,7 @@ func (n *NotificationConsumer) Notify(ctx context.Context, config data.Notificat
 }
 
 func (n *NotificationConsumer) Unnotify(ctx context.Context, token string) {
-	msg := &protobufs.WebRuntimeUnregisterNotificationRequest{
+	msg := &protobufs.ApiRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
 	}
 

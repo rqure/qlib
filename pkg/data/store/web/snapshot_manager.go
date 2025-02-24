@@ -36,8 +36,8 @@ func (s *SnapshotManager) SetFieldOperator(fo data.FieldOperator) {
 
 func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigCreateSnapshotRequest{})
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigCreateSnapshotRequest{})
 
 	response := s.core.SendAndWait(ctx, msg)
 	if response == nil {
@@ -45,13 +45,13 @@ func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 		return nil
 	}
 
-	var resp protobufs.WebConfigCreateSnapshotResponse
+	var resp protobufs.ApiConfigCreateSnapshotResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
-	if resp.Status != protobufs.WebConfigCreateSnapshotResponse_SUCCESS {
+	if resp.Status != protobufs.ApiConfigCreateSnapshotResponse_SUCCESS {
 		return nil
 	}
 
@@ -60,8 +60,8 @@ func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 
 func (s *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigRestoreSnapshotRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigRestoreSnapshotRequest{
 		Snapshot: snapshot.ToPb(ss),
 	})
 

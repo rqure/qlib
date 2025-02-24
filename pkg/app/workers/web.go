@@ -112,8 +112,8 @@ func (w *Web) DoWork(context.Context) {
 
 func (w *Web) Send(clientId string, p *anypb.Any) {
 	if client, ok := w.clients[clientId]; ok {
-		client.Write(&protobufs.WebMessage{
-			Header: &protobufs.WebHeader{
+		client.Write(&protobufs.ApiMessage{
+			Header: &protobufs.ApiHeader{
 				Id:        uuid.New().String(),
 				Timestamp: timestamppb.Now(),
 			},

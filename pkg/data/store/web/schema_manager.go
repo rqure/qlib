@@ -31,8 +31,8 @@ func (s *SchemaManager) SetFieldOperator(fo data.FieldOperator) {
 
 func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeEntityExistsRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeEntityExistsRequest{
 		EntityId: entityId,
 	})
 
@@ -41,7 +41,7 @@ func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool 
 		return false
 	}
 
-	var resp protobufs.WebRuntimeEntityExistsResponse
+	var resp protobufs.ApiRuntimeEntityExistsResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return false
@@ -52,8 +52,8 @@ func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool 
 
 func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType string) bool {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeFieldExistsRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeFieldExistsRequest{
 		FieldName:  fieldName,
 		EntityType: entityType,
 	})
@@ -63,7 +63,7 @@ func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType s
 		return false
 	}
 
-	var resp protobufs.WebRuntimeFieldExistsResponse
+	var resp protobufs.ApiRuntimeFieldExistsResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return false
@@ -74,8 +74,8 @@ func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType s
 
 func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntitySchemaRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigGetEntitySchemaRequest{
 		Type: entityType,
 	})
 
@@ -84,13 +84,13 @@ func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) 
 		return nil
 	}
 
-	var resp protobufs.WebConfigGetEntitySchemaResponse
+	var resp protobufs.ApiConfigGetEntitySchemaResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
-	if resp.Status != protobufs.WebConfigGetEntitySchemaResponse_SUCCESS {
+	if resp.Status != protobufs.ApiConfigGetEntitySchemaResponse_SUCCESS {
 		return nil
 	}
 
@@ -99,8 +99,8 @@ func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) 
 
 func (s *SchemaManager) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigSetEntitySchemaRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigSetEntitySchemaRequest{
 		Schema: entity.ToSchemaPb(schema),
 	})
 

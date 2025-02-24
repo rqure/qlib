@@ -35,8 +35,8 @@ func (n *NotificationConsumer) Notify(ctx context.Context, config data.Notificat
 	}
 
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeRegisterNotificationRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeRegisterNotificationRequest{
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	})
 
@@ -46,7 +46,7 @@ func (n *NotificationConsumer) Notify(ctx context.Context, config data.Notificat
 		return notification.NewToken("", n, nil)
 	}
 
-	var resp protobufs.WebRuntimeRegisterNotificationResponse
+	var resp protobufs.ApiRuntimeRegisterNotificationResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return notification.NewToken("", n, nil)
@@ -64,8 +64,8 @@ func (n *NotificationConsumer) Notify(ctx context.Context, config data.Notificat
 
 func (n *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeUnregisterNotificationRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
 	})
 
@@ -94,8 +94,8 @@ func (n *NotificationConsumer) UnnotifyCallback(ctx context.Context, token strin
 
 func (n *NotificationConsumer) ProcessNotifications(ctx context.Context) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetNotificationsRequest{})
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeGetNotificationsRequest{})
 
 	response := n.core.SendAndWait(ctx, msg)
 	if response == nil {
@@ -103,7 +103,7 @@ func (n *NotificationConsumer) ProcessNotifications(ctx context.Context) {
 		return
 	}
 
-	var resp protobufs.WebRuntimeGetNotificationsResponse
+	var resp protobufs.ApiRuntimeGetNotificationsResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return

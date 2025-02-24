@@ -22,7 +22,7 @@ class QServer {
         const fileReader = new FileReader();
 
         fileReader.onload = function(event) {
-            const message = proto.protobufs.WebMessage.deserializeBinary(new Uint8Array(event.target.result));
+            const message = proto.protobufs.ApiMessage.deserializeBinary(new Uint8Array(event.target.result));
             const requestId = message.getHeader().getId();
 
             if (!me._waitingResponses[requestId]) {
@@ -98,11 +98,11 @@ class QServer {
         const requestId = uuidv4();
         const request = this._waitingResponses[requestId] = { "sent": +new Date(), "responseType": responseProtoType };
 
-        const header = new proto.protobufs.WebHeader();
+        const header = new proto.protobufs.ApiHeader();
         header.setId(requestId);
         header.setTimestamp(new proto.google.protobuf.Timestamp.fromDate(new Date()));
 
-        const message = new proto.protobufs.WebMessage();
+        const message = new proto.protobufs.ApiMessage();
         message.setHeader(header);
         message.setPayload(new proto.google.protobuf.Any());
         message.getPayload().pack(requestProto.serializeBinary(), qMessageType(requestProto));

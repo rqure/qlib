@@ -31,8 +31,8 @@ func (e *EntityManager) SetFieldOperator(fo data.FieldOperator) {
 
 func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigCreateEntityRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigCreateEntityRequest{
 		Type:     entityType,
 		ParentId: parentId,
 		Name:     name,
@@ -43,8 +43,8 @@ func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, 
 
 func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntityRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigGetEntityRequest{
 		Id: entityId,
 	})
 
@@ -53,13 +53,13 @@ func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Ent
 		return nil
 	}
 
-	var resp protobufs.WebConfigGetEntityResponse
+	var resp protobufs.ApiConfigGetEntityResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return nil
 	}
 
-	if resp.Status != protobufs.WebConfigGetEntityResponse_SUCCESS {
+	if resp.Status != protobufs.ApiConfigGetEntityResponse_SUCCESS {
 		return nil
 	}
 
@@ -73,8 +73,8 @@ func (e *EntityManager) SetEntity(ctx context.Context, entity data.Entity) {
 
 func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigDeleteEntityRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigDeleteEntityRequest{
 		Id: entityId,
 	})
 
@@ -83,8 +83,8 @@ func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 
 func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetEntitiesRequest{
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeGetEntitiesRequest{
 		EntityType: entityType,
 	})
 
@@ -93,7 +93,7 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 		return nil
 	}
 
-	var resp protobufs.WebRuntimeGetEntitiesResponse
+	var resp protobufs.ApiRuntimeGetEntitiesResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return nil
@@ -108,15 +108,15 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 
 func (e *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebConfigGetEntityTypesRequest{})
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiConfigGetEntityTypesRequest{})
 
 	response := e.core.SendAndWait(ctx, msg)
 	if response == nil {
 		return nil
 	}
 
-	var resp protobufs.WebConfigGetEntityTypesResponse
+	var resp protobufs.ApiConfigGetEntityTypesResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return nil

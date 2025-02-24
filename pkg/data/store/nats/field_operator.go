@@ -38,8 +38,8 @@ func (f *FieldOperator) SetTransformer(t data.Transformer) {
 }
 
 func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
-	msg := &protobufs.WebRuntimeDatabaseRequest{
-		RequestType: protobufs.WebRuntimeDatabaseRequest_READ,
+	msg := &protobufs.ApiRuntimeDatabaseRequest{
+		RequestType: protobufs.ApiRuntimeDatabaseRequest_READ,
 		Requests:    make([]*protobufs.DatabaseRequest, len(requests)),
 	}
 
@@ -52,7 +52,7 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 		return
 	}
 
-	var response protobufs.WebRuntimeDatabaseResponse
+	var response protobufs.ApiRuntimeDatabaseResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return
 	}
@@ -75,8 +75,8 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 }
 
 func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
-	msg := &protobufs.WebRuntimeDatabaseRequest{
-		RequestType: protobufs.WebRuntimeDatabaseRequest_WRITE,
+	msg := &protobufs.ApiRuntimeDatabaseRequest{
+		RequestType: protobufs.ApiRuntimeDatabaseRequest_WRITE,
 		Requests:    make([]*protobufs.DatabaseRequest, len(requests)),
 	}
 
@@ -89,7 +89,7 @@ func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 		return
 	}
 
-	var response protobufs.WebRuntimeDatabaseResponse
+	var response protobufs.ApiRuntimeDatabaseResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return
 	}

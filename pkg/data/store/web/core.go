@@ -20,7 +20,7 @@ type Config struct {
 
 type responseCtxPair struct {
 	ctx context.Context
-	ch  chan *protobufs.WebMessage
+	ch  chan *protobufs.ApiMessage
 }
 
 type Core interface {
@@ -81,15 +81,15 @@ func (c *coreInternal) IsConnected(ctx context.Context) bool {
 	}
 
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeGetDatabaseConnectionStatusRequest{})
+	msg.Header = &protobufs.ApiHeader{}
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeGetDatabaseConnectionStatusRequest{})
 
 	response := c.SendAndWait(ctx, msg)
 	if response == nil {
 		return false
 	}
 
-	var resp protobufs.WebRuntimeGetDatabaseConnectionStatusResponse
+	var resp protobufs.ApiRuntimeGetDatabaseConnectionStatusResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return false

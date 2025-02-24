@@ -32,19 +32,19 @@ func (s *SnapshotManager) SetFieldOperator(fo data.FieldOperator) {
 }
 
 func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
-	msg := &protobufs.WebConfigCreateSnapshotRequest{}
+	msg := &protobufs.ApiConfigCreateSnapshotRequest{}
 
 	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetSnapshotCreateSubject(), msg)
 	if err != nil {
 		return nil
 	}
 
-	var response protobufs.WebConfigCreateSnapshotResponse
+	var response protobufs.ApiConfigCreateSnapshotResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return nil
 	}
 
-	if response.Status != protobufs.WebConfigCreateSnapshotResponse_SUCCESS {
+	if response.Status != protobufs.ApiConfigCreateSnapshotResponse_SUCCESS {
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 }
 
 func (s *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
-	msg := &protobufs.WebConfigRestoreSnapshotRequest{
+	msg := &protobufs.ApiConfigRestoreSnapshotRequest{
 		Snapshot: snapshot.ToPb(ss),
 	}
 

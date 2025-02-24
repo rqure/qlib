@@ -28,7 +28,7 @@ func (s *SchemaManager) SetFieldOperator(fo data.FieldOperator) {
 }
 
 func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool {
-	msg := &protobufs.WebRuntimeEntityExistsRequest{
+	msg := &protobufs.ApiRuntimeEntityExistsRequest{
 		EntityId: entityId,
 	}
 
@@ -37,7 +37,7 @@ func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool 
 		return false
 	}
 
-	var response protobufs.WebRuntimeEntityExistsResponse
+	var response protobufs.ApiRuntimeEntityExistsResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return false
 	}
@@ -46,7 +46,7 @@ func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool 
 }
 
 func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType string) bool {
-	msg := &protobufs.WebRuntimeFieldExistsRequest{
+	msg := &protobufs.ApiRuntimeFieldExistsRequest{
 		FieldName:  fieldName,
 		EntityType: entityType,
 	}
@@ -56,7 +56,7 @@ func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType s
 		return false
 	}
 
-	var response protobufs.WebRuntimeFieldExistsResponse
+	var response protobufs.ApiRuntimeFieldExistsResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return false
 	}
@@ -65,7 +65,7 @@ func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType s
 }
 
 func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
-	msg := &protobufs.WebConfigGetEntitySchemaRequest{
+	msg := &protobufs.ApiConfigGetEntitySchemaRequest{
 		Type: entityType,
 	}
 
@@ -74,12 +74,12 @@ func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) 
 		return nil
 	}
 
-	var response protobufs.WebConfigGetEntitySchemaResponse
+	var response protobufs.ApiConfigGetEntitySchemaResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return nil
 	}
 
-	if response.Status != protobufs.WebConfigGetEntitySchemaResponse_SUCCESS {
+	if response.Status != protobufs.ApiConfigGetEntitySchemaResponse_SUCCESS {
 		return nil
 	}
 
@@ -87,7 +87,7 @@ func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) 
 }
 
 func (s *SchemaManager) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
-	msg := &protobufs.WebConfigSetEntitySchemaRequest{
+	msg := &protobufs.ApiConfigSetEntitySchemaRequest{
 		Schema: entity.ToSchemaPb(schema),
 	}
 

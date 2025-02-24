@@ -11,10 +11,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type Message = *protobufs.WebMessage
+type Message = *protobufs.ApiMessage
 
 func NewMessage() Message {
-	return new(protobufs.WebMessage)
+	return new(protobufs.ApiMessage)
 }
 
 type MessageHandler func(Client, Message)

@@ -42,15 +42,15 @@ func (f *FieldOperator) SetTransformer(t data.Transformer) {
 
 func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
+	msg.Header = &protobufs.ApiHeader{}
 
 	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
 	for i, r := range requests {
 		dbRequests[i] = request.ToPb(r)
 	}
 
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeDatabaseRequest{
-		RequestType: protobufs.WebRuntimeDatabaseRequest_READ,
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeDatabaseRequest{
+		RequestType: protobufs.ApiRuntimeDatabaseRequest_READ,
 		Requests:    dbRequests,
 	})
 
@@ -60,7 +60,7 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 		return
 	}
 
-	var resp protobufs.WebRuntimeDatabaseResponse
+	var resp protobufs.ApiRuntimeDatabaseResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return
@@ -85,15 +85,15 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 
 func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 	msg := web.NewMessage()
-	msg.Header = &protobufs.WebHeader{}
+	msg.Header = &protobufs.ApiHeader{}
 
 	dbRequests := make([]*protobufs.DatabaseRequest, len(requests))
 	for i, r := range requests {
 		dbRequests[i] = request.ToPb(r)
 	}
 
-	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeDatabaseRequest{
-		RequestType: protobufs.WebRuntimeDatabaseRequest_WRITE,
+	msg.Payload, _ = anypb.New(&protobufs.ApiRuntimeDatabaseRequest{
+		RequestType: protobufs.ApiRuntimeDatabaseRequest_WRITE,
 		Requests:    dbRequests,
 	})
 
@@ -103,7 +103,7 @@ func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 		return
 	}
 
-	var resp protobufs.WebRuntimeDatabaseResponse
+	var resp protobufs.ApiRuntimeDatabaseResponse
 	if err := response.Payload.UnmarshalTo(&resp); err != nil {
 		log.Error("Failed to unmarshal response: %v", err)
 		return

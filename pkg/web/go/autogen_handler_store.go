@@ -2,15 +2,15 @@
 package web
 
 import (
-    "net/http"
-    "fmt"
+	"fmt"
+	"net/http"
 )
 
 func Register_web_handler_store() {
 
-    http.HandleFunc("/js/qlib/store.js", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Content-Type", "application/javascript")
-        s := `Q_STORE_EVENTS = {
+	http.HandleFunc("/js/qlib/store.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		s := `Q_STORE_EVENTS = {
     CONNECTED: "connected",
     DISCONNECTED: "disconnected",
 };
@@ -143,7 +143,7 @@ class QEntityStore {
         }
 
         this._server
-            .send(new proto.protobufs.WebRuntimeGetDatabaseConnectionStatusRequest(), proto.protobufs.WebRuntimeGetDatabaseConnectionStatusResponse)
+            .send(new proto.protobufs.ApiRuntimeGetDatabaseConnectionStatusRequest(), proto.protobufs.ApiRuntimeGetDatabaseConnectionStatusResponse)
             .then(response => {
                 if (!response.getConnected()) {
                     if(this._isConnected !== false) {
@@ -177,15 +177,15 @@ class QEntityStore {
 
     createEntity(parentId, entityName, entityType) {
         const me = this;
-        const request = new proto.protobufs.WebConfigCreateEntityRequest();
+        const request = new proto.protobufs.ApiConfigCreateEntityRequest();
         request.setParentid(parentId);
         request.setName(entityName);
         request.setType(entityType);
 
         return me._server
-            .send(request, proto.protobufs.WebConfigCreateEntityResponse)
+            .send(request, proto.protobufs.ApiConfigCreateEntityResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigCreateEntityResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigCreateEntityResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::createEntity] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
                 
@@ -197,11 +197,11 @@ class QEntityStore {
     }
 
     queryAllEntities(entityType) {
-        const request = new proto.protobufs.WebRuntimeGetEntitiesRequest();
+        const request = new proto.protobufs.ApiRuntimeGetEntitiesRequest();
         request.setEntitytype(entityType);
 
         return this._server
-            .send(request, proto.protobufs.WebRuntimeGetEntitiesResponse)
+            .send(request, proto.protobufs.ApiRuntimeGetEntitiesResponse)
             .then(response => {
                 return {entities: response.getEntitiesList()};
             })
@@ -211,13 +211,13 @@ class QEntityStore {
     }
 
     queryEntity(entityId) {
-        const request = new proto.protobufs.WebConfigGetEntityRequest();
+        const request = new proto.protobufs.ApiConfigGetEntityRequest();
         request.setId(entityId);
         
         return this._server
-            .send(request, proto.protobufs.WebConfigGetEntityResponse)
+            .send(request, proto.protobufs.ApiConfigGetEntityResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigGetEntityResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigGetEntityResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::queryEntity] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
                 
@@ -229,13 +229,13 @@ class QEntityStore {
     }
 
     queryEntitySchema(entityType) {
-        const request = new proto.protobufs.WebConfigGetEntitySchemaRequest();
+        const request = new proto.protobufs.ApiConfigGetEntitySchemaRequest();
         request.setType(entityType);
 
         return this._server
-            .send(request, proto.protobufs.WebConfigGetEntitySchemaResponse)
+            .send(request, proto.protobufs.ApiConfigGetEntitySchemaResponse)
             .then(response => {
-                if(response.getStatus() !== proto.protobufs.WebConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                if(response.getStatus() !== proto.protobufs.ApiConfigGetEntitySchemaResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::queryEntitySchema] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
 
@@ -248,7 +248,7 @@ class QEntityStore {
 
     queryAllEntityTypes() {
         return this._server
-            .send(new proto.protobufs.WebConfigGetEntityTypesRequest(), proto.protobufs.WebConfigGetEntityTypesResponse)
+            .send(new proto.protobufs.ApiConfigGetEntityTypesRequest(), proto.protobufs.ApiConfigGetEntityTypesResponse)
             .then(response => {
                 return {entityTypes: response.getTypesList()};
             })
@@ -259,13 +259,13 @@ class QEntityStore {
 
     deleteEntity(entityId) {
         const me = this;
-        const request = new proto.protobufs.WebConfigDeleteEntityRequest();
+        const request = new proto.protobufs.ApiConfigDeleteEntityRequest();
         request.setId(entityId);
 
         return me._server
-            .send(request, proto.protobufs.WebConfigDeleteEntityResponse)
+            .send(request, proto.protobufs.ApiConfigDeleteEntityResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigDeleteEntityResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigDeleteEntityResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::deleteEntity] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
 
@@ -281,13 +281,13 @@ class QEntityStore {
         schema.setName(entityType);
         schema.setFieldsList(entityFields);
 
-        const request = new proto.protobufs.WebConfigSetEntitySchemaRequest();
+        const request = new proto.protobufs.ApiConfigSetEntitySchemaRequest();
         request.setSchema(schema);
 
         return this._server
-            .send(request, proto.protobufs.WebConfigSetEntitySchemaResponse)
+            .send(request, proto.protobufs.ApiConfigSetEntitySchemaResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigSetEntitySchemaResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigSetEntitySchemaResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::createOrUpdateEntityType] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
                 
@@ -299,7 +299,7 @@ class QEntityStore {
     }
 
     createField(fieldName, fieldType) {
-        const request = new proto.protobufs.WebConfigSetFieldSchemaRequest();
+        const request = new proto.protobufs.ApiConfigSetFieldSchemaRequest();
         request.setField( fieldName );
 
         const schema = new proto.protobufs.DatabaseFieldSchema();
@@ -307,9 +307,9 @@ class QEntityStore {
         schema.setType( 'protobufs.' + fieldType );
         request.setSchema( schema );
 
-        return this._server.send(request, proto.protobufs.WebConfigSetFieldSchemaResponse)
+        return this._server.send(request, proto.protobufs.ApiConfigSetFieldSchemaResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigSetFieldSchemaResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigSetFieldSchemaResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::createField] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
                 
@@ -322,12 +322,12 @@ class QEntityStore {
 
     createSnapshot() {
         const me = this;
-        const request = new proto.protobufs.WebConfigCreateSnapshotRequest();
+        const request = new proto.protobufs.ApiConfigCreateSnapshotRequest();
 
         return me._server
-            .send(request, proto.protobufs.WebConfigCreateSnapshotResponse)
+            .send(request, proto.protobufs.ApiConfigCreateSnapshotResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigCreateSnapshotResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigCreateSnapshotResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::createSnapshot] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
                 
@@ -340,13 +340,13 @@ class QEntityStore {
 
     restoreSnapshot(snapshot) {
         const me = this;
-        const request = new proto.protobufs.WebConfigRestoreSnapshotRequest();
+        const request = new proto.protobufs.ApiConfigRestoreSnapshotRequest();
         request.setSnapshot((snapshot));
 
         return me._server
-            .send(request, proto.protobufs.WebConfigRestoreSnapshotResponse)
+            .send(request, proto.protobufs.ApiConfigRestoreSnapshotResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebConfigRestoreSnapshotResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiConfigRestoreSnapshotResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::restoreSnapshot] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
 
@@ -359,7 +359,7 @@ class QEntityStore {
 
     queryRootEntityId() {
         return this._server
-            .send(new proto.protobufs.WebConfigGetRootRequest(), proto.protobufs.WebConfigGetRootResponse)
+            .send(new proto.protobufs.ApiConfigGetRootRequest(), proto.protobufs.ApiConfigGetRootResponse)
             .then(response => {
                 if (response.getRootid() === "") {
                     throw new Error(` + "`" + `[QEntityStore::queryRootEntityId] Could not complete the request: No root entity id returned` + "`" + `);
@@ -374,7 +374,7 @@ class QEntityStore {
 
     processNotifications() {
         return this._server
-            .send(new proto.protobufs.WebRuntimeGetNotificationsRequest(), proto.protobufs.WebRuntimeGetNotificationsResponse)
+            .send(new proto.protobufs.ApiRuntimeGetNotificationsRequest(), proto.protobufs.ApiRuntimeGetNotificationsResponse)
             .then(response => {
                 response.getNotificationsList().forEach(notification => {
                     this._notificationManager.dispatchEvent(notification.getToken(), notification);
@@ -386,7 +386,7 @@ class QEntityStore {
     }
 
     registerNotifications(nRequests, callback) {
-        const request = new proto.protobufs.WebRuntimeRegisterNotificationRequest();
+        const request = new proto.protobufs.ApiRuntimeRegisterNotificationRequest();
         request.setRequestsList(nRequests.map(r => {
             const nr = new proto.protobufs.DatabaseNotificationConfig();
             if (r.id) {
@@ -404,7 +404,7 @@ class QEntityStore {
         }));
 
         return this._server
-            .send(request, proto.protobufs.WebRuntimeRegisterNotificationResponse)
+            .send(request, proto.protobufs.ApiRuntimeRegisterNotificationResponse)
             .then(response => {
                 if (response.getTokensList().length !== nRequests.length) {
                     qWarn(` + "`" + `[QEntityStore::registerNotification] Could not complete the request: Got ${response.getTokensList().length} tokens, Expected: ${nRequests.length}` + "`" + `);
@@ -426,13 +426,13 @@ class QEntityStore {
     }
 
     unregisterNotifications(tokens) {
-        const request = new proto.protobufs.WebRuntimeUnregisterNotificationRequest();
+        const request = new proto.protobufs.ApiRuntimeUnregisterNotificationRequest();
         request.setTokensList(tokens);
 
         return this._server
-            .send(request, proto.protobufs.WebRuntimeUnregisterNotificationResponse)
+            .send(request, proto.protobufs.ApiRuntimeUnregisterNotificationResponse)
             .then(response => {
-                if (response.getStatus() !== proto.protobufs.WebRuntimeUnregisterNotificationResponse.StatusEnum.SUCCESS) {
+                if (response.getStatus() !== proto.protobufs.ApiRuntimeUnregisterNotificationResponse.StatusEnum.SUCCESS) {
                     throw new Error(` + "`" + `[QEntityStore::unregisterNotification] Could not complete the request: ${response.getStatus()}` + "`" + `);
                 }
 
@@ -448,8 +448,8 @@ class QEntityStore {
     }
 
     read(dbRequest) {
-        const request = new proto.protobufs.WebRuntimeDatabaseRequest();
-        request.setRequesttype(proto.protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum.READ);
+        const request = new proto.protobufs.ApiRuntimeDatabaseRequest();
+        request.setRequesttype(proto.protobufs.ApiRuntimeDatabaseRequest.RequestTypeEnum.READ);
         request.setRequestsList(dbRequest.map(r => {
             const dr = new proto.protobufs.DatabaseRequest();
 
@@ -460,7 +460,7 @@ class QEntityStore {
         }));
 
         return this._server
-            .send(request, proto.protobufs.WebRuntimeDatabaseResponse)
+            .send(request, proto.protobufs.ApiRuntimeDatabaseResponse)
             .then(response => {
                 return response.getResponseList();
             })
@@ -470,8 +470,8 @@ class QEntityStore {
     }
 
     write(dbRequest) {
-        const request = new proto.protobufs.WebRuntimeDatabaseRequest();
-        request.setRequesttype(proto.protobufs.WebRuntimeDatabaseRequest.RequestTypeEnum.WRITE);
+        const request = new proto.protobufs.ApiRuntimeDatabaseRequest();
+        request.setRequesttype(proto.protobufs.ApiRuntimeDatabaseRequest.RequestTypeEnum.WRITE);
         request.setRequestsList(dbRequest.map(r => {
             const dr = new proto.protobufs.DatabaseRequest();
 
@@ -490,7 +490,7 @@ class QEntityStore {
         }));
 
         return this._server
-            .send(request, proto.protobufs.WebRuntimeDatabaseResponse)
+            .send(request, proto.protobufs.ApiRuntimeDatabaseResponse)
             .then(response => {
                 return response.getResponseList();
             })
@@ -499,6 +499,6 @@ class QEntityStore {
             });
     }
 }`
-        fmt.Fprint(w, s)
-    })
+		fmt.Fprint(w, s)
+	})
 }

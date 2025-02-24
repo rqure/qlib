@@ -22,7 +22,7 @@ type Core interface {
 	Disconnect(ctx context.Context)
 	IsConnected(ctx context.Context) bool
 	Publish(subject string, msg proto.Message) error
-	Request(ctx context.Context, subject string, msg proto.Message) (*protobufs.WebMessage, error)
+	Request(ctx context.Context, subject string, msg proto.Message) (*protobufs.ApiMessage, error)
 	Subscribe(subject string, handler func(msg *natsgo.Msg))
 	SetConfig(config Config)
 	GetConfig() Config
@@ -86,8 +86,8 @@ func (c *coreInternal) IsConnected(ctx context.Context) bool {
 }
 
 func (c *coreInternal) Publish(subject string, msg proto.Message) error {
-	webMsg := &protobufs.WebMessage{}
-	webMsg.Header = &protobufs.WebHeader{}
+	webMsg := &protobufs.ApiMessage{}
+	webMsg.Header = &protobufs.ApiHeader{}
 	webMsg.Payload, _ = anypb.New(msg)
 
 	data, err := proto.Marshal(webMsg)
@@ -105,9 +105,9 @@ func (c *coreInternal) Publish(subject string, msg proto.Message) error {
 	return c.conn.Publish(subject, data)
 }
 
-func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Message) (*protobufs.WebMessage, error) {
-	webMsg := &protobufs.WebMessage{}
-	webMsg.Header = &protobufs.WebHeader{}
+func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Message) (*protobufs.ApiMessage, error) {
+	webMsg := &protobufs.ApiMessage{}
+	webMsg.Header = &protobufs.ApiHeader{}
 	webMsg.Payload, _ = anypb.New(msg)
 
 	data, err := proto.Marshal(webMsg)
@@ -127,7 +127,7 @@ func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Me
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 
-	var respMsg protobufs.WebMessage
+	var respMsg protobufs.ApiMessage
 	if err := proto.Unmarshal(response.Data, &respMsg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}

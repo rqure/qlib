@@ -27,7 +27,7 @@ func (e *EntityManager) SetFieldOperator(fo data.FieldOperator) {
 }
 
 func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) {
-	msg := &protobufs.WebConfigCreateEntityRequest{
+	msg := &protobufs.ApiConfigCreateEntityRequest{
 		Type:     entityType,
 		ParentId: parentId,
 		Name:     name,
@@ -37,7 +37,7 @@ func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, 
 }
 
 func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
-	msg := &protobufs.WebConfigGetEntityRequest{
+	msg := &protobufs.ApiConfigGetEntityRequest{
 		Id: entityId,
 	}
 
@@ -46,12 +46,12 @@ func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Ent
 		return nil
 	}
 
-	var response protobufs.WebConfigGetEntityResponse
+	var response protobufs.ApiConfigGetEntityResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return nil
 	}
 
-	if response.Status != protobufs.WebConfigGetEntityResponse_SUCCESS {
+	if response.Status != protobufs.ApiConfigGetEntityResponse_SUCCESS {
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Ent
 }
 
 func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
-	msg := &protobufs.WebConfigDeleteEntityRequest{
+	msg := &protobufs.ApiConfigDeleteEntityRequest{
 		Id: entityId,
 	}
 
@@ -67,7 +67,7 @@ func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 }
 
 func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
-	msg := &protobufs.WebRuntimeGetEntitiesRequest{
+	msg := &protobufs.ApiRuntimeGetEntitiesRequest{
 		EntityType: entityType,
 	}
 
@@ -76,7 +76,7 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 		return nil
 	}
 
-	var response protobufs.WebRuntimeGetEntitiesResponse
+	var response protobufs.ApiRuntimeGetEntitiesResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return nil
 	}
@@ -89,14 +89,14 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 }
 
 func (e *EntityManager) GetEntityTypes(ctx context.Context) []string {
-	msg := &protobufs.WebConfigGetEntityTypesRequest{}
+	msg := &protobufs.ApiConfigGetEntityTypesRequest{}
 
 	resp, err := e.core.Request(ctx, "entity.types", msg)
 	if err != nil {
 		return nil
 	}
 
-	var response protobufs.WebConfigGetEntityTypesResponse
+	var response protobufs.ApiConfigGetEntityTypesResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
 		return nil
 	}
