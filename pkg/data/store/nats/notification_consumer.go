@@ -83,6 +83,8 @@ func (n *NotificationConsumer) ProcessNotifications(ctx context.Context) {
 }
 
 func (n *NotificationConsumer) sendNotify(ctx context.Context, config data.NotificationConfig) (string, error) {
+	config.SetServiceId(app.GetName())
+
 	msg := &protobufs.WebRuntimeRegisterNotificationRequest{
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	}
