@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/notification"
 	"github.com/rqure/qlib/pkg/log"
@@ -29,6 +30,10 @@ func (n *NotificationConsumer) SetTransformer(t data.Transformer) {
 }
 
 func (n *NotificationConsumer) Notify(ctx context.Context, config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+	if config.GetServiceId() == "" {
+		config.SetServiceId(app.GetName())
+	}
+
 	msg := web.NewMessage()
 	msg.Header = &protobufs.WebHeader{}
 	msg.Payload, _ = anypb.New(&protobufs.WebRuntimeRegisterNotificationRequest{
