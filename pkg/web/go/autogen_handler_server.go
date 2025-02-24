@@ -2,15 +2,15 @@
 package web
 
 import (
-	"fmt"
-	"net/http"
+    "net/http"
+    "fmt"
 )
 
 func Register_web_handler_server() {
 
-	http.HandleFunc("/js/qlib/server.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		s := `Q_SERVER_CONNECTION_STATES = {
+    http.HandleFunc("/js/qlib/server.js", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/javascript")
+        s := `Q_SERVER_CONNECTION_STATES = {
     DISCONNECTED: 0,
     CONNECTING: 1,
     CONNECTED: 2,
@@ -143,6 +143,6 @@ class QServer {
         }
     }
 }`
-		fmt.Fprint(w, s)
-	})
+        fmt.Fprint(w, s)
+    })
 }

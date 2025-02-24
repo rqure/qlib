@@ -2,15 +2,15 @@
 package web
 
 import (
-	"fmt"
-	"net/http"
+    "net/http"
+    "fmt"
 )
 
 func Register_web_handler_store() {
 
-	http.HandleFunc("/js/qlib/store.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		s := `Q_STORE_EVENTS = {
+    http.HandleFunc("/js/qlib/store.js", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/javascript")
+        s := `Q_STORE_EVENTS = {
     CONNECTED: "connected",
     DISCONNECTED: "disconnected",
 };
@@ -499,6 +499,6 @@ class QEntityStore {
             });
     }
 }`
-		fmt.Fprint(w, s)
-	})
+        fmt.Fprint(w, s)
+    })
 }
