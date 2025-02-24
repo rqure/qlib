@@ -2,6 +2,8 @@ package nats
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/rqure/qlib/pkg/app"
@@ -13,9 +15,12 @@ import (
 )
 
 type NotificationConsumer struct {
-	core          Core
-	transformer   data.Transformer
-	callbacks     map[string][]data.NotificationCallback
+	core        Core
+	transformer data.Transformer
+	callbacks   map[string][]data.NotificationCallback
+
+	keepAlive *time.Ticker
+
 	pendingNotifs chan data.Notification
 }
 
@@ -23,6 +28,7 @@ func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 	consumer := &NotificationConsumer{
 		core:          core,
 		callbacks:     map[string][]data.NotificationCallback{},
+		keepAlive:     time.NewTicker(30 * time.Second),
 		pendingNotifs: make(chan data.Notification, 1024),
 	}
 
@@ -65,34 +71,51 @@ func (n *NotificationConsumer) ProcessNotifications(ctx context.Context) {
 					cb.Fn(context.Background(), notif)
 				}
 			}
+		case <-n.keepAlive.C:
+			// Resend all registered notifications to keep them alive
+			for token := range n.callbacks {
+				n.sendNotify(ctx, notification.FromToken(token))
+			}
 		default:
 			return
 		}
 	}
 }
 
-func (n *NotificationConsumer) Notify(ctx context.Context, config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+func (n *NotificationConsumer) sendNotify(ctx context.Context, config data.NotificationConfig) (string, error) {
 	msg := &protobufs.WebRuntimeRegisterNotificationRequest{
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	}
 
 	resp, err := n.core.Request(ctx, n.core.GetKeyGenerator().GetNotificationRegisterSubject(), msg)
 	if err != nil {
-		return notification.NewToken("", n, nil)
+		return "", err
 	}
 
 	var response protobufs.WebRuntimeRegisterNotificationResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return notification.NewToken("", n, nil)
+		return "", err
 	}
 
 	if len(response.Tokens) == 0 {
-		return notification.NewToken("", n, nil)
+		return "", errors.New("no tokens returned")
 	}
 
 	token := response.Tokens[0]
-	n.callbacks[token] = append(n.callbacks[token], cb)
-	return notification.NewToken(token, n, cb)
+	return token, nil
+}
+
+func (n *NotificationConsumer) Notify(ctx context.Context, config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
+	tokenId, err := n.sendNotify(ctx, config)
+
+	if err == nil {
+		n.callbacks[tokenId] = append(n.callbacks[tokenId], cb)
+		return notification.NewToken(tokenId, n, cb)
+	} else {
+		log.Error("notification registration failed: %v", err)
+	}
+
+	return notification.NewToken("", n, nil)
 }
 
 func (n *NotificationConsumer) Unnotify(ctx context.Context, token string) {

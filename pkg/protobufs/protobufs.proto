@@ -6,7 +6,7 @@ package protobufs;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 
-message WebHeader {
+message ApiHeader {
     enum AuthenticationStatusEnum {
         UNSPECIFIED = 0;
         AUTHENTICATED = 1;
@@ -18,18 +18,18 @@ message WebHeader {
     AuthenticationStatusEnum authenticationStatus = 3;
 }
 
-message WebMessage {
-    WebHeader header = 1;
+message ApiMessage {
+    ApiHeader header = 1;
     google.protobuf.Any payload = 2;
 }
 
-message WebConfigCreateEntityRequest {
+message ApiConfigCreateEntityRequest {
     string type = 1;
     string name = 2;
     string parentId = 3;
 }
 
-message WebConfigCreateEntityResponse {
+message ApiConfigCreateEntityResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -40,11 +40,11 @@ message WebConfigCreateEntityResponse {
     string id = 2;
 }
 
-message WebConfigDeleteEntityRequest {
+message ApiConfigDeleteEntityRequest {
     string id = 1;
 }
 
-message WebConfigDeleteEntityResponse {
+message ApiConfigDeleteEntityResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -54,19 +54,19 @@ message WebConfigDeleteEntityResponse {
     StatusEnum status = 1;
 }
 
-message WebConfigGetEntityTypesRequest {
+message ApiConfigGetEntityTypesRequest {
 
 }
 
-message WebConfigGetEntityTypesResponse {
+message ApiConfigGetEntityTypesResponse {
     repeated string types = 1;
 }
 
-message WebConfigGetEntityRequest {
+message ApiConfigGetEntityRequest {
     string id = 1;
 }
 
-message WebConfigGetEntityResponse {
+message ApiConfigGetEntityResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -77,11 +77,11 @@ message WebConfigGetEntityResponse {
     DatabaseEntity entity = 2;
 }
 
-message WebConfigGetFieldSchemaRequest {
+message ApiConfigGetFieldSchemaRequest {
     string field = 1;
 }
 
-message WebConfigGetFieldSchemaResponse {
+message ApiConfigGetFieldSchemaResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -92,11 +92,11 @@ message WebConfigGetFieldSchemaResponse {
     DatabaseFieldSchema schema = 2;
 }
 
-message WebConfigGetEntitySchemaRequest {
+message ApiConfigGetEntitySchemaRequest {
     string type = 1;
 }
 
-message WebConfigGetEntitySchemaResponse {
+message ApiConfigGetEntitySchemaResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -107,11 +107,11 @@ message WebConfigGetEntitySchemaResponse {
     DatabaseEntitySchema schema = 2;
 }
 
-message WebConfigSetEntitySchemaRequest {
+message ApiConfigSetEntitySchemaRequest {
     DatabaseEntitySchema schema = 1;
 }
 
-message WebConfigSetEntitySchemaResponse {
+message ApiConfigSetEntitySchemaResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -121,10 +121,10 @@ message WebConfigSetEntitySchemaResponse {
     StatusEnum status = 1;
 }
 
-message WebConfigCreateSnapshotRequest {
+message ApiConfigCreateSnapshotRequest {
 }
 
-message WebConfigCreateSnapshotResponse {
+message ApiConfigCreateSnapshotResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -135,11 +135,11 @@ message WebConfigCreateSnapshotResponse {
     DatabaseSnapshot snapshot = 2;
 }
 
-message WebConfigRestoreSnapshotRequest {
+message ApiConfigRestoreSnapshotRequest {
     DatabaseSnapshot snapshot = 1;
 }
 
-message WebConfigRestoreSnapshotResponse {
+message ApiConfigRestoreSnapshotResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -149,14 +149,14 @@ message WebConfigRestoreSnapshotResponse {
     StatusEnum status = 1;
 }
 
-message WebConfigGetRootRequest {
+message ApiConfigGetRootRequest {
 }
 
-message WebConfigGetRootResponse {
+message ApiConfigGetRootResponse {
     string rootId = 1;
 }
 
-message WebRuntimeDatabaseRequest {
+message ApiRuntimeDatabaseRequest {
     enum RequestTypeEnum {
         UNSPECIFIED = 0;
         READ = 1;
@@ -167,30 +167,30 @@ message WebRuntimeDatabaseRequest {
     repeated DatabaseRequest requests = 2;
 }
 
-message WebRuntimeDatabaseResponse {
+message ApiRuntimeDatabaseResponse {
     repeated DatabaseRequest response = 2;
 }
 
-message WebRuntimeRegisterNotificationRequest {
+message ApiRuntimeRegisterNotificationRequest {
     repeated DatabaseNotificationConfig requests = 1;
 }
 
-message WebRuntimeRegisterNotificationResponse {
+message ApiRuntimeRegisterNotificationResponse {
     repeated string tokens = 1;
 }
 
-message WebRuntimeGetNotificationsRequest {
+message ApiRuntimeGetNotificationsRequest {
 }
 
-message WebRuntimeGetNotificationsResponse {
+message ApiRuntimeGetNotificationsResponse {
     repeated DatabaseNotification notifications = 1;
 }
 
-message WebRuntimeUnregisterNotificationRequest {
+message ApiRuntimeUnregisterNotificationRequest {
     repeated string tokens = 1;
 }
 
-message WebRuntimeUnregisterNotificationResponse {
+message ApiRuntimeUnregisterNotificationResponse {
     enum StatusEnum {
         UNSPECIFIED = 0;
         SUCCESS = 1;
@@ -200,35 +200,35 @@ message WebRuntimeUnregisterNotificationResponse {
     StatusEnum status = 1;
 }
 
-message WebRuntimeGetDatabaseConnectionStatusRequest {
+message ApiRuntimeGetDatabaseConnectionStatusRequest {
 }
 
-message WebRuntimeGetDatabaseConnectionStatusResponse {
+message ApiRuntimeGetDatabaseConnectionStatusResponse {
     bool connected = 1;
 }
 
-message WebRuntimeGetEntitiesRequest {
+message ApiRuntimeGetEntitiesRequest {
     string entityType = 1;
 }
 
-message WebRuntimeGetEntitiesResponse {
+message ApiRuntimeGetEntitiesResponse {
     repeated DatabaseEntity entities = 1;
 }
 
-message WebRuntimeFieldExistsRequest {
+message ApiRuntimeFieldExistsRequest {
     string fieldName = 1;
     string entityType = 2;
 }
 
-message WebRuntimeFieldExistsResponse {
+message ApiRuntimeFieldExistsResponse {
     bool exists = 1;
 }
 
-message WebRuntimeEntityExistsRequest {
+message ApiRuntimeEntityExistsRequest {
     string entityId = 1;
 }
 
-message WebRuntimeEntityExistsResponse {
+message ApiRuntimeEntityExistsResponse {
     bool exists = 1;
 }
 
