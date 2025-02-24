@@ -41,8 +41,8 @@ func (m *MultiBinding) RestoreSnapshot(ctx context.Context, s data.Snapshot) {
 	m.impl.RestoreSnapshot(ctx, s)
 }
 
-func (m *MultiBinding) CreateEntity(ctx context.Context, entityType, parentId, name string) {
-	m.impl.CreateEntity(ctx, entityType, parentId, name)
+func (m *MultiBinding) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
+	return m.impl.CreateEntity(ctx, entityType, parentId, name)
 }
 
 func (m *MultiBinding) GetEntity(ctx context.Context, entityId string) data.Entity {

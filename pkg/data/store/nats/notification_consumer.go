@@ -126,7 +126,10 @@ func (n *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 		Tokens: []string{token},
 	}
 
-	n.core.Publish(n.core.GetKeyGenerator().GetNotificationSubject(), msg)
+	_, err := n.core.Request(ctx, n.core.GetKeyGenerator().GetNotificationSubject(), msg)
+	if err != nil {
+		log.Error("Failed to unregister notification: %v", err)
+	}
 	delete(n.callbacks, token)
 }
 

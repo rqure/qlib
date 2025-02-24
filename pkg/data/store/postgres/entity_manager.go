@@ -113,9 +113,9 @@ func (me *EntityManager) SetEntity(ctx context.Context, e data.Entity) {
 	})
 }
 
-func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) {
+func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
+	entityId := uuid.New().String()
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		entityId := uuid.New().String()
 		_, err := tx.Exec(ctx, `
 			INSERT INTO Entities (id, name, parent_id, type)
 			VALUES ($1, $2, $3, $4)
@@ -123,6 +123,7 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 
 		if err != nil {
 			log.Error("Failed to create entity: %v", err)
+			entityId = ""
 			return
 		}
 
@@ -135,6 +136,7 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 			}
 		}
 	})
+	return entityId
 }
 
 func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []string {

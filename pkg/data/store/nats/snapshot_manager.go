@@ -5,6 +5,7 @@ import (
 
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/snapshot"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 )
 
@@ -56,5 +57,8 @@ func (s *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot)
 		Snapshot: snapshot.ToPb(ss),
 	}
 
-	s.core.Publish(s.core.GetKeyGenerator().GetWriteSubject(), msg)
+	_, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetWriteSubject(), msg)
+	if err != nil {
+		log.Error("Failed to restore snapshot: %v", err)
+	}
 }

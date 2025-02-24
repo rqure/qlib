@@ -5,6 +5,7 @@ import (
 
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 )
 
@@ -26,14 +27,28 @@ func (e *EntityManager) SetFieldOperator(fo data.FieldOperator) {
 	e.fieldOperator = fo
 }
 
-func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) {
+func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
 	msg := &protobufs.ApiConfigCreateEntityRequest{
 		Type:     entityType,
 		ParentId: parentId,
 		Name:     name,
 	}
 
-	e.core.Publish(e.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetWriteSubject(), msg)
+	if err != nil {
+		log.Error("Failed to create entity: %v", err)
+	}
+
+	var response protobufs.ApiConfigCreateEntityResponse
+	if err := resp.Payload.UnmarshalTo(&response); err != nil {
+		log.Error("Failed to create entity: %v", err)
+	}
+
+	if response.Status != protobufs.ApiConfigCreateEntityResponse_SUCCESS {
+		log.Error("Failed to create entity: %v", response.Status)
+	}
+
+	return response.Id
 }
 
 func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
@@ -63,7 +78,10 @@ func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 		Id: entityId,
 	}
 
-	e.core.Publish(e.core.GetKeyGenerator().GetReadSubject(), msg)
+	_, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetWriteSubject(), msg)
+	if err != nil {
+		log.Error("Failed to delete entity: %v", err)
+	}
 }
 
 func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
@@ -91,7 +109,7 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 func (e *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	msg := &protobufs.ApiConfigGetEntityTypesRequest{}
 
-	resp, err := e.core.Request(ctx, "entity.types", msg)
+	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}

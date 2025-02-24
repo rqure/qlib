@@ -91,7 +91,10 @@ func (s *SchemaManager) SetEntitySchema(ctx context.Context, schema data.EntityS
 		Schema: entity.ToSchemaPb(schema),
 	}
 
-	s.core.Publish(s.core.GetKeyGenerator().GetWriteSubject(), msg)
+	_, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetWriteSubject(), msg)
+	if err != nil {
+		log.Error("Failed to set entity schema: %v", err)
+	}
 }
 
 func (s *SchemaManager) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
