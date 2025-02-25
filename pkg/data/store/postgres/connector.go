@@ -6,15 +6,22 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/log"
+	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
 )
 
 type Connector struct {
 	core Core
+
+	connected    signalslots.Signal
+	disconnected signalslots.Signal
 }
 
 func NewConnector(core Core) data.Connector {
 	return &Connector{
-		core: core,
+		core:         core,
+		connected:    signal.New(),
+		disconnected: signal.New(),
 	}
 }
 
@@ -52,4 +59,12 @@ func (me *Connector) IsConnected(ctx context.Context) bool {
 		return false
 	}
 	return me.core.GetPool().Ping(ctx) == nil
+}
+
+func (me *Connector) Connected() signalslots.Signal {
+	return me.connected
+}
+
+func (me *Connector) Disconnected() signalslots.Signal {
+	return me.disconnected
 }

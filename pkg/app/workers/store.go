@@ -2,7 +2,6 @@ package workers
 
 import (
 	"context"
-	"time"
 
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
@@ -21,10 +20,9 @@ type Store struct {
 	store       data.Store
 	isConnected bool
 
-	connectionCheckTicker *time.Ticker
-	notificationTicker    *time.Ticker
-
 	notificationTokens []data.NotificationToken
+
+	handle app.Handle
 }
 
 func NewStore(store data.Store) *Store {
@@ -36,126 +34,107 @@ func NewStore(store data.Store) *Store {
 		store:       store,
 		isConnected: false,
 
-		connectionCheckTicker: time.NewTicker(5 * time.Second),
-		notificationTicker:    time.NewTicker(100 * time.Millisecond),
-
 		notificationTokens: make([]data.NotificationToken, 0),
 	}
 }
 
-func (w *Store) Init(context.Context, app.Handle) {
+func (me *Store) Init(ctx context.Context, handle app.Handle) {
+	me.handle = handle
+
+	me.store.Connected().Connect(me.onConnected)
+	me.store.Disconnected().Connect(me.onDisconnected)
 }
 
-func (w *Store) Deinit(context.Context) {
-	w.connectionCheckTicker.Stop()
-	w.notificationTicker.Stop()
+func (me *Store) Deinit(context.Context) {
 }
 
-func (w *Store) DoWork(ctx context.Context) {
-	select {
-	case <-w.connectionCheckTicker.C:
-		w.setConnectionStatus(ctx, w.store.IsConnected(ctx))
+func (me *Store) DoWork(ctx context.Context) {
 
-		if !w.IsConnected() {
-			w.store.Connect(ctx)
-			w.setConnectionStatus(ctx, w.store.IsConnected(ctx))
+}
+
+func (me *Store) onConnected(ctx context.Context) {
+	me.handle.DoInMainThread(func(ctx context.Context) {
+		me.isConnected = true
+
+		for _, token := range me.notificationTokens {
+			token.Unbind(ctx)
 		}
-	case <-w.notificationTicker.C:
-		if w.IsConnected() {
-			w.store.ProcessNotifications(ctx)
+
+		me.notificationTokens = make([]data.NotificationToken, 0)
+
+		me.notificationTokens = append(me.notificationTokens,
+			me.store.Notify(
+				ctx,
+				notification.NewConfig().
+					SetEntityType("Root").
+					SetFieldName("SchemaUpdateTrigger"),
+				notification.NewCallback(func(ctx context.Context, n data.Notification) {
+					me.SchemaUpdated.Emit(ctx)
+				})),
+		)
+
+		services := query.New(me.store).
+			Select("LogLevel", "QLibLogLevel").
+			From("Service").
+			Where("ApplicationName").Equals(app.GetName()).
+			Execute(ctx)
+
+		for _, service := range services {
+			logLevel := service.GetField("LogLevel").GetInt()
+			log.SetLevel(log.Level(logLevel))
+
+			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+				ctx,
+				notification.NewConfig().
+					SetEntityId(service.GetId()).
+					SetFieldName("LogLevel").
+					SetNotifyOnChange(true),
+				notification.NewCallback(me.onLogLevelChanged),
+			))
+
+			qlibLogLevel := service.GetField("QLibLogLevel").GetInt()
+			log.SetLibLevel(log.Level(qlibLogLevel))
+
+			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+				ctx,
+				notification.NewConfig().
+					SetEntityId(service.GetId()).
+					SetFieldName("QLibLogLevel").
+					SetNotifyOnChange(true),
+				notification.NewCallback(me.onQLibLogLevelChanged),
+			))
 		}
-	default:
-	}
+
+		log.Info("Connection status changed to [CONNECTED]")
+
+		me.Connected.Emit(ctx)
+
+		me.SchemaUpdated.Emit(ctx)
+	})
 }
 
-func (w *Store) onConnected(ctx context.Context) {
-	for _, token := range w.notificationTokens {
-		token.Unbind(ctx)
-	}
+func (me *Store) onDisconnected() {
+	me.handle.DoInMainThread(func(ctx context.Context) {
+		me.isConnected = false
 
-	w.notificationTokens = make([]data.NotificationToken, 0)
+		log.Info("Connection status changed to [DISCONNECTED]")
 
-	w.notificationTokens = append(w.notificationTokens,
-		w.store.Notify(
-			ctx,
-			notification.NewConfig().
-				SetEntityType("Root").
-				SetFieldName("SchemaUpdateTrigger"),
-			notification.NewCallback(func(ctx context.Context, n data.Notification) {
-				w.SchemaUpdated.Emit(ctx)
-			})),
-	)
-
-	services := query.New(w.store).
-		Select("LogLevel", "QLibLogLevel").
-		From("Service").
-		Where("ApplicationName").Equals(app.GetName()).
-		Execute(ctx)
-
-	for _, service := range services {
-		logLevel := service.GetField("LogLevel").GetInt()
-		log.SetLevel(log.Level(logLevel))
-
-		w.notificationTokens = append(w.notificationTokens, w.store.Notify(
-			ctx,
-			notification.NewConfig().
-				SetEntityId(service.GetId()).
-				SetFieldName("LogLevel").
-				SetNotifyOnChange(true),
-			notification.NewCallback(w.onLogLevelChanged),
-		))
-
-		qlibLogLevel := service.GetField("QLibLogLevel").GetInt()
-		log.SetLibLevel(log.Level(qlibLogLevel))
-
-		w.notificationTokens = append(w.notificationTokens, w.store.Notify(
-			ctx,
-			notification.NewConfig().
-				SetEntityId(service.GetId()).
-				SetFieldName("QLibLogLevel").
-				SetNotifyOnChange(true),
-			notification.NewCallback(w.onQLibLogLevelChanged),
-		))
-	}
-
-	log.Info("Connection status changed to [CONNECTED]")
-
-	w.Connected.Emit(ctx)
-
-	w.SchemaUpdated.Emit(ctx)
+		me.Disconnected.Emit()
+	})
 }
 
-func (w *Store) onDisconnected() {
-	log.Info("Connection status changed to [DISCONNECTED]")
-
-	w.Disconnected.Emit()
+func (me *Store) IsConnected() bool {
+	return me.isConnected
 }
 
-func (w *Store) setConnectionStatus(ctx context.Context, connected bool) {
-	if w.isConnected == connected {
-		return
-	}
-
-	w.isConnected = connected
-	if connected {
-		w.onConnected(ctx)
-	} else {
-		w.onDisconnected()
-	}
-}
-
-func (w *Store) IsConnected() bool {
-	return w.isConnected
-}
-
-func (w *Store) onLogLevelChanged(ctx context.Context, n data.Notification) {
+func (me *Store) onLogLevelChanged(ctx context.Context, n data.Notification) {
 	level := log.Level(n.GetCurrent().GetValue().GetInt())
 	log.SetLevel(level)
 
 	log.Info("Log level changed to [%s]", level.String())
 }
 
-func (w *Store) onQLibLogLevelChanged(ctx context.Context, n data.Notification) {
+func (me *Store) onQLibLogLevelChanged(ctx context.Context, n data.Notification) {
 	level := log.Level(n.GetCurrent().GetValue().GetInt())
 	log.SetLibLevel(level)
 

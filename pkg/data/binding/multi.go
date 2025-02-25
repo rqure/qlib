@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rqure/qlib/pkg/data"
+	"github.com/rqure/qlib/pkg/signalslots"
 )
 
 type MultiBinding struct {
@@ -31,6 +32,14 @@ func (m *MultiBinding) Disconnect(ctx context.Context) {
 
 func (m *MultiBinding) IsConnected(ctx context.Context) bool {
 	return m.impl.IsConnected(ctx)
+}
+
+func (m *MultiBinding) Connected() signalslots.Signal {
+	return m.impl.Connected()
+}
+
+func (m *MultiBinding) Disconnected() signalslots.Signal {
+	return m.impl.Disconnected()
 }
 
 func (m *MultiBinding) CreateSnapshot(ctx context.Context) data.Snapshot {

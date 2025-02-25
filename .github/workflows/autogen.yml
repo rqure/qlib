@@ -33,26 +33,9 @@ jobs:
       run: |
         go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
         npm install google-protobuf
-        npm install -g protoc-gen-js
-        npm install -g browserify
         protoc --go_out=. --go_opt=paths=source_relative pkg/protobufs/protobufs.proto
-        protoc --js_out=import_style=commonjs,binary:. pkg/protobufs/protobufs.proto
-        mkdir -p web_build/
-        echo "const pb = require('./protobufs_pb');" >  web_build/entrypoint.js
-        echo "main();" >>  web_build/entrypoint.js
-        mv pkg/protobufs/protobufs_pb.js web_build/
-        browserify web_build/entrypoint.js > pkg/web/js/app.js
-        rm -rf web_build
         git config --global user.name 'Git bot'
         git config --global user.email 'bot@noreply.github.com'
         git remote set-url origin https://x-access-token:${{ secrets.CI_TOKEN }}@github.com/${{ github.repository }}
         git commit -am "Auto updated submodule references" && git push || echo "No changes to commit"
 
-    - name: Generate Web Handlers
-      run: |
-          ./pkg/web/gen_web_handlers.sh
-          git config --global user.name 'Git bot'
-          git config --global user.email 'bot@noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.CI_TOKEN }}@github.com/${{ github.repository }}
-          git add pkg/web/js/app.js pkg/web/go/*.go
-          git commit -am "Generate web handlers" && git push || echo "No changes to commit"

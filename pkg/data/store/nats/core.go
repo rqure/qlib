@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	natsgo "github.com/nats-io/nats.go" // Changed import name to avoid conflict
 	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
+	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -29,6 +30,9 @@ type Core interface {
 	GetConfig() Config
 	GetKeyGenerator() KeyGenerator
 	QueueSubscribe(subject string, handler natsgo.MsgHandler)
+
+	Connected() signalslots.Signal
+	Disconnected() signalslots.Signal
 }
 
 type coreInternal struct {
@@ -37,12 +41,17 @@ type coreInternal struct {
 	subs   []*natsgo.Subscription
 	kg     KeyGenerator
 	mu     sync.RWMutex
+
+	connected    signalslots.Signal
+	disconnected signalslots.Signal
 }
 
 func NewCore(config Config) Core {
 	return &coreInternal{
-		config: config,
-		kg:     NewKeyGenerator(),
+		config:       config,
+		kg:           NewKeyGenerator(),
+		connected:    signal.New(),
+		disconnected: signal.New(),
 	}
 }
 
@@ -50,7 +59,16 @@ func (c *coreInternal) Connect(ctx context.Context) {
 	c.Disconnect(ctx)
 
 	opts := []natsgo.Option{
-		natsgo.Timeout(10 * time.Second),
+		natsgo.MaxReconnects(-1),
+		natsgo.ConnectHandler(func(nc *natsgo.Conn) {
+			c.connected.Emit()
+		}),
+		natsgo.ReconnectHandler(func(nc *natsgo.Conn) {
+			c.connected.Emit()
+		}),
+		natsgo.DisconnectErrHandler(func(nc *natsgo.Conn, err error) {
+			c.disconnected.Emit(err)
+		}),
 	}
 
 	nc, err := natsgo.Connect(c.config.Address, opts...)
@@ -182,4 +200,12 @@ func (c *coreInternal) GetConfig() Config {
 
 func (c *coreInternal) GetKeyGenerator() KeyGenerator {
 	return c.kg
+}
+
+func (c *coreInternal) Connected() signalslots.Signal {
+	return c.connected
+}
+
+func (c *coreInternal) Disconnected() signalslots.Signal {
+	return c.disconnected
 }

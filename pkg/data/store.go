@@ -2,6 +2,8 @@ package data
 
 import (
 	"context"
+
+	"github.com/rqure/qlib/pkg/signalslots"
 )
 
 type EntityManagerSetter interface {
@@ -36,6 +38,9 @@ type Connector interface {
 	Connect(context.Context)
 	Disconnect(context.Context)
 	IsConnected(context.Context) bool
+
+	Connected() signalslots.Signal
+	Disconnected() signalslots.Signal
 }
 
 type SnapshotManager interface {
