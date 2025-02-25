@@ -2,7 +2,11 @@ package postgres
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/log"
@@ -15,6 +19,16 @@ type Connector struct {
 
 	connected    signalslots.Signal
 	disconnected signalslots.Signal
+
+	healthCheckCtx    context.Context
+	healthCheckCancel context.CancelFunc
+	healthCheckMu     sync.Mutex
+
+	// Use atomic operations for connection state
+	isConnected atomic.Bool
+
+	// Protect connection operations
+	connMu sync.Mutex
 }
 
 func NewConnector(core Core) data.Connector {
@@ -25,7 +39,79 @@ func NewConnector(core Core) data.Connector {
 	}
 }
 
+func (me *Connector) startHealthCheck() {
+	me.healthCheckMu.Lock()
+	defer me.healthCheckMu.Unlock()
+
+	if me.healthCheckCtx != nil {
+		return
+	}
+
+	me.healthCheckCtx, me.healthCheckCancel = context.WithCancel(context.Background())
+	go me.healthCheckWorker(me.healthCheckCtx)
+}
+
+func (me *Connector) stopHealthCheck() {
+	me.healthCheckMu.Lock()
+	defer me.healthCheckMu.Unlock()
+
+	if me.healthCheckCancel != nil {
+		me.healthCheckCancel()
+		me.healthCheckCtx = nil
+		me.healthCheckCancel = nil
+	}
+}
+
+func (me *Connector) setConnected(connected bool) {
+	wasConnected := me.isConnected.Swap(connected)
+	if wasConnected != connected {
+		if connected {
+			me.connected.Emit()
+		} else {
+			me.disconnected.Emit()
+		}
+	}
+}
+
+func (me *Connector) healthCheckWorker(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if me.core.GetPool() != nil {
+				err := me.core.GetPool().Ping(ctx)
+				if err != nil {
+					log.Error("Database health check failed: %v", err)
+					me.connMu.Lock()
+					if me.core.GetPool() != nil {
+						me.core.GetPool().Close()
+						me.core.SetPool(nil)
+					}
+					me.connMu.Unlock()
+					me.setConnected(false)
+					me.stopHealthCheck()
+					return
+				}
+				// Update connected state based on successful ping
+				me.setConnected(true)
+			}
+		}
+	}
+}
+
 func (me *Connector) Connect(ctx context.Context) {
+	if me.IsConnected(ctx) {
+		return
+	}
+
+	me.connMu.Lock()
+	defer me.connMu.Unlock()
+
+	// Double check after acquiring lock
 	if me.IsConnected(ctx) {
 		return
 	}
@@ -38,6 +124,11 @@ func (me *Connector) Connect(ctx context.Context) {
 		return
 	}
 
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		me.setConnected(true)
+		return nil
+	}
+
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		log.Error("Failed to create connection pool: %v", err)
@@ -45,20 +136,24 @@ func (me *Connector) Connect(ctx context.Context) {
 	}
 
 	me.core.SetPool(pool)
+	me.setConnected(true)
+	me.startHealthCheck()
 }
 
 func (me *Connector) Disconnect(ctx context.Context) {
+	me.connMu.Lock()
+	defer me.connMu.Unlock()
+
+	me.stopHealthCheck()
 	if me.core.GetPool() != nil {
 		me.core.GetPool().Close()
 		me.core.SetPool(nil)
 	}
+	me.setConnected(false)
 }
 
 func (me *Connector) IsConnected(ctx context.Context) bool {
-	if me.core.GetPool() == nil {
-		return false
-	}
-	return me.core.GetPool().Ping(ctx) == nil
+	return me.isConnected.Load()
 }
 
 func (me *Connector) Connected() signalslots.Signal {
