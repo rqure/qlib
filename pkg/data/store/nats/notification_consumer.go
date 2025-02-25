@@ -3,6 +3,7 @@ package nats
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -19,6 +20,7 @@ import (
 type NotificationConsumer struct {
 	core        Core
 	transformer data.Transformer
+	mu          sync.RWMutex
 	callbacks   map[string][]data.NotificationCallback
 	keepAlive   *time.Ticker
 	consumed    signalslots.Signal
@@ -75,10 +77,12 @@ func (me *NotificationConsumer) keepAliveTask(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-me.keepAlive.C:
+			me.mu.RLock()
 			// Resend all registered notifications to keep them alive
 			for token := range me.callbacks {
 				me.sendNotify(ctx, notification.FromToken(token))
 			}
+			me.mu.RUnlock()
 		default:
 			return
 		}
@@ -115,17 +119,19 @@ func (me *NotificationConsumer) Notify(ctx context.Context, config data.Notifica
 	tokenId := config.GetToken()
 	var err error
 
+	me.mu.Lock()
 	if me.callbacks[tokenId] == nil {
 		err = me.sendNotify(ctx, config)
 	}
 
 	if err == nil {
 		me.callbacks[tokenId] = append(me.callbacks[tokenId], cb)
+		me.mu.Unlock()
 		return notification.NewToken(tokenId, me, cb)
-	} else {
-		log.Error("notification registration failed: %v", err)
 	}
+	me.mu.Unlock()
 
+	log.Error("notification registration failed: %v", err)
 	return notification.NewToken("", me, nil)
 }
 
@@ -138,11 +144,15 @@ func (me *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 	if err != nil {
 		log.Error("Failed to unregister notification: %v", err)
 	}
+	me.mu.Lock()
 	delete(me.callbacks, token)
+	me.mu.Unlock()
 }
 
 func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token string, cb data.NotificationCallback) {
+	me.mu.Lock()
 	if me.callbacks[token] == nil {
+		me.mu.Unlock()
 		return
 	}
 
@@ -154,10 +164,13 @@ func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token stri
 	}
 
 	if len(callbacks) == 0 {
+		me.mu.Unlock()
 		me.Unnotify(ctx, token)
-	} else {
-		me.callbacks[token] = callbacks
+		return
 	}
+
+	me.callbacks[token] = callbacks
+	me.mu.Unlock()
 }
 
 func (me *NotificationConsumer) Consumed() signalslots.Signal {
@@ -166,10 +179,16 @@ func (me *NotificationConsumer) Consumed() signalslots.Signal {
 
 func (me *NotificationConsumer) generateInvokeCallbacksFn(notif data.Notification) func(context.Context) {
 	return func(ctx context.Context) {
-		if callbacks, ok := me.callbacks[notif.GetToken()]; ok {
-			for _, cb := range callbacks {
-				cb.Fn(ctx, notif)
-			}
+		callbacksCopy := []data.NotificationCallback{}
+		me.mu.RLock()
+		callbacks, ok := me.callbacks[notif.GetToken()]
+		if ok {
+			callbacksCopy = append(callbacksCopy, callbacks...)
+		}
+		me.mu.RUnlock()
+
+		for _, cb := range callbacksCopy {
+			cb.Fn(ctx, notif)
 		}
 	}
 }
