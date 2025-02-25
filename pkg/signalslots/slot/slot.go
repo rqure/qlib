@@ -29,12 +29,17 @@ func NewDynamicSlot(i interface{}) (*DynamicSlot, error) {
 	}
 
 	v := reflect.ValueOf(i)
-	if !v.IsValid() || v.IsNil() {
+	if !v.IsValid() {
 		return nil, fmt.Errorf("value must be a function, got nil")
 	}
 	
 	if v.Kind() != reflect.Func {
 		return nil, fmt.Errorf("value must be a function, got %T", i)
+	}
+
+	// Only check IsNil for func types since they can be nil
+	if v.IsNil() {
+		return nil, fmt.Errorf("value must be a function, got nil")
 	}
 	
 	return &DynamicSlot{fn: v}, nil
