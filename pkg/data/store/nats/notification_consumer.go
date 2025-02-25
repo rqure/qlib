@@ -11,23 +11,25 @@ import (
 	"github.com/rqure/qlib/pkg/data/notification"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
+	"github.com/rqure/qlib/pkg/signalslots"
+	"github.com/rqure/qlib/pkg/signalslots/signal"
 	"google.golang.org/protobuf/proto"
 )
 
 type NotificationConsumer struct {
-	core          Core
-	transformer   data.Transformer
-	callbacks     map[string][]data.NotificationCallback
-	keepAlive     *time.Ticker
-	pendingNotifs chan data.Notification
+	core        Core
+	transformer data.Transformer
+	callbacks   map[string][]data.NotificationCallback
+	keepAlive   *time.Ticker
+	consumed    signalslots.Signal
 }
 
 func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 	consumer := &NotificationConsumer{
-		core:          core,
-		callbacks:     map[string][]data.NotificationCallback{},
-		keepAlive:     time.NewTicker(30 * time.Second),
-		pendingNotifs: make(chan data.Notification, 1024),
+		core:      core,
+		callbacks: map[string][]data.NotificationCallback{},
+		keepAlive: time.NewTicker(30 * time.Second),
+		consumed:  signal.New(),
 	}
 
 	// Subscribe to connection events
@@ -64,20 +66,14 @@ func (me *NotificationConsumer) handleNotification(msg *nats.Msg) {
 	}
 
 	notif := notification.FromPb(&notifPb)
-	me.pendingNotifs <- notif
+	me.consumed.Emit(me.generateInvokeCallbacksFn(notif))
 }
 
-func (me *NotificationConsumer) ProcessNotifications(ctx context.Context) {
+func (me *NotificationConsumer) keepAliveTask(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case notif := <-me.pendingNotifs:
-			if callbacks, ok := me.callbacks[notif.GetToken()]; ok {
-				for _, cb := range callbacks {
-					cb.Fn(context.Background(), notif)
-				}
-			}
 		case <-me.keepAlive.C:
 			// Resend all registered notifications to keep them alive
 			for token := range me.callbacks {
@@ -89,7 +85,7 @@ func (me *NotificationConsumer) ProcessNotifications(ctx context.Context) {
 	}
 }
 
-func (me *NotificationConsumer) sendNotify(ctx context.Context, config data.NotificationConfig) (string, error) {
+func (me *NotificationConsumer) sendNotify(ctx context.Context, config data.NotificationConfig) error {
 	if config.GetServiceId() == "" {
 		config.SetServiceId(app.GetName())
 	}
@@ -100,24 +96,28 @@ func (me *NotificationConsumer) sendNotify(ctx context.Context, config data.Noti
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetNotificationSubject(), msg)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	var response protobufs.ApiRuntimeRegisterNotificationResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return "", err
+		return err
 	}
 
 	if len(response.Tokens) == 0 {
-		return "", errors.New("no tokens returned")
+		return errors.New("no tokens returned")
 	}
 
-	token := response.Tokens[0]
-	return token, nil
+	return nil
 }
 
 func (me *NotificationConsumer) Notify(ctx context.Context, config data.NotificationConfig, cb data.NotificationCallback) data.NotificationToken {
-	tokenId, err := me.sendNotify(ctx, config)
+	tokenId := config.GetToken()
+	var err error
+
+	if me.callbacks[tokenId] == nil {
+		err = me.sendNotify(ctx, config)
+	}
 
 	if err == nil {
 		me.callbacks[tokenId] = append(me.callbacks[tokenId], cb)
@@ -157,5 +157,19 @@ func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token stri
 		me.Unnotify(ctx, token)
 	} else {
 		me.callbacks[token] = callbacks
+	}
+}
+
+func (me *NotificationConsumer) Consumed() signalslots.Signal {
+	return me.consumed
+}
+
+func (me *NotificationConsumer) generateInvokeCallbacksFn(notif data.Notification) func(context.Context) {
+	return func(ctx context.Context) {
+		if callbacks, ok := me.callbacks[notif.GetToken()]; ok {
+			for _, cb := range callbacks {
+				cb.Fn(ctx, notif)
+			}
+		}
 	}
 }
