@@ -123,6 +123,10 @@ type ModifiableNotificationPublisher interface {
 	NotificationPublisher
 }
 
+type IndirectionResolver interface {
+	Resolve(ctx context.Context, entityId string, fields string) (string, string)
+}
+
 type Store interface {
 	Connector
 	SnapshotManager

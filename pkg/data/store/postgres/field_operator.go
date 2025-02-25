@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
+	"github.com/rqure/qlib/pkg/data/query"
 	"github.com/rqure/qlib/pkg/data/request"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
@@ -47,11 +47,13 @@ func (me *FieldOperator) SetTransformer(transformer data.Transformer) {
 }
 
 func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
+	ir := query.NewIndirectionResolver(me.entityManager, me)
+
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, r := range requests {
 			r.SetSuccessful(false)
 
-			indirectField, indirectEntity := me.resolveIndirection(ctx, r.GetFieldName(), r.GetEntityId())
+			indirectField, indirectEntity := ir.Resolve(ctx, r.GetEntityId(), r.GetFieldName())
 			if indirectField == "" || indirectEntity == "" {
 				log.Error("Failed to resolve indirection for: %s->%s", r.GetEntityId(), r.GetFieldName())
 				continue
@@ -109,9 +111,11 @@ func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 }
 
 func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
+	ir := query.NewIndirectionResolver(me.entityManager, me)
+
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, r := range requests {
-			indirectField, indirectEntity := me.resolveIndirection(ctx, r.GetFieldName(), r.GetEntityId())
+			indirectField, indirectEntity := ir.Resolve(ctx, r.GetEntityId(), r.GetFieldName())
 			if indirectField == "" || indirectEntity == "" {
 				log.Error("Failed to resolve indirection for: %s->%s", r.GetEntityId(), r.GetFieldName())
 				continue
@@ -207,75 +211,4 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			r.SetSuccessful(true)
 		}
 	})
-}
-
-func (me *FieldOperator) resolveIndirection(ctx context.Context, indirectField, entityId string) (string, string) {
-	fields := strings.Split(indirectField, "->")
-
-	if len(fields) == 1 {
-		return indirectField, entityId
-	}
-
-	for _, f := range fields[:len(fields)-1] {
-		r := request.New().SetEntityId(entityId).SetFieldName(f)
-
-		me.Read(ctx, r)
-
-		if r.IsSuccessful() {
-			v := r.GetValue()
-			if v.IsEntityReference() {
-				entityId = v.GetEntityReference()
-
-				if entityId == "" {
-					log.Error("Failed to resolve entity reference: %v", r)
-					return "", ""
-				}
-
-				continue
-			}
-
-			log.Error("Field is not an entity reference: %v", r)
-			return "", ""
-		}
-
-		// Fallback to parent entity reference by name
-		entity := me.entityManager.GetEntity(ctx, entityId)
-		if entity == nil {
-			log.Error("Failed to get entity: %v", entityId)
-			return "", ""
-		}
-
-		parentId := entity.GetParentId()
-		if parentId != "" {
-			parentEntity := me.entityManager.GetEntity(ctx, parentId)
-
-			if parentEntity != nil && parentEntity.GetName() == f {
-				entityId = parentId
-				continue
-			}
-		}
-
-		// Fallback to child entity reference by name
-		foundChild := false
-		for _, childId := range entity.GetChildrenIds() {
-			childEntity := me.entityManager.GetEntity(ctx, childId)
-			if childEntity == nil {
-				log.Error("Failed to get child entity: %v", childId)
-				continue
-			}
-
-			if childEntity.GetName() == f {
-				entityId = childId
-				foundChild = true
-				break
-			}
-		}
-
-		if !foundChild {
-			log.Error("Failed to find child entity: %v", f)
-			return "", ""
-		}
-	}
-
-	return fields[len(fields)-1], entityId
 }
