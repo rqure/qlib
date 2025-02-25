@@ -18,12 +18,13 @@ import (
 )
 
 type NotificationConsumer struct {
-	core        Core
-	transformer data.Transformer
-	mu          sync.RWMutex
-	callbacks   map[string][]data.NotificationCallback
-	keepAlive   *time.Ticker
-	consumed    signalslots.Signal
+	core            Core
+	transformer     data.Transformer
+	mu              sync.RWMutex
+	callbacks       map[string][]data.NotificationCallback
+	keepAlive       *time.Ticker
+	consumed        signalslots.Signal
+	cancelKeepAlive context.CancelFunc
 }
 
 func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
@@ -44,10 +45,19 @@ func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 func (me *NotificationConsumer) onConnected() {
 	subject := me.core.GetKeyGenerator().GetNotificationSubject()
 	me.core.QueueSubscribe(subject, me.handleNotification)
+
+	// Start keepAliveTask
+	ctx, cancel := context.WithCancel(context.Background())
+	me.cancelKeepAlive = cancel
+	go me.keepAliveTask(ctx)
 }
 
 func (me *NotificationConsumer) onDisconnected(err error) {
-
+	// Stop keepAliveTask
+	if me.cancelKeepAlive != nil {
+		me.cancelKeepAlive()
+		me.cancelKeepAlive = nil
+	}
 }
 
 func (me *NotificationConsumer) SetTransformer(t data.Transformer) {
@@ -83,8 +93,6 @@ func (me *NotificationConsumer) keepAliveTask(ctx context.Context) {
 				me.sendNotify(ctx, notification.FromToken(token))
 			}
 			me.mu.RUnlock()
-		default:
-			return
 		}
 	}
 }
