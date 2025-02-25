@@ -87,11 +87,11 @@ func (c *coreInternal) IsConnected(ctx context.Context) bool {
 }
 
 func (c *coreInternal) Publish(subject string, msg proto.Message) error {
-	webMsg := &protobufs.ApiMessage{}
-	webMsg.Header = &protobufs.ApiHeader{}
-	webMsg.Payload, _ = anypb.New(msg)
+	apiMsg := &protobufs.ApiMessage{}
+	apiMsg.Header = &protobufs.ApiHeader{}
+	apiMsg.Payload, _ = anypb.New(msg)
 
-	data, err := proto.Marshal(webMsg)
+	data, err := proto.Marshal(apiMsg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %v", err)
 	}
@@ -107,11 +107,11 @@ func (c *coreInternal) Publish(subject string, msg proto.Message) error {
 }
 
 func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Message) (*protobufs.ApiMessage, error) {
-	webMsg := &protobufs.ApiMessage{}
-	webMsg.Header = &protobufs.ApiHeader{}
-	webMsg.Payload, _ = anypb.New(msg)
+	apiMsg := &protobufs.ApiMessage{}
+	apiMsg.Header = &protobufs.ApiHeader{}
+	apiMsg.Payload, _ = anypb.New(msg)
 
-	data, err := proto.Marshal(webMsg)
+	data, err := proto.Marshal(apiMsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal message: %v", err)
 	}

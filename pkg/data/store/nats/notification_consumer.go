@@ -43,14 +43,14 @@ func (n *NotificationConsumer) SetTransformer(t data.Transformer) {
 }
 
 func (n *NotificationConsumer) handleNotification(msg *nats.Msg) {
-	webMsg := &protobufs.ApiMessage{}
-	if err := proto.Unmarshal(msg.Data, webMsg); err != nil {
+	apiMsg := &protobufs.ApiMessage{}
+	if err := proto.Unmarshal(msg.Data, apiMsg); err != nil {
 		log.Error("Failed to unmarshal web message: %v", err)
 		return
 	}
 
 	var notifPb protobufs.DatabaseNotification
-	if err := webMsg.Payload.UnmarshalTo(&notifPb); err != nil {
+	if err := apiMsg.Payload.UnmarshalTo(&notifPb); err != nil {
 		log.Error("Failed to unmarshal notification: %v", err)
 		return
 	}
