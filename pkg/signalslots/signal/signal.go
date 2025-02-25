@@ -40,7 +40,15 @@ func (s *SignalImpl) Disconnect(st signalslots.Slot) {
 
 func (s *SignalImpl) Emit(args ...interface{}) {
 	for _, st := range s.slots {
-		st.Invoke(args...)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Log but don't re-panic so other slots still execute
+					log.Error("Slot panicked: %v", r)
+				}
+			}()
+			st.Invoke(args...)
+		}()
 	}
 }
 
