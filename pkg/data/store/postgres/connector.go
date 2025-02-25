@@ -62,13 +62,13 @@ func (me *Connector) stopHealthCheck() {
 	}
 }
 
-func (me *Connector) setConnected(connected bool) {
+func (me *Connector) setConnected(connected bool, err error) {
 	wasConnected := me.isConnected.Swap(connected)
 	if wasConnected != connected {
 		if connected {
 			me.connected.Emit()
 		} else {
-			me.disconnected.Emit()
+			me.disconnected.Emit(err)
 		}
 	}
 }
@@ -85,19 +85,18 @@ func (me *Connector) healthCheckWorker(ctx context.Context) {
 			if me.core.GetPool() != nil {
 				err := me.core.GetPool().Ping(ctx)
 				if err != nil {
-					log.Error("Database health check failed: %v", err)
 					me.connMu.Lock()
 					if me.core.GetPool() != nil {
 						me.core.GetPool().Close()
 						me.core.SetPool(nil)
 					}
 					me.connMu.Unlock()
-					me.setConnected(false)
+					me.setConnected(false, err)
 					me.stopHealthCheck()
 					return
 				}
 				// Update connected state based on successful ping
-				me.setConnected(true)
+				me.setConnected(true, nil)
 			}
 		}
 	}
@@ -125,7 +124,7 @@ func (me *Connector) Connect(ctx context.Context) {
 	}
 
 	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		me.setConnected(true)
+		me.setConnected(true, nil)
 		return nil
 	}
 
@@ -136,7 +135,7 @@ func (me *Connector) Connect(ctx context.Context) {
 	}
 
 	me.core.SetPool(pool)
-	me.setConnected(true)
+	me.setConnected(true, nil)
 	me.startHealthCheck()
 }
 
@@ -149,7 +148,7 @@ func (me *Connector) Disconnect(ctx context.Context) {
 		me.core.GetPool().Close()
 		me.core.SetPool(nil)
 	}
-	me.setConnected(false)
+	me.setConnected(false, nil)
 }
 
 func (me *Connector) IsConnected(ctx context.Context) bool {

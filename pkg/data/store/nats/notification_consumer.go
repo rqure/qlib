@@ -15,12 +15,10 @@ import (
 )
 
 type NotificationConsumer struct {
-	core        Core
-	transformer data.Transformer
-	callbacks   map[string][]data.NotificationCallback
-
-	keepAlive *time.Ticker
-
+	core          Core
+	transformer   data.Transformer
+	callbacks     map[string][]data.NotificationCallback
+	keepAlive     *time.Ticker
 	pendingNotifs chan data.Notification
 }
 
@@ -32,10 +30,20 @@ func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 		pendingNotifs: make(chan data.Notification, 1024),
 	}
 
-	// Subscribe using queue group for the service
-	subject := core.GetKeyGenerator().GetNotificationSubject()
-	core.QueueSubscribe(subject, consumer.handleNotification)
+	// Subscribe to connection events
+	core.Connected().Connect(consumer.onConnected)
+	core.Disconnected().Connect(consumer.onDisconnected)
+
 	return consumer
+}
+
+func (me *NotificationConsumer) onConnected() {
+	subject := me.core.GetKeyGenerator().GetNotificationSubject()
+	me.core.QueueSubscribe(subject, me.handleNotification)
+}
+
+func (me *NotificationConsumer) onDisconnected(err error) {
+
 }
 
 func (me *NotificationConsumer) SetTransformer(t data.Transformer) {

@@ -64,6 +64,8 @@ func (c *coreInternal) Connect(ctx context.Context) {
 			c.connected.Emit()
 		}),
 		natsgo.ReconnectHandler(func(nc *natsgo.Conn) {
+			c.cleanupSubscriptions()
+
 			c.connected.Emit()
 		}),
 		natsgo.DisconnectErrHandler(func(nc *natsgo.Conn, err error) {
@@ -85,11 +87,6 @@ func (c *coreInternal) Connect(ctx context.Context) {
 func (c *coreInternal) Disconnect(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	for _, sub := range c.subs {
-		sub.Unsubscribe()
-	}
-	c.subs = nil
 
 	if c.conn != nil {
 		c.conn.Drain() // Drain allows in-flight messages to complete
@@ -208,4 +205,14 @@ func (c *coreInternal) Connected() signalslots.Signal {
 
 func (c *coreInternal) Disconnected() signalslots.Signal {
 	return c.disconnected
+}
+
+func (c *coreInternal) cleanupSubscriptions() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, sub := range c.subs {
+		sub.Unsubscribe()
+	}
+	c.subs = nil
 }
