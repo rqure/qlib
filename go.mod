@@ -5,7 +5,6 @@ go 1.22.7
 require (
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/nats-io/nats.go v1.39.1
 	google.golang.org/protobuf v1.35.2
