@@ -1,28 +1,11 @@
 package slot
 
 import (
-	"context"
+	"fmt"
+	"reflect"
 
 	"github.com/rqure/qlib/pkg/signalslots"
 )
-
-type SlotWithArgs func(...interface{})
-
-type SlotWithoutArgs func()
-
-type SlotWithContext func(context.Context)
-
-type SlotWithContextAndArgs func(context.Context, ...interface{})
-
-type SlotWithContextErrorAndArgs func(context.Context, error, ...interface{})
-
-type SlotWithContextError func(context.Context, error)
-
-type SlotWithError func(error)
-
-type SlotWithErrorAndArgs func(error, ...interface{})
-
-type SlotWithCallback func(func(context.Context))
 
 type SlotWrapper struct {
 	Fn func(...interface{})
@@ -36,38 +19,70 @@ func (s *SlotWrapper) Invoke(args ...interface{}) {
 	s.Fn(args...)
 }
 
-func (s SlotWithArgs) Invoke(args ...interface{}) {
-	s(args...)
+type DynamicSlot struct {
+	fn reflect.Value
 }
 
-func (s SlotWithoutArgs) Invoke(args ...interface{}) {
-	s()
+func NewDynamicSlot(i interface{}) (*DynamicSlot, error) {
+	v := reflect.ValueOf(i)
+	if v.Kind() != reflect.Func {
+		return nil, fmt.Errorf("value must be a function, got %T", i)
+	}
+	return &DynamicSlot{fn: v}, nil
 }
 
-func (s SlotWithContext) Invoke(args ...interface{}) {
-	s(args[0].(context.Context))
+func (s *DynamicSlot) Invoke(args ...interface{}) {
+	t := s.fn.Type()
+	numIn := t.NumIn()
+
+	if !t.IsVariadic() && len(args) != numIn {
+		panic(fmt.Sprintf("wrong number of arguments: got %d, want %d", len(args), numIn))
+	}
+
+	if t.IsVariadic() && len(args) < numIn-1 {
+		panic(fmt.Sprintf("not enough arguments for variadic function: got %d, want at least %d", len(args), numIn-1))
+	}
+
+	callArgs := make([]reflect.Value, len(args))
+	for i, arg := range args {
+		paramType := t.In(min(i, numIn-1))
+		if t.IsVariadic() && i >= numIn-1 {
+			paramType = paramType.Elem()
+		}
+
+		if arg == nil {
+			callArgs[i] = reflect.Zero(paramType)
+			continue
+		}
+
+		val := reflect.ValueOf(arg)
+		if paramType.Kind() == reflect.Interface {
+			// For interface parameters, check if type implements interface
+			if !val.Type().Implements(paramType) {
+				panic(fmt.Sprintf("type %v does not implement %v", val.Type(), paramType))
+			}
+			callArgs[i] = val
+		} else if paramType.Kind() == reflect.String {
+			// Special case for strings - only allow string types
+			if val.Type().Kind() != reflect.String {
+				panic(fmt.Sprintf("cannot convert type %v to string", val.Type()))
+			}
+			callArgs[i] = val
+		} else if val.Type().ConvertibleTo(paramType) {
+			// Allow type conversion for other compatible types
+			callArgs[i] = val.Convert(paramType)
+		} else {
+			// For incompatible types, panic
+			panic(fmt.Sprintf("cannot convert type %v to %v", val.Type(), paramType))
+		}
+	}
+
+	s.fn.Call(callArgs)
 }
 
-func (s SlotWithContextAndArgs) Invoke(args ...interface{}) {
-	s(args[0].(context.Context), args[1:]...)
-}
-
-func (s SlotWithContextErrorAndArgs) Invoke(args ...interface{}) {
-	s(args[0].(context.Context), args[1].(error), args[2:]...)
-}
-
-func (s SlotWithError) Invoke(args ...interface{}) {
-	s(args[0].(error))
-}
-
-func (s SlotWithErrorAndArgs) Invoke(args ...interface{}) {
-	s(args[0].(error), args[1:]...)
-}
-
-func (s SlotWithContextError) Invoke(args ...interface{}) {
-	s(args[0].(context.Context), args[1].(error))
-}
-
-func (s SlotWithCallback) Invoke(args ...interface{}) {
-	s(args[0].(func(context.Context)))
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

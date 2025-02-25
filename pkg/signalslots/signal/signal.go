@@ -1,8 +1,6 @@
 package signal
 
 import (
-	"context"
-
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/signalslots"
 	"github.com/rqure/qlib/pkg/signalslots/slot"
@@ -17,20 +15,18 @@ func New() signalslots.Signal {
 }
 
 func (s *SignalImpl) Connect(i interface{}) {
-	switch st := i.(type) {
-	case signalslots.Slot:
-		s.slots = append(s.slots, st)
-	case func(...interface{}):
-		s.slots = append(s.slots, slot.SlotWithArgs(st))
-	case func():
-		s.slots = append(s.slots, slot.SlotWithoutArgs(st))
-	case func(context.Context):
-		s.slots = append(s.slots, slot.SlotWithContext(st))
-	case func(context.Context, ...interface{}):
-		s.slots = append(s.slots, slot.SlotWithContextAndArgs(st))
-	default:
-		log.Error("Unknown slot type: %v", i)
+	if slot, ok := i.(signalslots.Slot); ok {
+		s.slots = append(s.slots, slot)
+		return
 	}
+
+	dynSlot, err := slot.NewDynamicSlot(i)
+	if err != nil {
+		log.Error("Cannot create dynamic slot: %v", err)
+		return
+	}
+
+	s.slots = append(s.slots, dynSlot)
 }
 
 func (s *SignalImpl) Disconnect(st signalslots.Slot) {
