@@ -43,6 +43,8 @@ func (me *Store) Init(ctx context.Context, handle app.Handle) {
 
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
+
+	me.store.Consumed().Connect(me.onConsumed)
 }
 
 func (me *Store) Deinit(context.Context) {
@@ -139,4 +141,10 @@ func (me *Store) onQLibLogLevelChanged(ctx context.Context, n data.Notification)
 	log.SetLibLevel(level)
 
 	log.Info("QLib log level changed to [%s]", level.String())
+}
+
+func (me *Store) onConsumed(invokeCallbacksFn func(context.Context)) {
+	me.handle.DoInMainThread(func(ctx context.Context) {
+		invokeCallbacksFn(ctx)
+	})
 }

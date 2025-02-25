@@ -127,8 +127,8 @@ func (m *MultiBinding) UnnotifyCallback(ctx context.Context, subscriptionId stri
 	m.impl.UnnotifyCallback(ctx, subscriptionId, callback)
 }
 
-func (m *MultiBinding) ProcessNotifications(ctx context.Context) {
-	m.impl.ProcessNotifications(ctx)
+func (m *MultiBinding) Consumed() signalslots.Signal {
+	return m.impl.Consumed()
 }
 
 // MultiBinding specific methods

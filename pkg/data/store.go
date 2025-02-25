@@ -110,6 +110,7 @@ type NotificationConsumer interface {
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) NotificationToken
 	Unnotify(ctx context.Context, subscriptionId string)
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
+	Consumed() signalslots.Signal
 }
 
 type ModifiableNotificationConsumer interface {

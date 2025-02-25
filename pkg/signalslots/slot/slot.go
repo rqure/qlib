@@ -22,6 +22,8 @@ type SlotWithError func(error)
 
 type SlotWithErrorAndArgs func(error, ...interface{})
 
+type SlotWithCallback func(func(context.Context))
+
 type SlotWrapper struct {
 	Fn func(...interface{})
 }
@@ -64,4 +66,8 @@ func (s SlotWithErrorAndArgs) Invoke(args ...interface{}) {
 
 func (s SlotWithContextError) Invoke(args ...interface{}) {
 	s(args[0].(context.Context), args[1].(error))
+}
+
+func (s SlotWithCallback) Invoke(args ...interface{}) {
+	s(args[0].(func(context.Context)))
 }
