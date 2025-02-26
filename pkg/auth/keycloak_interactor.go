@@ -1,9 +1,10 @@
 package auth
 
+// FILE TO BE REMOVED
+
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/Nerzal/gocloak/v13"
 )
@@ -12,24 +13,6 @@ const (
 	realmName        = "qcore-realm"
 	defaultAdminRole = "admin"
 )
-
-func getEnvOrDefault(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-
-	return value
-}
-
-func generateRealmConfigFromEnv() *RealmConfig {
-	return &RealmConfig{
-		AdminUsername: getEnvOrDefault("Q_KEYCLOAK_ADMIN_USERNAME", "admin"),
-		AdminPassword: getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin"),
-		BaseURL:       getEnvOrDefault("Q_KEYCLOAK_BASE_URL", "http://keycloak:8080/auth"),
-		MasterRealm:   getEnvOrDefault("Q_KEYCLOAK_MASTER_REALM", "master"),
-	}
-}
 
 type KeycloakInteractor interface {
 	InitializeKeycloak(ctx context.Context, defaultClientID string) error
