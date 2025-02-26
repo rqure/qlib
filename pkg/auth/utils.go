@@ -10,11 +10,3 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 	return value
 }
-
-func generateRealmConfigFromEnv() *RealmConfig {
-	return &RealmConfig{
-		AdminUsername: getEnvOrDefault("Q_KEYCLOAK_ADMIN_USERNAME", "admin"),
-		AdminPassword: getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin"),
-		MasterRealm:   getEnvOrDefault("Q_KEYCLOAK_MASTER_REALM", "master"),
-	}
-}
