@@ -46,14 +46,15 @@ func (c *client) CreateSession(ctx context.Context) (Session, error) {
 		return nil, err
 	}
 
-	return NewSession(c.core, token), nil
+	return NewSession(c.core, token, c.id, c.secret, "qcore-realm"), nil
 }
 
 func (c *client) CreateUserSession(ctx context.Context, username, password string) (Session, error) {
-	token, err := c.core.GetClient().Login(ctx, c.id, c.secret, "qcore-realm", username, password)
+	realm := getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")
+	token, err := c.core.GetClient().Login(ctx, c.id, c.secret, realm, username, password)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSession(c.core, token), nil
+	return NewSession(c.core, token, c.id, c.secret, realm), nil
 }

@@ -13,47 +13,71 @@ type Session interface {
 
 	AccessToken() string
 
-	ExpiresAt() int64
+	ExpiresAt() time.Time
 	IsExpired() bool
 }
 
 type session struct {
-	core  Core
-	token *gocloak.JWT
+	core         Core
+	token        *gocloak.JWT
+	clientID     string
+	clientSecret string
+	realm        string
+	creationTime time.Time
 }
 
-func NewSession(core Core, token *gocloak.JWT) Session {
+func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm string) Session {
+	if realm == "" {
+		realm = getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")
+	}
+
 	return &session{
-		core:  core,
-		token: token,
+		core:         core,
+		token:        token,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		realm:        realm,
+		creationTime: time.Now(),
 	}
 }
 
+// clientSession implementation
 func (s *session) Refresh() error {
-	token, err := s.core.GetClient().RefreshToken(context.Background(), s.token.RefreshToken,
-		s.token.ClientID, s.token.ClientSecret, "qcore-realm")
+	token, err := s.core.GetClient().RefreshToken(
+		context.Background(),
+		s.token.RefreshToken,
+		s.clientID,
+		s.clientSecret,
+		s.realm,
+	)
 	if err != nil {
 		return err
 	}
 
 	s.token = token
+	s.creationTime = time.Now() // Update creation time on refresh
 	return nil
 }
 
 func (s *session) Revoke() error {
-	return s.core.GetClient().Logout(context.Background(), s.token.ClientID,
-		s.token.ClientSecret, "qcore-realm", s.token.RefreshToken)
+	return s.core.GetClient().Logout(
+		context.Background(),
+		s.clientID,
+		s.clientSecret,
+		s.realm,
+		s.token.RefreshToken,
+	)
 }
 
 func (s *session) AccessToken() string {
 	return s.token.AccessToken
 }
 
-func (s *session) ExpiresAt() int64 {
-	return s.token.ExpiresIn
+func (s *session) ExpiresAt() time.Time {
+	// Calculate expiry time based on creation time and token's ExpiresIn value
+	return s.creationTime.Add(time.Duration(s.token.ExpiresIn) * time.Second)
 }
 
 func (s *session) IsExpired() bool {
-	// Check if token has expired
-	return time.Now().Unix() >= s.token.ExpiresIn
+	return time.Now().After(s.ExpiresAt())
 }

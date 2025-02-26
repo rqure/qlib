@@ -26,6 +26,7 @@ type admin struct {
 
 type adminConfig struct {
 	realm    string
+	clientID string
 	username string
 	password string
 }
@@ -50,6 +51,12 @@ func Password(password string) AdminOption {
 	}
 }
 
+func ClientID(clientID string) AdminOption {
+	return func(c *adminConfig) {
+		c.clientID = clientID
+	}
+}
+
 func NewAdmin(core Core, opts ...AdminOption) Admin {
 	config := &adminConfig{}
 
@@ -57,6 +64,7 @@ func NewAdmin(core Core, opts ...AdminOption) Admin {
 		Realm(getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")),
 		Username(getEnvOrDefault("Q_KEYCLOAK_ADMIN_USER", "admin")),
 		Password(getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin")),
+		ClientID(getEnvOrDefault("Q_KEYCLOAK_ADMIN_CLIENT_ID", "admin-qcore")),
 	}
 
 	for _, opt := range defaultOpts {
@@ -114,81 +122,7 @@ func (me *admin) GetOrCreateClient(ctx context.Context, clientID string) (Client
 		return nil, err
 	}
 
-	// Try to find existing client
-	clients, err := me.core.GetClient().GetClients(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		gocloak.GetClientsParams{
-			ClientID: &clientID,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get clients: %w", err)
-	}
-
-	var client *gocloak.Client
-	var secret string
-
-	if len(clients) > 0 {
-		// Client exists, get the client secret
-		client = clients[0]
-		secretObj, err := me.core.GetClient().GetClientSecret(
-			ctx,
-			me.session.AccessToken(),
-			me.config.realm,
-			*client.ID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get client secret: %w", err)
-		}
-		secret = *secretObj.Value
-	} else {
-		// Create new client
-		newClient := gocloak.Client{
-			ClientID:                  &clientID,
-			Enabled:                   gocloak.BoolP(true),
-			StandardFlowEnabled:       gocloak.BoolP(true),
-			DirectAccessGrantsEnabled: gocloak.BoolP(true),
-			ServiceAccountsEnabled:    gocloak.BoolP(true),
-		}
-
-		clientID, err := me.core.GetClient().CreateClient(
-			ctx,
-			me.session.AccessToken(),
-			me.config.realm,
-			newClient,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create client: %w", err)
-		}
-
-		// Get newly created client
-		newClientObj, err := me.core.GetClient().GetClient(
-			ctx,
-			me.session.AccessToken(),
-			me.config.realm,
-			clientID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get created client: %w", err)
-		}
-		client = newClientObj
-
-		// Generate client secret if not service account
-		secretObj, err := me.core.GetClient().GetClientSecret(
-			ctx,
-			me.session.AccessToken(),
-			me.config.realm,
-			clientID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get client secret: %w", err)
-		}
-		secret = *secretObj.Value
-	}
-
-	return NewClient(me.core, *client.ClientID, secret), nil
+	return me.getOrCreateClient(ctx, clientID, me.session.AccessToken())
 }
 
 // CreateUser creates a new user with the given username and password
@@ -457,6 +391,89 @@ func (me *admin) authenticate(ctx context.Context) error {
 		return err
 	}
 
-	me.session = NewSession(me.core, token)
+	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken)
+	if err != nil {
+		return err
+	}
+
+	me.session = NewSession(me.core, token, me.config.clientID, client.GetSecret(), me.config.realm)
 	return nil
+}
+
+func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken string) (Client, error) {
+	// Try to find existing client
+	clients, err := me.core.GetClient().GetClients(
+		ctx,
+		accessToken,
+		me.config.realm,
+		gocloak.GetClientsParams{
+			ClientID: &clientID,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clients: %w", err)
+	}
+
+	var client *gocloak.Client
+	var secret string
+
+	if len(clients) > 0 {
+		// Client exists, get the client secret
+		client = clients[0]
+		secretObj, err := me.core.GetClient().GetClientSecret(
+			ctx,
+			accessToken,
+			me.config.realm,
+			*client.ID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get client secret: %w", err)
+		}
+		secret = *secretObj.Value
+	} else {
+		// Create new client
+		newClient := gocloak.Client{
+			ClientID:                  &clientID,
+			Enabled:                   gocloak.BoolP(true),
+			StandardFlowEnabled:       gocloak.BoolP(true),
+			DirectAccessGrantsEnabled: gocloak.BoolP(true),
+			ServiceAccountsEnabled:    gocloak.BoolP(true),
+		}
+
+		clientID, err := me.core.GetClient().CreateClient(
+			ctx,
+			accessToken,
+			me.config.realm,
+			newClient,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create client: %w", err)
+		}
+
+		// Get newly created client
+		newClientObj, err := me.core.GetClient().GetClient(
+			ctx,
+			accessToken,
+			me.config.realm,
+			clientID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get created client: %w", err)
+		}
+		client = newClientObj
+
+		// Generate client secret if not service account
+		secretObj, err := me.core.GetClient().GetClientSecret(
+			ctx,
+			accessToken,
+			me.config.realm,
+			clientID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get client secret: %w", err)
+		}
+		secret = *secretObj.Value
+	}
+
+	return NewClient(me.core, *client.ClientID, secret), nil
 }
