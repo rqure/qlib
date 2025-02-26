@@ -112,6 +112,7 @@ func (a *ApplicationImpl) Execute() {
 	a.Init()
 	defer a.Deinit()
 
+	log.Info("Application execution started")
 	for {
 		select {
 		case <-ctx.Done():
