@@ -12,6 +12,10 @@ type Session interface {
 	Revoke() error
 
 	AccessToken() string
+	RefreshToken() string
+	Realm() string
+	ClientID() string
+	ClientSecret() string
 
 	ExpiresAt() time.Time
 	IsExpired() bool
@@ -80,4 +84,20 @@ func (s *session) ExpiresAt() time.Time {
 
 func (s *session) IsExpired() bool {
 	return time.Now().After(s.ExpiresAt())
+}
+
+func (s *session) RefreshToken() string {
+	return s.token.RefreshToken
+}
+
+func (s *session) Realm() string {
+	return s.realm
+}
+
+func (s *session) ClientID() string {
+	return s.clientID
+}
+
+func (s *session) ClientSecret() string {
+	return s.clientSecret
 }
