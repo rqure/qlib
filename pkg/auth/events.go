@@ -100,15 +100,15 @@ type Event interface {
 }
 
 type keycloakEvent struct {
-	time      time.Time         `json:"time"`
-	eventType EventType         `json:"type"`
-	realmID   string            `json:"realmId"`
-	clientID  string            `json:"clientId"`
-	userID    string            `json:"userId,omitempty"`
-	sessionID string            `json:"sessionId,omitempty"`
-	ipAddress string            `json:"ipAddress"`
-	errorStr  string            `json:"error,omitempty"`
-	details   map[string]string `json:"details,omitempty"`
+	time      time.Time
+	eventType EventType
+	realmID   string
+	clientID  string
+	userID    string
+	sessionID string
+	ipAddress string
+	errorStr  string
+	details   map[string]string
 }
 
 func (e *keycloakEvent) Time() time.Time {
