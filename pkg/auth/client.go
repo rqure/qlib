@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Nerzal/gocloak/v13"
 )
@@ -17,44 +18,56 @@ type client struct {
 	core   Core
 	id     string
 	secret string
+	realm  string
 }
 
-func NewClient(core Core, id, secret string) Client {
+func NewClient(core Core, id, secret, realm string) Client {
 	return &client{
 		core:   core,
 		id:     id,
 		secret: secret,
+		realm:  realm,
 	}
 }
 
-func (c *client) GetID() string {
-	return c.id
+func (me *client) GetID() string {
+	return me.id
 }
 
-func (c *client) GetSecret() string {
-	return c.secret
+func (me *client) GetSecret() string {
+	return me.secret
 }
 
-func (c *client) CreateSession(ctx context.Context) (Session, error) {
-	token, err := c.core.GetClient().GetToken(ctx, "qcore-realm",
+func (me *client) CreateSession(ctx context.Context) (Session, error) {
+	token, err := me.core.GetClient().GetToken(ctx, me.realm,
 		gocloak.TokenOptions{
-			ClientID:     &c.id,
-			ClientSecret: &c.secret,
+			ClientID:     &me.id,
+			ClientSecret: &me.secret,
 			GrantType:    gocloak.StringP("client_credentials"),
 		})
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSession(c.core, token, c.id, c.secret, "qcore-realm"), nil
+	return NewSession(me.core, token, me.id, me.secret, me.realm), nil
 }
 
-func (c *client) CreateUserSession(ctx context.Context, username, password string) (Session, error) {
-	realm := getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")
-	token, err := c.core.GetClient().Login(ctx, c.id, c.secret, realm, username, password)
+func (me *client) CreateUserSession(ctx context.Context, username, password string) (Session, error) {
+	token, err := me.core.GetClient().Login(ctx, me.id, me.secret, me.realm, username, password)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSession(c.core, token, c.id, c.secret, realm), nil
+	return NewSession(me.core, token, me.id, me.secret, me.realm), nil
+}
+
+func (me *client) ValidateSession(ctx context.Context, session Session) error {
+	result, err := me.core.GetClient().RetrospectToken(ctx, session.AccessToken(), me.id, me.secret, me.realm)
+	if err != nil {
+		return fmt.Errorf("failed to validate client session: %v", err)
+	}
+	if !*result.Active {
+		return fmt.Errorf("token is not active")
+	}
+	return nil
 }

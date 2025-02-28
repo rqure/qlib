@@ -475,5 +475,5 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken st
 		secret = *secretObj.Value
 	}
 
-	return NewClient(me.core, *client.ClientID, secret), nil
+	return NewClient(me.core, *client.ClientID, secret, me.config.realm), nil
 }

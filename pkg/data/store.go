@@ -132,6 +132,10 @@ type IndirectionResolver interface {
 	Resolve(ctx context.Context, entityId string, fields string) (string, string)
 }
 
+type Authenticator interface {
+	CurrentSession() Session
+}
+
 type Store interface {
 	Connector
 	SnapshotManager
