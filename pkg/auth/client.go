@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Nerzal/gocloak/v13"
 )
@@ -59,15 +58,4 @@ func (me *client) CreateUserSession(ctx context.Context, username, password stri
 	}
 
 	return NewSession(me.core, token, me.id, me.secret, me.realm), nil
-}
-
-func (me *client) ValidateSession(ctx context.Context, session Session) error {
-	result, err := me.core.GetClient().RetrospectToken(ctx, session.AccessToken(), me.id, me.secret, me.realm)
-	if err != nil {
-		return fmt.Errorf("failed to validate client session: %v", err)
-	}
-	if !*result.Active {
-		return fmt.Errorf("token is not active")
-	}
-	return nil
 }

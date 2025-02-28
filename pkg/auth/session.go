@@ -17,8 +17,9 @@ type Session interface {
 	ClientID() string
 	ClientSecret() string
 
-	ExpiresAt() time.Time
-	IsExpired() bool
+	GetOwnerName() (string, error)
+
+	IsValid() bool
 }
 
 type session struct {
@@ -46,58 +47,104 @@ func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm str
 }
 
 // clientSession implementation
-func (s *session) Refresh() error {
-	token, err := s.core.GetClient().RefreshToken(
+func (me *session) Refresh() error {
+	token, err := me.core.GetClient().RefreshToken(
 		context.Background(),
-		s.token.RefreshToken,
-		s.clientID,
-		s.clientSecret,
-		s.realm,
+		me.token.RefreshToken,
+		me.clientID,
+		me.clientSecret,
+		me.realm,
 	)
 	if err != nil {
 		return err
 	}
 
-	s.token = token
-	s.creationTime = time.Now() // Update creation time on refresh
+	me.token = token
+	me.creationTime = time.Now() // Update creation time on refresh
 	return nil
 }
 
-func (s *session) Revoke() error {
-	return s.core.GetClient().Logout(
+func (me *session) Revoke() error {
+	return me.core.GetClient().Logout(
 		context.Background(),
-		s.clientID,
-		s.clientSecret,
-		s.realm,
-		s.token.RefreshToken,
+		me.clientID,
+		me.clientSecret,
+		me.realm,
+		me.token.RefreshToken,
 	)
 }
 
-func (s *session) AccessToken() string {
-	return s.token.AccessToken
+func (me *session) AccessToken() string {
+	return me.token.AccessToken
 }
 
-func (s *session) ExpiresAt() time.Time {
-	// Calculate expiry time based on creation time and token's ExpiresIn value
-	return s.creationTime.Add(time.Duration(s.token.ExpiresIn) * time.Second)
+func (me *session) RefreshToken() string {
+	return me.token.RefreshToken
 }
 
-func (s *session) IsExpired() bool {
-	return time.Now().After(s.ExpiresAt())
+func (me *session) Realm() string {
+	return me.realm
 }
 
-func (s *session) RefreshToken() string {
-	return s.token.RefreshToken
+func (me *session) ClientID() string {
+	return me.clientID
 }
 
-func (s *session) Realm() string {
-	return s.realm
+func (me *session) ClientSecret() string {
+	return me.clientSecret
 }
 
-func (s *session) ClientID() string {
-	return s.clientID
+// Returns the name of the owner of the session
+// This is the user who owns the session or the client if it's a client session
+func (me *session) GetOwnerName() (string, error) {
+	ctx := context.Background()
+	_, claims, err := me.core.GetClient().DecodeAccessToken(
+		ctx,
+		me.AccessToken(),
+		me.realm,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	// For client credentials flow, check for client_id claim
+	if clientID, ok := (*claims)["client_id"].(string); ok {
+		// If azp (authorized party) is the same as client_id, this is likely a client credentials flow
+		if azp, exists := (*claims)["azp"].(string); exists && azp == clientID {
+			return clientID, nil
+		}
+	}
+
+	// Check for preferred_username claim, which is commonly used for the user's name
+	if username, ok := (*claims)["preferred_username"].(string); ok {
+		return username, nil
+	}
+
+	// Fallback to sub claim if preferred_username is not available
+	if sub, ok := (*claims)["sub"].(string); ok {
+		return sub, nil
+	}
+
+	return "", nil
 }
 
-func (s *session) ClientSecret() string {
-	return s.clientSecret
+// Decode the access token and check if it's still valid
+func (me *session) IsValid() bool {
+	ctx := context.Background()
+	_, claims, err := me.core.GetClient().DecodeAccessToken(
+		ctx,
+		me.AccessToken(),
+		me.realm,
+	)
+	if err != nil {
+		return false
+	}
+
+	// Check if token has expired
+	if exp, ok := (*claims)["exp"].(float64); ok {
+		expirationTime := time.Unix(int64(exp), 0)
+		return time.Now().Before(expirationTime)
+	}
+
+	return false
 }
