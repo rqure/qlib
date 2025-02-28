@@ -31,10 +31,6 @@ type session struct {
 }
 
 func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm string) Session {
-	if realm == "" {
-		realm = getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")
-	}
-
 	return &session{
 		core:         core,
 		token:        token,
