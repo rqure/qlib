@@ -28,7 +28,6 @@ type session struct {
 	clientID     string
 	clientSecret string
 	realm        string
-	creationTime time.Time
 }
 
 func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm string) Session {
@@ -42,7 +41,6 @@ func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm str
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		realm:        realm,
-		creationTime: time.Now(),
 	}
 }
 
@@ -60,7 +58,6 @@ func (me *session) Refresh() error {
 	}
 
 	me.token = token
-	me.creationTime = time.Now() // Update creation time on refresh
 	return nil
 }
 

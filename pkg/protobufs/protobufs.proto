@@ -7,15 +7,9 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 
 message ApiHeader {
-    enum AuthenticationStatusEnum {
-        UNSPECIFIED = 0;
-        AUTHENTICATED = 1;
-        UNAUTHENTICATED = 2;
-    }
-
     string id = 1;
     google.protobuf.Timestamp timestamp = 2;
-    AuthenticationStatusEnum authenticationStatus = 3;
+    string accessToken = 3;
 }
 
 message ApiMessage {
