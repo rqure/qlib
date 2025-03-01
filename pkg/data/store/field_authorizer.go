@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/rqure/qlib/pkg/data"
-	"github.com/rqure/qlib/pkg/data/binding"
 )
 
 type FieldAuthorizer interface {
@@ -32,11 +31,12 @@ func (me *fieldAuthorizer) IsAuthorized(ctx context.Context, entityId, fieldName
 		return false
 	}
 
-	field := binding.NewField(&me.store, entityId, fieldName)
-	requiredAors := field.GetAreaOfResponsibility()
-	requiredPermissions := field.GetPermissions()
+	// field := binding.NewField(&me.store, entityId, fieldName)
+	// requiredAors := field.GetAreaOfResponsibility()
+	// requiredPermissions := field.GetPermissions()
 
-	accessor := binding.NewEntity(ctx, me.store, me.accessorId)
-	actualAors := accessor.GetField("AreaOfResponsibilities").GetEntityList()
-	actualPermissions := accessor.GetField("Permissions").GetEntityList()
+	// accessor := binding.NewEntity(ctx, me.store, me.accessorId)
+	// actualAors := accessor.GetField("AreaOfResponsibilities").GetEntityList()
+	// actualPermissions := accessor.GetField("Permissions").GetEntityList()
+	return true
 }
