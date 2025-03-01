@@ -22,34 +22,34 @@ func NewField(store *data.Store, entityId, fieldName string) data.FieldBinding {
 	}
 }
 
-func (b *Field) GetEntityId() string {
-	return b.req.GetEntityId()
+func (me *Field) GetEntityId() string {
+	return me.req.GetEntityId()
 }
 
-func (b *Field) GetFieldName() string {
-	return b.req.GetFieldName()
+func (me *Field) GetFieldName() string {
+	return me.req.GetFieldName()
 }
 
-func (b *Field) GetWriteTime() time.Time {
-	return field.FromRequest(b.req).GetWriteTime()
+func (me *Field) GetWriteTime() time.Time {
+	return field.FromRequest(me.req).GetWriteTime()
 }
 
-func (b *Field) GetWriter() string {
-	return field.FromRequest(b.req).GetWriter()
+func (me *Field) GetWriter() string {
+	return field.FromRequest(me.req).GetWriter()
 }
 
-func (b *Field) GetValue() data.Value {
-	return b.req.GetValue()
+func (me *Field) GetValue() data.Value {
+	return me.req.GetValue()
 }
 
-func (b *Field) WriteValue(ctx context.Context, v data.Value) data.FieldBinding {
-	b.req.SetValue(v)
-	b.withStore().Write(ctx, b.req)
+func (me *Field) WriteValue(ctx context.Context, v data.Value) data.FieldBinding {
+	me.req.SetValue(v)
+	me.withStore().Write(ctx, me.req)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = 0
 
@@ -57,35 +57,35 @@ func (b *Field) WriteInt(ctx context.Context, args ...interface{}) data.FieldBin
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetInt(v))
+	me.req.SetValue(field.NewValue().SetInt(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = 0.0
 
@@ -93,35 +93,35 @@ func (b *Field) WriteFloat(ctx context.Context, args ...interface{}) data.FieldB
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetFloat(v))
+	me.req.SetValue(field.NewValue().SetFloat(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteString(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteString(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = ""
 
@@ -129,35 +129,35 @@ func (b *Field) WriteString(ctx context.Context, args ...interface{}) data.Field
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetString(v))
+	me.req.SetValue(field.NewValue().SetString(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = false
 
@@ -165,35 +165,35 @@ func (b *Field) WriteBool(ctx context.Context, args ...interface{}) data.FieldBi
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetBool(v))
+	me.req.SetValue(field.NewValue().SetBool(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = ""
 
@@ -201,35 +201,35 @@ func (b *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) data.F
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetBinaryFile(v))
+	me.req.SetValue(field.NewValue().SetBinaryFile(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteEntityReference(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteEntityReference(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = ""
 
@@ -237,35 +237,35 @@ func (b *Field) WriteEntityReference(ctx context.Context, args ...interface{}) d
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetEntityReference(v))
+	me.req.SetValue(field.NewValue().SetEntityReference(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = time.Time{}
 
@@ -273,35 +273,35 @@ func (b *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.Fi
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetTimestamp(v))
+	me.req.SetValue(field.NewValue().SetTimestamp(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteTransformation(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var v interface{}
 	v = ""
 
@@ -309,71 +309,85 @@ func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) da
 		v = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetTransformation(v))
+	me.req.SetValue(field.NewValue().SetTransformation(v))
 
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteChoice(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var selectedIndex interface{} = 0
 
 	if len(args) > 0 {
 		selectedIndex = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetChoice(selectedIndex))
+	if choice, ok := selectedIndex.(string); ok {
+		entity := me.withStore().GetEntity(ctx, me.req.GetEntityId())
+		schema := me.withStore().GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+		if schema.IsChoice() {
+			choices := schema.AsChoiceFieldSchema().GetChoices()
+			for i, c := range choices {
+				if c == choice {
+					selectedIndex = i
+					break
+				}
+			}
+		}
+	}
+
+	me.req.SetValue(field.NewValue().SetChoice(selectedIndex))
 
 	// Set write options if provided
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) WriteEntityList(ctx context.Context, args ...interface{}) data.FieldBinding {
+func (me *Field) WriteEntityList(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var entities interface{}
 	entities = []string{}
 
@@ -381,175 +395,175 @@ func (b *Field) WriteEntityList(ctx context.Context, args ...interface{}) data.F
 		entities = args[0]
 	}
 
-	b.req.SetValue(field.NewValue().SetEntityList(entities))
+	me.req.SetValue(field.NewValue().SetEntityList(entities))
 
 	// Set write options if provided
 	if len(args) > 1 {
 		if opt, ok := args[1].(data.WriteOpt); ok {
-			b.req.SetWriteOpt(opt)
+			me.req.SetWriteOpt(opt)
 		}
 	}
 
 	if len(args) > 2 {
 		if wt, ok := args[2].(time.Time); ok {
-			b.req.SetWriteTime(&wt)
+			me.req.SetWriteTime(&wt)
 		}
 	}
 
 	if len(args) > 3 {
 		if writer, ok := args[3].(string); ok {
-			b.req.SetWriter(&writer)
+			me.req.SetWriter(&writer)
 		}
 	}
 
-	b.withStore().Write(ctx, b.req)
+	me.withStore().Write(ctx, me.req)
 
 	// Clear settings for future use
-	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
 
-	return b
+	return me
 }
 
-func (b *Field) ReadValue(ctx context.Context) data.Value {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue()
+func (me *Field) ReadValue(ctx context.Context) data.Value {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue()
 }
 
-func (b *Field) ReadInt(ctx context.Context) int64 {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetInt()
+func (me *Field) ReadInt(ctx context.Context) int64 {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetInt()
 }
 
-func (b *Field) ReadFloat(ctx context.Context) float64 {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetFloat()
+func (me *Field) ReadFloat(ctx context.Context) float64 {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetFloat()
 }
 
-func (b *Field) ReadString(ctx context.Context) string {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetString()
+func (me *Field) ReadString(ctx context.Context) string {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetString()
 }
 
-func (b *Field) ReadBool(ctx context.Context) bool {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetBool()
+func (me *Field) ReadBool(ctx context.Context) bool {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetBool()
 }
 
-func (b *Field) ReadBinaryFile(ctx context.Context) string {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetBinaryFile()
+func (me *Field) ReadBinaryFile(ctx context.Context) string {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetBinaryFile()
 }
 
-func (b *Field) ReadEntityReference(ctx context.Context) string {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetEntityReference()
+func (me *Field) ReadEntityReference(ctx context.Context) string {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetEntityReference()
 }
 
-func (b *Field) ReadTimestamp(ctx context.Context) time.Time {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetTimestamp()
+func (me *Field) ReadTimestamp(ctx context.Context) time.Time {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetTimestamp()
 }
 
-func (b *Field) ReadTransformation(ctx context.Context) string {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetTransformation()
+func (me *Field) ReadTransformation(ctx context.Context) string {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetTransformation()
 }
 
-func (b *Field) ReadChoice(ctx context.Context) data.Choice {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetChoice()
+func (me *Field) ReadChoice(ctx context.Context) data.Choice {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetChoice()
 }
 
-func (b *Field) ReadEntityList(ctx context.Context) data.EntityList {
-	b.withStore().Read(ctx, b.req)
-	return b.req.GetValue().GetEntityList()
+func (me *Field) ReadEntityList(ctx context.Context) data.EntityList {
+	me.withStore().Read(ctx, me.req)
+	return me.req.GetValue().GetEntityList()
 }
 
-func (b *Field) IsInt() bool {
-	return b.req.GetValue().IsInt()
+func (me *Field) IsInt() bool {
+	return me.req.GetValue().IsInt()
 }
 
-func (b *Field) IsFloat() bool {
-	return b.req.GetValue().IsFloat()
+func (me *Field) IsFloat() bool {
+	return me.req.GetValue().IsFloat()
 }
 
-func (b *Field) IsString() bool {
-	return b.req.GetValue().IsString()
+func (me *Field) IsString() bool {
+	return me.req.GetValue().IsString()
 }
 
-func (b *Field) IsBool() bool {
-	return b.req.GetValue().IsBool()
+func (me *Field) IsBool() bool {
+	return me.req.GetValue().IsBool()
 }
 
-func (b *Field) IsBinaryFile() bool {
-	return b.req.GetValue().IsBinaryFile()
+func (me *Field) IsBinaryFile() bool {
+	return me.req.GetValue().IsBinaryFile()
 }
 
-func (b *Field) IsEntityReference() bool {
-	return b.req.GetValue().IsEntityReference()
+func (me *Field) IsEntityReference() bool {
+	return me.req.GetValue().IsEntityReference()
 }
 
-func (b *Field) IsTimestamp() bool {
-	return b.req.GetValue().IsTimestamp()
+func (me *Field) IsTimestamp() bool {
+	return me.req.GetValue().IsTimestamp()
 }
 
-func (b *Field) IsTransformation() bool {
-	return b.req.GetValue().IsTransformation()
+func (me *Field) IsTransformation() bool {
+	return me.req.GetValue().IsTransformation()
 }
 
-func (b *Field) IsChoice() bool {
-	return b.req.GetValue().IsChoice()
+func (me *Field) IsChoice() bool {
+	return me.req.GetValue().IsChoice()
 }
 
-func (b *Field) IsEntityList() bool {
-	return b.req.GetValue().IsEntityList()
+func (me *Field) IsEntityList() bool {
+	return me.req.GetValue().IsEntityList()
 }
 
-func (b *Field) GetInt() int64 {
-	return b.req.GetValue().GetInt()
+func (me *Field) GetInt() int64 {
+	return me.req.GetValue().GetInt()
 }
 
-func (b *Field) GetFloat() float64 {
-	return b.req.GetValue().GetFloat()
+func (me *Field) GetFloat() float64 {
+	return me.req.GetValue().GetFloat()
 }
 
-func (b *Field) GetString() string {
-	return b.req.GetValue().GetString()
+func (me *Field) GetString() string {
+	return me.req.GetValue().GetString()
 }
 
-func (b *Field) GetBool() bool {
-	return b.req.GetValue().GetBool()
+func (me *Field) GetBool() bool {
+	return me.req.GetValue().GetBool()
 }
 
-func (b *Field) GetBinaryFile() string {
-	return b.req.GetValue().GetBinaryFile()
+func (me *Field) GetBinaryFile() string {
+	return me.req.GetValue().GetBinaryFile()
 }
 
-func (b *Field) GetEntityReference() string {
-	return b.req.GetValue().GetEntityReference()
+func (me *Field) GetEntityReference() string {
+	return me.req.GetValue().GetEntityReference()
 }
 
-func (b *Field) GetTimestamp() time.Time {
-	return b.req.GetValue().GetTimestamp()
+func (me *Field) GetTimestamp() time.Time {
+	return me.req.GetValue().GetTimestamp()
 }
 
-func (b *Field) GetTransformation() string {
-	return b.req.GetValue().GetTransformation()
+func (me *Field) GetTransformation() string {
+	return me.req.GetValue().GetTransformation()
 }
 
-func (b *Field) GetChoice() data.Choice {
-	return b.req.GetValue().GetChoice()
+func (me *Field) GetChoice() data.Choice {
+	return me.req.GetValue().GetChoice()
 }
 
-func (b *Field) GetEntityList() data.EntityList {
-	return b.req.GetValue().GetEntityList()
+func (me *Field) GetEntityList() data.EntityList {
+	return me.req.GetValue().GetEntityList()
 }
 
-func (b *Field) SetValue(v data.Value) data.FieldBinding {
-	b.req.SetValue(v)
-	return b
+func (me *Field) SetValue(v data.Value) data.FieldBinding {
+	me.req.SetValue(v)
+	return me
 }
 
-func (b *Field) withStore() data.Store {
-	return *b.store
+func (me *Field) withStore() data.Store {
+	return *me.store
 }
