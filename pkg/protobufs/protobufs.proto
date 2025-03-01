@@ -315,6 +315,15 @@ message Transformation {
     string raw = 1;
 }
 
+message Choice {
+    int raw = 1; // selected choice index
+    repeated string choices = 2; // available choices
+}
+
+message EntityList {
+    repeated string raw = 1;
+}
+
 message LogMessage {
     enum LogLevelEnum {
         UNSPECIFIED = 0;
