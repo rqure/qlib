@@ -46,3 +46,21 @@ func (s Schema) GetFieldType() string {
 
 	return s.impl.Type
 }
+
+func (s Schema) GetChoiceOptions() []string {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return []string{}
+	}
+
+	return s.impl.ChoiceOptions
+}
+
+func (s Schema) SetChoiceOptions(options []string) {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return
+	}
+
+	s.impl.ChoiceOptions = options
+}

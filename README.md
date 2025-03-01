@@ -197,6 +197,8 @@ Fields store the actual data values. The store supports various field types:
 - EntityReference (links to other entities)
 - Timestamp
 - Transformation
+- Choice (selection from predefined options)
+- EntityList (collection of entity references)
 
 Reading and writing fields:
 
@@ -619,6 +621,61 @@ qlib enforces strict type validation for field values. Each field type has speci
    field.WriteTransformation(ctx, "value * 2")
    field.WriteTransformation(ctx, "Parent->Value + 10")
    ```
+
+### Working with Choice Fields
+
+Choice fields represent a selected option from a predefined list of choices:
+
+```go
+// Define schema with choice field
+schema := schema.New("Device").
+    AddField("Status", "string").
+    AddField("OperatingMode", "choice")
+
+// Set the available options in the schema
+schema.SetChoiceOptions(ctx, store, "Device", "OperatingMode", 
+    []string{"Normal", "Eco", "Boost", "Away"})
+
+// Write a choice value - just the selected index
+device.GetField("OperatingMode").WriteChoice(ctx, 0)  // Select "Normal" option
+
+// Read choice value with rich interface
+choice := device.GetField("OperatingMode").ReadChoice(ctx)
+selectedIndex := choice.GetSelectedIndex()
+selectedMode := choice.GetSelectedValue()
+
+// Get options from schema through the binding
+allModes := device.GetField("OperatingMode").GetChoiceOptions(ctx)
+
+// Update selection
+device.GetField("OperatingMode").SelectChoiceByValue(ctx, "Eco")
+```
+
+### Working with EntityList Fields
+
+EntityList fields store collections of entity references:
+
+```go
+// Define schema with entitylist field
+schema := schema.New("User").
+    AddField("Name", "string").
+    AddField("Devices", "entitylist")
+
+// Write an entity list
+user.GetField("Devices").WriteEntityList(ctx, 
+    []string{"device-1", "device-2", "device-3"}
+)
+
+// Read entity list with rich interface
+deviceList := user.GetField("Devices").ReadEntityList(ctx)
+allDevices := deviceList.GetEntities()
+deviceCount := deviceList.Count()
+
+// Use convenience methods to modify list
+user.GetField("Devices").AddEntityToList(ctx, "device-4")
+user.GetField("Devices").RemoveEntityFromList(ctx, "device-2")
+hasDevice := user.GetField("Devices").EntityListContains(ctx, "device-1")
+```
 
 Best Practices for Field Values:
 

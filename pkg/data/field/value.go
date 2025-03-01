@@ -77,6 +77,14 @@ func (v *Value) IsTransformation() bool {
 	return v.impl != nil && v.impl.MessageIs(&protobufs.Transformation{})
 }
 
+func (v *Value) IsChoice() bool {
+	return v.impl != nil && v.impl.MessageIs(&protobufs.Choice{})
+}
+
+func (v *Value) IsEntityList() bool {
+	return v.impl != nil && v.impl.MessageIs(&protobufs.EntityList{})
+}
+
 func (v *Value) GetType() string {
 	if v.impl == nil {
 		return ""
@@ -177,6 +185,37 @@ func (v *Value) GetTransformation() string {
 	}
 
 	return m.Raw
+}
+
+func (v *Value) GetChoice() data.Choice {
+	m := new(protobufs.Choice)
+
+	if v.impl != nil {
+		if err := v.impl.UnmarshalTo(m); err != nil {
+			return NewChoice(0, []string{})
+		}
+	}
+
+	// We need to get options from schema rather than from the Choice message
+	return NewChoice(m.Raw, []string{})
+}
+
+func (v *Value) GetChoiceOptions() []string {
+	// This now needs to be retrieved from schema, so return empty array
+	// The actual options should be accessed via schema
+	return []string{}
+}
+
+func (v *Value) GetEntityList() data.EntityList {
+	m := new(protobufs.EntityList)
+
+	if v.impl != nil {
+		if err := v.impl.UnmarshalTo(m); err != nil {
+			return NewEntityList([]string{})
+		}
+	}
+
+	return NewEntityList(m.Raw)
 }
 
 func (v *Value) SetInt(i interface{}) data.Value {
@@ -502,6 +541,104 @@ func (v *Value) SetTransformation(t interface{}) data.Value {
 
 	a, err := anypb.New(&protobufs.Transformation{
 		Raw: value,
+	})
+
+	if err != nil {
+		log.Error("Error creating Any: %s", err)
+	} else {
+		v.impl = a
+	}
+
+	return v
+}
+
+func (v *Value) SetChoice(selected interface{}, options []string) data.Value {
+	value := int64(0)
+
+	switch c := selected.(type) {
+	case int:
+		value = int64(c)
+	case int8:
+		value = int64(c)
+	case int16:
+		value = int64(c)
+	case int32:
+		value = int64(c)
+	case int64:
+		value = c
+	case uint:
+		value = int64(c)
+	case uint8:
+		value = int64(c)
+	case uint16:
+		value = int64(c)
+	case uint32:
+		value = int64(c)
+	case uint64:
+		value = int64(c)
+	case float32:
+		value = int64(c)
+	case float64:
+		value = int64(c)
+	case string:
+		if i, err := strconv.ParseInt(c, 10, 64); err == nil {
+			value = i
+		} else {
+			// Try to find the option by string value
+			for i, opt := range options {
+				if opt == c {
+					value = int64(i)
+					break
+				}
+			}
+		}
+	case data.Choice:
+		// If passed a Choice interface, use its values
+		value = c.GetSelectedIndex()
+	default:
+		log.Error("Unsupported type for choice selection: %T", selected)
+	}
+
+	a, err := anypb.New(&protobufs.Choice{
+		Raw: value,
+	})
+
+	if err != nil {
+		log.Error("Error creating Any: %s", err)
+	} else {
+		v.impl = a
+	}
+
+	return v
+}
+
+func (v *Value) SetEntityList(entities interface{}) data.Value {
+	var entityList []string
+
+	switch list := entities.(type) {
+	case []string:
+		entityList = list
+	case string:
+		entityList = []string{list} // Single entity as string
+	case []interface{}:
+		entityList = make([]string, 0, len(list))
+		for _, item := range list {
+			if str, ok := item.(string); ok {
+				entityList = append(entityList, str)
+			} else {
+				log.Error("Non-string item in entity list: %T", item)
+			}
+		}
+	case data.EntityList:
+		// If passed an EntityList interface, use its values
+		entityList = list.GetEntities()
+	default:
+		log.Error("Unsupported type for entity list: %T", entities)
+		entityList = []string{}
+	}
+
+	a, err := anypb.New(&protobufs.EntityList{
+		Raw: entityList,
 	})
 
 	if err != nil {

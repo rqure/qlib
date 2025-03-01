@@ -260,6 +260,7 @@ message DatabaseEntitySchema {
 message DatabaseFieldSchema {
     string name = 1;
     string type = 2;
+    repeated string choice_options = 3;
 }
 
 message DatabaseRequest {
@@ -316,8 +317,7 @@ message Transformation {
 }
 
 message Choice {
-    int64 raw = 1; // selected choice index
-    repeated string choices = 2; // available choices
+    int64 raw = 1; // selected choice index only
 }
 
 message EntityList {

@@ -87,4 +87,28 @@ CREATE TABLE IF NOT EXISTS Transformations (
     writer TEXT NOT NULL,
     PRIMARY KEY (entity_id, field_name)
 );
+
+CREATE TABLE IF NOT EXISTS Choices (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value BIGINT,
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS ChoiceOptions (
+    entity_type TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    optiions TEXT[],
+}
+
+CREATE TABLE IF NOT EXISTS EntityLists (
+    entity_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TEXT[],
+    write_time TIMESTAMP NOT NULL,
+    writer TEXT NOT NULL,
+    PRIMARY KEY (entity_id, field_name)
+);
 `

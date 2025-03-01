@@ -337,6 +337,80 @@ func (b *Field) WriteTransformation(ctx context.Context, args ...interface{}) da
 	return b
 }
 
+func (b *Field) WriteChoice(ctx context.Context, args ...interface{}) data.FieldBinding {
+	var selectedIndex interface{} = 0
+
+	if len(args) > 0 {
+		selectedIndex = args[0]
+	}
+
+	// Note: options are now stored in schema, not in the choice value
+	b.req.SetValue(field.NewValue().SetChoice(selectedIndex, []string{}))
+
+	// Set write options if provided
+	if len(args) > 1 {
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
+		}
+	}
+
+	if len(args) > 2 {
+		if wt, ok := args[2].(time.Time); ok {
+			b.req.SetWriteTime(&wt)
+		}
+	}
+
+	if len(args) > 3 {
+		if writer, ok := args[3].(string); ok {
+			b.req.SetWriter(&writer)
+		}
+	}
+
+	b.withStore().Write(ctx, b.req)
+
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+
+	return b
+}
+
+func (b *Field) WriteEntityList(ctx context.Context, args ...interface{}) data.FieldBinding {
+	var entities interface{}
+	entities = []string{}
+
+	if len(args) > 0 {
+		entities = args[0]
+	}
+
+	b.req.SetValue(field.NewValue().SetEntityList(entities))
+
+	// Set write options if provided
+	if len(args) > 1 {
+		if opt, ok := args[1].(data.WriteOpt); ok {
+			b.req.SetWriteOpt(opt)
+		}
+	}
+
+	if len(args) > 2 {
+		if wt, ok := args[2].(time.Time); ok {
+			b.req.SetWriteTime(&wt)
+		}
+	}
+
+	if len(args) > 3 {
+		if writer, ok := args[3].(string); ok {
+			b.req.SetWriter(&writer)
+		}
+	}
+
+	b.withStore().Write(ctx, b.req)
+
+	// Clear settings for future use
+	b.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
+
+	return b
+}
+
 func (b *Field) ReadValue(ctx context.Context) data.Value {
 	b.withStore().Read(ctx, b.req)
 	return b.req.GetValue()
@@ -382,6 +456,16 @@ func (b *Field) ReadTransformation(ctx context.Context) string {
 	return b.req.GetValue().GetTransformation()
 }
 
+func (b *Field) ReadChoice(ctx context.Context) data.Choice {
+	b.withStore().Read(ctx, b.req)
+	return b.req.GetValue().GetChoice()
+}
+
+func (b *Field) ReadEntityList(ctx context.Context) data.EntityList {
+	b.withStore().Read(ctx, b.req)
+	return b.req.GetValue().GetEntityList()
+}
+
 func (b *Field) IsInt() bool {
 	return b.req.GetValue().IsInt()
 }
@@ -414,6 +498,14 @@ func (b *Field) IsTransformation() bool {
 	return b.req.GetValue().IsTransformation()
 }
 
+func (b *Field) IsChoice() bool {
+	return b.req.GetValue().IsChoice()
+}
+
+func (b *Field) IsEntityList() bool {
+	return b.req.GetValue().IsEntityList()
+}
+
 func (b *Field) GetInt() int64 {
 	return b.req.GetValue().GetInt()
 }
@@ -444,6 +536,18 @@ func (b *Field) GetTimestamp() time.Time {
 
 func (b *Field) GetTransformation() string {
 	return b.req.GetValue().GetTransformation()
+}
+
+func (b *Field) GetChoice() data.Choice {
+	return b.req.GetValue().GetChoice()
+}
+
+func (b *Field) GetChoiceOptions() []string {
+	return b.req.GetValue().GetChoiceOptions()
+}
+
+func (b *Field) GetEntityList() data.EntityList {
+	return b.req.GetValue().GetEntityList()
 }
 
 func (b *Field) SetValue(v data.Value) data.FieldBinding {
