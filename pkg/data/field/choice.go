@@ -23,22 +23,22 @@ func (c *ChoiceImpl) LoadOptions(options []string) {
 	c.options = options
 }
 
-func (c *ChoiceImpl) GetSelectedIndex() int64 {
+func (c *ChoiceImpl) Index() int64 {
 	return c.selectedIndex
 }
 
-func (c *ChoiceImpl) GetSelectedValue() string {
+func (c *ChoiceImpl) Option() string {
 	if c.IsValid() {
 		return c.options[c.selectedIndex]
 	}
 	return ""
 }
 
-func (c *ChoiceImpl) GetOptions() []string {
+func (c *ChoiceImpl) Options() []string {
 	return c.options
 }
 
-func (c *ChoiceImpl) SetSelectedIndex(index int64) data.Choice {
+func (c *ChoiceImpl) SetIndex(index int64) data.Choice {
 	c.selectedIndex = index
 	return c
 }

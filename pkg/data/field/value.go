@@ -582,7 +582,7 @@ func (v *Value) SetChoice(selected interface{}) data.Value {
 		}
 	case data.Choice:
 		// If passed a Choice interface, use its values
-		value = c.GetSelectedIndex()
+		value = c.Index()
 	default:
 		log.Error("Unsupported type for choice selection: %T", selected)
 	}
