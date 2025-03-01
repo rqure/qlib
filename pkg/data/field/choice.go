@@ -4,23 +4,22 @@ import (
 	"github.com/rqure/qlib/pkg/data"
 )
 
-// ChoiceImpl implements the Choice interface
 type ChoiceImpl struct {
 	selectedIndex int64
 	options       []string
 }
 
-// NewChoice creates a new Choice with the given selected index and options
-func NewChoice(index int64, options []string) data.Choice {
+func NewChoice(index int64) data.Choice {
+	return &ChoiceImpl{
+		selectedIndex: index,
+	}
+}
+
+func NewCompleteChoice(index int64, options []string) data.CompleteChoice {
 	return &ChoiceImpl{
 		selectedIndex: index,
 		options:       options,
 	}
-}
-
-// LoadOptions loads options from schema
-func (c *ChoiceImpl) LoadOptions(options []string) {
-	c.options = options
 }
 
 func (c *ChoiceImpl) Index() int64 {

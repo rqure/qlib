@@ -98,6 +98,7 @@ func (v *Value) GetInt() int64 {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling int: %s", err)
 			return 0
 		}
 	}
@@ -110,6 +111,7 @@ func (v *Value) GetFloat() float64 {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling float: %s", err)
 			return 0
 		}
 	}
@@ -122,6 +124,7 @@ func (v *Value) GetString() string {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling string: %s", err)
 			return ""
 		}
 	}
@@ -134,6 +137,7 @@ func (v *Value) GetBool() bool {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling bool: %s", err)
 			return false
 		}
 	}
@@ -146,6 +150,7 @@ func (v *Value) GetBinaryFile() string {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling binary file: %s", err)
 			return ""
 		}
 	}
@@ -158,6 +163,7 @@ func (v *Value) GetEntityReference() string {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling entity reference: %s", err)
 			return ""
 		}
 	}
@@ -170,6 +176,7 @@ func (v *Value) GetTimestamp() time.Time {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling timestamp: %s", err)
 			return time.Unix(0, 0)
 		}
 	}
@@ -181,6 +188,7 @@ func (v *Value) GetTransformation() string {
 	m := new(protobufs.Transformation)
 
 	if err := v.impl.UnmarshalTo(m); err != nil {
+		log.Error("Error unmarshalling transformation: %s", err)
 		return ""
 	}
 
@@ -192,12 +200,12 @@ func (v *Value) GetChoice() data.Choice {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
-			return NewChoice(0, []string{})
+			log.Error("Error unmarshalling choice: %s", err)
+			return NewChoice(0)
 		}
 	}
 
-	// We need to get options from schema rather than from the Choice message
-	return NewChoice(m.Raw, []string{})
+	return NewChoice(m.Raw)
 }
 
 func (v *Value) GetEntityList() data.EntityList {
@@ -205,6 +213,7 @@ func (v *Value) GetEntityList() data.EntityList {
 
 	if v.impl != nil {
 		if err := v.impl.UnmarshalTo(m); err != nil {
+			log.Error("Error unmarshalling entity list: %s", err)
 			return NewEntityList([]string{})
 		}
 	}

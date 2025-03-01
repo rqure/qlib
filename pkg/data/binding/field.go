@@ -7,6 +7,7 @@ import (
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/request"
+	"github.com/rqure/qlib/pkg/log"
 )
 
 type Field struct {
@@ -426,137 +427,154 @@ func (me *Field) WriteEntityList(ctx context.Context, args ...interface{}) data.
 
 func (me *Field) ReadValue(ctx context.Context) data.Value {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue()
+	return me.GetValue()
 }
 
 func (me *Field) ReadInt(ctx context.Context) int64 {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetInt()
+	return me.GetInt()
 }
 
 func (me *Field) ReadFloat(ctx context.Context) float64 {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetFloat()
+	return me.GetFloat()
 }
 
 func (me *Field) ReadString(ctx context.Context) string {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetString()
+	return me.GetString()
 }
 
 func (me *Field) ReadBool(ctx context.Context) bool {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetBool()
+	return me.GetBool()
 }
 
 func (me *Field) ReadBinaryFile(ctx context.Context) string {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetBinaryFile()
+	return me.GetBinaryFile()
 }
 
 func (me *Field) ReadEntityReference(ctx context.Context) string {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetEntityReference()
+	return me.GetEntityReference()
 }
 
 func (me *Field) ReadTimestamp(ctx context.Context) time.Time {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetTimestamp()
+	return me.GetTimestamp()
 }
 
 func (me *Field) ReadTransformation(ctx context.Context) string {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetTransformation()
+	return me.GetTransformation()
 }
 
-func (me *Field) ReadChoice(ctx context.Context) data.Choice {
+func (me *Field) ReadChoice(ctx context.Context) data.CompleteChoice {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetChoice()
+	return me.GetCompleteChoice(ctx)
 }
 
 func (me *Field) ReadEntityList(ctx context.Context) data.EntityList {
 	me.withStore().Read(ctx, me.req)
-	return me.req.GetValue().GetEntityList()
+	return me.GetEntityList()
 }
 
 func (me *Field) IsInt() bool {
-	return me.req.GetValue().IsInt()
+	return me.GetValue().IsInt()
 }
 
 func (me *Field) IsFloat() bool {
-	return me.req.GetValue().IsFloat()
+	return me.GetValue().IsFloat()
 }
 
 func (me *Field) IsString() bool {
-	return me.req.GetValue().IsString()
+	return me.GetValue().IsString()
 }
 
 func (me *Field) IsBool() bool {
-	return me.req.GetValue().IsBool()
+	return me.GetValue().IsBool()
 }
 
 func (me *Field) IsBinaryFile() bool {
-	return me.req.GetValue().IsBinaryFile()
+	return me.GetValue().IsBinaryFile()
 }
 
 func (me *Field) IsEntityReference() bool {
-	return me.req.GetValue().IsEntityReference()
+	return me.GetValue().IsEntityReference()
 }
 
 func (me *Field) IsTimestamp() bool {
-	return me.req.GetValue().IsTimestamp()
+	return me.GetValue().IsTimestamp()
 }
 
 func (me *Field) IsTransformation() bool {
-	return me.req.GetValue().IsTransformation()
+	return me.GetValue().IsTransformation()
 }
 
 func (me *Field) IsChoice() bool {
-	return me.req.GetValue().IsChoice()
+	return me.GetValue().IsChoice()
 }
 
 func (me *Field) IsEntityList() bool {
-	return me.req.GetValue().IsEntityList()
+	return me.GetValue().IsEntityList()
 }
 
 func (me *Field) GetInt() int64 {
-	return me.req.GetValue().GetInt()
+	return me.GetValue().GetInt()
 }
 
 func (me *Field) GetFloat() float64 {
-	return me.req.GetValue().GetFloat()
+	return me.GetValue().GetFloat()
 }
 
 func (me *Field) GetString() string {
-	return me.req.GetValue().GetString()
+	return me.GetValue().GetString()
 }
 
 func (me *Field) GetBool() bool {
-	return me.req.GetValue().GetBool()
+	return me.GetValue().GetBool()
 }
 
 func (me *Field) GetBinaryFile() string {
-	return me.req.GetValue().GetBinaryFile()
+	return me.GetValue().GetBinaryFile()
 }
 
 func (me *Field) GetEntityReference() string {
-	return me.req.GetValue().GetEntityReference()
+	return me.GetValue().GetEntityReference()
 }
 
 func (me *Field) GetTimestamp() time.Time {
-	return me.req.GetValue().GetTimestamp()
+	return me.GetValue().GetTimestamp()
 }
 
 func (me *Field) GetTransformation() string {
-	return me.req.GetValue().GetTransformation()
+	return me.GetValue().GetTransformation()
 }
 
 func (me *Field) GetChoice() data.Choice {
-	return me.req.GetValue().GetChoice()
+	return me.GetValue().GetChoice()
+}
+
+func (me *Field) GetCompleteChoice(ctx context.Context) data.CompleteChoice {
+	choice, ok := me.GetValue().GetChoice().(data.CompleteChoice)
+	if !ok {
+		log.Error("Choice is not a CompleteChoice")
+		return nil
+	}
+
+	entity := me.withStore().GetEntity(ctx, me.req.GetEntityId())
+	schema := me.withStore().GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+	if schema.IsChoice() {
+		choices := schema.AsChoiceFieldSchema().GetChoices()
+		choice.SetOptions(choices)
+	}
+
+	return choice
 }
 
 func (me *Field) GetEntityList() data.EntityList {
-	return me.req.GetValue().GetEntityList()
+	return me.GetValue().GetEntityList()
 }
 
 func (me *Field) SetValue(v data.Value) data.FieldBinding {

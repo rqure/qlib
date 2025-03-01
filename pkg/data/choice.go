@@ -3,6 +3,11 @@ package data
 type Choice interface {
 	// selected index
 	Index() int64
+	SetIndex(index int64) Choice
+}
+
+type CompleteChoice interface {
+	Choice
 
 	// selected option
 	Option() string
@@ -10,8 +15,8 @@ type Choice interface {
 	// all options
 	Options() []string
 
-	SetIndex(index int64) Choice
 	SetOptions(options []string) Choice
+
 	IsValid() bool
 	Count() int
 	Select(option string) bool

@@ -47,6 +47,7 @@ type FieldBinding interface {
 	GetTimestamp() time.Time
 	GetTransformation() string
 	GetChoice() Choice
+	GetCompleteChoice(context.Context) CompleteChoice
 	GetEntityList() EntityList
 
 	SetValue(Value) FieldBinding
@@ -72,6 +73,6 @@ type FieldBinding interface {
 	ReadEntityReference(context.Context) string
 	ReadTimestamp(context.Context) time.Time
 	ReadTransformation(context.Context) string
-	ReadChoice(context.Context) Choice
+	ReadChoice(context.Context) CompleteChoice
 	ReadEntityList(context.Context) EntityList
 }
