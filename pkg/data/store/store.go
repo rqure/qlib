@@ -16,6 +16,8 @@ type Store struct {
 	data.ModifiableSnapshotManager
 
 	data.Transformer
+
+	data.SessionProvider
 }
 
 type ConfigFn func(*Store)
@@ -25,6 +27,7 @@ func New(fn ...ConfigFn) data.Store {
 
 	store.MultiConnector = NewMultiConnector()
 	store.Transformer = transformer.NewTransformer(store)
+	store.SessionProvider = NewSessionProvider()
 
 	for _, f := range fn {
 		f(store)

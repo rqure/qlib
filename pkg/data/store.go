@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 
+	"github.com/rqure/qlib/pkg/auth"
 	"github.com/rqure/qlib/pkg/signalslots"
 )
 
@@ -132,8 +133,8 @@ type IndirectionResolver interface {
 	Resolve(ctx context.Context, entityId string, fields string) (string, string)
 }
 
-type Authenticator interface {
-	CurrentSession() Session
+type SessionProvider interface {
+	Session(ctx context.Context) auth.Session
 }
 
 type Store interface {
@@ -144,4 +145,5 @@ type Store interface {
 	FieldOperator
 	NotificationConsumer
 	NotificationPublisher
+	SessionProvider
 }

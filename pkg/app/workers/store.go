@@ -51,7 +51,10 @@ func (me *Store) Deinit(context.Context) {
 }
 
 func (me *Store) DoWork(ctx context.Context) {
-
+	session := me.store.Session(ctx)
+	if session.PastHalfLife(ctx) {
+		session.Refresh(ctx)
+	}
 }
 
 func (me *Store) onConnected(ctx context.Context) {

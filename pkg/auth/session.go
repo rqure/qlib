@@ -2,24 +2,25 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
 )
 
 type Session interface {
-	Refresh() error
-	Revoke() error
+	Refresh(context.Context) error
+	Revoke(context.Context) error
+
+	PastHalfLife(context.Context) bool
+	GetOwnerName(context.Context) (string, error)
+	IsValid(context.Context) bool
 
 	AccessToken() string
 	RefreshToken() string
 	Realm() string
 	ClientID() string
 	ClientSecret() string
-
-	GetOwnerName() (string, error)
-
-	IsValid() bool
 }
 
 type session struct {
@@ -40,10 +41,13 @@ func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm str
 	}
 }
 
-// clientSession implementation
-func (me *session) Refresh() error {
+func (me *session) Refresh(ctx context.Context) error {
+	if me.token == nil {
+		return fmt.Errorf("no token to refresh")
+	}
+
 	token, err := me.core.GetClient().RefreshToken(
-		context.Background(),
+		ctx,
 		me.token.RefreshToken,
 		me.clientID,
 		me.clientSecret,
@@ -57,9 +61,13 @@ func (me *session) Refresh() error {
 	return nil
 }
 
-func (me *session) Revoke() error {
+func (me *session) Revoke(ctx context.Context) error {
+	if me.token == nil {
+		return fmt.Errorf("no token to revoke")
+	}
+
 	return me.core.GetClient().Logout(
-		context.Background(),
+		ctx,
 		me.clientID,
 		me.clientSecret,
 		me.realm,
@@ -68,10 +76,18 @@ func (me *session) Revoke() error {
 }
 
 func (me *session) AccessToken() string {
+	if me.token == nil {
+		return ""
+	}
+
 	return me.token.AccessToken
 }
 
 func (me *session) RefreshToken() string {
+	if me.token == nil {
+		return ""
+	}
+
 	return me.token.RefreshToken
 }
 
@@ -89,8 +105,11 @@ func (me *session) ClientSecret() string {
 
 // Returns the name of the owner of the session
 // This is the user who owns the session or the client if it's a client session
-func (me *session) GetOwnerName() (string, error) {
-	ctx := context.Background()
+func (me *session) GetOwnerName(ctx context.Context) (string, error) {
+	if me.token == nil {
+		return "", fmt.Errorf("no token to get owner name")
+	}
+
 	_, claims, err := me.core.GetClient().DecodeAccessToken(
 		ctx,
 		me.AccessToken(),
@@ -122,8 +141,11 @@ func (me *session) GetOwnerName() (string, error) {
 }
 
 // Decode the access token and check if it's still valid
-func (me *session) IsValid() bool {
-	ctx := context.Background()
+func (me *session) IsValid(ctx context.Context) bool {
+	if me.token == nil {
+		return false
+	}
+
 	_, claims, err := me.core.GetClient().DecodeAccessToken(
 		ctx,
 		me.AccessToken(),
@@ -137,6 +159,31 @@ func (me *session) IsValid() bool {
 	if exp, ok := (*claims)["exp"].(float64); ok {
 		expirationTime := time.Unix(int64(exp), 0)
 		return time.Now().Before(expirationTime)
+	}
+
+	return false
+}
+
+// Check if the token has passed the half-life time
+func (me *session) PastHalfLife(ctx context.Context) bool {
+	if me.token == nil {
+		return false
+	}
+
+	_, claims, err := me.core.GetClient().DecodeAccessToken(
+		ctx,
+		me.AccessToken(),
+		me.realm,
+	)
+	if err != nil {
+		return false
+	}
+
+	// Check if token has expired
+	if exp, ok := (*claims)["exp"].(float64); ok {
+		expirationTime := time.Unix(int64(exp), 0)
+		halfLifeTime := time.Until(expirationTime) / 2
+		return time.Now().After(expirationTime.Add(-halfLifeTime))
 	}
 
 	return false

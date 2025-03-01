@@ -382,7 +382,7 @@ func (me *admin) getUserRoles(ctx context.Context, kcUser *gocloak.User) ([]stri
 }
 
 func (me *admin) authenticate(ctx context.Context) error {
-	if me.session != nil && !me.session.IsValid() {
+	if me.session != nil && !me.session.IsValid(ctx) {
 		return nil
 	}
 

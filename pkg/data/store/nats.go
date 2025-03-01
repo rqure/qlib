@@ -5,6 +5,7 @@ import "github.com/rqure/qlib/pkg/data/store/nats"
 func CommunicateOverNats(address string) ConfigFn {
 	return func(store *Store) {
 		core := nats.NewCore(nats.Config{Address: address})
+		core.SetSessionProvider(store.SessionProvider)
 
 		store.MultiConnector.AddConnector(nats.NewConnector(core))
 		store.ModifiableSchemaManager = nats.NewSchemaManager(core)

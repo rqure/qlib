@@ -3,6 +3,7 @@ package binding
 import (
 	"context"
 
+	"github.com/rqure/qlib/pkg/auth"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/signalslots"
 )
@@ -153,4 +154,8 @@ func (m *MultiBinding) Commit(ctx context.Context) {
 
 	m.readReqs = []data.Request{}
 	m.writeReqs = []data.Request{}
+}
+
+func (m *MultiBinding) Session(ctx context.Context) auth.Session {
+	return m.impl.Session(ctx)
 }
