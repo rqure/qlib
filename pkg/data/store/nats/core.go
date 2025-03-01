@@ -7,6 +7,7 @@ import (
 
 	natsgo "github.com/nats-io/nats.go" // Changed import name to avoid conflict
 	"github.com/rqure/qlib/pkg/app"
+	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 	"github.com/rqure/qlib/pkg/signalslots"
@@ -31,7 +32,7 @@ type Core interface {
 	GetKeyGenerator() KeyGenerator
 	QueueSubscribe(subject string, handler natsgo.MsgHandler)
 
-	SetSessionProvider(SessionProvider)
+	SetSessionProvider(data.SessionProvider)
 
 	Connected() signalslots.Signal
 	Disconnected() signalslots.Signal
@@ -44,7 +45,7 @@ type coreInternal struct {
 	kg     KeyGenerator
 	mu     sync.RWMutex
 
-	sp SessionProvider
+	sp data.SessionProvider
 
 	connected    signalslots.Signal
 	disconnected signalslots.Signal
@@ -59,7 +60,7 @@ func NewCore(config Config) Core {
 	}
 }
 
-func (c *coreInternal) SetSessionProvider(sp SessionProvider) {
+func (c *coreInternal) SetSessionProvider(sp data.SessionProvider) {
 	c.sp = sp
 }
 
