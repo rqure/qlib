@@ -345,7 +345,7 @@ func (b *Field) WriteChoice(ctx context.Context, args ...interface{}) data.Field
 	}
 
 	// Note: options are now stored in schema, not in the choice value
-	b.req.SetValue(field.NewValue().SetChoice(selectedIndex, []string{}))
+	b.req.SetValue(field.NewValue().SetChoice(selectedIndex))
 
 	// Set write options if provided
 	if len(args) > 1 {
@@ -540,10 +540,6 @@ func (b *Field) GetTransformation() string {
 
 func (b *Field) GetChoice() data.Choice {
 	return b.req.GetValue().GetChoice()
-}
-
-func (b *Field) GetChoiceOptions() []string {
-	return b.req.GetValue().GetChoiceOptions()
 }
 
 func (b *Field) GetEntityList() data.EntityList {

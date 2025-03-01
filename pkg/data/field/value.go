@@ -200,12 +200,6 @@ func (v *Value) GetChoice() data.Choice {
 	return NewChoice(m.Raw, []string{})
 }
 
-func (v *Value) GetChoiceOptions() []string {
-	// This now needs to be retrieved from schema, so return empty array
-	// The actual options should be accessed via schema
-	return []string{}
-}
-
 func (v *Value) GetEntityList() data.EntityList {
 	m := new(protobufs.EntityList)
 
@@ -552,7 +546,7 @@ func (v *Value) SetTransformation(t interface{}) data.Value {
 	return v
 }
 
-func (v *Value) SetChoice(selected interface{}, options []string) data.Value {
+func (v *Value) SetChoice(selected interface{}) data.Value {
 	value := int64(0)
 
 	switch c := selected.(type) {
@@ -584,13 +578,7 @@ func (v *Value) SetChoice(selected interface{}, options []string) data.Value {
 		if i, err := strconv.ParseInt(c, 10, 64); err == nil {
 			value = i
 		} else {
-			// Try to find the option by string value
-			for i, opt := range options {
-				if opt == c {
-					value = int64(i)
-					break
-				}
-			}
+			log.Error("Error parsing choice selection from '%s': %s", c, err)
 		}
 	case data.Choice:
 		// If passed a Choice interface, use its values

@@ -22,6 +22,8 @@ type Value interface {
 	IsEntityReference() bool
 	IsTimestamp() bool
 	IsTransformation() bool
+	IsChoice() bool
+	IsEntityList() bool
 
 	GetType() string
 	GetInt() int64
@@ -32,6 +34,8 @@ type Value interface {
 	GetEntityReference() string
 	GetTimestamp() time.Time
 	GetTransformation() string
+	GetChoice() Choice
+	GetEntityList() EntityList
 
 	SetInt(interface{}) Value
 	SetFloat(interface{}) Value
@@ -41,11 +45,30 @@ type Value interface {
 	SetEntityReference(interface{}) Value
 	SetTimestamp(interface{}) Value
 	SetTransformation(interface{}) Value
+	SetChoice(interface{}) Value
+	SetEntityList(interface{}) Value
 }
 
 type FieldSchema interface {
 	GetFieldName() string
 	GetFieldType() string
-	GetChoiceOptions() []string
-	SetChoiceOptions([]string)
+
+	IsInt() bool
+	IsFloat() bool
+	IsString() bool
+	IsBool() bool
+	IsBinaryFile() bool
+	IsEntityReference() bool
+	IsTimestamp() bool
+	IsTransformation() bool
+	IsChoice() bool
+	IsEntityList() bool
+
+	AsChoiceFieldSchema() ChoiceFieldSchema
+}
+
+type ChoiceFieldSchema interface {
+	FieldSchema
+	GetChoices() []string
+	SetChoices([]string) ChoiceFieldSchema
 }

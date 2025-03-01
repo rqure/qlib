@@ -34,6 +34,8 @@ type FieldBinding interface {
 	IsEntityReference() bool
 	IsTimestamp() bool
 	IsTransformation() bool
+	IsChoice() bool
+	IsEntityList() bool
 
 	GetValue() Value
 	GetInt() int64
@@ -44,6 +46,8 @@ type FieldBinding interface {
 	GetEntityReference() string
 	GetTimestamp() time.Time
 	GetTransformation() string
+	GetChoice() Choice
+	GetEntityList() EntityList
 
 	SetValue(Value) FieldBinding
 
@@ -56,6 +60,8 @@ type FieldBinding interface {
 	WriteEntityReference(context.Context, ...interface{}) FieldBinding
 	WriteTimestamp(context.Context, ...interface{}) FieldBinding
 	WriteTransformation(context.Context, ...interface{}) FieldBinding
+	WriteChoice(context.Context, ...interface{}) FieldBinding
+	WriteEntityList(context.Context, ...interface{}) FieldBinding
 
 	ReadValue(context.Context) Value
 	ReadInt(context.Context) int64
@@ -66,4 +72,6 @@ type FieldBinding interface {
 	ReadEntityReference(context.Context) string
 	ReadTimestamp(context.Context) time.Time
 	ReadTransformation(context.Context) string
+	ReadChoice(context.Context) Choice
+	ReadEntityList(context.Context) EntityList
 }

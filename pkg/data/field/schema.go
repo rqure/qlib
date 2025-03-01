@@ -10,13 +10,17 @@ type Schema struct {
 	impl *protobufs.DatabaseFieldSchema
 }
 
+func prefixed(t string) string {
+	return "protobufs." + t
+}
+
 func ToSchemaPb(s data.FieldSchema) *protobufs.DatabaseFieldSchema {
 	if s == nil {
 		return nil
 	}
 
 	switch c := s.(type) {
-	case Schema:
+	case *Schema:
 		return c.impl
 	default:
 		return nil
@@ -24,43 +28,142 @@ func ToSchemaPb(s data.FieldSchema) *protobufs.DatabaseFieldSchema {
 }
 
 func FromSchemaPb(impl *protobufs.DatabaseFieldSchema) data.FieldSchema {
-	return Schema{
+	return &Schema{
 		impl: impl,
 	}
 }
 
-func (s Schema) GetFieldName() string {
-	if s.impl == nil {
+func (me *Schema) GetFieldName() string {
+	if me.impl == nil {
 		log.Error("Impl not defined")
 		return ""
 	}
 
-	return s.impl.Name
+	return me.impl.Name
 }
 
-func (s Schema) GetFieldType() string {
-	if s.impl == nil {
+func (me *Schema) GetFieldType() string {
+	if me.impl == nil {
 		log.Error("Impl not defined")
 		return ""
 	}
 
-	return s.impl.Type
+	return me.impl.Type
 }
 
-func (s Schema) GetChoiceOptions() []string {
-	if s.impl == nil {
+func (me *Schema) IsInt() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("Int")
+}
+
+func (me *Schema) IsFloat() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("Float")
+}
+
+func (me *Schema) IsString() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("String")
+}
+
+func (me *Schema) IsBool() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("Bool")
+}
+
+func (me *Schema) IsBinaryFile() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("BinaryFile")
+}
+
+func (me *Schema) IsEntityReference() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("EntityReference")
+}
+
+func (me *Schema) IsTimestamp() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("Timestamp")
+}
+
+func (me *Schema) IsTransformation() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("Transformation")
+}
+
+func (me *Schema) IsChoice() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("Choice")
+}
+
+func (me *Schema) IsEntityList() bool {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return false
+	}
+
+	return me.impl.Type == prefixed("EntityList")
+}
+
+func (me *Schema) AsChoiceFieldSchema() data.ChoiceFieldSchema {
+	if me.IsChoice() {
+		return me
+	}
+
+	return nil
+}
+
+func (me *Schema) GetChoices() []string {
+	if me.impl == nil {
 		log.Error("Impl not defined")
 		return []string{}
 	}
 
-	return s.impl.ChoiceOptions
+	return me.impl.ChoiceOptions
 }
 
-func (s Schema) SetChoiceOptions(options []string) {
-	if s.impl == nil {
+func (me *Schema) SetChoices(options []string) data.ChoiceFieldSchema {
+	if me.impl == nil {
 		log.Error("Impl not defined")
-		return
+		return nil
 	}
 
-	s.impl.ChoiceOptions = options
+	me.impl.ChoiceOptions = options
+	return me
 }
