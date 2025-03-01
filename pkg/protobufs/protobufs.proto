@@ -316,7 +316,7 @@ message Transformation {
 }
 
 message Choice {
-    int raw = 1; // selected choice index
+    int64 raw = 1; // selected choice index
     repeated string choices = 2; // available choices
 }
 
