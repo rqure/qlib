@@ -21,23 +21,23 @@ func NewFieldOperator(core Core) data.ModifiableFieldOperator {
 	return &FieldOperator{core: core}
 }
 
-func (f *FieldOperator) SetSchemaManager(sm data.SchemaManager) {
-	f.schemaManager = sm
+func (me *FieldOperator) SetSchemaManager(sm data.SchemaManager) {
+	me.schemaManager = sm
 }
 
-func (f *FieldOperator) SetEntityManager(em data.EntityManager) {
-	f.entityManager = em
+func (me *FieldOperator) SetEntityManager(em data.EntityManager) {
+	me.entityManager = em
 }
 
-func (f *FieldOperator) SetNotificationPublisher(np data.NotificationPublisher) {
-	f.notificationPublisher = np
+func (me *FieldOperator) SetNotificationPublisher(np data.NotificationPublisher) {
+	me.notificationPublisher = np
 }
 
-func (f *FieldOperator) SetTransformer(t data.Transformer) {
-	f.transformer = t
+func (me *FieldOperator) SetTransformer(t data.Transformer) {
+	me.transformer = t
 }
 
-func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
+func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 	msg := &protobufs.ApiRuntimeDatabaseRequest{
 		RequestType: protobufs.ApiRuntimeDatabaseRequest_READ,
 		Requests:    make([]*protobufs.DatabaseRequest, len(requests)),
@@ -47,7 +47,7 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 		msg.Requests[i] = request.ToPb(r)
 	}
 
-	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return
 	}
@@ -74,7 +74,7 @@ func (f *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 	}
 }
 
-func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
+func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 	msg := &protobufs.ApiRuntimeDatabaseRequest{
 		RequestType: protobufs.ApiRuntimeDatabaseRequest_WRITE,
 		Requests:    make([]*protobufs.DatabaseRequest, len(requests)),
@@ -84,7 +84,7 @@ func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 		msg.Requests[i] = request.ToPb(r)
 	}
 
-	resp, err := f.core.Request(ctx, f.core.GetKeyGenerator().GetWriteSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
 		return
 	}
@@ -100,4 +100,12 @@ func (f *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 		}
 		requests[i].SetSuccessful(r.Success)
 	}
+}
+
+func (me *FieldOperator) AuthorizedRead(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
+	me.Read(ctx, requests...)
+}
+
+func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
+	me.Write(ctx, requests...)
 }
