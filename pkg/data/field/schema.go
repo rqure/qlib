@@ -1,6 +1,8 @@
 package field
 
 import (
+	"strings"
+
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
@@ -10,8 +12,8 @@ type Schema struct {
 	impl *protobufs.DatabaseFieldSchema
 }
 
-func prefixed(t string) string {
-	return "protobufs." + t
+func unprefixed(t string) string {
+	return strings.Replace(t, "protobufs.", "", 1)
 }
 
 func ToSchemaPb(s data.FieldSchema) *protobufs.DatabaseFieldSchema {
@@ -48,97 +50,47 @@ func (me *Schema) GetFieldType() string {
 		return ""
 	}
 
-	return me.impl.Type
+	return unprefixed(me.impl.Type)
 }
 
 func (me *Schema) IsInt() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("Int")
+	return me.GetFieldType() == "Int"
 }
 
 func (me *Schema) IsFloat() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("Float")
+	return me.GetFieldType() == "Float"
 }
 
 func (me *Schema) IsString() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("String")
+	return me.GetFieldType() == "String"
 }
 
 func (me *Schema) IsBool() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("Bool")
+	return me.GetFieldType() == "Bool"
 }
 
 func (me *Schema) IsBinaryFile() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("BinaryFile")
+	return me.GetFieldType() == "BinaryFile"
 }
 
 func (me *Schema) IsEntityReference() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("EntityReference")
+	return me.GetFieldType() == "EntityReference"
 }
 
 func (me *Schema) IsTimestamp() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("Timestamp")
+	return me.GetFieldType() == "Timestamp"
 }
 
 func (me *Schema) IsTransformation() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("Transformation")
+	return me.GetFieldType() == "Transformation"
 }
 
 func (me *Schema) IsChoice() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("Choice")
+	return me.GetFieldType() == "Choice"
 }
 
 func (me *Schema) IsEntityList() bool {
-	if me.impl == nil {
-		log.Error("Impl not defined")
-		return false
-	}
-
-	return me.impl.Type == prefixed("EntityList")
+	return me.GetFieldType() == "EntityList"
 }
 
 func (me *Schema) AsChoiceFieldSchema() data.ChoiceFieldSchema {
