@@ -344,7 +344,6 @@ func (b *Field) WriteChoice(ctx context.Context, args ...interface{}) data.Field
 		selectedIndex = args[0]
 	}
 
-	// Note: options are now stored in schema, not in the choice value
 	b.req.SetValue(field.NewValue().SetChoice(selectedIndex))
 
 	// Set write options if provided
