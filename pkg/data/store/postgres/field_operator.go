@@ -46,16 +46,16 @@ func (me *FieldOperator) SetTransformer(transformer data.Transformer) {
 	me.transformer = transformer
 }
 
-func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
+func (me *FieldOperator) AuthorizedRead(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
 	ir := query.NewIndirectionResolver(me.entityManager, me)
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		for _, r := range requests {
-			r.SetSuccessful(false)
+		for _, req := range requests {
+			req.SetSuccessful(false)
 
-			indirectField, indirectEntity := ir.Resolve(ctx, r.GetEntityId(), r.GetFieldName())
+			indirectField, indirectEntity := ir.Resolve(ctx, req.GetEntityId(), req.GetFieldName())
 			if indirectField == "" || indirectEntity == "" {
-				log.Error("Failed to resolve indirection for: %s->%s", r.GetEntityId(), r.GetFieldName())
+				log.Error("Failed to resolve indirection for: %s->%s", req.GetEntityId(), req.GetFieldName())
 				continue
 			}
 
@@ -74,6 +74,11 @@ func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 			tableName := getTableForType(schema.GetFieldType())
 			if tableName == "" {
 				log.Error("Invalid field type %s for field %s->%s", schema.GetFieldType(), entity.GetType(), indirectField)
+				continue
+			}
+
+			if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
+				log.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
 				continue
 			}
 
@@ -102,22 +107,22 @@ func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 				continue
 			}
 
-			r.SetValue(value)
-			r.SetWriteTime(&writeTime)
-			r.SetWriter(&writer)
-			r.SetSuccessful(true)
+			req.SetValue(value)
+			req.SetWriteTime(&writeTime)
+			req.SetWriter(&writer)
+			req.SetSuccessful(true)
 		}
 	})
 }
 
-func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
+func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
 	ir := query.NewIndirectionResolver(me.entityManager, me)
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		for _, r := range requests {
-			indirectField, indirectEntity := ir.Resolve(ctx, r.GetEntityId(), r.GetFieldName())
+		for _, req := range requests {
+			indirectField, indirectEntity := ir.Resolve(ctx, req.GetEntityId(), req.GetFieldName())
 			if indirectField == "" || indirectEntity == "" {
-				log.Error("Failed to resolve indirection for: %s->%s", r.GetEntityId(), r.GetFieldName())
+				log.Error("Failed to resolve indirection for: %s->%s", req.GetEntityId(), req.GetFieldName())
 				continue
 			}
 
@@ -149,48 +154,53 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 				continue
 			}
 
-			if r.GetValue().IsNil() {
-				r.SetValue(field.FromAnyPb(fieldTypeToProtoType(schema.Type)))
+			if req.GetValue().IsNil() {
+				req.SetValue(field.FromAnyPb(fieldTypeToProtoType(schema.Type)))
 			} else {
 				v := field.FromAnyPb(fieldTypeToProtoType(schema.Type))
-				if r.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
-					log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", r.GetEntityId(), r.GetFieldName(), r.GetValue().GetType(), v.GetType())
-					r.SetValue(v)
+				if req.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
+					log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", req.GetEntityId(), req.GetFieldName(), req.GetValue().GetType(), v.GetType())
+					req.SetValue(v)
 				}
 			}
 
-			oldReq := request.New().SetEntityId(r.GetEntityId()).SetFieldName(r.GetFieldName())
+			oldReq := request.New().SetEntityId(req.GetEntityId()).SetFieldName(req.GetFieldName())
 			me.Read(ctx, oldReq)
 
 			// Set the value in the database
 			// Note that for a transformation, we don't actually write the value to the database
 			// unless the new value is a transformation. This is because the transformation is
 			// executed by the transformer, which will write the result to the database.
-			if oldReq.IsSuccessful() && oldReq.GetValue().IsTransformation() && !r.GetValue().IsTransformation() {
+			if oldReq.IsSuccessful() && oldReq.GetValue().IsTransformation() && !req.GetValue().IsTransformation() {
 				src := oldReq.GetValue().GetTransformation()
-				me.transformer.Transform(ctx, src, r)
-				r.SetValue(oldReq.GetValue())
-			} else if oldReq.IsSuccessful() && r.GetWriteOpt() == data.WriteChanges {
-				if proto.Equal(field.ToAnyPb(oldReq.GetValue()), field.ToAnyPb(r.GetValue())) {
-					r.SetSuccessful(true)
+				me.transformer.Transform(ctx, src, req)
+				req.SetValue(oldReq.GetValue())
+			} else if oldReq.IsSuccessful() && req.GetWriteOpt() == data.WriteChanges {
+				if proto.Equal(field.ToAnyPb(oldReq.GetValue()), field.ToAnyPb(req.GetValue())) {
+					req.SetSuccessful(true)
 					continue
 				}
 			}
 
-			fieldValue := fieldValueToInterface(r.GetValue())
+			fieldValue := fieldValueToInterface(req.GetValue())
 			if fieldValue == nil {
 				log.Error("Failed to convert value for field %s->%s", entityType, indirectField)
 				continue
 			}
 
-			if r.GetWriteTime() == nil {
+			if req.GetWriteTime() == nil {
 				wt := time.Now()
-				r.SetWriteTime(&wt)
+				req.SetWriteTime(&wt)
 			}
 
-			if r.GetWriter() == nil {
+			if req.GetWriter() == nil {
 				wr := ""
-				r.SetWriter(&wr)
+				req.SetWriter(&wr)
+			}
+
+			if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
+				log.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
+				continue
 			}
 
 			// Upsert the field value
@@ -199,7 +209,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 				VALUES ($1, $2, $3, $4, $5)
 				ON CONFLICT (entity_id, field_name) 
 				DO UPDATE SET field_value = $3, write_time = $4, writer = $5
-			`, tableName), indirectEntity, indirectField, fieldValue, *r.GetWriteTime(), *r.GetWriter())
+			`, tableName), indirectEntity, indirectField, fieldValue, *req.GetWriteTime(), *req.GetWriter())
 
 			if err != nil {
 				log.Error("Failed to write field: %v", err)
@@ -207,8 +217,16 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			}
 
 			// Handle notifications
-			me.notificationPublisher.PublishNotifications(ctx, r, oldReq)
-			r.SetSuccessful(true)
+			me.notificationPublisher.PublishNotifications(ctx, req, oldReq)
+			req.SetSuccessful(true)
 		}
 	})
+}
+
+func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
+	me.AuthorizedRead(ctx, nil, requests...)
+}
+
+func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
+	me.AuthorizedWrite(ctx, nil, requests...)
 }

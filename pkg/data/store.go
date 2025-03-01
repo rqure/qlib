@@ -86,11 +86,18 @@ type ModifiableSchemaManager interface {
 	SchemaManager
 }
 
+type FieldAuthorizer interface {
+	AccessorId() string
+	IsAuthorized(ctx context.Context, entityId, fieldName string) bool
+}
+
 type FieldReader interface {
+	AuthorizedRead(context.Context, FieldAuthorizer, ...Request)
 	Read(context.Context, ...Request)
 }
 
 type FieldWriter interface {
+	AuthorizedWrite(context.Context, FieldAuthorizer, ...Request)
 	Write(context.Context, ...Request)
 }
 
