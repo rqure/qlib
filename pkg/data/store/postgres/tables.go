@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS ChoiceOptions (
     entity_type TEXT NOT NULL,
     field_name TEXT NOT NULL,
     options TEXT[],
-}
+    PRIMARY KEY (entity_type, field_name)
+};
 
 CREATE TABLE IF NOT EXISTS EntityLists (
     entity_id TEXT NOT NULL,
@@ -110,5 +111,12 @@ CREATE TABLE IF NOT EXISTS EntityLists (
     write_time TIMESTAMP NOT NULL,
     writer TEXT NOT NULL,
     PRIMARY KEY (entity_id, field_name)
+);
+
+CREATE TABLE IF NOT EXISTS ReverseEntityReferences (
+    referenced_entity_id TEXT NOT NULL,
+    referenced_by_entity_id TEXT NOT NULL,
+    referenced_by_field_name TEXT NOT NULL,
+    PRIMARY KEY (referenced_entity_id, referenced_by_entity_id, referenced_by_field_name)
 );
 `

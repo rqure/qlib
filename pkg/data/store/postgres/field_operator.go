@@ -203,6 +203,63 @@ func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.Fi
 				continue
 			}
 
+			if oldReq.IsSuccessful() && (oldReq.GetValue().IsEntityReference() || oldReq.GetValue().IsEntityList()) {
+				var oldReferences []string
+				if oldReq.GetValue().IsEntityReference() {
+					oldRef := oldReq.GetValue().GetEntityReference()
+					if oldRef != "" {
+						oldReferences = []string{oldRef}
+					}
+				} else if oldReq.GetValue().IsEntityList() {
+					oldReferences = oldReq.GetValue().GetEntityList().GetEntities()
+				}
+
+				// Delete old references
+				for _, oldRef := range oldReferences {
+					_, err = tx.Exec(ctx, `
+                            DELETE FROM ReverseEntityReferences 
+                            WHERE referenced_entity_id = $1 
+                            AND referenced_by_entity_id = $2
+                            AND referenced_by_field_name = $3
+                        `, oldRef, indirectEntity, indirectField)
+
+					if err != nil {
+						log.Error("Failed to delete old reverse entity reference: %v", err)
+					}
+				}
+			}
+
+			if req.GetValue().IsEntityReference() || req.GetValue().IsEntityList() {
+				var newReferences []string
+				if req.GetValue().IsEntityReference() {
+					newRef := req.GetValue().GetEntityReference()
+					if newRef != "" {
+						newReferences = []string{newRef}
+					}
+				} else if req.GetValue().IsEntityList() {
+					newReferences = req.GetValue().GetEntityList().GetEntities()
+				}
+
+				// Insert new references
+				for _, newRef := range newReferences {
+					if newRef == "" {
+						continue
+					}
+
+					_, err = tx.Exec(ctx, `
+                        INSERT INTO ReverseEntityReferences 
+                        (referenced_entity_id, referenced_by_entity_id, referenced_by_field_name)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (referenced_entity_id, referenced_by_entity_id, referenced_by_field_name) 
+                        DO NOTHING
+                    `, newRef, indirectEntity, indirectField)
+
+					if err != nil {
+						log.Error("Failed to insert reverse entity reference: %v", err)
+					}
+				}
+			}
+
 			// Upsert the field value
 			_, err = tx.Exec(ctx, fmt.Sprintf(`
 				INSERT INTO %s (entity_id, field_name, field_value, write_time, writer)
