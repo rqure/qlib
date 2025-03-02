@@ -19,39 +19,21 @@ func NewSchemaManager(core Core) data.ModifiableSchemaManager {
 	return &SchemaManager{core: core}
 }
 
-func (s *SchemaManager) SetEntityManager(em data.EntityManager) {
-	s.entityManager = em
+func (me *SchemaManager) SetEntityManager(em data.EntityManager) {
+	me.entityManager = em
 }
 
-func (s *SchemaManager) SetFieldOperator(fo data.FieldOperator) {
-	s.fieldOperator = fo
+func (me *SchemaManager) SetFieldOperator(fo data.FieldOperator) {
+	me.fieldOperator = fo
 }
 
-func (s *SchemaManager) EntityExists(ctx context.Context, entityId string) bool {
-	msg := &protobufs.ApiRuntimeEntityExistsRequest{
-		EntityId: entityId,
-	}
-
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
-	if err != nil {
-		return false
-	}
-
-	var response protobufs.ApiRuntimeEntityExistsResponse
-	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return false
-	}
-
-	return response.Exists
-}
-
-func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType string) bool {
+func (me *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType string) bool {
 	msg := &protobufs.ApiRuntimeFieldExistsRequest{
 		FieldName:  fieldName,
 		EntityType: entityType,
 	}
 
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return false
 	}
@@ -64,12 +46,12 @@ func (s *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType s
 	return response.Exists
 }
 
-func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
+func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
 	msg := &protobufs.ApiConfigGetEntitySchemaRequest{
 		Type: entityType,
 	}
 
-	resp, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -86,19 +68,19 @@ func (s *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) 
 	return entity.FromSchemaPb(response.Schema)
 }
 
-func (s *SchemaManager) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
+func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.EntitySchema) {
 	msg := &protobufs.ApiConfigSetEntitySchemaRequest{
 		Schema: entity.ToSchemaPb(schema),
 	}
 
-	_, err := s.core.Request(ctx, s.core.GetKeyGenerator().GetWriteSubject(), msg)
+	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
 		log.Error("Failed to set entity schema: %v", err)
 	}
 }
 
-func (s *SchemaManager) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
-	schema := s.GetEntitySchema(ctx, entityType)
+func (me *SchemaManager) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
+	schema := me.GetEntitySchema(ctx, entityType)
 	if schema == nil {
 		return nil
 	}
@@ -112,8 +94,8 @@ func (s *SchemaManager) GetFieldSchema(ctx context.Context, fieldName, entityTyp
 	return nil
 }
 
-func (s *SchemaManager) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {
-	entitySchema := s.GetEntitySchema(ctx, entityType)
+func (me *SchemaManager) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {
+	entitySchema := me.GetEntitySchema(ctx, entityType)
 	if entitySchema == nil {
 		log.Error("Failed to get entity schema for type %s", entityType)
 		return
@@ -134,5 +116,5 @@ func (s *SchemaManager) SetFieldSchema(ctx context.Context, entityType, fieldNam
 	}
 
 	entitySchema.SetFields(fields)
-	s.SetEntitySchema(ctx, entitySchema)
+	me.SetEntitySchema(ctx, entitySchema)
 }

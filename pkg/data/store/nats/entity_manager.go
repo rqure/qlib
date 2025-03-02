@@ -19,22 +19,22 @@ func NewEntityManager(core Core) data.ModifiableEntityManager {
 	return &EntityManager{core: core}
 }
 
-func (e *EntityManager) SetSchemaManager(sm data.SchemaManager) {
-	e.schemaManager = sm
+func (me *EntityManager) SetSchemaManager(sm data.SchemaManager) {
+	me.schemaManager = sm
 }
 
-func (e *EntityManager) SetFieldOperator(fo data.FieldOperator) {
-	e.fieldOperator = fo
+func (me *EntityManager) SetFieldOperator(fo data.FieldOperator) {
+	me.fieldOperator = fo
 }
 
-func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
+func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
 	msg := &protobufs.ApiConfigCreateEntityRequest{
 		Type:     entityType,
 		ParentId: parentId,
 		Name:     name,
 	}
 
-	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetWriteSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
 		log.Error("Failed to create entity: %v", err)
 	}
@@ -51,12 +51,12 @@ func (e *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, 
 	return response.Id
 }
 
-func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
+func (me *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
 	msg := &protobufs.ApiConfigGetEntityRequest{
 		Id: entityId,
 	}
 
-	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -73,23 +73,23 @@ func (e *EntityManager) GetEntity(ctx context.Context, entityId string) data.Ent
 	return entity.FromEntityPb(response.Entity)
 }
 
-func (e *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
+func (me *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 	msg := &protobufs.ApiConfigDeleteEntityRequest{
 		Id: entityId,
 	}
 
-	_, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetWriteSubject(), msg)
+	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
 		log.Error("Failed to delete entity: %v", err)
 	}
 }
 
-func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
+func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
 	msg := &protobufs.ApiRuntimeGetEntitiesRequest{
 		EntityType: entityType,
 	}
 
-	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -106,10 +106,10 @@ func (e *EntityManager) FindEntities(ctx context.Context, entityType string) []s
 	return ids
 }
 
-func (e *EntityManager) GetEntityTypes(ctx context.Context) []string {
+func (me *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	msg := &protobufs.ApiConfigGetEntityTypesRequest{}
 
-	resp, err := e.core.Request(ctx, e.core.GetKeyGenerator().GetReadSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
 		return nil
 	}
@@ -122,6 +122,24 @@ func (e *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	return response.Types
 }
 
-func (e *EntityManager) SetEntity(ctx context.Context, entity data.Entity) {
-	e.CreateEntity(ctx, entity.GetType(), entity.GetParentId(), entity.GetName())
+func (me *EntityManager) SetEntity(ctx context.Context, entity data.Entity) {
+	me.CreateEntity(ctx, entity.GetType(), entity.GetParentId(), entity.GetName())
+}
+
+func (me *EntityManager) EntityExists(ctx context.Context, entityId string) bool {
+	msg := &protobufs.ApiRuntimeEntityExistsRequest{
+		EntityId: entityId,
+	}
+
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+	if err != nil {
+		return false
+	}
+
+	var response protobufs.ApiRuntimeEntityExistsResponse
+	if err := resp.Payload.UnmarshalTo(&response); err != nil {
+		return false
+	}
+
+	return response.Exists
 }
