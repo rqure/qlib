@@ -265,3 +265,19 @@ func (me *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
 		}
 	})
 }
+
+func (me *EntityManager) EntityExists(ctx context.Context, entityId string) bool {
+	exists := false
+
+	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		err := tx.QueryRow(ctx, `
+			SELECT EXISTS(SELECT 1 FROM Entities WHERE id = $1)
+		`, entityId).Scan(&exists)
+
+		if err != nil {
+			log.Error("Failed to check entity existence: %v", err)
+		}
+	})
+
+	return exists
+}

@@ -63,6 +63,7 @@ type EntityManager interface {
 	DeleteEntity(ctx context.Context, entityId string)
 	FindEntities(ctx context.Context, entityType string) []string
 	GetEntityTypes(ctx context.Context) []string
+	EntityExists(ctx context.Context, entityId string) bool
 }
 
 type ModifiableEntityManager interface {
@@ -72,7 +73,6 @@ type ModifiableEntityManager interface {
 }
 
 type SchemaManager interface {
-	EntityExists(ctx context.Context, entityId string) bool
 	FieldExists(ctx context.Context, fieldName, entityType string) bool
 	GetEntitySchema(ctx context.Context, entityType string) EntitySchema
 	SetEntitySchema(context.Context, EntitySchema)

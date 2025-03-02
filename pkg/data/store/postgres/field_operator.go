@@ -233,19 +233,23 @@ func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.Fi
 				var newReferences []string
 				if req.GetValue().IsEntityReference() {
 					newRef := req.GetValue().GetEntityReference()
-					if newRef != "" {
+					if newRef != "" && me.entityManager.EntityExists(ctx, newRef) {
 						newReferences = []string{newRef}
+						req.GetValue().SetEntityReference(newRef)
+					} else {
+						req.GetValue().SetEntityReference("")
 					}
 				} else if req.GetValue().IsEntityList() {
-					newReferences = req.GetValue().GetEntityList().GetEntities()
+					for _, newRef := range req.GetValue().GetEntityList().GetEntities() {
+						if newRef != "" && me.entityManager.EntityExists(ctx, newRef) {
+							newReferences = append(newReferences, newRef)
+						}
+					}
+					req.GetValue().GetEntityList().SetEntities(newReferences)
 				}
 
 				// Insert new references
 				for _, newRef := range newReferences {
-					if newRef == "" {
-						continue
-					}
-
 					_, err = tx.Exec(ctx, `
                         INSERT INTO ReverseEntityReferences 
                         (referenced_entity_id, referenced_by_entity_id, referenced_by_field_name)
