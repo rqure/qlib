@@ -222,9 +222,6 @@ message ApiRuntimeEntityExistsResponse {
 message DatabaseEntity {
     string id = 1;
     string type = 2;
-    string name = 3;
-    EntityReference parent = 4;
-    repeated EntityReference children = 5;
 }
 
 message DatabaseField {
