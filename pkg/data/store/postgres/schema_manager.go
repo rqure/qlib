@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/rqure/qlib/pkg/data"
@@ -183,6 +184,34 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 			log.Error("Failed to delete existing schema: %v", err)
 			return
 		}
+
+		fields := []data.FieldSchema{}
+		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
+			return field.GetFieldName() == "Name"
+		}) {
+			schema.SetFields(append(fields, field.NewSchema("Name", field.String)))
+		}
+
+		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
+			return field.GetFieldName() == "Description"
+		}) {
+			schema.SetFields(append(fields, field.NewSchema("Description", field.String)))
+		}
+
+		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
+			return field.GetFieldName() == "Parent"
+		}) {
+			schema.SetFields(append(fields, field.NewSchema("Parent", field.EntityReference)))
+		}
+
+		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
+			return field.GetFieldName() == "Children"
+		}) {
+			schema.SetFields(append(fields, field.NewSchema("Children", field.EntityList)))
+		}
+
+		fields = append(fields, schema.GetFields()...)
+		schema.SetFields(fields)
 
 		// Insert new schema
 		for i, field := range schema.GetFields() {

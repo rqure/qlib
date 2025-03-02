@@ -59,10 +59,6 @@ func (m *MultiBinding) GetEntity(ctx context.Context, entityId string) data.Enti
 	return m.impl.GetEntity(ctx, entityId)
 }
 
-func (m *MultiBinding) SetEntity(ctx context.Context, value data.Entity) {
-	m.impl.SetEntity(ctx, value)
-}
-
 func (m *MultiBinding) DeleteEntity(ctx context.Context, entityId string) {
 	m.impl.DeleteEntity(ctx, entityId)
 }

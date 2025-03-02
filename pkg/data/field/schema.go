@@ -8,12 +8,57 @@ import (
 	"github.com/rqure/qlib/pkg/protobufs"
 )
 
+const (
+	Int             = "Int"
+	Float           = "Float"
+	String          = "String"
+	Bool            = "Bool"
+	BinaryFile      = "BinaryFile"
+	EntityReference = "EntityReference"
+	Timestamp       = "Timestamp"
+	Transformation  = "Transformation"
+	Choice          = "Choice"
+	EntityList      = "EntityList"
+)
+
 type Schema struct {
 	impl *protobufs.DatabaseFieldSchema
 }
 
+func prefixed(t string) string {
+	if strings.HasPrefix(t, "protobufs.") {
+		return t
+	}
+
+	return "protobufs." + t
+}
+
 func unprefixed(t string) string {
 	return strings.Replace(t, "protobufs.", "", 1)
+}
+
+func Types() []string {
+	return []string{
+		Int,
+		Float,
+		String,
+		Bool,
+		BinaryFile,
+		EntityReference,
+		Timestamp,
+		Transformation,
+		Choice,
+		EntityList,
+	}
+}
+
+func NewSchema(name, fieldType string) data.FieldSchema {
+	return &Schema{
+		impl: &protobufs.DatabaseFieldSchema{
+			Name: name,
+			Type: prefixed(fieldType),
+		},
+	}
 }
 
 func ToSchemaPb(s data.FieldSchema) *protobufs.DatabaseFieldSchema {

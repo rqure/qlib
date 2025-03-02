@@ -3,9 +3,8 @@ package postgres
 const createTablesSQL = `
 CREATE TABLE IF NOT EXISTS Entities (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    parent_id TEXT,
     type TEXT NOT NULL
+    PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS EntitySchema (

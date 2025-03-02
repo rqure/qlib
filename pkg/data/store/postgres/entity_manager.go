@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/entity"
+	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/request"
 	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
@@ -35,18 +36,18 @@ func (me *EntityManager) SetFieldOperator(fieldOperator data.FieldOperator) {
 }
 
 func (me *EntityManager) GetEntity(ctx context.Context, entityId string) data.Entity {
-	var e data.Entity
+	var result data.Entity
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// First get the entity's basic info
 		row := tx.QueryRow(ctx, `
-		SELECT id, name, parent_id, type
+		SELECT id, type
 		FROM Entities
 		WHERE id = $1
 		`, entityId)
 
-		var name, parentId, entityType string
-		err := row.Scan(&entityId, &name, &parentId, &entityType)
+		var entityType string
+		err := row.Scan(&entityId, &entityType)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				log.Error("Failed to get entity: %v", err)
@@ -54,72 +55,24 @@ func (me *EntityManager) GetEntity(ctx context.Context, entityId string) data.En
 			return
 		}
 
-		// Then get children using parent_id relationship
-		rows, err := tx.Query(ctx, `
-		SELECT id
-		FROM Entities
-		WHERE parent_id = $1
-		`, entityId)
-		if err != nil {
-			log.Error("Failed to get children: %v", err)
-			return
-		}
-		defer rows.Close()
-
-		var children []string
-		for rows.Next() {
-			var childId string
-			if err := rows.Scan(&childId); err != nil {
-				log.Error("Failed to scan child id: %v", err)
-				continue
-			}
-			children = append(children, childId)
-		}
-
-		de := &protobufs.DatabaseEntity{
+		entityPb := &protobufs.DatabaseEntity{
 			Id:   entityId,
-			Name: name,
-			Parent: &protobufs.EntityReference{
-				Raw: parentId,
-			},
 			Type: entityType,
 		}
 
-		de.Children = make([]*protobufs.EntityReference, len(children))
-		for i, child := range children {
-			de.Children[i] = &protobufs.EntityReference{Raw: child}
-		}
-
-		e = entity.FromEntityPb(de)
+		result = entity.FromEntityPb(entityPb)
 	})
 
-	return e
-}
-
-func (me *EntityManager) SetEntity(ctx context.Context, e data.Entity) {
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		// Update entity or create if it doesn't exist
-		_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, name, parent_id, type)
-			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (id) DO UPDATE
-			SET name = $2, parent_id = $3, type = $4
-		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType())
-
-		if err != nil {
-			log.Error("Failed to update entity: %v", err)
-			return
-		}
-	})
+	return result
 }
 
 func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
 	entityId := uuid.New().String()
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, name, parent_id, type)
-			VALUES ($1, $2, $3, $4)
-		`, entityId, name, parentId, entityType)
+			INSERT INTO Entities (id, type)
+			VALUES ($1, $2)
+		`, entityId, entityType)
 
 		if err != nil {
 			log.Error("Failed to create entity: %v", err)
@@ -130,8 +83,28 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 		// Initialize fields with default values
 		schema := me.schemaManager.GetEntitySchema(ctx, entityType)
 		if schema != nil {
+			reqs := []data.Request{}
 			for _, f := range schema.GetFields() {
 				req := request.New().SetEntityId(entityId).SetFieldName(f.GetFieldName())
+
+				if f.GetFieldName() == "Name" {
+					req.GetValue().SetString(name)
+				} else if f.GetFieldName() == "Parent" {
+					req.GetValue().SetEntityReference(parentId)
+				}
+
+				reqs = append(reqs, req)
+			}
+			me.fieldOperator.Write(ctx, reqs...)
+		}
+
+		if parentId != "" {
+			req := request.New().SetEntityId(parentId).SetFieldName("Children")
+			me.fieldOperator.Read(ctx, req)
+			if req.IsSuccessful() {
+				children := req.GetValue().GetEntityList().GetEntities()
+				children = append(children, entityId)
+				req.GetValue().GetEntityList().SetEntities(children)
 				me.fieldOperator.Write(ctx, req)
 			}
 		}
@@ -200,65 +173,155 @@ func (s *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	return types
 }
 
-// Fix DeleteEntity to clean up notifications
 func (me *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
+	// Collect all entities to delete in the correct order (children before parents)
+	entitiesToDelete := me.collectDeletionOrderIterative(ctx, entityId)
+
+	// Delete entities in the correct order (children first)
+	for _, id := range entitiesToDelete {
+		me.deleteEntityWithoutChildren(ctx, id)
+	}
+}
+
+// collectDeletionOrderIterative builds a list of entities to delete in the right order (children before parents)
+// using an iterative depth-first traversal approach
+func (me *EntityManager) collectDeletionOrderIterative(ctx context.Context, rootEntityId string) []string {
+	var result []string
+
+	// We need two data structures:
+	// 1. A stack for DFS traversal
+	// 2. A visited map to track which entities we've already processed
+	type stackItem struct {
+		id        string
+		processed bool // Whether we've already processed children
+	}
+
+	stack := []stackItem{{id: rootEntityId, processed: false}}
+	visited := make(map[string]bool)
+
+	for len(stack) > 0 {
+		// Get the top item from stack
+		current := stack[len(stack)-1]
+
+		if current.processed {
+			// If we've already processed children, add to result and pop from stack
+			stack = stack[:len(stack)-1]
+			if !visited[current.id] {
+				result = append(result, current.id)
+				visited[current.id] = true
+			}
+		} else {
+			// Mark as processed and get children
+			stack[len(stack)-1].processed = true
+
+			childrenReq := request.New().SetEntityId(current.id).SetFieldName("Children")
+			me.fieldOperator.Read(ctx, childrenReq)
+
+			if childrenReq.IsSuccessful() {
+				children := childrenReq.GetValue().GetEntityList().GetEntities()
+
+				// Add children to stack in reverse order (so we process in original order)
+				for i := len(children) - 1; i >= 0; i-- {
+					childId := children[i]
+					// Only add if not already visited
+					if !visited[childId] {
+						stack = append(stack, stackItem{id: childId, processed: false})
+					}
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+// deleteEntityWithoutChildren deletes a single entity, handling its references but not its children
+func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entityId string) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		// Get children using parent_id relationship
-		rows, err := tx.Query(ctx, `
-			SELECT id FROM Entities WHERE parent_id = $1
-		`, entityId)
-		if err != nil {
-			log.Error("Failed to get children: %v", err)
+		// Check if entity exists
+		exists := false
+		err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM Entities WHERE id = $1)`, entityId).Scan(&exists)
+		if err != nil || !exists {
 			return
 		}
-		defer rows.Close()
 
-		// Recursively delete children
-		for rows.Next() {
-			var childId string
-			if err := rows.Scan(&childId); err != nil {
-				log.Error("Failed to scan child id: %v", err)
-				continue
+		// Remove references to this entity from other entities
+		rows, err := tx.Query(ctx, `
+            SELECT referenced_by_entity_id, referenced_by_field_name 
+            FROM ReverseEntityReferences 
+            WHERE referenced_entity_id = $1
+        `, entityId)
+		if err != nil {
+			log.Error("Failed to query reverse references: %v", err)
+		} else {
+			defer rows.Close()
+
+			// Process each reference to this entity
+			for rows.Next() {
+				var refByEntityId, refByFieldName string
+				if err := rows.Scan(&refByEntityId, &refByFieldName); err != nil {
+					log.Error("Failed to scan reverse reference data: %v", err)
+					continue
+				}
+
+				// Read the current value
+				req := request.New().SetEntityId(refByEntityId).SetFieldName(refByFieldName)
+				me.fieldOperator.Read(ctx, req)
+
+				if !req.IsSuccessful() {
+					log.Error("Failed to read field %s for entity %s", refByFieldName, refByEntityId)
+					continue
+				}
+
+				// Update the reference based on its type
+				if req.GetValue().IsEntityReference() {
+					// If it's a direct reference, clear it
+					if req.GetValue().GetEntityReference() == entityId {
+						req.GetValue().SetEntityReference("")
+						me.fieldOperator.Write(ctx, req)
+					}
+				} else if req.GetValue().IsEntityList() {
+					// If it's a list of references, remove this entity from the list
+					entities := req.GetValue().GetEntityList().GetEntities()
+					updatedEntities := []string{}
+
+					for _, id := range entities {
+						if id != entityId {
+							updatedEntities = append(updatedEntities, id)
+						}
+					}
+
+					req.GetValue().GetEntityList().SetEntities(updatedEntities)
+					me.fieldOperator.Write(ctx, req)
+				}
 			}
-			me.DeleteEntity(ctx, childId)
+
+			// Clean up the reverse references table
+			_, err = tx.Exec(ctx, `
+                DELETE FROM ReverseEntityReferences WHERE referenced_entity_id = $1
+                OR referenced_by_entity_id = $1
+            `, entityId)
+			if err != nil {
+				log.Error("Failed to delete reverse references: %v", err)
+			}
 		}
 
 		// Delete all field values
-		for _, table := range []string{"Strings", "BinaryFiles", "Ints", "Floats", "Bools",
-			"EntityReferences", "Timestamps", "Transformations"} {
+		for _, table := range field.Types() {
+			tableName := table + "s" // abbreviated
 			_, err := tx.Exec(ctx, fmt.Sprintf(`
-				DELETE FROM %s WHERE entity_id = $1
-			`, table), entityId)
+                DELETE FROM %s WHERE entity_id = $1
+            `, tableName), entityId)
 			if err != nil {
-				log.Error("Failed to delete fields from %s: %v", table, err)
+				log.Error("Failed to delete fields from %s: %v", tableName, err)
 				return
 			}
 		}
 
-		// Delete notification configs and their notifications
-		_, err = tx.Exec(ctx, `
-			WITH deleted_configs AS (
-				DELETE FROM NotificationConfigEntityId 
-				WHERE entity_id = $1
-				RETURNING service_id, 
-						encode(
-							notification::bytea, 
-							'base64'
-						) as token
-			)
-			DELETE FROM Notifications 
-			WHERE service_id IN (SELECT service_id FROM deleted_configs)
-			AND notification::text = ANY(SELECT token FROM deleted_configs);
-		`, entityId)
-		if err != nil {
-			log.Error("Failed to delete notification configs: %v", err)
-			return
-		}
-
 		// Finally delete the entity itself
 		_, err = tx.Exec(ctx, `
-			DELETE FROM Entities WHERE id = $1
-		`, entityId)
+            DELETE FROM Entities WHERE id = $1
+        `, entityId)
 		if err != nil {
 			log.Error("Failed to delete entity: %v", err)
 			return

@@ -122,10 +122,6 @@ func (me *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	return response.Types
 }
 
-func (me *EntityManager) SetEntity(ctx context.Context, entity data.Entity) {
-	me.CreateEntity(ctx, entity.GetType(), entity.GetParentId(), entity.GetName())
-}
-
 func (me *EntityManager) EntityExists(ctx context.Context, entityId string) bool {
 	msg := &protobufs.ApiRuntimeEntityExistsRequest{
 		EntityId: entityId,

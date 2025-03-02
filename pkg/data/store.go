@@ -59,7 +59,6 @@ type ModifiableSnapshotManager interface {
 type EntityManager interface {
 	CreateEntity(ctx context.Context, entityType, parentId, name string) string
 	GetEntity(ctx context.Context, entityId string) Entity
-	SetEntity(ctx context.Context, value Entity)
 	DeleteEntity(ctx context.Context, entityId string)
 	FindEntities(ctx context.Context, entityType string) []string
 	GetEntityTypes(ctx context.Context) []string

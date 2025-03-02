@@ -76,9 +76,9 @@ func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot
 		// Restore entities
 		for _, e := range ss.GetEntities() {
 			_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, name, parent_id, type)
-			VALUES ($1, $2, $3, $4)
-		`, e.GetId(), e.GetName(), e.GetParentId(), e.GetType())
+			INSERT INTO Entities (id, type)
+			VALUES ($1, $2)
+		`, e.GetId(), e.GetType())
 			if err != nil {
 				log.Error("Failed to restore entity: %v", err)
 				continue
