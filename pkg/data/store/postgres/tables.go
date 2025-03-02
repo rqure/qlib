@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS Choices (
 CREATE TABLE IF NOT EXISTS ChoiceOptions (
     entity_type TEXT NOT NULL,
     field_name TEXT NOT NULL,
-    optiions TEXT[],
+    options TEXT[],
 }
 
 CREATE TABLE IF NOT EXISTS EntityLists (
