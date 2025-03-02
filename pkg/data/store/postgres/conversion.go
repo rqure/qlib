@@ -13,21 +13,21 @@ import (
 
 func getTableForType(fieldType string) string {
 	switch fieldType {
-	case "protobufs.Int":
+	case "Int":
 		return "Ints"
-	case "protobufs.Float":
+	case "Float":
 		return "Floats"
-	case "protobufs.String":
+	case "String":
 		return "Strings"
-	case "protobufs.Bool":
+	case "Bool":
 		return "Bools"
-	case "protobufs.BinaryFile":
+	case "BinaryFile":
 		return "BinaryFiles"
-	case "protobufs.EntityReference":
+	case "EntityReference":
 		return "EntityReferences"
-	case "protobufs.Timestamp":
+	case "Timestamp":
 		return "Timestamps"
-	case "protobufs.Transformation":
+	case "Transformation":
 		return "Transformations"
 	default:
 		return ""
@@ -41,19 +41,19 @@ func convertToValue(fieldType string, value interface{}) data.Value {
 
 	v := field.NewValue()
 	switch fieldType {
-	case "protobufs.Int":
+	case "Int":
 		v.SetInt(value)
-	case "protobufs.Float":
+	case "Float":
 		v.SetFloat(value)
-	case "protobufs.String":
+	case "String":
 		v.SetString(value)
-	case "protobufs.Bool":
+	case "Bool":
 		v.SetBool(value)
-	case "protobufs.BinaryFile":
+	case "BinaryFile":
 		v.SetBinaryFile(value)
-	case "protobufs.EntityReference":
+	case "EntityReference":
 		v.SetEntityReference(value)
-	case "protobufs.Timestamp":
+	case "Timestamp":
 		switch t := value.(type) {
 		case time.Time:
 			v.SetTimestamp(t)
@@ -61,7 +61,7 @@ func convertToValue(fieldType string, value interface{}) data.Value {
 			log.Error("Invalid timestamp type: %T", value)
 			return nil
 		}
-	case "protobufs.Transformation":
+	case "Transformation":
 		v.SetTransformation(value)
 	default:
 		return nil
@@ -72,49 +72,49 @@ func convertToValue(fieldType string, value interface{}) data.Value {
 
 func fieldTypeToProtoType(fieldType string) *anypb.Any {
 	switch fieldType {
-	case "protobufs.Int":
+	case "Int":
 		a, err := anypb.New(&protobufs.Int{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
 		}
 		return a
-	case "protobufs.Float":
+	case "Float":
 		a, err := anypb.New(&protobufs.Float{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
 		}
 		return a
-	case "protobufs.String":
+	case "String":
 		a, err := anypb.New(&protobufs.String{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
 		}
 		return a
-	case "protobufs.Bool":
+	case "Bool":
 		a, err := anypb.New(&protobufs.Bool{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
 		}
 		return a
-	case "protobufs.BinaryFile":
+	case "BinaryFile":
 		a, err := anypb.New(&protobufs.BinaryFile{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
 		}
 		return a
-	case "protobufs.EntityReference":
+	case "EntityReference":
 		a, err := anypb.New(&protobufs.EntityReference{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
 		}
 		return a
-	case "protobufs.Timestamp":
+	case "Timestamp":
 		a, err := anypb.New(&protobufs.Timestamp{
 			Raw: timestamppb.New(time.Unix(0, 0)),
 		})
@@ -123,7 +123,7 @@ func fieldTypeToProtoType(fieldType string) *anypb.Any {
 			return nil
 		}
 		return a
-	case "protobufs.Transformation":
+	case "Transformation":
 		a, err := anypb.New(&protobufs.Transformation{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
