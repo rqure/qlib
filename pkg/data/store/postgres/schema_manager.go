@@ -179,14 +179,16 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 			// Remove non-existant entity ids from read/write permissions
 			readPermissions := []string{}
 			for _, id := range field.GetReadPermissions() {
-				if me.entityManager.EntityExists(ctx, id) {
+				entity := me.entityManager.GetEntity(ctx, id)
+				if entity != nil && entity.GetType() == data.EntityTypePermission {
 					readPermissions = append(readPermissions, id)
 				}
 			}
 
 			writePermissions := []string{}
 			for _, id := range field.GetWritePermissions() {
-				if me.entityManager.EntityExists(ctx, id) {
+				entity := me.entityManager.GetEntity(ctx, id)
+				if entity != nil && entity.GetType() == data.EntityTypePermission {
 					writePermissions = append(writePermissions, id)
 				}
 			}

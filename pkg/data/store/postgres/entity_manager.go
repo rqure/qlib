@@ -244,9 +244,9 @@ func (me *EntityManager) collectDeletionOrderIterative(ctx context.Context, root
 func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entityId string) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Check if entity exists
-		exists := false
-		err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM Entities WHERE id = $1)`, entityId).Scan(&exists)
-		if err != nil || !exists {
+		entity := me.GetEntity(ctx, entityId)
+		if entity == nil {
+			log.Error("Entity %s does not exist", entityId)
 			return
 		}
 
@@ -308,6 +308,20 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
             `, entityId)
 			if err != nil {
 				log.Error("Failed to delete reverse references: %v", err)
+			}
+		}
+
+		if entity.GetType() == data.EntityTypePermission {
+			// Remove permissions from schemas
+			_, err := tx.Exec(ctx, `
+				UPDATE EntitySchema 
+				SET read_permissions = array_remove(read_permissions, $1),
+					write_permissions = array_remove(write_permissions, $1)
+				WHERE $1 = ANY(read_permissions) OR $1 = ANY(write_permissions)
+			`, entityId)
+
+			if err != nil {
+				log.Error("Failed to remove permission from schemas: %v", err)
 			}
 		}
 
