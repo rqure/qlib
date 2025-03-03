@@ -310,10 +310,6 @@ message BinaryFile {
     string raw = 1;
 }
 
-message Transformation {
-    string raw = 1;
-}
-
 message Choice {
     int64 raw = 1; // selected choice index only
 }
