@@ -46,7 +46,7 @@ func (me *FieldOperator) SetTransformer(transformer data.Transformer) {
 	me.transformer = transformer
 }
 
-func (me *FieldOperator) AuthorizedRead(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
+func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 	ir := query.NewIndirectionResolver(me.entityManager, me)
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -77,9 +77,11 @@ func (me *FieldOperator) AuthorizedRead(ctx context.Context, authorizer data.Fie
 				continue
 			}
 
-			if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
-				log.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
-				continue
+			if authorizer, ok := ctx.Value("authorizer").(data.FieldAuthorizer); ok {
+				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
+					log.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
+					continue
+				}
 			}
 
 			row := tx.QueryRow(ctx, fmt.Sprintf(`
@@ -115,7 +117,7 @@ func (me *FieldOperator) AuthorizedRead(ctx context.Context, authorizer data.Fie
 	})
 }
 
-func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
+func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 	ir := query.NewIndirectionResolver(me.entityManager, me)
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -198,9 +200,11 @@ func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.Fi
 				req.SetWriter(&wr)
 			}
 
-			if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
-				log.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
-				continue
+			if authorizer, ok := ctx.Value("authorizer").(data.FieldAuthorizer); ok {
+				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
+					log.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
+					continue
+				}
 			}
 
 			if oldReq.IsSuccessful() && (oldReq.GetValue().IsEntityReference() || oldReq.GetValue().IsEntityList()) {
@@ -282,12 +286,4 @@ func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.Fi
 			req.SetSuccessful(true)
 		}
 	})
-}
-
-func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
-	me.AuthorizedRead(ctx, nil, requests...)
-}
-
-func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
-	me.AuthorizedWrite(ctx, nil, requests...)
 }

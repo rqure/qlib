@@ -101,11 +101,3 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 		requests[i].SetSuccessful(r.Success)
 	}
 }
-
-func (me *FieldOperator) AuthorizedRead(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
-	me.Read(ctx, requests...)
-}
-
-func (me *FieldOperator) AuthorizedWrite(ctx context.Context, authorizer data.FieldAuthorizer, requests ...data.Request) {
-	me.Write(ctx, requests...)
-}

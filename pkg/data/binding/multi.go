@@ -155,11 +155,3 @@ func (m *MultiBinding) Commit(ctx context.Context) {
 func (m *MultiBinding) Session(ctx context.Context) auth.Session {
 	return m.impl.Session(ctx)
 }
-
-func (m *MultiBinding) AuthorizedRead(ctx context.Context, authorizer data.FieldAuthorizer, reqs ...data.Request) {
-	m.impl.AuthorizedRead(ctx, authorizer, reqs...)
-}
-
-func (m *MultiBinding) AuthorizedWrite(ctx context.Context, authorizer data.FieldAuthorizer, reqs ...data.Request) {
-	m.impl.AuthorizedWrite(ctx, authorizer, reqs...)
-}
