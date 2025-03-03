@@ -130,7 +130,7 @@ func (me *admin) GetOrCreateClient(ctx context.Context, clientID string) (Client
 		return nil, err
 	}
 
-	return me.getOrCreateClient(ctx, clientID, me.session.AccessToken())
+	return me.getOrCreateClient(ctx, clientID, me.session.AccessToken(), me.config.realm)
 }
 
 // CreateUser creates a new user with the given username and password
@@ -401,7 +401,7 @@ func (me *admin) authenticate(ctx context.Context) error {
 		return err
 	}
 
-	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken)
+	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken, me.config.masterRealm)
 	if err != nil {
 		return err
 	}
@@ -410,12 +410,12 @@ func (me *admin) authenticate(ctx context.Context) error {
 	return nil
 }
 
-func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken string) (Client, error) {
+func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, realm string) (Client, error) {
 	// Try to find existing client
 	clients, err := me.core.GetClient().GetClients(
 		ctx,
 		accessToken,
-		me.config.realm,
+		realm,
 		gocloak.GetClientsParams{
 			ClientID: &clientID,
 		},
@@ -433,7 +433,7 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken st
 		secretObj, err := me.core.GetClient().GetClientSecret(
 			ctx,
 			accessToken,
-			me.config.realm,
+			realm,
 			*client.ID,
 		)
 		if err != nil {
@@ -453,7 +453,7 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken st
 		clientID, err := me.core.GetClient().CreateClient(
 			ctx,
 			accessToken,
-			me.config.realm,
+			realm,
 			newClient,
 		)
 		if err != nil {
@@ -464,7 +464,7 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken st
 		newClientObj, err := me.core.GetClient().GetClient(
 			ctx,
 			accessToken,
-			me.config.realm,
+			realm,
 			clientID,
 		)
 		if err != nil {
@@ -476,7 +476,7 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken st
 		secretObj, err := me.core.GetClient().GetClientSecret(
 			ctx,
 			accessToken,
-			me.config.realm,
+			realm,
 			clientID,
 		)
 		if err != nil {
@@ -485,5 +485,5 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken st
 		secret = *secretObj.Value
 	}
 
-	return NewClient(me.core, *client.ClientID, secret, me.config.realm), nil
+	return NewClient(me.core, *client.ClientID, secret, realm), nil
 }

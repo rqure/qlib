@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/app"
-	"github.com/rqure/qlib/pkg/auth"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/notification"
 	"github.com/rqure/qlib/pkg/data/query"
@@ -24,7 +23,7 @@ type Store struct {
 
 	notificationTokens []data.NotificationToken
 
-	sessionAttemptTimer *time.Timer
+	sessionRefreshTimer *time.Timer
 
 	handle app.Handle
 }
@@ -38,7 +37,7 @@ func NewStore(store data.Store) *Store {
 		store:       store,
 		isConnected: false,
 
-		sessionAttemptTimer: nil,
+		sessionRefreshTimer: time.NewTimer(5 * time.Second),
 
 		notificationTokens: make([]data.NotificationToken, 0),
 	}
@@ -54,34 +53,20 @@ func (me *Store) Init(ctx context.Context, handle app.Handle) {
 }
 
 func (me *Store) Deinit(context.Context) {
-	if me.sessionAttemptTimer != nil {
-		me.sessionAttemptTimer.Stop()
-	}
+	me.sessionRefreshTimer.Stop()
 }
 
 func (me *Store) DoWork(ctx context.Context) {
-	var session auth.Session
+	select {
+	case <-me.sessionRefreshTimer.C:
+		session := me.store.Session(ctx)
 
-	if me.sessionAttemptTimer != nil {
-		select {
-		case <-me.sessionAttemptTimer.C:
-			session = me.store.Session(ctx)
-		default:
-			return
+		if session.IsValid(ctx) {
+			if session.PastHalfLife(ctx) {
+				session.Refresh(ctx)
+			}
 		}
-	} else {
-		session = me.store.Session(ctx)
-	}
-
-	if session.IsValid(ctx) {
-		me.sessionAttemptTimer.Stop()
-		me.sessionAttemptTimer = nil
-
-		if session.PastHalfLife(ctx) {
-			session.Refresh(ctx)
-		}
-	} else if me.sessionAttemptTimer == nil {
-		me.sessionAttemptTimer = time.NewTimer(5 * time.Second)
+	default:
 	}
 }
 
