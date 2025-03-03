@@ -92,6 +92,8 @@ func (me *Store) onConnected() {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isConnected = true
 
+		log.Info("Connection status changed to [CONNECTED]")
+
 		for _, token := range me.notificationTokens {
 			token.Unbind(ctx)
 		}
@@ -140,8 +142,6 @@ func (me *Store) onConnected() {
 				notification.NewCallback(me.onQLibLogLevelChanged),
 			))
 		}
-
-		log.Info("Connection status changed to [CONNECTED]")
 
 		me.Connected.Emit(ctx)
 

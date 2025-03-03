@@ -36,6 +36,7 @@ func NotifyOverNats(address string) ConfigFn {
 		core := nats.NewCore(nats.Config{Address: address})
 		core.SetSessionProvider(store.SessionProvider)
 
+		store.MultiConnector.AddConnector(nats.NewConnector(core))
 		store.ModifiableNotificationConsumer = nats.NewNotificationConsumer(core)
 		store.ModifiableNotificationPublisher = nats.NewNotificationPublisher(core)
 	}
