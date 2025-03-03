@@ -81,6 +81,12 @@ func getCallerInfo(skip int) string {
 	return fmt.Sprintf("%s:%d | %s", file, line, path.Base(fn.Name()))
 }
 
+func getStackTrace() string {
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+	return string(buf[:n])
+}
+
 func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
 	callInfo := getCallerInfo(3)
 	calledByQlib := strings.Contains(callInfo, "qlib")
@@ -98,12 +104,17 @@ func Log(level protobufs.LogMessage_LogLevelEnum, message string, args ...interf
 		Application: callInfo,
 	}
 
-	// skip runtime.Caller + Log + helper function (Trace/Debug/etc)
-	fmt.Printf("%s | %s | %s | %s\n",
+	output := fmt.Sprintf("%s | %s | %s | %s",
 		logMsg.Timestamp.AsTime().Local().Format(time.RFC3339Nano),
 		logMsg.Level.String(),
 		logMsg.Application,
 		Truncate(logMsg.Message, 1024))
+
+	if level == protobufs.LogMessage_ERROR || level == protobufs.LogMessage_PANIC {
+		output += "\nStack trace:\n" + getStackTrace()
+	}
+
+	fmt.Println(output)
 }
 
 func Trace(message string, args ...interface{}) {
@@ -128,5 +139,5 @@ func Error(message string, args ...interface{}) {
 
 func Panic(message string, args ...interface{}) {
 	Log(protobufs.LogMessage_PANIC, message, args...)
-	panic(message)
+	panic(fmt.Sprintf(message, args...))
 }

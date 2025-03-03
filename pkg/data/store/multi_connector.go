@@ -46,9 +46,9 @@ func (me *multiConnectorImpl) AddConnector(connector data.Connector) {
 		}
 	})
 
-	connector.Disconnected().Connect(func() {
+	connector.Disconnected().Connect(func(err error) {
 		me.onConnectorDisconnected()
-		me.disconnected.Emit()
+		me.disconnected.Emit(err)
 	})
 
 	me.connectors = append(me.connectors, connector)
