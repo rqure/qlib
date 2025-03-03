@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS EntitySchema (
     field_name TEXT NOT NULL,
     field_type TEXT NOT NULL,
     rank INTEGER NOT NULL,
+    read_permissions TEXT[],
+    write_permissions TEXT[],
     PRIMARY KEY (entity_type, field_name)
 );
 

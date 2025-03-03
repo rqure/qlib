@@ -60,6 +60,9 @@ type FieldSchema interface {
 	IsChoice() bool
 	IsEntityList() bool
 
+	GetReadPermissions() []string
+	GetWritePermissions() []string
+
 	AsChoiceFieldSchema() ChoiceFieldSchema
 }
 

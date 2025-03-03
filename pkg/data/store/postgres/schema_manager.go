@@ -39,10 +39,10 @@ func (me *SchemaManager) GetFieldSchema(ctx context.Context, entityType, fieldNa
 	schemaPb := &protobufs.DatabaseFieldSchema{}
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		err := tx.QueryRow(ctx, `
-			SELECT field_name, field_type
-			FROM EntitySchema
-			WHERE entity_type = $1 AND field_name = $2
-		`, entityType, fieldName).Scan(&schemaPb.Name, &schemaPb.Type)
+            SELECT field_name, field_type, read_permissions, write_permissions
+            FROM EntitySchema
+            WHERE entity_type = $1 AND field_name = $2
+        `, entityType, fieldName).Scan(&schemaPb.Name, &schemaPb.Type, &schemaPb.ReadPermissions, &schemaPb.WritePermissions)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				log.Error("Failed to get field schema: %v", err)
@@ -78,79 +78,31 @@ func (me *SchemaManager) GetFieldSchema(ctx context.Context, entityType, fieldNa
 }
 
 func (me *SchemaManager) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		// Get current schema to handle field type changes
-		oldSchema := me.GetFieldSchema(ctx, entityType, fieldName)
+	// Find entity schema
+	entitySchema := me.GetEntitySchema(ctx, entityType)
+	if entitySchema == nil {
+		log.Error("Failed to get entity schema for type %s", entityType)
+		return
+	}
 
-		// Update or insert the field schema
-		_, err := tx.Exec(ctx, `
-            INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
-            VALUES ($1, $2, $3, 0)
-            ON CONFLICT (entity_type, field_name) 
-            DO UPDATE SET field_type = $3
-        `, entityType, fieldName, schema.GetFieldType())
-
-		if err != nil {
-			log.Error("Failed to set field schema: %v", err)
-			return
+	// Updating existing field schema under entity schema or append new field schema
+	updated := false
+	fields := entitySchema.GetFields()
+	for i, field := range fields {
+		if field.GetFieldName() == fieldName {
+			fields[i] = schema
+			updated = true
+			break
 		}
+	}
 
-		// Handle choice options if this is a choice field
-		if schema.IsChoice() {
-			choiceSchema := schema.AsChoiceFieldSchema()
-			options := choiceSchema.GetChoices()
+	if !updated {
+		fields = append(fields, schema)
+	}
 
-			_, err = tx.Exec(ctx, `
-                INSERT INTO ChoiceOptions (entity_type, field_name, options)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (entity_type, field_name)
-                DO UPDATE SET options = $3
-            `, entityType, fieldName, options)
+	entitySchema.SetFields(fields)
 
-			if err != nil {
-				log.Error("Failed to set choice options: %v", err)
-				return
-			}
-		} else if oldSchema != nil && oldSchema.IsChoice() {
-			// If the field type changed from choice to something else, remove old options
-			_, err = tx.Exec(ctx, `
-                DELETE FROM ChoiceOptions 
-                WHERE entity_type = $1 AND field_name = $2
-            `, entityType, fieldName)
-
-			if err != nil {
-				log.Error("Failed to delete choice options: %v", err)
-			}
-		}
-
-		// If field type changed, migrate existing data
-		if oldSchema != nil && oldSchema.GetFieldType() != schema.GetFieldType() {
-			oldTable := getTableForType(oldSchema.GetFieldType())
-			newTable := getTableForType(schema.GetFieldType())
-
-			if oldTable != "" && newTable != "" {
-				// Delete old field values
-				_, err = tx.Exec(ctx, fmt.Sprintf(`
-                    DELETE FROM %s 
-                    WHERE entity_id IN (
-                        SELECT id FROM Entities WHERE type = $1
-                    ) AND field_name = $2
-                `, oldTable), entityType, fieldName)
-
-				if err != nil {
-					log.Error("Failed to delete old field values: %v", err)
-					return
-				}
-			}
-
-			// Initialize new field values for all entities of this type
-			entities := me.entityManager.FindEntities(ctx, entityType)
-			for _, entityId := range entities {
-				req := request.New().SetEntityId(entityId).SetFieldName(fieldName)
-				me.fieldOperator.Write(ctx, req)
-			}
-		}
-	})
+	me.SetEntitySchema(ctx, entitySchema)
 }
 
 func (me *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType string) bool {
@@ -185,6 +137,16 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 			return
 		}
 
+		// Delete existing choice options
+		_, err = tx.Exec(ctx, `
+			DELETE FROM ChoiceOptions WHERE entity_type = $1
+		`, schema.GetType())
+		if err != nil {
+			log.Error("Failed to delete existing choice options: %v", err)
+			return
+		}
+
+		// Build new schema
 		fields := []data.FieldSchema{}
 		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
 			return field.GetFieldName() == "Name"
@@ -213,15 +175,50 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 		fields = append(fields, schema.GetFields()...)
 		schema.SetFields(fields)
 
-		// Insert new schema
 		for i, field := range schema.GetFields() {
+			// Remove non-existant entity ids from read/write permissions
+			readPermissions := []string{}
+			for _, id := range field.GetReadPermissions() {
+				if me.entityManager.EntityExists(ctx, id) {
+					readPermissions = append(readPermissions, id)
+				}
+			}
+
+			writePermissions := []string{}
+			for _, id := range field.GetWritePermissions() {
+				if me.entityManager.EntityExists(ctx, id) {
+					writePermissions = append(writePermissions, id)
+				}
+			}
+
 			_, err = tx.Exec(ctx, `
-				INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
-				VALUES ($1, $2, $3, $4)
-			`, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
+            INSERT INTO EntitySchema (entity_type, field_name, field_type, read_permissions, write_permissions, rank)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (entity_type, field_name) 
+            DO UPDATE SET field_type = $3, read_permissions = $4, write_permissions = $5, rank = $6
+        `, schema.GetType(), field.GetFieldName(), field.GetFieldType(), readPermissions, writePermissions, i)
+
 			if err != nil {
-				log.Error("Failed to insert field schema: %v", err)
+				log.Error("Failed to set field schema: %v", err)
 				return
+			}
+
+			// Handle choice options if this is a choice field
+			if field.IsChoice() {
+				choiceSchema := field.AsChoiceFieldSchema()
+				options := choiceSchema.GetChoices()
+
+				_, err = tx.Exec(ctx, `
+                INSERT INTO ChoiceOptions (entity_type, field_name, options)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (entity_type, field_name)
+                DO UPDATE SET options = $3
+            `, schema.GetType(), field.GetFieldName(), options)
+
+				if err != nil {
+					log.Error("Failed to set choice options: %v", err)
+					return
+				}
 			}
 		}
 

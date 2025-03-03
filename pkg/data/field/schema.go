@@ -132,6 +132,24 @@ func (me *Schema) IsEntityList() bool {
 	return me.GetFieldType() == "EntityList"
 }
 
+func (me *Schema) GetReadPermissions() []string {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return []string{}
+	}
+
+	return me.impl.ReadPermissions
+}
+
+func (me *Schema) GetWritePermissions() []string {
+	if me.impl == nil {
+		log.Error("Impl not defined")
+		return []string{}
+	}
+
+	return me.impl.WritePermissions
+}
+
 func (me *Schema) AsChoiceFieldSchema() data.ChoiceFieldSchema {
 	if me.IsChoice() {
 		return me
