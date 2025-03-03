@@ -33,7 +33,6 @@ type FieldBinding interface {
 	IsBinaryFile() bool
 	IsEntityReference() bool
 	IsTimestamp() bool
-	IsTransformation() bool
 	IsChoice() bool
 	IsEntityList() bool
 
@@ -45,7 +44,6 @@ type FieldBinding interface {
 	GetBinaryFile() string
 	GetEntityReference() string
 	GetTimestamp() time.Time
-	GetTransformation() string
 	GetChoice() Choice
 	GetCompleteChoice(context.Context) CompleteChoice
 	GetEntityList() EntityList
@@ -60,7 +58,6 @@ type FieldBinding interface {
 	WriteBinaryFile(context.Context, ...interface{}) FieldBinding
 	WriteEntityReference(context.Context, ...interface{}) FieldBinding
 	WriteTimestamp(context.Context, ...interface{}) FieldBinding
-	WriteTransformation(context.Context, ...interface{}) FieldBinding
 	WriteChoice(context.Context, ...interface{}) FieldBinding
 	WriteEntityList(context.Context, ...interface{}) FieldBinding
 
@@ -72,7 +69,6 @@ type FieldBinding interface {
 	ReadBinaryFile(context.Context) string
 	ReadEntityReference(context.Context) string
 	ReadTimestamp(context.Context) time.Time
-	ReadTransformation(context.Context) string
 	ReadChoice(context.Context) CompleteChoice
 	ReadEntityList(context.Context) EntityList
 }

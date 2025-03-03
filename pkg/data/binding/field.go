@@ -302,42 +302,6 @@ func (me *Field) WriteTimestamp(ctx context.Context, args ...interface{}) data.F
 	return me
 }
 
-func (me *Field) WriteTransformation(ctx context.Context, args ...interface{}) data.FieldBinding {
-	var v interface{}
-	v = ""
-
-	if len(args) > 0 {
-		v = args[0]
-	}
-
-	me.req.SetValue(field.NewValue().SetTransformation(v))
-
-	if len(args) > 1 {
-		if opt, ok := args[1].(data.WriteOpt); ok {
-			me.req.SetWriteOpt(opt)
-		}
-	}
-
-	if len(args) > 2 {
-		if wt, ok := args[2].(time.Time); ok {
-			me.req.SetWriteTime(&wt)
-		}
-	}
-
-	if len(args) > 3 {
-		if writer, ok := args[3].(string); ok {
-			me.req.SetWriter(&writer)
-		}
-	}
-
-	me.withStore().Write(ctx, me.req)
-
-	// Clear settings for future use
-	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(data.WriteNormal)
-
-	return me
-}
-
 func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) data.FieldBinding {
 	var selectedIndex interface{} = 0
 
@@ -465,11 +429,6 @@ func (me *Field) ReadTimestamp(ctx context.Context) time.Time {
 	return me.GetTimestamp()
 }
 
-func (me *Field) ReadTransformation(ctx context.Context) string {
-	me.withStore().Read(ctx, me.req)
-	return me.GetTransformation()
-}
-
 func (me *Field) ReadChoice(ctx context.Context) data.CompleteChoice {
 	me.withStore().Read(ctx, me.req)
 	return me.GetCompleteChoice(ctx)
@@ -508,10 +467,6 @@ func (me *Field) IsTimestamp() bool {
 	return me.GetValue().IsTimestamp()
 }
 
-func (me *Field) IsTransformation() bool {
-	return me.GetValue().IsTransformation()
-}
-
 func (me *Field) IsChoice() bool {
 	return me.GetValue().IsChoice()
 }
@@ -546,10 +501,6 @@ func (me *Field) GetEntityReference() string {
 
 func (me *Field) GetTimestamp() time.Time {
 	return me.GetValue().GetTimestamp()
-}
-
-func (me *Field) GetTransformation() string {
-	return me.GetValue().GetTransformation()
 }
 
 func (me *Field) GetChoice() data.Choice {

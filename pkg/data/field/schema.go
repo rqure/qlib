@@ -16,7 +16,6 @@ const (
 	BinaryFile      = "BinaryFile"
 	EntityReference = "EntityReference"
 	Timestamp       = "Timestamp"
-	Transformation  = "Transformation"
 	Choice          = "Choice"
 	EntityList      = "EntityList"
 )
@@ -46,7 +45,6 @@ func Types() []string {
 		BinaryFile,
 		EntityReference,
 		Timestamp,
-		Transformation,
 		Choice,
 		EntityList,
 	}
@@ -124,10 +122,6 @@ func (me *Schema) IsEntityReference() bool {
 
 func (me *Schema) IsTimestamp() bool {
 	return me.GetFieldType() == "Timestamp"
-}
-
-func (me *Schema) IsTransformation() bool {
-	return me.GetFieldType() == "Transformation"
 }
 
 func (me *Schema) IsChoice() bool {

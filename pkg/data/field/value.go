@@ -73,10 +73,6 @@ func (v *Value) IsTimestamp() bool {
 	return v.impl != nil && v.impl.MessageIs(&protobufs.Timestamp{})
 }
 
-func (v *Value) IsTransformation() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.Transformation{})
-}
-
 func (v *Value) IsChoice() bool {
 	return v.impl != nil && v.impl.MessageIs(&protobufs.Choice{})
 }
@@ -182,17 +178,6 @@ func (v *Value) GetTimestamp() time.Time {
 	}
 
 	return m.Raw.AsTime()
-}
-
-func (v *Value) GetTransformation() string {
-	m := new(protobufs.Transformation)
-
-	if err := v.impl.UnmarshalTo(m); err != nil {
-		log.Error("Error unmarshalling transformation: %s", err)
-		return ""
-	}
-
-	return m.Raw
 }
 
 func (v *Value) GetChoice() data.Choice {
@@ -521,29 +506,6 @@ func (v *Value) SetTimestamp(t interface{}) data.Value {
 
 	a, err := anypb.New(&protobufs.Timestamp{
 		Raw: timestamppb.New(value),
-	})
-
-	if err != nil {
-		log.Error("Error creating Any: %s", err)
-	} else {
-		v.impl = a
-	}
-
-	return v
-}
-
-func (v *Value) SetTransformation(t interface{}) data.Value {
-	value := ""
-
-	switch c := t.(type) {
-	case string:
-		value = c
-	default:
-		log.Error("Unsupported type: %T", v)
-	}
-
-	a, err := anypb.New(&protobufs.Transformation{
-		Raw: value,
 	})
 
 	if err != nil {

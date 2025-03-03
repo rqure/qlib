@@ -27,8 +27,10 @@ func getTableForType(fieldType string) string {
 		return "EntityReferences"
 	case "Timestamp":
 		return "Timestamps"
-	case "Transformation":
-		return "Transformations"
+	case "Choice":
+		return "Choices"
+	case "EntityList":
+		return "EntityLists"
 	default:
 		return ""
 	}
@@ -61,8 +63,10 @@ func convertToValue(fieldType string, value interface{}) data.Value {
 			log.Error("Invalid timestamp type: %T", value)
 			return nil
 		}
-	case "Transformation":
-		v.SetTransformation(value)
+	case "Choice":
+		v.SetChoice(value)
+	case "EntityList":
+		v.SetEntityList(value)
 	default:
 		return nil
 	}
@@ -123,8 +127,15 @@ func fieldTypeToProtoType(fieldType string) *anypb.Any {
 			return nil
 		}
 		return a
-	case "Transformation":
-		a, err := anypb.New(&protobufs.Transformation{})
+	case "Choice":
+		a, err := anypb.New(&protobufs.Choice{})
+		if err != nil {
+			log.Error("Failed to create anypb: %v", err)
+			return nil
+		}
+		return a
+	case "EntityList":
+		a, err := anypb.New(&protobufs.EntityList{})
 		if err != nil {
 			log.Error("Failed to create anypb: %v", err)
 			return nil
@@ -155,8 +166,10 @@ func fieldValueToInterface(v data.Value) interface{} {
 		return v.GetEntityReference()
 	case v.IsTimestamp():
 		return v.GetTimestamp()
-	case v.IsTransformation():
-		return v.GetTransformation()
+	case v.IsChoice():
+		return v.GetChoice()
+	case v.IsEntityList():
+		return v.GetEntityList()
 	default:
 		return nil
 	}

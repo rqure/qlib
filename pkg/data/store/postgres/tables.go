@@ -78,15 +78,6 @@ CREATE TABLE IF NOT EXISTS Timestamps (
     PRIMARY KEY (entity_id, field_name)
 );
 
-CREATE TABLE IF NOT EXISTS Transformations (
-    entity_id TEXT NOT NULL,
-    field_name TEXT NOT NULL,
-    field_value TEXT,
-    write_time TIMESTAMP NOT NULL,
-    writer TEXT NOT NULL,
-    PRIMARY KEY (entity_id, field_name)
-);
-
 CREATE TABLE IF NOT EXISTS Choices (
     entity_id TEXT NOT NULL,
     field_name TEXT NOT NULL,

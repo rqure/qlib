@@ -21,7 +21,6 @@ type Value interface {
 	IsBinaryFile() bool
 	IsEntityReference() bool
 	IsTimestamp() bool
-	IsTransformation() bool
 	IsChoice() bool
 	IsEntityList() bool
 
@@ -33,7 +32,6 @@ type Value interface {
 	GetBinaryFile() string
 	GetEntityReference() string
 	GetTimestamp() time.Time
-	GetTransformation() string
 	GetChoice() Choice
 	GetEntityList() EntityList
 
@@ -44,7 +42,6 @@ type Value interface {
 	SetBinaryFile(interface{}) Value
 	SetEntityReference(interface{}) Value
 	SetTimestamp(interface{}) Value
-	SetTransformation(interface{}) Value
 	SetChoice(interface{}) Value
 	SetEntityList(interface{}) Value
 }
@@ -60,7 +57,6 @@ type FieldSchema interface {
 	IsBinaryFile() bool
 	IsEntityReference() bool
 	IsTimestamp() bool
-	IsTransformation() bool
 	IsChoice() bool
 	IsEntityList() bool
 

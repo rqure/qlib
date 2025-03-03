@@ -158,26 +158,12 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 
 			if req.GetValue().IsNil() {
 				req.SetValue(field.FromAnyPb(fieldTypeToProtoType(schema.Type)))
-			} else {
-				v := field.FromAnyPb(fieldTypeToProtoType(schema.Type))
-				if req.GetValue().GetType() != v.GetType() && !v.IsTransformation() {
-					log.Warn("Field type mismatch for %s.%s. Got: %v, Expected: %v. Writing default value instead.", req.GetEntityId(), req.GetFieldName(), req.GetValue().GetType(), v.GetType())
-					req.SetValue(v)
-				}
 			}
 
 			oldReq := request.New().SetEntityId(req.GetEntityId()).SetFieldName(req.GetFieldName())
 			me.Read(ctx, oldReq)
 
-			// Set the value in the database
-			// Note that for a transformation, we don't actually write the value to the database
-			// unless the new value is a transformation. This is because the transformation is
-			// executed by the transformer, which will write the result to the database.
-			if oldReq.IsSuccessful() && oldReq.GetValue().IsTransformation() && !req.GetValue().IsTransformation() {
-				src := oldReq.GetValue().GetTransformation()
-				me.transformer.Transform(ctx, src, req)
-				req.SetValue(oldReq.GetValue())
-			} else if oldReq.IsSuccessful() && req.GetWriteOpt() == data.WriteChanges {
+			if oldReq.IsSuccessful() && req.GetWriteOpt() == data.WriteChanges {
 				if proto.Equal(field.ToAnyPb(oldReq.GetValue()), field.ToAnyPb(req.GetValue())) {
 					req.SetSuccessful(true)
 					continue
