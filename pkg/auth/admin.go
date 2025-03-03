@@ -25,13 +25,20 @@ type admin struct {
 }
 
 type adminConfig struct {
-	realm    string
-	clientID string
-	username string
-	password string
+	masterRealm string
+	realm       string
+	clientID    string
+	username    string
+	password    string
 }
 
 type AdminOption func(*adminConfig)
+
+func MasterRealm(masterRealm string) AdminOption {
+	return func(c *adminConfig) {
+		c.masterRealm = masterRealm
+	}
+}
 
 func Realm(realm string) AdminOption {
 	return func(c *adminConfig) {
@@ -61,6 +68,7 @@ func NewAdmin(core Core, opts ...AdminOption) Admin {
 	config := &adminConfig{}
 
 	defaultOpts := []AdminOption{
+		MasterRealm(getEnvOrDefault("Q_KEYCLOAK_MASTER_REALM", "master")),
 		Realm(getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")),
 		Username(getEnvOrDefault("Q_KEYCLOAK_ADMIN_USER", "admin")),
 		Password(getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin")),
@@ -266,7 +274,9 @@ func (me *admin) GetUsers(ctx context.Context) (map[string]User, error) {
 		ctx,
 		me.session.AccessToken(),
 		me.config.realm,
-		gocloak.GetUsersParams{},
+		gocloak.GetUsersParams{
+			Max: gocloak.IntP(-1),
+		},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get users: %w", err)
@@ -386,7 +396,7 @@ func (me *admin) authenticate(ctx context.Context) error {
 		return nil
 	}
 
-	token, err := me.core.GetClient().LoginAdmin(ctx, me.config.username, me.config.password, me.config.realm)
+	token, err := me.core.GetClient().LoginAdmin(ctx, me.config.username, me.config.password, me.config.masterRealm)
 	if err != nil {
 		return err
 	}
@@ -396,7 +406,7 @@ func (me *admin) authenticate(ctx context.Context) error {
 		return err
 	}
 
-	me.session = NewSession(me.core, token, me.config.clientID, client.GetSecret(), me.config.realm)
+	me.session = NewSession(me.core, token, me.config.clientID, client.GetSecret(), me.config.masterRealm)
 	return nil
 }
 
