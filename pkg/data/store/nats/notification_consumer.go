@@ -43,8 +43,13 @@ func NewNotificationConsumer(core Core) data.ModifiableNotificationConsumer {
 }
 
 func (me *NotificationConsumer) onConnected() {
-	subject := me.core.GetKeyGenerator().GetNotificationSubject()
-	me.core.QueueSubscribe(subject, me.handleNotification)
+	// Subscribe to non-distributed notifications (all instances receive these)
+	groupSubject := me.core.GetKeyGenerator().GetNotificationGroupSubject(app.GetName())
+	me.core.Subscribe(groupSubject, me.handleNotification)
+
+	// Subscribe to distributed notifications (only one instance receives each notification)
+	distributedSubject := me.core.GetKeyGenerator().GetDistributedNotificationGroupSubject(app.GetName())
+	me.core.QueueSubscribe(distributedSubject, me.handleNotification)
 
 	// Start keepAliveTask
 	ctx, cancel := context.WithCancel(context.Background())
@@ -106,7 +111,7 @@ func (me *NotificationConsumer) sendNotify(ctx context.Context, config data.Noti
 		Requests: []*protobufs.DatabaseNotificationConfig{notification.ToConfigPb(config)},
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetNotificationSubject(), msg)
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetNotificationRegistrationSubject(), msg)
 	if err != nil {
 		return err
 	}
@@ -148,7 +153,7 @@ func (me *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 		Tokens: []string{token},
 	}
 
-	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetNotificationSubject(), msg)
+	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetNotificationRegistrationSubject(), msg)
 	if err != nil {
 		log.Error("Failed to unregister notification: %v", err)
 	}
