@@ -23,7 +23,8 @@ type Store struct {
 
 	notificationTokens []data.NotificationToken
 
-	sessionRefreshTimer *time.Timer
+	sessionRefreshTimer    *time.Timer
+	connectionAttemptTimer *time.Timer
 
 	handle app.Handle
 }
@@ -37,8 +38,6 @@ func NewStore(store data.Store) *Store {
 		store:       store,
 		isConnected: false,
 
-		sessionRefreshTimer: time.NewTimer(5 * time.Second),
-
 		notificationTokens: make([]data.NotificationToken, 0),
 	}
 }
@@ -46,27 +45,46 @@ func NewStore(store data.Store) *Store {
 func (me *Store) Init(ctx context.Context, handle app.Handle) {
 	me.handle = handle
 
+	me.sessionRefreshTimer = time.NewTimer(5 * time.Second)
+	me.connectionAttemptTimer = time.NewTimer(5 * time.Second)
+
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
 
 	me.store.Consumed().Connect(me.onConsumed)
+
+	me.tryRefreshSession(ctx)
+	me.tryConnect(ctx)
 }
 
 func (me *Store) Deinit(context.Context) {
 	me.sessionRefreshTimer.Stop()
+	me.connectionAttemptTimer.Stop()
 }
 
 func (me *Store) DoWork(ctx context.Context) {
 	select {
 	case <-me.sessionRefreshTimer.C:
-		session := me.store.Session(ctx)
-
-		if session.IsValid(ctx) {
-			if session.PastHalfLife(ctx) {
-				session.Refresh(ctx)
-			}
-		}
+		me.tryRefreshSession(ctx)
+	case <-me.connectionAttemptTimer.C:
+		me.tryConnect(ctx)
 	default:
+	}
+}
+
+func (me *Store) tryConnect(ctx context.Context) {
+	if !me.isConnected {
+		me.store.Connect(ctx)
+	}
+}
+
+func (me *Store) tryRefreshSession(ctx context.Context) {
+	session := me.store.Session(ctx)
+
+	if session.IsValid(ctx) {
+		if session.PastHalfLife(ctx) {
+			session.Refresh(ctx)
+		}
 	}
 }
 
