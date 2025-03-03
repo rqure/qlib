@@ -73,6 +73,17 @@ func (me *Connector) setConnected(connected bool, err error) {
 	}
 }
 
+func (me *Connector) closePool() {
+	me.connMu.Lock()
+	defer me.connMu.Unlock()
+
+	if me.core.GetPool() != nil {
+		me.core.GetPool().Close()
+		me.core.SetPool(nil)
+	}
+	me.setConnected(false, nil)
+}
+
 func (me *Connector) healthCheckWorker(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -82,20 +93,20 @@ func (me *Connector) healthCheckWorker(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if me.core.GetPool() != nil {
-				err := me.core.GetPool().Ping(ctx)
-				if err != nil {
-					me.connMu.Lock()
-					if me.core.GetPool() != nil {
-						me.core.GetPool().Close()
-						me.core.SetPool(nil)
-					}
-					me.connMu.Unlock()
-					me.setConnected(false, err)
+			me.connMu.Lock()
+			pool := me.core.GetPool()
+			me.connMu.Unlock()
+
+			if pool != nil {
+				ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+				defer cancel()
+
+				if err := pool.Ping(ctx); err != nil {
 					me.stopHealthCheck()
+					me.closePool()
+					me.setConnected(false, err)
 					return
 				}
-				// Update connected state based on successful ping
 				me.setConnected(true, nil)
 			}
 		}
@@ -110,11 +121,15 @@ func (me *Connector) Connect(ctx context.Context) {
 		return
 	}
 
-	me.Disconnect(ctx)
+	if me.core.GetPool() != nil {
+		me.core.GetPool().Close()
+		me.core.SetPool(nil)
+	}
 
 	config, err := pgxpool.ParseConfig(me.core.GetConfig().ConnectionString)
 	if err != nil {
 		log.Error("Failed to parse connection string: %v", err)
+		me.setConnected(false, err)
 		return
 	}
 
