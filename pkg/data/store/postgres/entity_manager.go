@@ -68,6 +68,11 @@ func (me *EntityManager) GetEntity(ctx context.Context, entityId string) data.En
 
 func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
 	entityId := uuid.New().String()
+
+	for me.EntityExists(ctx, entityId) {
+		entityId = uuid.New().String()
+	}
+
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO Entities (id, type)
