@@ -78,7 +78,7 @@ func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 			}
 
 			if authorizer, ok := ctx.Value("authorizer").(data.FieldAuthorizer); ok {
-				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
+				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField, false) {
 					log.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
 					continue
 				}
@@ -187,7 +187,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			}
 
 			if authorizer, ok := ctx.Value("authorizer").(data.FieldAuthorizer); ok {
-				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField) {
+				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField, true) {
 					log.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.GetFieldName())
 					continue
 				}

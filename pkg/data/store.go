@@ -87,7 +87,7 @@ type ModifiableSchemaManager interface {
 
 type FieldAuthorizer interface {
 	AccessorId() string
-	IsAuthorized(ctx context.Context, entityId, fieldName string) bool
+	IsAuthorized(ctx context.Context, entityId, fieldName string, forWrite bool) bool
 }
 
 type FieldReader interface {
