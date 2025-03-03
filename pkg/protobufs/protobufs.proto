@@ -259,6 +259,8 @@ message DatabaseFieldSchema {
     string name = 1;
     string type = 2;
     repeated string choice_options = 3;
+    repeated string read_permissions = 4;
+    repeated string write_permissions = 5;
 }
 
 message DatabaseRequest {
