@@ -88,7 +88,7 @@ func (me *Store) tryRefreshSession(ctx context.Context) {
 	}
 }
 
-func (me *Store) onConnected(ctx context.Context) {
+func (me *Store) onConnected() {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isConnected = true
 
@@ -149,11 +149,11 @@ func (me *Store) onConnected(ctx context.Context) {
 	})
 }
 
-func (me *Store) onDisconnected() {
+func (me *Store) onDisconnected(err error) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isConnected = false
 
-		log.Info("Connection status changed to [DISCONNECTED]")
+		log.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
 
 		me.Disconnected.Emit()
 	})
