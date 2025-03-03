@@ -103,14 +103,9 @@ func (me *Connector) healthCheckWorker(ctx context.Context) {
 }
 
 func (me *Connector) Connect(ctx context.Context) {
-	if me.IsConnected(ctx) {
-		return
-	}
-
 	me.connMu.Lock()
 	defer me.connMu.Unlock()
 
-	// Double check after acquiring lock
 	if me.IsConnected(ctx) {
 		return
 	}
