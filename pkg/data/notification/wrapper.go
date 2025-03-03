@@ -100,36 +100,36 @@ func FromConfigPb(impl *protobufs.DatabaseNotificationConfig) data.NotificationC
 	}
 }
 
-func (c *ConfigWrapper) GetEntityId() string {
-	return c.impl.Id
+func (me *ConfigWrapper) GetEntityId() string {
+	return me.impl.Id
 }
 
-func (c *ConfigWrapper) GetEntityType() string {
-	return c.impl.Type
+func (me *ConfigWrapper) GetEntityType() string {
+	return me.impl.Type
 }
 
-func (c *ConfigWrapper) GetFieldName() string {
-	return c.impl.Field
+func (me *ConfigWrapper) GetFieldName() string {
+	return me.impl.Field
 }
 
-func (c *ConfigWrapper) GetContextFields() []string {
-	if c.impl.ContextFields != nil {
-		return c.impl.ContextFields
+func (me *ConfigWrapper) GetContextFields() []string {
+	if me.impl.ContextFields != nil {
+		return me.impl.ContextFields
 	}
 
 	return []string{}
 }
 
-func (c *ConfigWrapper) GetNotifyOnChange() bool {
-	return c.impl.NotifyOnChange
+func (me *ConfigWrapper) GetNotifyOnChange() bool {
+	return me.impl.NotifyOnChange
 }
 
-func (c *ConfigWrapper) GetServiceId() string {
-	return c.impl.ServiceId
+func (me *ConfigWrapper) GetServiceId() string {
+	return me.impl.ServiceId
 }
 
-func (c *ConfigWrapper) GetToken() string {
-	b, err := proto.Marshal(c.impl)
+func (me *ConfigWrapper) GetToken() string {
+	b, err := proto.Marshal(me.impl)
 	if err != nil {
 		log.Error("Failed to marshal notification config: %v", err)
 		return ""
@@ -138,32 +138,41 @@ func (c *ConfigWrapper) GetToken() string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-func (c *ConfigWrapper) SetEntityId(id string) data.NotificationConfig {
-	c.impl.Id = id
-	return c
+func (me *ConfigWrapper) IsDistributed() bool {
+	return me.impl.Distributed
 }
 
-func (c *ConfigWrapper) SetEntityType(t string) data.NotificationConfig {
-	c.impl.Type = t
-	return c
+func (me *ConfigWrapper) SetEntityId(id string) data.NotificationConfig {
+	me.impl.Id = id
+	return me
 }
 
-func (c *ConfigWrapper) SetFieldName(f string) data.NotificationConfig {
-	c.impl.Field = f
-	return c
+func (me *ConfigWrapper) SetEntityType(t string) data.NotificationConfig {
+	me.impl.Type = t
+	return me
 }
 
-func (c *ConfigWrapper) SetContextFields(cf ...string) data.NotificationConfig {
-	c.impl.ContextFields = cf
-	return c
+func (me *ConfigWrapper) SetFieldName(f string) data.NotificationConfig {
+	me.impl.Field = f
+	return me
 }
 
-func (c *ConfigWrapper) SetNotifyOnChange(no bool) data.NotificationConfig {
-	c.impl.NotifyOnChange = no
-	return c
+func (me *ConfigWrapper) SetContextFields(cf ...string) data.NotificationConfig {
+	me.impl.ContextFields = cf
+	return me
 }
 
-func (c *ConfigWrapper) SetServiceId(si string) data.NotificationConfig {
-	c.impl.ServiceId = si
-	return c
+func (me *ConfigWrapper) SetNotifyOnChange(no bool) data.NotificationConfig {
+	me.impl.NotifyOnChange = no
+	return me
+}
+
+func (me *ConfigWrapper) SetServiceId(si string) data.NotificationConfig {
+	me.impl.ServiceId = si
+	return me
+}
+
+func (me *ConfigWrapper) SetDistributed(d bool) data.NotificationConfig {
+	me.impl.Distributed = d
+	return me
 }

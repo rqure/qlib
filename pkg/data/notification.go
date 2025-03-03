@@ -18,6 +18,7 @@ type NotificationConfig interface {
 	GetNotifyOnChange() bool
 	GetServiceId() string
 	GetToken() string
+	IsDistributed() bool
 
 	SetEntityId(string) NotificationConfig
 	SetEntityType(string) NotificationConfig
@@ -25,6 +26,7 @@ type NotificationConfig interface {
 	SetContextFields(...string) NotificationConfig
 	SetNotifyOnChange(bool) NotificationConfig
 	SetServiceId(string) NotificationConfig
+	SetDistributed(bool) NotificationConfig
 }
 
 type NotificationCallback interface {
