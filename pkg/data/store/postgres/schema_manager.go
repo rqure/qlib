@@ -287,7 +287,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 }
 
 func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
-	processRows := func(rows pgx.Rows) data.EntitySchema {
+	processRows := func(tx pgx.Tx, rows pgx.Rows) data.EntitySchema {
 		schema := entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{})
 		schema.SetType(entityType)
 		var fields []data.FieldSchema
@@ -295,14 +295,37 @@ func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string)
 		for rows.Next() {
 			var fieldName, fieldType string
 			var rank int
-			if err := rows.Scan(&fieldName, &fieldType, &rank); err != nil {
+			var readPermissions, writePermissions []string
+			if err := rows.Scan(&fieldName, &fieldType, &readPermissions, &writePermissions, &rank); err != nil {
 				log.Error("Failed to scan field schema: %v", err)
 				continue
 			}
-			fields = append(fields, field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
-				Name: fieldName,
-				Type: fieldType,
-			}))
+
+			fieldSchema := field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
+				Name:             fieldName,
+				Type:             fieldType,
+				ReadPermissions:  readPermissions,
+				WritePermissions: writePermissions,
+			})
+
+			// If it's a choice field, get the options
+			if fieldSchema.IsChoice() {
+				var options []string
+				err := tx.QueryRow(ctx, `
+                    SELECT options
+                    FROM ChoiceOptions
+                    WHERE entity_type = $1 AND field_name = $2
+                `, entityType, fieldName).Scan(&options)
+				if err != nil {
+					if !errors.Is(err, pgx.ErrNoRows) {
+						log.Error("Failed to get choice options: %v", err)
+					}
+				} else {
+					fieldSchema.AsChoiceFieldSchema().SetChoices(options)
+				}
+			}
+
+			fields = append(fields, fieldSchema)
 		}
 
 		schema.SetFields(fields)
@@ -312,17 +335,17 @@ func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string)
 	var schema data.EntitySchema
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		rows, err := tx.Query(ctx, `
-			SELECT field_name, field_type, rank
-			FROM EntitySchema
-			WHERE entity_type = $1
-			ORDER BY rank
-		`, entityType)
+            SELECT field_name, field_type, read_permissions, write_permissions, rank
+            FROM EntitySchema
+            WHERE entity_type = $1
+            ORDER BY rank
+        `, entityType)
 		if err != nil {
 			log.Error("Failed to get entity schema: %v", err)
 			return
 		}
 		defer rows.Close()
-		schema = processRows(rows)
+		schema = processRows(tx, rows)
 	})
 
 	return schema

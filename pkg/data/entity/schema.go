@@ -25,6 +25,27 @@ func ToSchemaPb(s data.EntitySchema) *protobufs.DatabaseEntitySchema {
 }
 
 func FromSchemaPb(impl *protobufs.DatabaseEntitySchema) data.EntitySchema {
+	if impl != nil {
+		for _, f := range impl.Fields {
+			if f == nil {
+				log.Error("Field is nil")
+				continue
+			}
+
+			if f.Name == "" {
+				log.Error("Field name is empty")
+				continue
+			}
+
+			if f.Type == "" {
+				log.Error("Field type is empty")
+				continue
+			}
+
+			f.Type = field.PrefixedType(f.Type)
+		}
+	}
+
 	return &Schema{
 		impl: impl,
 	}
@@ -92,6 +113,22 @@ func (s *Schema) SetFields(fields []data.FieldSchema) {
 	for i, f := range fields {
 		s.impl.Fields[i] = field.ToSchemaPb(f)
 	}
+}
+
+func (s *Schema) SetField(name string, newField data.FieldSchema) {
+	if s.impl == nil {
+		log.Error("Impl not defined")
+		return
+	}
+
+	for i, f := range s.impl.Fields {
+		if f.Name == name {
+			s.impl.Fields[i] = field.ToSchemaPb(newField)
+			return
+		}
+	}
+
+	s.impl.Fields = append(s.impl.Fields, field.ToSchemaPb(newField))
 }
 
 func (s *Schema) SetType(t string) {

@@ -26,4 +26,5 @@ type EntitySchema interface {
 
 	SetType(string)
 	SetFields([]FieldSchema)
+	SetField(string, FieldSchema)
 }

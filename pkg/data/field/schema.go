@@ -24,7 +24,7 @@ type Schema struct {
 	impl *protobufs.DatabaseFieldSchema
 }
 
-func prefixed(t string) string {
+func PrefixedType(t string) string {
 	if strings.HasPrefix(t, "protobufs.") {
 		return t
 	}
@@ -32,7 +32,7 @@ func prefixed(t string) string {
 	return "protobufs." + t
 }
 
-func unprefixed(t string) string {
+func UnprefixedType(t string) string {
 	return strings.Replace(t, "protobufs.", "", 1)
 }
 
@@ -54,7 +54,7 @@ func NewSchema(name, fieldType string) data.FieldSchema {
 	return &Schema{
 		impl: &protobufs.DatabaseFieldSchema{
 			Name: name,
-			Type: prefixed(fieldType),
+			Type: PrefixedType(fieldType),
 		},
 	}
 }
@@ -93,7 +93,7 @@ func (me *Schema) GetFieldType() string {
 		return ""
 	}
 
-	return unprefixed(me.impl.Type)
+	return UnprefixedType(me.impl.Type)
 }
 
 func (me *Schema) IsInt() bool {
