@@ -324,28 +324,6 @@ func (me *admin) UpdateUser(ctx context.Context, user User) error {
 	return nil
 }
 
-// getUserRoles retrieves all roles for a user
-func (me *admin) getUserRoles(ctx context.Context, kcUser *gocloak.User) ([]string, error) {
-	realmRoles, err := me.core.GetClient().GetRealmRolesByUserID(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		*kcUser.ID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user roles: %w", err)
-	}
-
-	roles := make([]string, 0, len(realmRoles))
-	for _, role := range realmRoles {
-		if role.Name != nil {
-			roles = append(roles, *role.Name)
-		}
-	}
-
-	return roles, nil
-}
-
 func (me *admin) authenticate(ctx context.Context) error {
 	if me.session != nil && me.session.IsValid(ctx) {
 		return nil
