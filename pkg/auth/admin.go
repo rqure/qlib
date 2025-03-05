@@ -317,10 +317,6 @@ func (me *admin) UpdateUser(ctx context.Context, user User) error {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
 
-	// Update user roles (this would require additional implementation
-	// to handle role assignment/removal)
-	// TODO: Implement role management if needed
-
 	return nil
 }
 
