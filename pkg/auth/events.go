@@ -149,6 +149,8 @@ func (e *keycloakEvent) Details() map[string]string {
 
 type EventEmitter interface {
 	Signal() signalslots.Signal
+	GetLastEventTime() time.Time
+	SetLastEventTime(time.Time)
 	ProcessNextBatch(ctx context.Context, session Session) error
 }
 
@@ -239,6 +241,14 @@ func convertGocloakEvent(e *gocloak.EventRepresentation) (Event, error) {
 }
 
 func (me *eventEmitter) ProcessNextBatch(ctx context.Context, session Session) error {
+	if session == nil {
+		return fmt.Errorf("session is nil")
+	}
+
+	if !session.IsValid(ctx) {
+		return fmt.Errorf("session is invalid")
+	}
+
 	max := int32(me.config.batchSize)
 	events, err := me.core.GetClient().GetEvents(ctx, session.AccessToken(), session.Realm(), gocloak.GetEventsParams{
 		DateFrom: gocloak.StringP(me.lastEventTime.Format(time.RFC3339)),
@@ -259,8 +269,16 @@ func (me *eventEmitter) ProcessNextBatch(ctx context.Context, session Session) e
 			me.lastEventTime = event.Time()
 		}
 
-		me.signal.Emit(event)
+		me.signal.Emit(ctx, event)
 	}
 
 	return nil
+}
+
+func (me *eventEmitter) GetLastEventTime() time.Time {
+	return me.lastEventTime
+}
+
+func (me *eventEmitter) SetLastEventTime(t time.Time) {
+	me.lastEventTime = t
 }

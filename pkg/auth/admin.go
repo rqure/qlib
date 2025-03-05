@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/rqure/qlib/pkg/log"
 )
 
 type Admin interface {
 	EnsureSetup(ctx context.Context) error
 	GetOrCreateClient(ctx context.Context, clientID string) (Client, error)
+	Session(ctx context.Context) Session
 
 	CreateUser(ctx context.Context, username, password string) error
 	DeleteUser(ctx context.Context, username string) error
@@ -392,7 +394,7 @@ func (me *admin) getUserRoles(ctx context.Context, kcUser *gocloak.User) ([]stri
 }
 
 func (me *admin) authenticate(ctx context.Context) error {
-	if me.session != nil && !me.session.IsValid(ctx) {
+	if me.session != nil && me.session.IsValid(ctx) {
 		return nil
 	}
 
@@ -486,4 +488,13 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, r
 	}
 
 	return NewClient(me.core, *client.ClientID, secret, realm), nil
+}
+
+func (me *admin) Session(ctx context.Context) Session {
+	if me.authenticate(ctx) != nil {
+		log.Error("Failed to authenticate admin")
+		return NewSession(me.core, nil, "", "", "")
+	}
+
+	return me.session
 }
