@@ -31,10 +31,6 @@ type SnapshotManagerSetter interface {
 	SetSnapshotManager(SnapshotManager)
 }
 
-type TransformerSetter interface {
-	SetTransformer(Transformer)
-}
-
 type Connector interface {
 	Connect(context.Context)
 	Disconnect(context.Context)
@@ -107,7 +103,6 @@ type ModifiableFieldOperator interface {
 	SchemaManagerSetter
 	EntityManagerSetter
 	NotificationPublisherSetter
-	TransformerSetter
 	FieldOperator
 }
 
@@ -119,7 +114,6 @@ type NotificationConsumer interface {
 }
 
 type ModifiableNotificationConsumer interface {
-	TransformerSetter
 	NotificationConsumer
 }
 
@@ -143,11 +137,22 @@ type SessionProvider interface {
 
 type Store interface {
 	Connector
-	SnapshotManager
 	EntityManager
-	SchemaManager
 	FieldOperator
 	NotificationConsumer
 	NotificationPublisher
+	SchemaManager
 	SessionProvider
+	SnapshotManager
+}
+
+type LimitedStore struct {
+	Connector
+	EntityManager
+	FieldOperator
+	NotificationConsumer
+	NotificationPublisher
+	SchemaManager
+	SessionProvider
+	SnapshotManager
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/data/query"
@@ -21,7 +22,7 @@ type FieldOperator struct {
 	schemaManager         data.SchemaManager
 	entityManager         data.EntityManager
 	notificationPublisher data.NotificationPublisher
-	transformer           data.Transformer
+	clientId              *string
 }
 
 func NewFieldOperator(core Core) data.ModifiableFieldOperator {
@@ -40,10 +41,6 @@ func (me *FieldOperator) SetEntityManager(entityManager data.EntityManager) {
 
 func (me *FieldOperator) SetNotificationPublisher(publisher data.NotificationPublisher) {
 	me.notificationPublisher = publisher
-}
-
-func (me *FieldOperator) SetTransformer(transformer data.Transformer) {
-	me.transformer = transformer
 }
 
 func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
@@ -183,6 +180,34 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 
 			if req.GetWriter() == nil {
 				wr := ""
+
+				if me.clientId == nil {
+					clients := query.New(&data.LimitedStore{
+						FieldOperator:         me,
+						EntityManager:         me.entityManager,
+						NotificationPublisher: me.notificationPublisher,
+						SchemaManager:         me.schemaManager,
+					}).Select().
+						From("Client").
+						Where("Name").Equals(app.GetName()).
+						Execute(ctx)
+
+					if len(clients) == 0 {
+						log.Error("Failed to get client id")
+					} else {
+						if len(clients) > 1 {
+							log.Warn("Multiple clients found: %v", clients)
+						}
+
+						clientId := clients[0].GetId()
+						me.clientId = &clientId
+					}
+				}
+
+				if me.clientId != nil {
+					wr = *me.clientId
+				}
+
 				req.SetWriter(&wr)
 			}
 

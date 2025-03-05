@@ -19,7 +19,6 @@ import (
 
 type NotificationConsumer struct {
 	core            Core
-	transformer     data.Transformer
 	mu              sync.RWMutex
 	callbacks       map[string][]data.NotificationCallback
 	keepAlive       *time.Ticker
@@ -63,10 +62,6 @@ func (me *NotificationConsumer) onDisconnected(err error) {
 		me.cancelKeepAlive()
 		me.cancelKeepAlive = nil
 	}
-}
-
-func (me *NotificationConsumer) SetTransformer(t data.Transformer) {
-	me.transformer = t
 }
 
 func (me *NotificationConsumer) handleNotification(msg *nats.Msg) {

@@ -3,9 +3,12 @@ package nats
 import (
 	"context"
 
+	"github.com/rqure/qlib/pkg/app"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
+	"github.com/rqure/qlib/pkg/data/query"
 	"github.com/rqure/qlib/pkg/data/request"
+	"github.com/rqure/qlib/pkg/log"
 	"github.com/rqure/qlib/pkg/protobufs"
 )
 
@@ -14,7 +17,7 @@ type FieldOperator struct {
 	schemaManager         data.SchemaManager
 	entityManager         data.EntityManager
 	notificationPublisher data.NotificationPublisher
-	transformer           data.Transformer
+	clientId              *string
 }
 
 func NewFieldOperator(core Core) data.ModifiableFieldOperator {
@@ -31,10 +34,6 @@ func (me *FieldOperator) SetEntityManager(em data.EntityManager) {
 
 func (me *FieldOperator) SetNotificationPublisher(np data.NotificationPublisher) {
 	me.notificationPublisher = np
-}
-
-func (me *FieldOperator) SetTransformer(t data.Transformer) {
-	me.transformer = t
 }
 
 func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
@@ -81,6 +80,35 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 	}
 
 	for i, r := range requests {
+		writer := r.GetWriter()
+		if writer == nil || *writer == "" {
+			if me.clientId == nil {
+				clients := query.New(&data.LimitedStore{
+					FieldOperator:         me,
+					EntityManager:         me.entityManager,
+					NotificationPublisher: me.notificationPublisher,
+					SchemaManager:         me.schemaManager,
+				}).Select().
+					From("Client").
+					Where("Name").Equals(app.GetName()).
+					Execute(ctx)
+
+				if len(clients) == 0 {
+					log.Error("Failed to get client id")
+				} else {
+					if len(clients) > 1 {
+						log.Warn("Multiple clients found: %v", clients)
+					}
+
+					clientId := clients[0].GetId()
+					me.clientId = &clientId
+				}
+			}
+
+			if me.clientId != nil {
+				r.SetWriter(me.clientId)
+			}
+		}
 		msg.Requests[i] = request.ToPb(r)
 	}
 
