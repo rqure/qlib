@@ -235,32 +235,9 @@ func (me *admin) GetUser(ctx context.Context, username string) (User, error) {
 
 	// Get user roles
 	kcUser := users[0]
-	roles, err := me.getUserRoles(ctx, kcUser)
-	if err != nil {
-		return nil, err
-	}
 
 	// Convert to our User type using proper setters
-	user := NewUser()
-	// Set ID (assuming there's a SetID method or we need to add it)
-	// For now we'll skip setting ID as it's not in the interface
-	user.SetUsername(username)
-	if kcUser.FirstName != nil {
-		user.SetFirstName(*kcUser.FirstName)
-	}
-	if kcUser.LastName != nil {
-		user.SetLastName(*kcUser.LastName)
-	}
-	if kcUser.Email != nil {
-		user.SetEmail(*kcUser.Email)
-	}
-	if kcUser.EmailVerified != nil {
-		user.SetEmailVerified(*kcUser.EmailVerified)
-	}
-	if kcUser.Enabled != nil {
-		user.SetEnabled(*kcUser.Enabled)
-	}
-	user.SetRoles(roles)
+	user := NewUser(kcUser)
 
 	return user, nil
 }
@@ -291,31 +268,7 @@ func (me *admin) GetUsers(ctx context.Context) (map[string]User, error) {
 			continue
 		}
 
-		// Get user roles
-		roles, err := me.getUserRoles(ctx, kcUser)
-		if err != nil {
-			return nil, err
-		}
-
-		user := NewUser()
-		// Set values using proper setters
-		user.SetUsername(*kcUser.Username)
-		if kcUser.FirstName != nil {
-			user.SetFirstName(*kcUser.FirstName)
-		}
-		if kcUser.LastName != nil {
-			user.SetLastName(*kcUser.LastName)
-		}
-		if kcUser.Email != nil {
-			user.SetEmail(*kcUser.Email)
-		}
-		if kcUser.EmailVerified != nil {
-			user.SetEmailVerified(*kcUser.EmailVerified)
-		}
-		if kcUser.Enabled != nil {
-			user.SetEnabled(*kcUser.Enabled)
-		}
-		user.SetRoles(roles)
+		user := NewUser(kcUser)
 
 		users[*kcUser.Username] = user
 	}

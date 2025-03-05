@@ -1,5 +1,7 @@
 package auth
 
+import "github.com/Nerzal/gocloak/v13"
+
 type User interface {
 	GetID() string
 	GetUsername() string
@@ -8,88 +10,47 @@ type User interface {
 	GetEmail() string
 	IsEmailVerified() bool
 	IsEnabled() bool
-	GetRoles() []string
-
-	SetUsername(username string)
-	SetFirstName(firstName string)
-	SetLastName(lastName string)
-	SetEmail(email string)
-	SetEmailVerified(emailVerified bool)
-	SetEnabled(enabled bool)
-	SetRoles(roles []string)
+	JSON() string
 }
 
 type user struct {
-	ID            string
-	Username      string
-	Email         string
-	FirstName     string
-	LastName      string
-	Enabled       bool
-	Roles         []string
-	EmailVerified bool
+	model *gocloak.User
 }
 
-func NewUser() User {
-	return &user{}
+func NewUser(u *gocloak.User) User {
+	return &user{
+		model: u,
+	}
 }
 
 func (u *user) GetID() string {
-	return u.ID
+	return *u.model.ID
 }
 
 func (u *user) GetUsername() string {
-	return u.Username
+	return *u.model.Username
 }
 
 func (u *user) GetFirstName() string {
-	return u.FirstName
+	return *u.model.FirstName
 }
 
 func (u *user) GetLastName() string {
-	return u.LastName
+	return *u.model.LastName
 }
 
 func (u *user) GetEmail() string {
-	return u.Email
+	return *u.model.Email
 }
 
 func (u *user) IsEmailVerified() bool {
-	return u.EmailVerified
+	return *u.model.EmailVerified
 }
 
 func (u *user) IsEnabled() bool {
-	return u.Enabled
+	return *u.model.Enabled
 }
 
-func (u *user) GetRoles() []string {
-	return u.Roles
-}
-
-func (u *user) SetUsername(username string) {
-	u.Username = username
-}
-
-func (u *user) SetFirstName(firstName string) {
-	u.FirstName = firstName
-}
-
-func (u *user) SetLastName(lastName string) {
-	u.LastName = lastName
-}
-
-func (u *user) SetEmail(email string) {
-	u.Email = email
-}
-
-func (u *user) SetEmailVerified(emailVerified bool) {
-	u.EmailVerified = emailVerified
-}
-
-func (u *user) SetEnabled(enabled bool) {
-	u.Enabled = enabled
-}
-
-func (u *user) SetRoles(roles []string) {
-	u.Roles = roles
+func (u *user) JSON() string {
+	return u.model.String()
 }
