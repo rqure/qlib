@@ -84,7 +84,7 @@ func (me *fieldAuthorizer) hasPermission(ctx context.Context, requiredPermission
 
 	// Check if any parent permission in the hierarchy is granted
 	parentEntity := me.store.GetEntity(ctx, requiredPermission)
-	if parentEntity == nil {
+	if parentEntity == nil || parentEntity.GetType() != "Permission" {
 		return false
 	}
 
