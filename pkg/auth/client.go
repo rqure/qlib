@@ -11,7 +11,8 @@ type Client interface {
 	GetID() string
 	GetSecret() string
 	GetSession(ctx context.Context) Session
-	CreateUserSession(ctx context.Context, username, password string) (Session, error)
+	CreateUserSession(ctx context.Context, username, password string) Session
+	AccessTokenToSession(ctx context.Context, accessToken string) Session
 }
 
 type client struct {
@@ -69,11 +70,12 @@ func (me *client) AccessTokenToSession(ctx context.Context, accessToken string) 
 	return NewSession(me.core, token, me.id, me.secret, me.realm)
 }
 
-func (me *client) CreateUserSession(ctx context.Context, username, password string) (Session, error) {
+func (me *client) CreateUserSession(ctx context.Context, username, password string) Session {
 	token, err := me.core.GetClient().Login(ctx, me.id, me.secret, me.realm, username, password)
 	if err != nil {
-		return nil, err
+		log.Error("Failed to login: %v", err)
+		return NewSession(me.core, nil, me.id, me.secret, me.realm)
 	}
 
-	return NewSession(me.core, token, me.id, me.secret, me.realm), nil
+	return NewSession(me.core, token, me.id, me.secret, me.realm)
 }
