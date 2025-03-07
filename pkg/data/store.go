@@ -81,6 +81,10 @@ type ModifiableSchemaManager interface {
 	SchemaManager
 }
 
+type FieldAuthorizerKeyType string
+
+const FieldAuthorizerKey FieldAuthorizerKeyType = "Authorizer"
+
 type FieldAuthorizer interface {
 	AccessorId() string
 	IsAuthorized(ctx context.Context, entityId, fieldName string, forWrite bool) bool

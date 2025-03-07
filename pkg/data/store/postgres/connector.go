@@ -145,6 +145,7 @@ func (me *Connector) Connect(ctx context.Context) {
 	}
 
 	me.core.SetPool(pool)
+
 	me.setConnected(true, nil)
 	me.startHealthCheck()
 }

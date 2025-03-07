@@ -4,7 +4,6 @@ const createTablesSQL = `
 CREATE TABLE IF NOT EXISTS Entities (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL
-    PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS EntitySchema (
@@ -94,7 +93,7 @@ CREATE TABLE IF NOT EXISTS ChoiceOptions (
     field_name TEXT NOT NULL,
     options TEXT[],
     PRIMARY KEY (entity_type, field_name)
-};
+);
 
 CREATE TABLE IF NOT EXISTS EntityLists (
     entity_id TEXT NOT NULL,

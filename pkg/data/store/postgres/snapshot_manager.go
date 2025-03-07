@@ -41,13 +41,13 @@ func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Remove existing tables
 		_, err := tx.Exec(ctx, `
-			DROP TABLE IF EXISTS
-				Entities, EntitySchema, Strings,
-				BinaryFiles, Ints, Floats, Bools, EntityReferences,
-				Timestamps, Transformations, NotificationConfigEntityId,
-				NotificationConfigEntityType, Notifications
-			CASCADE
-		`)
+            DROP TABLE IF EXISTS
+                Entities, EntitySchema, Strings,
+                BinaryFiles, Ints, Floats, Bools, EntityReferences,
+                Timestamps, Choices, ChoiceOptions, EntityLists,
+                ReverseEntityReferences
+            CASCADE
+        `)
 
 		if err != nil {
 			log.Error("Failed to clear existing data: %v", err)
@@ -61,16 +61,7 @@ func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot
 		}
 
 		for _, schema := range ss.GetSchemas() {
-			for i, field := range schema.GetFields() {
-				_, err := tx.Exec(ctx, `
-				INSERT INTO EntitySchema (entity_type, field_name, field_type, rank)
-				VALUES ($1, $2, $3, $4)
-			`, schema.GetType(), field.GetFieldName(), field.GetFieldType(), i)
-				if err != nil {
-					log.Error("Failed to restore schema: %v", err)
-					continue
-				}
-			}
+			me.schemaManager.SetEntitySchema(ctx, schema)
 		}
 
 		// Restore entities
@@ -89,6 +80,11 @@ func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot
 		for _, f := range ss.GetFields() {
 			req := request.FromField(f)
 			me.fieldOperator.Write(ctx, req)
+		}
+
+		// Restore schemas again because permissions are missed in the first pass
+		for _, schema := range ss.GetSchemas() {
+			me.schemaManager.SetEntitySchema(ctx, schema)
 		}
 	})
 }
