@@ -1,13 +1,5 @@
 package data
 
-const (
-	EntityTypeRoot       = "Root"
-	EntityTypePermission = "Permission"
-	EntityTypeUser       = "User"
-	EntityTypeClient     = "Client"
-	EntityTypeRole       = "Role"
-)
-
 type Entity interface {
 	GetId() string
 	GetType() string

@@ -180,7 +180,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 			readPermissions := []string{}
 			for _, id := range field.GetReadPermissions() {
 				entity := me.entityManager.GetEntity(ctx, id)
-				if entity != nil && entity.GetType() == data.EntityTypePermission {
+				if entity != nil && entity.GetType() == "Permission" {
 					readPermissions = append(readPermissions, id)
 				}
 			}
@@ -188,7 +188,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 			writePermissions := []string{}
 			for _, id := range field.GetWritePermissions() {
 				entity := me.entityManager.GetEntity(ctx, id)
-				if entity != nil && entity.GetType() == data.EntityTypePermission {
+				if entity != nil && entity.GetType() == "Permission" {
 					writePermissions = append(writePermissions, id)
 				}
 			}

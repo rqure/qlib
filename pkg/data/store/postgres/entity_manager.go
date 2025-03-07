@@ -311,7 +311,7 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
 			}
 		}
 
-		if entity.GetType() == data.EntityTypePermission {
+		if entity.GetType() == "Permission" {
 			// Remove permissions from schemas
 			_, err := tx.Exec(ctx, `
 				UPDATE EntitySchema 
