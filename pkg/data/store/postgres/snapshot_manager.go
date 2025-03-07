@@ -37,6 +37,42 @@ func (me *SnapshotManager) SetFieldOperator(fieldOperator data.FieldOperator) {
 	me.fieldOperator = fieldOperator
 }
 
+func (me *SnapshotManager) InitializeIfRequired(ctx context.Context) {
+	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		// Check if core tables exist
+		var exists bool
+		err := tx.QueryRow(ctx, `
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'entities'
+            )
+        `).Scan(&exists)
+
+		if err != nil {
+			log.Error("Failed to check if tables exist: %v", err)
+			return
+		}
+
+		if !exists {
+			// Tables don't exist, initialize the database
+			_, err = tx.Exec(ctx, createTablesSQL)
+			if err != nil {
+				log.Error("Failed to create tables: %v", err)
+				return
+			}
+
+			_, err = tx.Exec(ctx, createIndexesSQL)
+			if err != nil {
+				log.Error("Failed to create indexes: %v", err)
+				return
+			}
+
+			log.Info("Database structure initialized successfully")
+		}
+	})
+}
+
 func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// First drop indexes explicitly

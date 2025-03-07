@@ -43,6 +43,7 @@ type Connector interface {
 type SnapshotManager interface {
 	CreateSnapshot(context.Context) Snapshot
 	RestoreSnapshot(context.Context, Snapshot)
+	InitializeIfRequired(context.Context)
 }
 
 type ModifiableSnapshotManager interface {

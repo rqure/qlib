@@ -155,3 +155,7 @@ func (m *MultiBinding) Commit(ctx context.Context) {
 func (m *MultiBinding) AuthClient(ctx context.Context) auth.Client {
 	return m.impl.AuthClient(ctx)
 }
+
+func (m *MultiBinding) InitializeIfRequired(ctx context.Context) {
+	m.impl.InitializeIfRequired(ctx)
+}

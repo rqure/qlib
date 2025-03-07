@@ -32,6 +32,10 @@ func (s *SnapshotManager) SetFieldOperator(fo data.FieldOperator) {
 	s.fieldOperator = fo
 }
 
+func (s *SnapshotManager) InitializeIfRequired(ctx context.Context) {
+	// No initialization required for NATS
+}
+
 func (s *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 	msg := &protobufs.ApiConfigCreateSnapshotRequest{}
 
