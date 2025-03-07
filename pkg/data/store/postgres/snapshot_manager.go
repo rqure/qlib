@@ -39,8 +39,52 @@ func (me *SnapshotManager) SetFieldOperator(fieldOperator data.FieldOperator) {
 
 func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		// Remove existing tables
+		// First drop indexes explicitly
 		_, err := tx.Exec(ctx, `
+				-- Drop all indexes on entity tables
+				DROP INDEX IF EXISTS idx_entities_type;
+				
+				-- Drop EntitySchema indexes
+				DROP INDEX IF EXISTS idx_entityschema_entity_type;
+				DROP INDEX IF EXISTS idx_entityschema_permissions;
+				
+				-- Drop field value table indexes
+				DROP INDEX IF EXISTS idx_strings_entity_id;
+				DROP INDEX IF EXISTS idx_binaryfiles_entity_id;
+				DROP INDEX IF EXISTS idx_ints_entity_id;
+				DROP INDEX IF EXISTS idx_floats_entity_id;
+				DROP INDEX IF EXISTS idx_bools_entity_id;
+				DROP INDEX IF EXISTS idx_entityreferences_entity_id;
+				DROP INDEX IF EXISTS idx_timestamps_entity_id;
+				DROP INDEX IF EXISTS idx_choices_entity_id;
+				DROP INDEX IF EXISTS idx_entitylists_entity_id;
+				
+				-- Drop reference tracking indexes
+				DROP INDEX IF EXISTS idx_entityreferences_field_value;
+				DROP INDEX IF EXISTS idx_entitylists_field_value;
+				
+				-- Drop reverse references indexes
+				DROP INDEX IF EXISTS idx_reverseentityreferences_referenced_entity_id;
+				DROP INDEX IF EXISTS idx_reverseentityreferences_referenced_by_entity_id;
+				DROP INDEX IF EXISTS idx_reverseentityreferences_referenced_by_field_name;
+				
+				-- Drop write time indexes
+				DROP INDEX IF EXISTS idx_strings_write_time;
+				DROP INDEX IF EXISTS idx_entityreferences_write_time;
+				DROP INDEX IF EXISTS idx_timestamps_write_time;
+				DROP INDEX IF EXISTS idx_timestamps_field_value;
+				
+				-- Drop choice option indexes
+				DROP INDEX IF EXISTS idx_choiceoptions_entity_type;
+			`)
+
+		if err != nil {
+			log.Error("Failed to drop indexes: %v", err)
+			// Continue anyway since we'll drop tables next
+		}
+
+		// Remove existing tables
+		_, err = tx.Exec(ctx, `
             DROP TABLE IF EXISTS
                 Entities, EntitySchema, Strings,
                 BinaryFiles, Ints, Floats, Bools, EntityReferences,
