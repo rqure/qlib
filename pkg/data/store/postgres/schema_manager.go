@@ -151,25 +151,25 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
 			return field.GetFieldName() == "Name"
 		}) {
-			schema.SetFields(append(fields, field.NewSchema("Name", field.String)))
+			fields = append(fields, field.NewSchema("Name", field.String))
 		}
 
 		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
 			return field.GetFieldName() == "Description"
 		}) {
-			schema.SetFields(append(fields, field.NewSchema("Description", field.String)))
+			fields = append(fields, field.NewSchema("Description", field.String))
 		}
 
 		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
 			return field.GetFieldName() == "Parent"
 		}) {
-			schema.SetFields(append(fields, field.NewSchema("Parent", field.EntityReference)))
+			fields = append(fields, field.NewSchema("Parent", field.EntityReference))
 		}
 
 		if !slices.ContainsFunc(schema.GetFields(), func(field data.FieldSchema) bool {
 			return field.GetFieldName() == "Children"
 		}) {
-			schema.SetFields(append(fields, field.NewSchema("Children", field.EntityList)))
+			fields = append(fields, field.NewSchema("Children", field.EntityList))
 		}
 
 		fields = append(fields, schema.GetFields()...)
