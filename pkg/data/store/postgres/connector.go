@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/log"
@@ -133,14 +132,10 @@ func (me *Connector) Connect(ctx context.Context) {
 		return
 	}
 
-	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		me.setConnected(true, nil)
-		return nil
-	}
-
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		log.Error("Failed to create connection pool: %v", err)
+		me.setConnected(false, err)
 		return
 	}
 
