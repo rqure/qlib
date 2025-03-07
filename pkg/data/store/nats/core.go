@@ -32,7 +32,7 @@ type Core interface {
 	GetKeyGenerator() KeyGenerator
 	QueueSubscribe(subject string, handler natsgo.MsgHandler)
 
-	SetSessionProvider(data.AuthProvider)
+	SetAuthProvider(data.AuthProvider)
 
 	Connected() signalslots.Signal
 	Disconnected() signalslots.Signal
@@ -60,7 +60,7 @@ func NewCore(config Config) Core {
 	}
 }
 
-func (c *coreInternal) SetSessionProvider(sp data.AuthProvider) {
+func (c *coreInternal) SetAuthProvider(sp data.AuthProvider) {
 	c.ap = sp
 }
 
