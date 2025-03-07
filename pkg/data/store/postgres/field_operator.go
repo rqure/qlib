@@ -50,7 +50,7 @@ func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 		for _, req := range requests {
 			req.SetSuccessful(false)
 
-			indirectField, indirectEntity := ir.Resolve(ctx, req.GetEntityId(), req.GetFieldName())
+			indirectEntity, indirectField := ir.Resolve(ctx, req.GetEntityId(), req.GetFieldName())
 			if indirectField == "" || indirectEntity == "" {
 				log.Error("Failed to resolve indirection for: %s->%s", req.GetEntityId(), req.GetFieldName())
 				continue
@@ -119,7 +119,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, req := range requests {
-			indirectField, indirectEntity := ir.Resolve(ctx, req.GetEntityId(), req.GetFieldName())
+			indirectEntity, indirectField := ir.Resolve(ctx, req.GetEntityId(), req.GetFieldName())
 			if indirectField == "" || indirectEntity == "" {
 				log.Error("Failed to resolve indirection for: %s->%s", req.GetEntityId(), req.GetFieldName())
 				continue
