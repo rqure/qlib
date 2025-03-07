@@ -32,7 +32,7 @@ type Core interface {
 	GetKeyGenerator() KeyGenerator
 	QueueSubscribe(subject string, handler natsgo.MsgHandler)
 
-	SetSessionProvider(data.SessionProvider)
+	SetSessionProvider(data.AuthProvider)
 
 	Connected() signalslots.Signal
 	Disconnected() signalslots.Signal
@@ -45,7 +45,7 @@ type coreInternal struct {
 	kg     KeyGenerator
 	mu     sync.RWMutex
 
-	sp data.SessionProvider
+	ap data.AuthProvider
 
 	connected    signalslots.Signal
 	disconnected signalslots.Signal
@@ -60,8 +60,8 @@ func NewCore(config Config) Core {
 	}
 }
 
-func (c *coreInternal) SetSessionProvider(sp data.SessionProvider) {
-	c.sp = sp
+func (c *coreInternal) SetSessionProvider(sp data.AuthProvider) {
+	c.ap = sp
 }
 
 func (c *coreInternal) Connect(ctx context.Context) {
@@ -135,9 +135,12 @@ func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Me
 	apiMsg.Header = &protobufs.ApiHeader{}
 	apiMsg.Payload, _ = anypb.New(msg)
 
-	if c.sp != nil {
-		session := c.sp.Session(ctx)
-		apiMsg.Header.AccessToken = session.AccessToken()
+	if c.ap != nil {
+		client := c.ap.AuthClient(ctx)
+		if client != nil {
+			session := client.GetSession(ctx)
+			apiMsg.Header.AccessToken = session.AccessToken()
+		}
 	}
 
 	data, err := proto.Marshal(apiMsg)

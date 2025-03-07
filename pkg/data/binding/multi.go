@@ -152,6 +152,6 @@ func (m *MultiBinding) Commit(ctx context.Context) {
 	m.writeReqs = []data.Request{}
 }
 
-func (m *MultiBinding) Session(ctx context.Context) auth.Session {
-	return m.impl.Session(ctx)
+func (m *MultiBinding) AuthClient(ctx context.Context) auth.Client {
+	return m.impl.AuthClient(ctx)
 }

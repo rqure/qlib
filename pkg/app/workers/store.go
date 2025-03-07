@@ -79,7 +79,13 @@ func (me *Store) tryConnect(ctx context.Context) {
 }
 
 func (me *Store) tryRefreshSession(ctx context.Context) {
-	session := me.store.Session(ctx)
+	client := me.store.AuthClient(ctx)
+
+	if client == nil {
+		return
+	}
+
+	session := client.GetSession(ctx)
 
 	if session.IsValid(ctx) {
 		if session.PastHalfLife(ctx) {

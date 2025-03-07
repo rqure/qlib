@@ -4,20 +4,22 @@ import (
 	"context"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/rqure/qlib/pkg/log"
 )
 
 type Client interface {
 	GetID() string
 	GetSecret() string
-	CreateSession(ctx context.Context) (Session, error)
+	GetSession(ctx context.Context) Session
 	CreateUserSession(ctx context.Context, username, password string) (Session, error)
 }
 
 type client struct {
-	core   Core
-	id     string
-	secret string
-	realm  string
+	core    Core
+	id      string
+	secret  string
+	realm   string
+	session Session
 }
 
 func NewClient(core Core, id, secret, realm string) Client {
@@ -37,18 +39,34 @@ func (me *client) GetSecret() string {
 	return me.secret
 }
 
-func (me *client) CreateSession(ctx context.Context) (Session, error) {
-	token, err := me.core.GetClient().GetToken(ctx, me.realm,
-		gocloak.TokenOptions{
-			ClientID:     &me.id,
-			ClientSecret: &me.secret,
-			GrantType:    gocloak.StringP("client_credentials"),
-		})
-	if err != nil {
-		return nil, err
+func (me *client) GetSession(ctx context.Context) Session {
+	// regenerate session if it is nil or not valid
+	if me.session == nil || !me.session.IsValid(ctx) {
+		token, err := me.core.GetClient().GetToken(ctx, me.realm,
+			gocloak.TokenOptions{
+				ClientID:     &me.id,
+				ClientSecret: &me.secret,
+				GrantType:    gocloak.StringP("client_credentials"),
+			})
+
+		if err != nil {
+			log.Error("Failed to get token: %v", err)
+			me.session = NewSession(me.core, nil, me.id, me.secret, me.realm)
+		} else {
+			me.session = NewSession(me.core, token, me.id, me.secret, me.realm)
+		}
+
 	}
 
-	return NewSession(me.core, token, me.id, me.secret, me.realm), nil
+	return me.session
+}
+
+func (me *client) AccessTokenToSession(ctx context.Context, accessToken string) Session {
+	token := &gocloak.JWT{
+		AccessToken: accessToken,
+	}
+
+	return NewSession(me.core, token, me.id, me.secret, me.realm)
 }
 
 func (me *client) CreateUserSession(ctx context.Context, username, password string) (Session, error) {

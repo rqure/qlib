@@ -14,7 +14,7 @@ type Store struct {
 	data.ModifiableSchemaManager
 	data.ModifiableSnapshotManager
 
-	data.SessionProvider
+	data.AuthProvider
 }
 
 type ConfigFn func(*Store)
@@ -23,7 +23,7 @@ func New(fn ...ConfigFn) data.Store {
 	store := &Store{}
 
 	store.MultiConnector = NewMultiConnector()
-	store.SessionProvider = NewSessionProvider()
+	store.AuthProvider = NewAuthProvider()
 
 	for _, f := range fn {
 		f(store)

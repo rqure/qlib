@@ -131,8 +131,8 @@ type IndirectionResolver interface {
 	Resolve(ctx context.Context, entityId string, fields string) (string, string)
 }
 
-type SessionProvider interface {
-	Session(ctx context.Context) auth.Session
+type AuthProvider interface {
+	AuthClient(ctx context.Context) auth.Client
 }
 
 type Store interface {
@@ -142,7 +142,7 @@ type Store interface {
 	NotificationConsumer
 	NotificationPublisher
 	SchemaManager
-	SessionProvider
+	AuthProvider
 	SnapshotManager
 }
 
@@ -153,6 +153,6 @@ type LimitedStore struct {
 	NotificationConsumer
 	NotificationPublisher
 	SchemaManager
-	SessionProvider
+	AuthProvider
 	SnapshotManager
 }
