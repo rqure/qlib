@@ -34,7 +34,9 @@ func (c *ChoiceImpl) Option() string {
 }
 
 func (c *ChoiceImpl) Options() []string {
-	return c.options
+	result := make([]string, len(c.options))
+	copy(result, c.options)
+	return result
 }
 
 func (c *ChoiceImpl) SetIndex(index int64) data.Choice {

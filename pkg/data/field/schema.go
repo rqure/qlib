@@ -138,7 +138,9 @@ func (me *Schema) GetReadPermissions() []string {
 		return []string{}
 	}
 
-	return me.impl.ReadPermissions
+	result := make([]string, len(me.impl.ReadPermissions))
+	copy(result, me.impl.ReadPermissions)
+	return result
 }
 
 func (me *Schema) GetWritePermissions() []string {
@@ -147,7 +149,9 @@ func (me *Schema) GetWritePermissions() []string {
 		return []string{}
 	}
 
-	return me.impl.WritePermissions
+	result := make([]string, len(me.impl.WritePermissions))
+	copy(result, me.impl.WritePermissions)
+	return result
 }
 
 func (me *Schema) AsChoiceFieldSchema() data.ChoiceFieldSchema {
@@ -164,7 +168,9 @@ func (me *Schema) GetChoices() []string {
 		return []string{}
 	}
 
-	return me.impl.ChoiceOptions
+	result := make([]string, len(me.impl.ChoiceOptions))
+	copy(result, me.impl.ChoiceOptions)
+	return result
 }
 
 func (me *Schema) SetChoices(options []string) data.ChoiceFieldSchema {

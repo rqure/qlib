@@ -1,6 +1,8 @@
 package field
 
 import (
+	"slices"
+
 	"github.com/rqure/qlib/pkg/data"
 )
 
@@ -17,7 +19,9 @@ func NewEntityList(entities []string) data.EntityList {
 }
 
 func (e *EntityListImpl) GetEntities() []string {
-	return e.entities
+	result := make([]string, len(e.entities))
+	copy(result, e.entities)
+	return result
 }
 
 func (e *EntityListImpl) SetEntities(entities []string) data.EntityList {
@@ -46,12 +50,7 @@ func (e *EntityListImpl) Remove(entity string) bool {
 }
 
 func (e *EntityListImpl) Contains(entity string) bool {
-	for _, id := range e.entities {
-		if id == entity {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.entities, entity)
 }
 
 func (e *EntityListImpl) Count() int {
