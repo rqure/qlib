@@ -250,57 +250,64 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
 			return
 		}
 
+		type Ref struct {
+			ByEntityId  string
+			ByFieldName string
+		}
+
 		// Remove references to this entity from other entities
-		rows, err := tx.Query(ctx, `
+		err := BatchedQuery[Ref](me.core, ctx, `
             SELECT referenced_by_entity_id, referenced_by_field_name 
             FROM ReverseEntityReferences 
             WHERE referenced_entity_id = $1
-        `, entityId)
+        `,
+			[]any{entityId},
+			0,
+			func(rows pgx.Rows, cursorId *int64) (Ref, error) {
+				var ref Ref
+				err := rows.Scan(&ref.ByEntityId, &ref.ByFieldName, cursorId)
+				return ref, err
+			},
+			func(batch []Ref) error {
+				for _, ref := range batch {
+
+					// Read the current value
+					req := request.New().SetEntityId(ref.ByEntityId).SetFieldName(ref.ByFieldName)
+					me.fieldOperator.Read(ctx, req)
+
+					if !req.IsSuccessful() {
+						return fmt.Errorf("failed to read field %s for entity %s", ref.ByFieldName, ref.ByEntityId)
+					}
+
+					// Update the reference based on its type
+					if req.GetValue().IsEntityReference() {
+						// If it's a direct reference, clear it
+						if req.GetValue().GetEntityReference() == entityId {
+							req.GetValue().SetEntityReference("")
+							me.fieldOperator.Write(ctx, req)
+						}
+					} else if req.GetValue().IsEntityList() {
+						// If it's a list of references, remove this entity from the list
+						entities := req.GetValue().GetEntityList().GetEntities()
+						updatedEntities := []string{}
+
+						for _, id := range entities {
+							if id != entityId {
+								updatedEntities = append(updatedEntities, id)
+							}
+						}
+
+						req.GetValue().GetEntityList().SetEntities(updatedEntities)
+						me.fieldOperator.Write(ctx, req)
+					}
+				}
+				return nil
+			},
+		)
+
 		if err != nil {
 			log.Error("Failed to query reverse references: %v", err)
 		} else {
-			defer rows.Close()
-
-			// Process each reference to this entity
-			for rows.Next() {
-				var refByEntityId, refByFieldName string
-				if err := rows.Scan(&refByEntityId, &refByFieldName); err != nil {
-					log.Error("Failed to scan reverse reference data: %v", err)
-					continue
-				}
-
-				// Read the current value
-				req := request.New().SetEntityId(refByEntityId).SetFieldName(refByFieldName)
-				me.fieldOperator.Read(ctx, req)
-
-				if !req.IsSuccessful() {
-					log.Error("Failed to read field %s for entity %s", refByFieldName, refByEntityId)
-					continue
-				}
-
-				// Update the reference based on its type
-				if req.GetValue().IsEntityReference() {
-					// If it's a direct reference, clear it
-					if req.GetValue().GetEntityReference() == entityId {
-						req.GetValue().SetEntityReference("")
-						me.fieldOperator.Write(ctx, req)
-					}
-				} else if req.GetValue().IsEntityList() {
-					// If it's a list of references, remove this entity from the list
-					entities := req.GetValue().GetEntityList().GetEntities()
-					updatedEntities := []string{}
-
-					for _, id := range entities {
-						if id != entityId {
-							updatedEntities = append(updatedEntities, id)
-						}
-					}
-
-					req.GetValue().GetEntityList().SetEntities(updatedEntities)
-					me.fieldOperator.Write(ctx, req)
-				}
-			}
-
 			// Clean up the reverse references table
 			_, err = tx.Exec(ctx, `
                 DELETE FROM ReverseEntityReferences WHERE referenced_entity_id = $1
