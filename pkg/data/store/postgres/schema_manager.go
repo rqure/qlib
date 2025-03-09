@@ -287,35 +287,64 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 }
 
 func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) data.EntitySchema {
-	processRows := func(tx pgx.Tx, rows pgx.Rows) data.EntitySchema {
-		schema := entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{})
-		schema.SetType(entityType)
-		var fields []data.FieldSchema
+	schema := entity.FromSchemaPb(&protobufs.DatabaseEntitySchema{})
+	schema.SetType(entityType)
+	var fields []data.FieldSchema
 
-		for rows.Next() {
-			var fieldName, fieldType string
-			var rank int
-			var readPermissions, writePermissions []string
-			if err := rows.Scan(&fieldName, &fieldType, &readPermissions, &writePermissions, &rank); err != nil {
-				log.Error("Failed to scan field schema: %v", err)
-				continue
-			}
+	type FieldRow struct {
+		FieldName        string
+		FieldType        string
+		Rank             int
+		ReadPermissions  []string
+		WritePermissions []string
+	}
 
-			fieldSchema := field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
-				Name:             fieldName,
-				Type:             fieldType,
-				ReadPermissions:  readPermissions,
-				WritePermissions: writePermissions,
-			})
+	var fieldRows []FieldRow
 
-			// If it's a choice field, get the options
-			if fieldSchema.IsChoice() {
-				var options []string
+	err := BatchedQuery(me.core, ctx, `
+		SELECT field_name, field_type, read_permissions, write_permissions, rank
+		FROM EntitySchema
+		WHERE entity_type = $1
+	`,
+		[]any{entityType},
+		0, // use default batch size
+		func(rows pgx.Rows, cursorId *int64) (FieldRow, error) {
+			var fr FieldRow
+			err := rows.Scan(&fr.FieldName, &fr.FieldType, &fr.ReadPermissions, &fr.WritePermissions, &fr.Rank, cursorId)
+			return fr, err
+		},
+		func(batch []FieldRow) error {
+			fieldRows = append(fieldRows, batch...)
+			return nil
+		})
+
+	if err != nil {
+		log.Error("Failed to get entity schema: %v", err)
+	}
+
+	// Sort field rows by rank
+	slices.SortFunc(fieldRows, func(a, b FieldRow) int {
+		return a.Rank - b.Rank
+	})
+
+	// Process the fields in sorted order
+	for _, fr := range fieldRows {
+		fieldSchema := field.FromSchemaPb(&protobufs.DatabaseFieldSchema{
+			Name:             fr.FieldName,
+			Type:             fr.FieldType,
+			ReadPermissions:  fr.ReadPermissions,
+			WritePermissions: fr.WritePermissions,
+		})
+
+		// If it's a choice field, get the options
+		if fieldSchema.IsChoice() {
+			var options []string
+			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 				err := tx.QueryRow(ctx, `
-                    SELECT options
-                    FROM ChoiceOptions
-                    WHERE entity_type = $1 AND field_name = $2
-                `, entityType, fieldName).Scan(&options)
+					SELECT options
+					FROM ChoiceOptions
+					WHERE entity_type = $1 AND field_name = $2
+				`, entityType, fr.FieldName).Scan(&options)
 				if err != nil {
 					if !errors.Is(err, pgx.ErrNoRows) {
 						log.Error("Failed to get choice options: %v", err)
@@ -323,30 +352,12 @@ func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string)
 				} else {
 					fieldSchema.AsChoiceFieldSchema().SetChoices(options)
 				}
-			}
-
-			fields = append(fields, fieldSchema)
+			})
 		}
 
-		schema.SetFields(fields)
-		return schema
+		fields = append(fields, fieldSchema)
 	}
 
-	var schema data.EntitySchema
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		rows, err := tx.Query(ctx, `
-            SELECT field_name, field_type, read_permissions, write_permissions, rank
-            FROM EntitySchema
-            WHERE entity_type = $1
-            ORDER BY rank
-        `, entityType)
-		if err != nil {
-			log.Error("Failed to get entity schema: %v", err)
-			return
-		}
-		defer rows.Close()
-		schema = processRows(tx, rows)
-	})
-
+	schema.SetFields(fields)
 	return schema
 }

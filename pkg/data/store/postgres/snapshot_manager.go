@@ -172,25 +172,33 @@ func (me *SnapshotManager) RestoreSnapshot(ctx context.Context, ss data.Snapshot
 func (me *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 	ss := snapshot.New()
 
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		// Get all entity types and their schemas
-		rows, err := tx.Query(ctx, `
-			SELECT DISTINCT entity_type 
-			FROM EntitySchema
-		`)
-		if err != nil {
-			log.Error("Failed to get entity types: %v", err)
-			return
-		}
-		defer rows.Close()
-
-		for rows.Next() {
+	// Get all entity types and their schemas
+	entityTypes := []string{}
+	
+	err := BatchedQuery(me.core, ctx, `
+		SELECT DISTINCT entity_type 
+		FROM EntitySchema
+		WHERE 1=1
+	`,
+		[]any{},
+		0, // use default batch size
+		func(rows pgx.Rows, cursorId *int64) (string, error) {
 			var entityType string
-			if err := rows.Scan(&entityType); err != nil {
-				log.Error("Failed to scan entity type: %v", err)
-				continue
-			}
+			err := rows.Scan(&entityType, cursorId)
+			return entityType, err
+		},
+		func(batch []string) error {
+			entityTypes = append(entityTypes, batch...)
+			return nil
+		})
 
+	if err != nil {
+		log.Error("Failed to get entity types: %v", err)
+		return ss
+	}
+
+	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		for _, entityType := range entityTypes {
 			// Add schema
 			schema := me.schemaManager.GetEntitySchema(ctx, entityType)
 			if schema != nil {
@@ -215,7 +223,6 @@ func (me *SnapshotManager) CreateSnapshot(ctx context.Context) data.Snapshot {
 				}
 			}
 		}
-
 	})
 
 	return ss
