@@ -256,7 +256,7 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
 		}
 
 		// Remove references to this entity from other entities
-		err := BatchedQuery[Ref](me.core, ctx, `
+		err := BatchedQuery(me.core, ctx, `
             SELECT referenced_by_entity_id, referenced_by_field_name 
             FROM ReverseEntityReferences 
             WHERE referenced_entity_id = $1
