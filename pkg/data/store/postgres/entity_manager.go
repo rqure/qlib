@@ -118,62 +118,51 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 }
 
 func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
-	processRows := func(rows pgx.Rows) []string {
-		var entities []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				log.Error("Failed to scan entity ID: %v", err)
-				continue
-			}
-			entities = append(entities, id)
-		}
-		return entities
-	}
-
 	entities := []string{}
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		rows, err := tx.Query(ctx, `
-		SELECT id FROM Entities WHERE type = $1
-	`, entityType)
-		if err != nil {
-			log.Error("Failed to find entities: %v", err)
-			return
-		}
-		defer rows.Close()
 
-		entities = processRows(rows)
-	})
+	err := BatchedQuery(me.core, ctx,
+		`SELECT id FROM Entities WHERE type = $1`,
+		[]any{entityType},
+		0, // use default batch size
+		func(rows pgx.Rows, cursorId *int64) (string, error) {
+			var id string
+			err := rows.Scan(&id, cursorId)
+			return id, err
+		},
+		func(batch []string) error {
+			entities = append(entities, batch...)
+			return nil
+		},
+	)
+
+	if err != nil {
+		log.Error("Failed to find entities: %v", err)
+	}
 
 	return entities
 }
 
 func (s *EntityManager) GetEntityTypes(ctx context.Context) []string {
-	processRows := func(rows pgx.Rows) []string {
-		var types []string
-		for rows.Next() {
-			var entityType string
-			if err := rows.Scan(&entityType); err != nil {
-				log.Error("Failed to scan entity type: %v", err)
-				continue
-			}
-			types = append(types, entityType)
-		}
-		return types
-	}
-
 	types := []string{}
-	s.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		rows, err := tx.Query(ctx, `
-		SELECT DISTINCT entity_type FROM EntitySchema
-	`)
-		if err != nil {
-			log.Error("Failed to get entity types: %v", err)
-			return
-		}
-		defer rows.Close()
-		types = processRows(rows)
-	})
+
+	err := BatchedQuery(s.core, ctx,
+		`SELECT DISTINCT entity_type, cursor_id FROM EntitySchema WHERE 1=1`,
+		[]any{},
+		0, // use default batch size
+		func(rows pgx.Rows, cursorId *int64) (string, error) {
+			var entityType string
+			err := rows.Scan(&entityType, cursorId)
+			return entityType, err
+		},
+		func(batch []string) error {
+			types = append(types, batch...)
+			return nil
+		},
+	)
+
+	if err != nil {
+		log.Error("Failed to get entity types: %v", err)
+	}
 
 	return types
 }
