@@ -75,9 +75,9 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		_, err := tx.Exec(ctx, `
-			INSERT INTO Entities (id, type)
-			VALUES ($1, $2)
-		`, entityId, entityType)
+            INSERT INTO Entities (id, type)
+            VALUES ($1, $2)
+        `, entityId, entityType)
 
 		if err != nil {
 			log.Error("Failed to create entity: %v", err)
@@ -94,15 +94,16 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 
 				if f.GetFieldName() == "Name" {
 					req.GetValue().SetString(name)
-				} else if f.GetFieldName() == "Parent" {
+				} else if f.GetFieldName() == "Parent" && parentId != "" {
+					// Only set parent if parentId is provided
 					req.GetValue().SetEntityReference(parentId)
 				}
-
 				reqs = append(reqs, req)
 			}
 			me.fieldOperator.Write(ctx, reqs...)
 		}
 
+		// Only update parent's children if parentId is provided
 		if parentId != "" {
 			req := request.New().SetEntityId(parentId).SetFieldName("Children")
 			me.fieldOperator.Read(ctx, req)
