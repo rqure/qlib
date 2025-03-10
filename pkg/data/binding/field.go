@@ -311,7 +311,13 @@ func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) data.Fiel
 
 	if choice, ok := selectedIndex.(string); ok {
 		entity := me.withStore().GetEntity(ctx, me.req.GetEntityId())
-		schema := me.withStore().GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+
+		store := me.withStore()
+		if impl, ok := store.(*MultiBinding); ok {
+			store = impl.GetImpl()
+		}
+		schema := store.GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+
 		if schema.IsChoice() {
 			choices := schema.AsChoiceFieldSchema().GetChoices()
 			for i, c := range choices {
@@ -515,7 +521,11 @@ func (me *Field) GetCompleteChoice(ctx context.Context) data.CompleteChoice {
 	}
 
 	entity := me.withStore().GetEntity(ctx, me.req.GetEntityId())
-	schema := me.withStore().GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+	store := me.withStore()
+	if impl, ok := store.(*MultiBinding); ok {
+		store = impl.GetImpl()
+	}
+	schema := store.GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
 	if schema.IsChoice() {
 		choices := schema.AsChoiceFieldSchema().GetChoices()
 		choice.SetOptions(choices)

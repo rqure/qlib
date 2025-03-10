@@ -159,3 +159,10 @@ func (m *MultiBinding) AuthClient(ctx context.Context) auth.Client {
 func (m *MultiBinding) InitializeIfRequired(ctx context.Context) {
 	m.impl.InitializeIfRequired(ctx)
 }
+
+func (m *MultiBinding) GetImpl() data.Store {
+	if impl, ok := m.impl.(*MultiBinding); ok {
+		return impl.GetImpl()
+	}
+	return m.impl
+}
