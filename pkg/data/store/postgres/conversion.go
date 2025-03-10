@@ -169,7 +169,11 @@ func fieldValueToInterface(v data.Value) interface{} {
 	case v.IsChoice():
 		return v.GetChoice()
 	case v.IsEntityList():
-		return v.GetEntityList()
+		list := v.GetEntityList()
+		if list == nil || len(list.GetEntities()) == 0 {
+			return []string{} // Return empty array instead of nil
+		}
+		return list.GetEntities()
 	default:
 		return nil
 	}
