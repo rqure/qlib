@@ -167,7 +167,7 @@ func fieldValueToInterface(v data.Value) interface{} {
 	case v.IsTimestamp():
 		return v.GetTimestamp()
 	case v.IsChoice():
-		return v.GetChoice()
+		return v.GetChoice().Index()
 	case v.IsEntityList():
 		list := v.GetEntityList()
 		if list == nil || len(list.GetEntities()) == 0 {
