@@ -94,8 +94,7 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 
 				if f.GetFieldName() == "Name" {
 					req.GetValue().SetString(name)
-				} else if f.GetFieldName() == "Parent" && parentId != "" {
-					// Only set parent if parentId is provided
+				} else if f.GetFieldName() == "Parent" {
 					req.GetValue().SetEntityReference(parentId)
 				}
 				reqs = append(reqs, req)

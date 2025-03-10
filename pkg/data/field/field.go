@@ -56,7 +56,7 @@ func FromRequest(r data.Request) data.Field {
 }
 
 func (f *Field) GetValue() data.Value {
-	return FromAnyPb(f.impl.Value)
+	return FromAnyPb(&f.impl.Value)
 }
 
 func (f *Field) GetWriteTime() time.Time {

@@ -12,7 +12,7 @@ import (
 )
 
 type Value struct {
-	impl *anypb.Any
+	impl **anypb.Any
 }
 
 func NewValue() data.Value {
@@ -21,7 +21,7 @@ func NewValue() data.Value {
 	}
 }
 
-func FromAnyPb(impl *anypb.Any) data.Value {
+func FromAnyPb(impl **anypb.Any) data.Value {
 	return &Value{
 		impl: impl,
 	}
@@ -34,66 +34,66 @@ func ToAnyPb(v data.Value) *anypb.Any {
 
 	switch c := v.(type) {
 	case *Value:
-		return c.impl
+		return *c.impl
 	default:
 		log.Error("Unsupported type: %T", v)
 		return nil
 	}
 }
 
-func (v *Value) IsNil() bool {
-	return v.impl == nil
+func (me *Value) IsNil() bool {
+	return me.getImpl() == nil
 }
 
-func (v *Value) IsInt() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.Int{})
+func (me *Value) IsInt() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.Int{})
 }
 
-func (v *Value) IsFloat() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.Float{})
+func (me *Value) IsFloat() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.Float{})
 }
 
-func (v *Value) IsString() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.String{})
+func (me *Value) IsString() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.String{})
 }
 
-func (v *Value) IsBool() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.Bool{})
+func (me *Value) IsBool() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.Bool{})
 }
 
-func (v *Value) IsBinaryFile() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.BinaryFile{})
+func (me *Value) IsBinaryFile() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.BinaryFile{})
 }
 
-func (v *Value) IsEntityReference() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.EntityReference{})
+func (me *Value) IsEntityReference() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.EntityReference{})
 }
 
-func (v *Value) IsTimestamp() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.Timestamp{})
+func (me *Value) IsTimestamp() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.Timestamp{})
 }
 
-func (v *Value) IsChoice() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.Choice{})
+func (me *Value) IsChoice() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.Choice{})
 }
 
-func (v *Value) IsEntityList() bool {
-	return v.impl != nil && v.impl.MessageIs(&protobufs.EntityList{})
+func (me *Value) IsEntityList() bool {
+	return me.getImpl() != nil && me.getImpl().MessageIs(&protobufs.EntityList{})
 }
 
-func (v *Value) GetType() string {
-	if v.impl == nil {
+func (me *Value) GetType() string {
+	if me.getImpl() == nil {
 		return ""
 	}
 
-	return v.impl.TypeUrl
+	return me.getImpl().TypeUrl
 }
 
-func (v *Value) GetInt() int64 {
+func (me *Value) GetInt() int64 {
 	m := new(protobufs.Int)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling int: %s", err)
 			return 0
 		}
@@ -102,11 +102,11 @@ func (v *Value) GetInt() int64 {
 	return m.Raw
 }
 
-func (v *Value) GetFloat() float64 {
+func (me *Value) GetFloat() float64 {
 	m := new(protobufs.Float)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling float: %s", err)
 			return 0
 		}
@@ -115,11 +115,11 @@ func (v *Value) GetFloat() float64 {
 	return m.Raw
 }
 
-func (v *Value) GetString() string {
+func (me *Value) GetString() string {
 	m := new(protobufs.String)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling string: %s", err)
 			return ""
 		}
@@ -128,11 +128,11 @@ func (v *Value) GetString() string {
 	return m.Raw
 }
 
-func (v *Value) GetBool() bool {
+func (me *Value) GetBool() bool {
 	m := new(protobufs.Bool)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling bool: %s", err)
 			return false
 		}
@@ -141,11 +141,11 @@ func (v *Value) GetBool() bool {
 	return m.Raw
 }
 
-func (v *Value) GetBinaryFile() string {
+func (me *Value) GetBinaryFile() string {
 	m := new(protobufs.BinaryFile)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling binary file: %s", err)
 			return ""
 		}
@@ -154,11 +154,11 @@ func (v *Value) GetBinaryFile() string {
 	return m.Raw
 }
 
-func (v *Value) GetEntityReference() string {
+func (me *Value) GetEntityReference() string {
 	m := new(protobufs.EntityReference)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling entity reference: %s", err)
 			return ""
 		}
@@ -167,11 +167,11 @@ func (v *Value) GetEntityReference() string {
 	return m.Raw
 }
 
-func (v *Value) GetTimestamp() time.Time {
+func (me *Value) GetTimestamp() time.Time {
 	m := new(protobufs.Timestamp)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling timestamp: %s", err)
 			return time.Unix(0, 0)
 		}
@@ -180,11 +180,11 @@ func (v *Value) GetTimestamp() time.Time {
 	return m.Raw.AsTime()
 }
 
-func (v *Value) GetChoice() data.Choice {
+func (me *Value) GetChoice() data.Choice {
 	m := new(protobufs.Choice)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling choice: %s", err)
 			return NewChoice(0)
 		}
@@ -193,11 +193,11 @@ func (v *Value) GetChoice() data.Choice {
 	return NewChoice(m.Raw)
 }
 
-func (v *Value) GetEntityList() data.EntityList {
+func (me *Value) GetEntityList() data.EntityList {
 	m := new(protobufs.EntityList)
 
-	if v.impl != nil {
-		if err := v.impl.UnmarshalTo(m); err != nil {
+	if me.getImpl() != nil {
+		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling entity list: %s", err)
 			return NewEntityList([]string{})
 		}
@@ -206,7 +206,7 @@ func (v *Value) GetEntityList() data.EntityList {
 	return NewEntityList(m.Raw)
 }
 
-func (v *Value) SetInt(i interface{}) data.Value {
+func (me *Value) SetInt(i interface{}) data.Value {
 	value := int64(0)
 
 	switch c := i.(type) {
@@ -245,7 +245,7 @@ func (v *Value) SetInt(i interface{}) data.Value {
 			log.Error("Error parsing int: %s", err)
 		}
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.Int{
@@ -255,13 +255,13 @@ func (v *Value) SetInt(i interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetFloat(f interface{}) data.Value {
+func (me *Value) SetFloat(f interface{}) data.Value {
 	value := float64(0)
 
 	switch c := f.(type) {
@@ -300,7 +300,7 @@ func (v *Value) SetFloat(f interface{}) data.Value {
 			log.Error("Error parsing float: %s", err)
 		}
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.Float{
@@ -310,13 +310,13 @@ func (v *Value) SetFloat(f interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetString(s interface{}) data.Value {
+func (me *Value) SetString(s interface{}) data.Value {
 	value := ""
 
 	switch c := s.(type) {
@@ -349,7 +349,7 @@ func (v *Value) SetString(s interface{}) data.Value {
 	case string:
 		value = c
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.String{
@@ -359,13 +359,13 @@ func (v *Value) SetString(s interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetBool(b interface{}) data.Value {
+func (me *Value) SetBool(b interface{}) data.Value {
 	value := false
 
 	switch c := b.(type) {
@@ -406,7 +406,7 @@ func (v *Value) SetBool(b interface{}) data.Value {
 			log.Error("Error parsing bool: %s", err)
 		}
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.Bool{
@@ -416,20 +416,20 @@ func (v *Value) SetBool(b interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetBinaryFile(b interface{}) data.Value {
+func (me *Value) SetBinaryFile(b interface{}) data.Value {
 	value := ""
 
 	switch c := b.(type) {
 	case string:
 		value = c
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.BinaryFile{
@@ -439,20 +439,20 @@ func (v *Value) SetBinaryFile(b interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetEntityReference(e interface{}) data.Value {
+func (me *Value) SetEntityReference(e interface{}) data.Value {
 	value := ""
 
 	switch c := e.(type) {
 	case string:
 		value = c
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.EntityReference{
@@ -462,13 +462,13 @@ func (v *Value) SetEntityReference(e interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetTimestamp(t interface{}) data.Value {
+func (me *Value) SetTimestamp(t interface{}) data.Value {
 	value := time.Now()
 
 	switch c := t.(type) {
@@ -501,7 +501,7 @@ func (v *Value) SetTimestamp(t interface{}) data.Value {
 	case uint64:
 		value = time.Unix(int64(c), 0)
 	default:
-		log.Error("Unsupported type: %T", v)
+		log.Error("Unsupported type: %T", me)
 	}
 
 	a, err := anypb.New(&protobufs.Timestamp{
@@ -511,13 +511,13 @@ func (v *Value) SetTimestamp(t interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetChoice(selected interface{}) data.Value {
+func (me *Value) SetChoice(selected interface{}) data.Value {
 	value := int64(0)
 
 	switch c := selected.(type) {
@@ -565,13 +565,13 @@ func (v *Value) SetChoice(selected interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
 }
 
-func (v *Value) SetEntityList(entities interface{}) data.Value {
+func (me *Value) SetEntityList(entities interface{}) data.Value {
 	var entityList []string
 
 	switch list := entities.(type) {
@@ -603,8 +603,16 @@ func (v *Value) SetEntityList(entities interface{}) data.Value {
 	if err != nil {
 		log.Error("Error creating Any: %s", err)
 	} else {
-		v.impl = a
+		me.setImpl(a)
 	}
 
-	return v
+	return me
+}
+
+func (me *Value) getImpl() *anypb.Any {
+	return *me.impl
+}
+
+func (me *Value) setImpl(a *anypb.Any) {
+	*me.impl = a
 }

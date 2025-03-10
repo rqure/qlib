@@ -68,7 +68,7 @@ func (r *Wrapper) IsSuccessful() bool {
 }
 
 func (r *Wrapper) GetValue() data.Value {
-	return field.FromAnyPb(r.impl.Value)
+	return field.FromAnyPb(&r.impl.Value)
 }
 
 func (r *Wrapper) SetEntityId(id string) data.Request {

@@ -154,7 +154,8 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			}
 
 			if req.GetValue().IsNil() {
-				req.SetValue(field.FromAnyPb(fieldTypeToProtoType(schema.Type)))
+				anyPbField := fieldTypeToProtoType(schema.Type)
+				req.SetValue(field.FromAnyPb(&anyPbField))
 			}
 
 			oldReq := request.New().SetEntityId(req.GetEntityId()).SetFieldName(req.GetFieldName())

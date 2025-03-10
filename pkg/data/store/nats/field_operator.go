@@ -60,7 +60,7 @@ func (me *FieldOperator) Read(ctx context.Context, requests ...data.Request) {
 		if i >= len(requests) {
 			break
 		}
-		requests[i].SetValue(field.FromAnyPb(r.Value))
+		requests[i].SetValue(field.FromAnyPb(&r.Value))
 		requests[i].SetSuccessful(r.Success)
 		if r.WriteTime != nil {
 			wt := r.WriteTime.Raw.AsTime()
