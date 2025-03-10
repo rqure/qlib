@@ -181,7 +181,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			if req.GetWriter() == nil {
 				wr := ""
 
-				if me.clientId == nil {
+				if me.clientId == nil && app.GetName() != "" {
 					clients := query.New(&data.LimitedStore{
 						FieldOperator:         me,
 						EntityManager:         me.entityManager,
