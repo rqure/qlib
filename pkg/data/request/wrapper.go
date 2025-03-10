@@ -6,6 +6,7 @@ import (
 	"github.com/rqure/qlib/pkg/data"
 	"github.com/rqure/qlib/pkg/data/field"
 	"github.com/rqure/qlib/pkg/protobufs"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -136,13 +137,37 @@ func (r *Wrapper) SetWriteOpt(opt data.WriteOpt) data.Request {
 }
 
 func (r *Wrapper) Clone() data.Request {
+	var writeTime *protobufs.Timestamp
+	if r.impl.WriteTime != nil {
+		writeTime = &protobufs.Timestamp{
+			Raw: r.impl.WriteTime.Raw,
+		}
+	}
+
+	var writerId *protobufs.String
+	if r.impl.WriterId != nil {
+		writerId = &protobufs.String{
+			Raw: r.impl.WriterId.Raw,
+		}
+	}
+
+	var value *anypb.Any
+	if r.impl.Value != nil {
+		value = &anypb.Any{
+			TypeUrl: r.impl.Value.TypeUrl,
+			Value:   []byte{},
+		}
+
+		copy(value.Value, r.impl.Value.Value)
+	}
+
 	return &Wrapper{
 		impl: &protobufs.DatabaseRequest{
 			Id:        r.impl.Id,
 			Field:     r.impl.Field,
-			WriteTime: r.impl.WriteTime,
-			WriterId:  r.impl.WriterId,
-			Value:     r.impl.Value,
+			WriteTime: writeTime,
+			WriterId:  writerId,
+			Value:     value,
 			Success:   r.impl.Success,
 			WriteOpt:  r.impl.WriteOpt,
 		},

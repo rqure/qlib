@@ -17,11 +17,16 @@ type Value struct {
 
 func NewValue() data.Value {
 	return &Value{
-		impl: nil,
+		impl: new(*anypb.Any),
 	}
 }
 
 func FromAnyPb(impl **anypb.Any) data.Value {
+	if impl == nil {
+		impl = new(*anypb.Any)
+		*impl = nil
+	}
+
 	return &Value{
 		impl: impl,
 	}
