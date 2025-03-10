@@ -16,6 +16,10 @@ type Application interface {
 	Execute()
 }
 
+type HandleKeyType string
+
+const HandleKey HandleKeyType = "handle"
+
 type Handle interface {
 	DoInMainThread(func(context.Context))
 	GetWg() *sync.WaitGroup
@@ -23,7 +27,7 @@ type Handle interface {
 
 type Worker interface {
 	Deinit(context.Context)
-	Init(context.Context, Handle)
+	Init(context.Context)
 	DoWork(context.Context)
 }
 
@@ -53,11 +57,11 @@ func (a *ApplicationImpl) AddWorker(w Worker) {
 func (a *ApplicationImpl) Init() {
 	log.Info("Initializing workers")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), HandleKey, a), 10*time.Second)
 	defer cancel()
 
 	for _, w := range a.workers {
-		w.Init(ctx, a)
+		w.Init(ctx)
 	}
 
 	if ctx.Err() != nil {
@@ -68,7 +72,7 @@ func (a *ApplicationImpl) Init() {
 func (a *ApplicationImpl) Deinit() {
 	log.Info("Deinitializing workers")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), HandleKey, a), 10*time.Second)
 	defer cancel()
 
 	a.ticker.Stop()
@@ -97,7 +101,7 @@ func (a *ApplicationImpl) Execute() {
 	defer signal.Stop(interrupt)
 	defer close(interrupt)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), HandleKey, a))
 	defer cancel()
 
 	go func() {
@@ -133,4 +137,8 @@ func (a *ApplicationImpl) DoInMainThread(t func(context.Context)) {
 
 func (a *ApplicationImpl) GetWg() *sync.WaitGroup {
 	return a.wg
+}
+
+func GetHandle(ctx context.Context) Handle {
+	return ctx.Value(HandleKey).(Handle)
 }

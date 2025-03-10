@@ -42,9 +42,8 @@ func NewStore(store data.Store) *Store {
 	}
 }
 
-func (me *Store) Init(ctx context.Context, handle app.Handle) {
-	me.handle = handle
-
+func (me *Store) Init(ctx context.Context) {
+	me.handle = app.GetHandle(ctx)
 	me.sessionRefreshTimer = time.NewTimer(5 * time.Second)
 	me.connectionAttemptTimer = time.NewTimer(5 * time.Second)
 
@@ -74,6 +73,7 @@ func (me *Store) DoWork(ctx context.Context) {
 
 func (me *Store) tryConnect(ctx context.Context) {
 	if !me.isConnected {
+		log.Info("Trying to connect to the store...")
 		me.store.Connect(ctx)
 	}
 }
