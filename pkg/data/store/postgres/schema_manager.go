@@ -302,7 +302,7 @@ func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string)
 	var fieldRows []FieldRow
 
 	err := BatchedQuery(me.core, ctx, `
-		SELECT field_name, field_type, read_permissions, write_permissions, rank
+		SELECT field_name, field_type, read_permissions, write_permissions, rank, cursor_id
 		FROM EntitySchema
 		WHERE entity_type = $1
 	`,

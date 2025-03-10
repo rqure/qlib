@@ -121,7 +121,7 @@ func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []
 	entities := []string{}
 
 	err := BatchedQuery(me.core, ctx,
-		`SELECT id FROM Entities WHERE type = $1`,
+		`SELECT id, cursor_id FROM Entities WHERE type = $1`,
 		[]any{entityType},
 		0, // use default batch size
 		func(rows pgx.Rows, cursorId *int64) (string, error) {
@@ -142,29 +142,31 @@ func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []
 	return entities
 }
 
-func (s *EntityManager) GetEntityTypes(ctx context.Context) []string {
-	types := []string{}
+func (me *EntityManager) GetEntityTypes(ctx context.Context) []string {
+	entityTypes := []string{}
 
-	err := BatchedQuery(s.core, ctx,
-		`SELECT DISTINCT entity_type, cursor_id FROM EntitySchema WHERE 1=1`,
-		[]any{},
-		0, // use default batch size
-		func(rows pgx.Rows, cursorId *int64) (string, error) {
+	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		rows, err := tx.Query(ctx, `
+			SELECT DISTINCT entity_type
+			FROM EntitySchema
+		`)
+		if err != nil {
+			log.Error("Failed to get entity types: %v", err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
 			var entityType string
-			err := rows.Scan(&entityType, cursorId)
-			return entityType, err
-		},
-		func(batch []string) error {
-			types = append(types, batch...)
-			return nil
-		},
-	)
+			if err := rows.Scan(&entityType); err != nil {
+				log.Error("Failed to scan entity type: %v", err)
+				continue
+			}
+			entityTypes = append(entityTypes, entityType)
+		}
+	})
 
-	if err != nil {
-		log.Error("Failed to get entity types: %v", err)
-	}
-
-	return types
+	return entityTypes
 }
 
 func (me *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
@@ -246,7 +248,7 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
 
 		// Remove references to this entity from other entities
 		err := BatchedQuery(me.core, ctx, `
-            SELECT referenced_by_entity_id, referenced_by_field_name 
+            SELECT referenced_by_entity_id, referenced_by_field_name, cursor_id 
             FROM ReverseEntityReferences 
             WHERE referenced_entity_id = $1
         `,
