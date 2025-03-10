@@ -261,7 +261,7 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 							newReferences = append(newReferences, newRef)
 						}
 					}
-					req.GetValue().GetEntityList().SetEntities(newReferences)
+					req.GetValue().SetEntityList(newReferences)
 				}
 
 				// Insert new references

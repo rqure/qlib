@@ -109,7 +109,7 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 			if req.IsSuccessful() {
 				children := req.GetValue().GetEntityList().GetEntities()
 				children = append(children, entityId)
-				req.GetValue().GetEntityList().SetEntities(children)
+				req.GetValue().SetEntityList(children)
 				me.fieldOperator.Write(ctx, req)
 			}
 		}
@@ -288,7 +288,7 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
 							}
 						}
 
-						req.GetValue().GetEntityList().SetEntities(updatedEntities)
+						req.GetValue().SetEntityList(updatedEntities)
 						me.fieldOperator.Write(ctx, req)
 					}
 				}

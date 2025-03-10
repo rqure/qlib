@@ -8,15 +8,11 @@ import (
 
 // EntityListImpl implements the EntityList interface
 type EntityListImpl struct {
-	entities *[]string
+	entities []string
 }
 
 // NewEntityList creates a new EntityList with the given entities
-func NewEntityList(entities *[]string) data.EntityList {
-	if entities == nil {
-		entities = &[]string{}
-	}
-
+func NewEntityList(entities ...string) data.EntityList {
 	return &EntityListImpl{
 		entities: entities,
 	}
@@ -47,12 +43,16 @@ func (e *EntityListImpl) Remove(entity string) bool {
 	if !e.Contains(entity) {
 		return false
 	}
-	e.entities = slices.Remove(*e.entities, entity)
+	entities := e.getEntities()
+	newEntities := slices.DeleteFunc(entities, func(e string) bool {
+		return e == entity
+	})
+	e.setEntities(newEntities)
 	return true
 }
 
 func (e *EntityListImpl) Contains(entity string) bool {
-	return slices.Contains(*e.entities, entity)
+	return slices.Contains(e.entities, entity)
 }
 
 func (e *EntityListImpl) Count() int {
@@ -90,9 +90,9 @@ func (e *EntityListImpl) Length() int {
 }
 
 func (e *EntityListImpl) getEntities() []string {
-	return *e.entities
+	return e.entities
 }
 
 func (e *EntityListImpl) setEntities(entities []string) {
-	e.entities = &entities
+	e.entities = entities
 }

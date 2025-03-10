@@ -204,11 +204,11 @@ func (me *Value) GetEntityList() data.EntityList {
 	if me.getImpl() != nil {
 		if err := me.getImpl().UnmarshalTo(m); err != nil {
 			log.Error("Error unmarshalling entity list: %s", err)
-			return NewEntityList([]string{})
+			return NewEntityList()
 		}
 	}
 
-	return NewEntityList(m.Raw)
+	return NewEntityList(m.Raw...)
 }
 
 func (me *Value) SetInt(i interface{}) data.Value {
