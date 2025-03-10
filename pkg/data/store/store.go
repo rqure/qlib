@@ -29,22 +29,32 @@ func New(fn ...ConfigFn) data.Store {
 		f(store)
 	}
 
-	store.ModifiableEntityManager.SetFieldOperator(store.ModifiableFieldOperator)
-	store.ModifiableEntityManager.SetSchemaManager(store.ModifiableSchemaManager)
+	if store.ModifiableEntityManager != nil {
+		store.ModifiableEntityManager.SetFieldOperator(store.ModifiableFieldOperator)
+		store.ModifiableEntityManager.SetSchemaManager(store.ModifiableSchemaManager)
+	}
 
-	store.ModifiableNotificationPublisher.SetEntityManager(store.ModifiableEntityManager)
-	store.ModifiableNotificationPublisher.SetFieldOperator(store.ModifiableFieldOperator)
+	if store.ModifiableNotificationPublisher != nil {
+		store.ModifiableNotificationPublisher.SetEntityManager(store.ModifiableEntityManager)
+		store.ModifiableNotificationPublisher.SetFieldOperator(store.ModifiableFieldOperator)
+	}
 
-	store.ModifiableSchemaManager.SetEntityManager(store.ModifiableEntityManager)
-	store.ModifiableSchemaManager.SetFieldOperator(store.ModifiableFieldOperator)
+	if store.ModifiableSchemaManager != nil {
+		store.ModifiableSchemaManager.SetEntityManager(store.ModifiableEntityManager)
+		store.ModifiableSchemaManager.SetFieldOperator(store.ModifiableFieldOperator)
+	}
 
-	store.ModifiableFieldOperator.SetSchemaManager(store.ModifiableSchemaManager)
-	store.ModifiableFieldOperator.SetEntityManager(store.ModifiableEntityManager)
-	store.ModifiableFieldOperator.SetNotificationPublisher(store.ModifiableNotificationPublisher)
+	if store.ModifiableFieldOperator != nil {
+		store.ModifiableFieldOperator.SetSchemaManager(store.ModifiableSchemaManager)
+		store.ModifiableFieldOperator.SetEntityManager(store.ModifiableEntityManager)
+		store.ModifiableFieldOperator.SetNotificationPublisher(store.ModifiableNotificationPublisher)
+	}
 
-	store.ModifiableSnapshotManager.SetSchemaManager(store.ModifiableSchemaManager)
-	store.ModifiableSnapshotManager.SetEntityManager(store.ModifiableEntityManager)
-	store.ModifiableSnapshotManager.SetFieldOperator(store.ModifiableFieldOperator)
+	if store.ModifiableSnapshotManager != nil {
+		store.ModifiableSnapshotManager.SetSchemaManager(store.ModifiableSchemaManager)
+		store.ModifiableSnapshotManager.SetEntityManager(store.ModifiableEntityManager)
+		store.ModifiableSnapshotManager.SetFieldOperator(store.ModifiableFieldOperator)
+	}
 
 	return store
 }

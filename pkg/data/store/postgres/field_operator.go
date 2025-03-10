@@ -293,7 +293,9 @@ func (me *FieldOperator) Write(ctx context.Context, requests ...data.Request) {
 			}
 
 			// Handle notifications
-			me.notificationPublisher.PublishNotifications(ctx, req, oldReq)
+			if me.notificationPublisher != nil {
+				me.notificationPublisher.PublishNotifications(ctx, req, oldReq)
+			}
 			req.SetSuccessful(true)
 		}
 	})
