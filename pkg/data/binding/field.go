@@ -316,7 +316,7 @@ func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) data.Fiel
 		if impl, ok := store.(*MultiBinding); ok {
 			store = impl.GetImpl()
 		}
-		schema := store.GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+		schema := store.GetFieldSchema(ctx, entity.GetType(), me.req.GetFieldName())
 
 		if schema.IsChoice() {
 			choices := schema.AsChoiceFieldSchema().GetChoices()
@@ -525,7 +525,7 @@ func (me *Field) GetCompleteChoice(ctx context.Context) data.CompleteChoice {
 	if impl, ok := store.(*MultiBinding); ok {
 		store = impl.GetImpl()
 	}
-	schema := store.GetFieldSchema(ctx, me.req.GetFieldName(), entity.GetType())
+	schema := store.GetFieldSchema(ctx, entity.GetType(), me.req.GetFieldName())
 	if schema.IsChoice() {
 		choices := schema.AsChoiceFieldSchema().GetChoices()
 		choice.SetOptions(choices)

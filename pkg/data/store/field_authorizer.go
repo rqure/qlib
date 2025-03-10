@@ -35,7 +35,13 @@ func (me *fieldAuthorizer) IsAuthorized(ctx context.Context, entityId, fieldName
 		return false
 	}
 
-	fieldSchema := me.store.GetFieldSchema(ctx, entityId, fieldName)
+	entity := me.store.GetEntity(ctx, entityId)
+	if entity == nil {
+		log.Error("Entity not found for entityId (%s)", entityId)
+		return false
+	}
+
+	fieldSchema := me.store.GetFieldSchema(ctx, entity.GetType(), fieldName)
 	if fieldSchema == nil {
 		log.Error("Field schema not found for entityId (%s) and fieldName (%s)", entityId, fieldName)
 		return false

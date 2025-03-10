@@ -83,8 +83,8 @@ func (m *MultiBinding) GetEntitySchema(ctx context.Context, entityType string) d
 	return m.impl.GetEntitySchema(ctx, entityType)
 }
 
-func (m *MultiBinding) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
-	return m.impl.GetFieldSchema(ctx, fieldName, entityType)
+func (m *MultiBinding) GetFieldSchema(ctx context.Context, entityType, fieldName string) data.FieldSchema {
+	return m.impl.GetFieldSchema(ctx, entityType, fieldName)
 }
 
 func (m *MultiBinding) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {

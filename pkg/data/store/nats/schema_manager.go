@@ -79,19 +79,13 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema data.Entity
 	}
 }
 
-func (me *SchemaManager) GetFieldSchema(ctx context.Context, fieldName, entityType string) data.FieldSchema {
+func (me *SchemaManager) GetFieldSchema(ctx context.Context, entityType, fieldName string) data.FieldSchema {
 	schema := me.GetEntitySchema(ctx, entityType)
 	if schema == nil {
 		return nil
 	}
 
-	for _, field := range schema.GetFields() {
-		if field.GetFieldName() == fieldName {
-			return field
-		}
-	}
-
-	return nil
+	return schema.GetField(fieldName)
 }
 
 func (me *SchemaManager) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema data.FieldSchema) {

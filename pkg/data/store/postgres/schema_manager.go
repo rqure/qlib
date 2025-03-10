@@ -44,9 +44,7 @@ func (me *SchemaManager) GetFieldSchema(ctx context.Context, entityType, fieldNa
             WHERE entity_type = $1 AND field_name = $2
         `, entityType, fieldName).Scan(&schemaPb.Name, &schemaPb.Type, &schemaPb.ReadPermissions, &schemaPb.WritePermissions)
 		if err != nil {
-			if !errors.Is(err, pgx.ErrNoRows) {
-				log.Error("Failed to get field schema: %v", err)
-			}
+			log.Error("Failed to get field schema: %v", err)
 			schemaPb = nil
 		}
 	})
