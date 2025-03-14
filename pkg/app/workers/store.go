@@ -23,8 +23,8 @@ type Store struct {
 
 	notificationTokens []data.NotificationToken
 
-	sessionRefreshTimer    *time.Timer
-	connectionAttemptTimer *time.Timer
+	sessionRefreshTimer    *time.Ticker
+	connectionAttemptTimer *time.Ticker
 
 	handle app.Handle
 }
@@ -44,8 +44,8 @@ func NewStore(store data.Store) *Store {
 
 func (me *Store) Init(ctx context.Context) {
 	me.handle = app.GetHandle(ctx)
-	me.sessionRefreshTimer = time.NewTimer(5 * time.Second)
-	me.connectionAttemptTimer = time.NewTimer(5 * time.Second)
+	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
+	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
 
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
