@@ -845,8 +845,8 @@ message ApiHeader {
 
 ```go
 // Create and send a message to a specific client
-client.Write(&protobufs.ApiMessage{
-    Header: &protobufs.ApiHeader{
+client.Write(&qprotobufs.ApiMessage{
+    Header: &qprotobufs.ApiHeader{
         Id: uuid.New().String(),
         Timestamp: timestamppb.Now(),
     },
@@ -860,9 +860,9 @@ client.Write(&protobufs.ApiMessage{
 // Set up a message handler
 client.SetMessageHandler(func(c web.Client, m web.Message) {
     switch payload := m.GetPayload().(type) {
-    case *protobufs.ApiConfigCreateEntityRequest:
+    case *qprotobufs.ApiConfigCreateEntityRequest:
         // Handle entity creation request
-    case *protobufs.ApiRuntimeDatabaseRequest:
+    case *qprotobufs.ApiRuntimeDatabaseRequest:
         // Handle database operation request
     }
 })
@@ -890,16 +890,16 @@ Example database operation:
 
 ```go
 // Send a database read request
-client.Write(&protobufs.ApiMessage{
-    Header: &protobufs.ApiHeader{
+client.Write(&qprotobufs.ApiMessage{
+    Header: &qprotobufs.ApiHeader{
         Id: uuid.New().String(),
         Timestamp: timestamppb.Now(),
     },
     Payload: &anypb.Any{
         TypeUrl: "ApiRuntimeDatabaseRequest",
-        Value: &protobufs.ApiRuntimeDatabaseRequest{
-            RequestType: protobufs.ApiRuntimeDatabaseRequest_READ,
-            Requests: []*protobufs.DatabaseRequest{
+        Value: &qprotobufs.ApiRuntimeDatabaseRequest{
+            RequestType: qprotobufs.ApiRuntimeDatabaseRequest_READ,
+            Requests: []*qprotobufs.DatabaseRequest{
                 {
                     Id: entityId,
                     Field: "Status",

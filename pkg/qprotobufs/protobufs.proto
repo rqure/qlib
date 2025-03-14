@@ -1,0 +1,339 @@
+syntax = "proto3";
+
+option go_package = "qlib/qprotobufs";
+package qprotobufs;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+message ApiHeader {
+    string id = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    string accessToken = 3;
+}
+
+message ApiMessage {
+    ApiHeader header = 1;
+    google.protobuf.Any payload = 2;
+}
+
+message ApiConfigCreateEntityRequest {
+    string type = 1;
+    string name = 2;
+    string parentId = 3;
+}
+
+message ApiConfigCreateEntityResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    string id = 2;
+}
+
+message ApiConfigDeleteEntityRequest {
+    string id = 1;
+}
+
+message ApiConfigDeleteEntityResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+}
+
+message ApiConfigGetEntityTypesRequest {
+
+}
+
+message ApiConfigGetEntityTypesResponse {
+    repeated string types = 1;
+}
+
+message ApiConfigGetEntityRequest {
+    string id = 1;
+}
+
+message ApiConfigGetEntityResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    DatabaseEntity entity = 2;
+}
+
+message ApiConfigGetFieldSchemaRequest {
+    string field = 1;
+}
+
+message ApiConfigGetFieldSchemaResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    DatabaseFieldSchema schema = 2;
+}
+
+message ApiConfigGetEntitySchemaRequest {
+    string type = 1;
+}
+
+message ApiConfigGetEntitySchemaResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    DatabaseEntitySchema schema = 2;
+}
+
+message ApiConfigSetEntitySchemaRequest {
+    DatabaseEntitySchema schema = 1;
+}
+
+message ApiConfigSetEntitySchemaResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+}
+
+message ApiConfigCreateSnapshotRequest {
+}
+
+message ApiConfigCreateSnapshotResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    DatabaseSnapshot snapshot = 2;
+}
+
+message ApiConfigRestoreSnapshotRequest {
+    DatabaseSnapshot snapshot = 1;
+}
+
+message ApiConfigRestoreSnapshotResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+}
+
+message ApiConfigGetRootRequest {
+}
+
+message ApiConfigGetRootResponse {
+    string rootId = 1;
+}
+
+message ApiRuntimeDatabaseRequest {
+    enum RequestTypeEnum {
+        UNSPECIFIED = 0;
+        READ = 1;
+        WRITE = 2;
+    }
+
+    RequestTypeEnum requestType = 1;
+    repeated DatabaseRequest requests = 2;
+}
+
+message ApiRuntimeDatabaseResponse {
+    repeated DatabaseRequest response = 2;
+}
+
+message ApiRuntimeRegisterNotificationRequest {
+    repeated DatabaseNotificationConfig requests = 1;
+}
+
+message ApiRuntimeRegisterNotificationResponse {
+    repeated string tokens = 1;
+}
+
+message ApiRuntimeUnregisterNotificationRequest {
+    repeated string tokens = 1;
+}
+
+message ApiRuntimeUnregisterNotificationResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+}
+
+message ApiRuntimeGetDatabaseConnectionStatusRequest {
+}
+
+message ApiRuntimeGetDatabaseConnectionStatusResponse {
+    bool connected = 1;
+}
+
+message ApiRuntimeGetEntitiesRequest {
+    string entityType = 1;
+}
+
+message ApiRuntimeGetEntitiesResponse {
+    repeated DatabaseEntity entities = 1;
+}
+
+message ApiRuntimeFieldExistsRequest {
+    string fieldName = 1;
+    string entityType = 2;
+}
+
+message ApiRuntimeFieldExistsResponse {
+    bool exists = 1;
+}
+
+message ApiRuntimeEntityExistsRequest {
+    string entityId = 1;
+}
+
+message ApiRuntimeEntityExistsResponse {
+    bool exists = 1;
+}
+
+message DatabaseEntity {
+    string id = 1;
+    string type = 2;
+}
+
+message DatabaseField {
+    string id = 1;
+    string name = 2;
+    google.protobuf.Any value = 3;
+    google.protobuf.Timestamp writeTime = 4;
+    string writerId = 5;
+}
+
+message DatabaseNotificationConfig {
+    string id = 1;
+    string type = 2;
+    string field = 3;
+    repeated string contextFields = 4;
+    bool notifyOnChange = 5;
+    string serviceId = 6;
+    bool distributed = 7; 
+}
+
+message DatabaseNotification {
+    string token = 1;
+    DatabaseField current = 2;
+    DatabaseField previous = 3;
+    repeated DatabaseField context = 4;
+    string service_id = 5;
+}
+
+message DatabaseEntitySchema {
+    string name = 1;
+    repeated DatabaseFieldSchema fields = 2;
+}
+
+message DatabaseFieldSchema {
+    string name = 1;
+    string type = 2;
+    repeated string choice_options = 3;
+    repeated string read_permissions = 4;
+    repeated string write_permissions = 5;
+}
+
+message DatabaseRequest {
+    enum WriteOptEnum {
+        WRITE_NORMAL = 0;
+        WRITE_CHANGES = 1;
+    }
+
+    string id = 1;
+    string field = 2;
+    google.protobuf.Any value = 3;
+    Timestamp writeTime = 4;
+    String writerId = 5;
+    bool success = 6;
+    WriteOptEnum writeOpt = 7;
+}
+
+message DatabaseSnapshot {
+    repeated DatabaseEntity entities = 1;
+    repeated DatabaseField fields = 2;
+    repeated DatabaseEntitySchema entitySchemas = 3;
+}
+
+message Int {
+    int64 raw = 1;
+}
+
+message String {
+    string raw = 1;
+}
+
+message Timestamp {
+    google.protobuf.Timestamp raw = 1;
+}
+
+message Float {
+    double raw = 1;
+}
+
+message Bool {
+    bool raw = 1;
+}
+
+message EntityReference {
+    string raw = 1;
+}
+
+message BinaryFile {
+    string raw = 1;
+}
+
+message Choice {
+    int64 raw = 1; // selected choice index only
+}
+
+message EntityList {
+    repeated string raw = 1;
+}
+
+message LogMessage {
+    enum LogLevelEnum {
+        UNSPECIFIED = 0;
+        TRACE = 1;
+        DEBUG = 2;
+        INFO = 3;
+        WARN = 4;
+        ERROR = 5;
+        PANIC = 6;
+    }
+
+    string application = 1;
+    LogLevelEnum level = 2;
+    string message = 3;
+    google.protobuf.Timestamp timestamp = 4;
+}
+
