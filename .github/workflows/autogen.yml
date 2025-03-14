@@ -33,7 +33,7 @@ jobs:
       run: |
         go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
         npm install google-protobuf
-        protoc --go_out=. --go_opt=paths=source_relative pkg/qqprotobufs/protobufs.proto
+        protoc --go_out=. --go_opt=paths=source_relative pkg/qprotobufs/protobufs.proto
         git config --global user.name 'Git bot'
         git config --global user.email 'bot@noreply.github.com'
         git remote set-url origin https://x-access-token:${{ secrets.CI_TOKEN }}@github.com/${{ github.repository }}
