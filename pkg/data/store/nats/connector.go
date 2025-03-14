@@ -22,7 +22,7 @@ func NewConnector(core Core) data.Connector {
 		disconnected: signal.New(),
 	}
 
-	core.Connected().Connect(connector.onConnected)
+	core.ReadyToConsume().Connect(connector.onReadyToConsume)
 	core.Disconnected().Connect(connector.onDisconnected)
 
 	return connector
@@ -44,7 +44,7 @@ func (c *Connector) IsConnected(ctx context.Context) bool {
 	return c.core.IsConnected(ctx)
 }
 
-func (c *Connector) onConnected() {
+func (c *Connector) onReadyToConsume() {
 	c.connected.Emit()
 }
 

@@ -36,6 +36,7 @@ type Core interface {
 
 	Connected() signalslots.Signal
 	Disconnected() signalslots.Signal
+	ReadyToConsume() signalslots.Signal
 }
 
 type coreInternal struct {
@@ -47,17 +48,23 @@ type coreInternal struct {
 
 	ap data.AuthProvider
 
-	connected    signalslots.Signal
-	disconnected signalslots.Signal
+	connected      signalslots.Signal
+	disconnected   signalslots.Signal
+	readyToConsume signalslots.Signal
 }
 
 func NewCore(config Config) Core {
 	return &coreInternal{
-		config:       config,
-		kg:           NewKeyGenerator(),
-		connected:    signal.New(),
-		disconnected: signal.New(),
+		config:         config,
+		kg:             NewKeyGenerator(),
+		connected:      signal.New(),
+		disconnected:   signal.New(),
+		readyToConsume: signal.New(),
 	}
+}
+
+func (me *coreInternal) ReadyToConsume() signalslots.Signal {
+	return me.readyToConsume
 }
 
 func (c *coreInternal) SetAuthProvider(sp data.AuthProvider) {
