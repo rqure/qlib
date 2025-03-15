@@ -20,7 +20,7 @@ type Store interface {
 	SchemaUpdated() qss.Signal
 
 	OnReady()
-	OnUnready()
+	OnNotReady()
 }
 
 type storeWorker struct {
@@ -187,7 +187,7 @@ func (me *storeWorker) OnReady() {
 			Execute(ctx)
 
 		for _, client := range clients {
-			logLevel := client.GetField("LogLevel").GetInt()
+			logLevel := client.GetField("LogLevel").GetChoice().Index() + 1
 			qlog.SetLevel(qlog.Level(logLevel))
 
 			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
@@ -199,7 +199,7 @@ func (me *storeWorker) OnReady() {
 				qnotify.NewCallback(me.onLogLevelChanged),
 			))
 
-			qlibLogLevel := client.GetField("QLibLogLevel").GetInt()
+			qlibLogLevel := client.GetField("QLibLogLevel").GetChoice().Index() + 1
 			qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
 			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
@@ -214,6 +214,6 @@ func (me *storeWorker) OnReady() {
 	})
 }
 
-func (me *storeWorker) OnUnready() {
+func (me *storeWorker) OnNotReady() {
 
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
@@ -51,7 +52,7 @@ func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 	s.Disconnected().Connect(c.OnStoreDisconnected)
 
 	r.BecameReady().Connect(s.OnReady)
-	r.BecameUnready().Connect(s.OnUnready)
+	r.BecameNotReady().Connect(s.OnNotReady)
 
 	return c
 }
@@ -101,12 +102,12 @@ type Readiness interface {
 	GetState() ReadinessState
 	IsReady() bool
 	BecameReady() qss.Signal
-	BecameUnready() qss.Signal
+	BecameNotReady() qss.Signal
 }
 
 type readinessWorker struct {
-	becameReady   qss.Signal
-	becameUnready qss.Signal
+	becameReady    qss.Signal
+	becameNotReady qss.Signal
 
 	criterias []ReadinessCriteria
 	state     ReadinessState
@@ -114,8 +115,8 @@ type readinessWorker struct {
 
 func NewReadiness() Readiness {
 	w := &readinessWorker{
-		becameReady:   qsignal.New(),
-		becameUnready: qsignal.New(),
+		becameReady:    qsignal.New(),
+		becameNotReady: qsignal.New(),
 
 		criterias: []ReadinessCriteria{},
 		state:     NotReady,
@@ -128,8 +129,8 @@ func (me *readinessWorker) BecameReady() qss.Signal {
 	return me.becameReady
 }
 
-func (me *readinessWorker) BecameUnready() qss.Signal {
-	return me.becameUnready
+func (me *readinessWorker) BecameNotReady() qss.Signal {
+	return me.becameNotReady
 }
 
 func (me *readinessWorker) AddCriteria(c ReadinessCriteria) {
@@ -183,8 +184,10 @@ func (me *readinessWorker) setState(state ReadinessState) {
 	me.state = state
 
 	if state == Ready {
+		qlog.Info("Application status changed to [READY]")
 		me.becameReady.Emit()
 	} else {
-		me.becameUnready.Emit()
+		qlog.Info("Application status changed to [NOT READY]")
+		me.becameNotReady.Emit()
 	}
 }
