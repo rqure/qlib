@@ -42,7 +42,7 @@ func (me *StoreConnectedCriteria) OnStoreDisconnected() {
 	me.isConnected = false
 }
 
-func NewStoreConnectedCriteria(s Store) ReadinessCriteria {
+func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 	c := &StoreConnectedCriteria{
 		isConnected: false,
 	}
@@ -50,23 +50,32 @@ func NewStoreConnectedCriteria(s Store) ReadinessCriteria {
 	s.Connected().Connect(c.OnStoreConnected)
 	s.Disconnected().Connect(c.OnStoreDisconnected)
 
+	r.BecameReady().Connect(s.OnReady)
+	r.BecameUnready().Connect(s.OnUnready)
+
 	return c
 }
 
-type SchemaValidityCriteria struct {
+type SchemaValidityCriteria interface {
+	ReadinessCriteria
+	RegisterEntityFields(entityType string, fields ...string) SchemaValidityCriteria
+}
+
+type schemaValidityCriteria struct {
 	isValid   bool
 	validator qdata.EntityFieldValidator
 }
 
-func (me *SchemaValidityCriteria) IsReady() bool {
+func (me *schemaValidityCriteria) IsReady() bool {
 	return me.isValid
 }
 
-func (me *SchemaValidityCriteria) RegisterEntityFields(entityType string, fields ...string) {
+func (me *schemaValidityCriteria) RegisterEntityFields(entityType string, fields ...string) SchemaValidityCriteria {
 	me.validator.RegisterEntityFields(entityType, fields...)
+	return me
 }
 
-func (me *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
+func (me *schemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
 	me.isValid = true
 
 	if err := me.validator.ValidateFields(ctx); err != nil {
@@ -74,8 +83,8 @@ func (me *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
 	}
 }
 
-func NewSchemaValidityCriteria(storeWorker Store, store qdata.Store) ReadinessCriteria {
-	c := &SchemaValidityCriteria{
+func NewSchemaValidityCriteria(storeWorker Store, store qdata.Store) SchemaValidityCriteria {
+	c := &schemaValidityCriteria{
 		isValid:   false,
 		validator: qdata.NewEntityFieldValidator(store),
 	}

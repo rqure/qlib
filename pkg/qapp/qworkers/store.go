@@ -18,6 +18,9 @@ type Store interface {
 	Connected() qss.Signal
 	Disconnected() qss.Signal
 	SchemaUpdated() qss.Signal
+
+	OnReady()
+	OnUnready()
 }
 
 type storeWorker struct {
@@ -119,6 +122,47 @@ func (me *storeWorker) onConnected() {
 
 		qlog.Info("Connection status changed to [CONNECTED]")
 
+		me.connected.Emit(ctx)
+		me.schemaUpdated.Emit(ctx)
+	})
+}
+
+func (me *storeWorker) onDisconnected(err error) {
+	me.handle.DoInMainThread(func(ctx context.Context) {
+		me.isConnected = false
+
+		qlog.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
+
+		me.disconnected.Emit()
+	})
+}
+
+func (me *storeWorker) IsConnected() bool {
+	return me.isConnected
+}
+
+func (me *storeWorker) onLogLevelChanged(ctx context.Context, n qdata.Notification) {
+	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
+	qlog.SetLevel(level)
+
+	qlog.Info("Log level changed to [%s]", level.String())
+}
+
+func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notification) {
+	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
+	qlog.SetLibLevel(level)
+
+	qlog.Info("QLib log level changed to [%s]", level.String())
+}
+
+func (me *storeWorker) onConsumed(invokeCallbacksFn func(context.Context)) {
+	me.handle.DoInMainThread(func(ctx context.Context) {
+		invokeCallbacksFn(ctx)
+	})
+}
+
+func (me *storeWorker) OnReady() {
+	me.handle.DoInMainThread(func(ctx context.Context) {
 		for _, token := range me.notificationTokens {
 			token.Unbind(ctx)
 		}
@@ -167,43 +211,9 @@ func (me *storeWorker) onConnected() {
 				qnotify.NewCallback(me.onQLibLogLevelChanged),
 			))
 		}
-
-		me.connected.Emit(ctx)
-
-		me.schemaUpdated.Emit(ctx)
 	})
 }
 
-func (me *storeWorker) onDisconnected(err error) {
-	me.handle.DoInMainThread(func(ctx context.Context) {
-		me.isConnected = false
+func (me *storeWorker) OnUnready() {
 
-		qlog.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
-
-		me.disconnected.Emit()
-	})
-}
-
-func (me *storeWorker) IsConnected() bool {
-	return me.isConnected
-}
-
-func (me *storeWorker) onLogLevelChanged(ctx context.Context, n qdata.Notification) {
-	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
-	qlog.SetLevel(level)
-
-	qlog.Info("Log level changed to [%s]", level.String())
-}
-
-func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notification) {
-	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
-	qlog.SetLibLevel(level)
-
-	qlog.Info("QLib log level changed to [%s]", level.String())
-}
-
-func (me *storeWorker) onConsumed(invokeCallbacksFn func(context.Context)) {
-	me.handle.DoInMainThread(func(ctx context.Context) {
-		invokeCallbacksFn(ctx)
-	})
 }
