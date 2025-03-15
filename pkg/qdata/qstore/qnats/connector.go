@@ -22,7 +22,7 @@ func NewConnector(core Core) qdata.Connector {
 		disconnected: qsignal.New(),
 	}
 
-	core.ReadyToConsume().Connect(connector.onReadyToConsume)
+	core.Connected().Connect(connector.onConnected)
 	core.Disconnected().Connect(connector.onDisconnected)
 
 	return connector
@@ -44,7 +44,7 @@ func (c *Connector) IsConnected(ctx context.Context) bool {
 	return c.core.IsConnected(ctx)
 }
 
-func (c *Connector) onReadyToConsume() {
+func (c *Connector) onConnected() {
 	c.connected.Emit()
 }
 

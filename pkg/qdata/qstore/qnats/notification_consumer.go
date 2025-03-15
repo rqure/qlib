@@ -54,8 +54,6 @@ func (me *NotificationConsumer) onConnected() {
 	ctx, cancel := context.WithCancel(context.Background())
 	me.cancelKeepAlive = cancel
 	go me.keepAliveTask(ctx)
-
-	me.core.ReadyToConsume().Emit()
 }
 
 func (me *NotificationConsumer) onDisconnected(err error) {

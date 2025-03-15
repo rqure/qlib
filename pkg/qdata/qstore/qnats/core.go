@@ -36,7 +36,7 @@ type Core interface {
 
 	Connected() qss.Signal
 	Disconnected() qss.Signal
-	ReadyToConsume() qss.Signal
+	BeforeConnected() qss.Signal
 }
 
 type coreInternal struct {
@@ -48,23 +48,23 @@ type coreInternal struct {
 
 	ap qdata.AuthProvider
 
-	connected      qss.Signal
-	disconnected   qss.Signal
-	readyToConsume qss.Signal
+	beforeConnected qss.Signal
+	connected       qss.Signal
+	disconnected    qss.Signal
 }
 
 func NewCore(config Config) Core {
 	return &coreInternal{
-		config:         config,
-		kg:             NewKeyGenerator(),
-		connected:      qsignal.New(),
-		disconnected:   qsignal.New(),
-		readyToConsume: qsignal.New(),
+		config:          config,
+		kg:              NewKeyGenerator(),
+		connected:       qsignal.New(),
+		disconnected:    qsignal.New(),
+		beforeConnected: qsignal.New(),
 	}
 }
 
-func (me *coreInternal) ReadyToConsume() qss.Signal {
-	return me.readyToConsume
+func (me *coreInternal) BeforeConnected() qss.Signal {
+	return me.beforeConnected
 }
 
 func (c *coreInternal) SetAuthProvider(sp qdata.AuthProvider) {
@@ -77,11 +77,12 @@ func (c *coreInternal) Connect(ctx context.Context) {
 	opts := []natsgo.Option{
 		natsgo.MaxReconnects(-1),
 		natsgo.ConnectHandler(func(nc *natsgo.Conn) {
+			c.beforeConnected.Emit()
 			c.connected.Emit()
 		}),
 		natsgo.ReconnectHandler(func(nc *natsgo.Conn) {
 			c.cleanupSubscriptions()
-
+			c.beforeConnected.Emit()
 			c.connected.Emit()
 		}),
 		natsgo.DisconnectErrHandler(func(nc *natsgo.Conn, err error) {
