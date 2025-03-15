@@ -2,15 +2,95 @@
 
 A Go library for building event-driven, worker-based applications with a hierarchical object database.
 
+## Core Packages
+
+### qapp
+Base application framework providing:
+- Worker lifecycle management
+- Signal handling
+- Environment configuration
+- Application instance identification
+
+### qauth
+Authentication and authorization:
+- User management
+- Session handling
+- Permission control
+- Identity provider integration
+- OAuth/OIDC support
+
+### qdata
+Data management and persistence:
+- Entity management
+- Schema validation
+- Field operations
+- Real-time notifications
+- Snapshot management
+
+### qss
+Signal/slot implementation:
+- Type-safe callbacks
+- Disconnectable signals
+- Thread-safe emission
+- Zero allocation design
+
 ## Overview
 
 qlib provides a framework for building applications with the following key features:
 
 - Single-threaded application model with worker-based architecture
 - Hierarchical object database with real-time notifications
-- Built-in leadership election and high availability support
 - Event-driven communication between workers
-- WebSocket-based communication using Protocol Buffers
+
+## Logging System
+
+qlib uses a structured logging system with separate application and library log levels.
+
+### Log Levels
+
+```go
+const (
+    UNSPECIFIED Level = iota
+    TRACE
+    DEBUG
+    INFO
+    WARN
+    ERROR
+    PANIC
+)
+```
+
+### Configuring Log Levels
+
+```go
+// Set application log level
+qlog.SetLevel(qlog.INFO)
+
+// Set library log level (for qlib internal logs)
+qlog.SetLibLevel(qlog.WARN)
+
+// Get current levels
+currentLevel := qlog.GetLevel()
+currentLibLevel := qlog.GetLibLevel()
+```
+
+### Using the Logger
+
+```go
+// Basic logging
+qlog.Info("Server started on port %d", port)
+qlog.Debug("Processing request: %v", request)
+qlog.Error("Failed to connect: %v", err)
+
+// With stack traces
+// ERROR and PANIC levels automatically include stack traces
+qlog.Panic("Critical system failure: %v", err)
+```
+
+Log output format:
+```
+2024-01-20T15:04:05.123Z | INFO | myapp/server.go:42 | MyWorker.Init | Server started on port 8080
+```
 
 ## Core Concepts
 
@@ -19,7 +99,7 @@ qlib provides a framework for building applications with the following key featu
 Applications in qlib are built around a main thread and a set of workers. Create a new application:
 
 ```go
-app := app.NewApplication("myapp")
+app := qapp.NewApplication("myapp")
 ```
 
 ### Workers
@@ -34,10 +114,10 @@ Example worker:
 
 ```go
 type MyWorker struct {
-    store data.Store
+    store qdata.Store
 }
 
-func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
+func (w *MyWorker) Init(ctx context.Context, h qapp.Handle) {
     // Initialize worker
 }
 
@@ -84,10 +164,10 @@ Workers can subscribe to field changes:
 ```go
 store.Notify(
     ctx,
-    notification.NewConfig().
+    qdata.NewConfig().
         SetEntityType("Service").
         SetFieldName("Status"),
-    notification.NewCallback(func(ctx context.Context, n data.Notification) {
+    qdata.NewCallback(func(ctx context.Context, n qdata.Notification) {
         // Handle field change
     }),
 )
@@ -99,33 +179,23 @@ The Store interface is the core component for data persistence and real-time upd
 
 ### Store Configuration
 
-The store supports multiple backend configurations that can be mixed and matched:
+The store supports multiple backend configurations:
 
 ```go
-// Create store with web backend
-store := store.New(
-    store.CommunicateOverWeb("localhost:8080"),
-)
-
-// Create store with Redis backend
-store := store.New(
-    store.CommunicateOverRedis("redis:6379", "password"),
-)
-
 // Create store with Postgres backend
-store := store.New(
-    store.CommunicateOverPostgres("postgres://user:pass@localhost:5432/db"),
+store := qdata.New(
+    qdata.CommunicateOverPostgres("postgres://user:pass@localhost:5432/db"),
 )
 
 // Create store with NATS backend
-store := store.New(
-    store.CommunicateOverNats("nats://localhost:4222"),
+store := qdata.New(
+    qdata.CommunicateOverNats("nats://localhost:4222"),
 )
 
 // Mix multiple backends
-store := store.New(
-    store.PersistOverPostgres("postgres://user:pass@localhost:5432/db"),
-    store.NotifyOverNats("nats://localhost:4222"),
+store := qdata.New(
+    qdata.PersistOverPostgres("postgres://user:pass@localhost:5432/db"),
+    qdata.NotifyOverNats("nats://localhost:4222"),
 )
 ```
 
@@ -196,7 +266,6 @@ Fields store the actual data values. The store supports various field types:
 - BinaryFile
 - EntityReference (links to other entities)
 - Timestamp
-- Transformation
 - Choice (selection from predefined options)
 - EntityList (collection of entity references)
 
@@ -205,15 +274,15 @@ Reading and writing fields:
 ```go
 // Writing fields
 store.Write(ctx, 
-    request.New().
+    qdata.NewRequest().
         SetEntityId(deviceId).
         SetFieldName("Status").
-        SetValue(value.NewString("ON")),
+        SetValue(qdata.NewString("ON")),
 )
 
 // Reading fields
 store.Read(ctx,
-    request.New().
+    qdata.NewRequest().
         SetEntityId(deviceId).
         SetFieldName("Status"),
 )
@@ -225,7 +294,7 @@ Bindings provide a more object-oriented way to interact with entities and fields
 
 ```go
 // Get a multi-binding for batch operations
-multi := binding.NewMulti(store)
+multi := qdata.NewMulti(store)
 
 // Get an entity binding
 device := multi.GetEntityById(ctx, deviceId)
@@ -246,7 +315,7 @@ The Query interface provides SQL-like operations for finding entities:
 
 ```go
 // Find all active devices
-devices := query.New(store).
+devices := qdata.NewQuery(store).
     Select("Status", "Name").
     From("Device").
     Where("Status").Equals("ON").
@@ -268,11 +337,11 @@ The notification system allows workers to react to field changes:
 // Subscribe to field changes
 token := store.Notify(
     ctx,
-    notification.NewConfig().
+    qdata.NewConfig().
         SetEntityType("Device").
         SetFieldName("Status").
         SetContextFields("Name", "Location"),
-    notification.NewCallback(func(ctx context.Context, n data.Notification) {
+    qdata.NewCallback(func(ctx context.Context, n qdata.Notification) {
         // Access changed value
         newValue := n.GetCurrent().GetValue().GetString()
         oldValue := n.GetPrevious().GetValue().GetString()
@@ -296,7 +365,7 @@ Schemas define the structure of entities and their fields:
 
 ```go
 // Define a schema
-schema := schema.New("Device").
+schema := qdata.NewSchema("Device").
     AddField("Status", "string").
     AddField("Name", "string").
     AddField("Location", "string").
@@ -320,7 +389,7 @@ While the store operations are atomic by default, you can use MultiBinding for t
 
 ```go
 // Start a multi-binding session
-multi := binding.NewMulti(store)
+multi := qdata.NewMulti(store)
 
 // Perform multiple operations
 deviceEntity := multi.GetEntityById(ctx, deviceId)
@@ -365,13 +434,10 @@ The EntityFieldValidator ensures data integrity by validating required fields:
 
 ```go
 // Create a validator
-validator := data.NewEntityFieldValidator(store)
+validator := qdata.NewEntityFieldValidator(store)
 
 // Register required fields for entity types
 validator.RegisterEntityFields("Service",
-    "Leader",
-    "Candidates",
-    "HeartbeatTrigger",
     "ApplicationName",
     "LogLevel",
 )
@@ -382,51 +448,51 @@ if err := validator.ValidateFields(ctx); err != nil {
 }
 ```
 
-### Best Practices for Store Usage
+## Best Practices
 
-1. **Entity Organization**
-   - Design your entity hierarchy to reflect your domain model
-   - Use meaningful entity types and field names
-   - Keep entity relationships logical and maintight
+### Entity Organization
+- Design your entity hierarchy to reflect your domain model
+- Use meaningful entity types and field names
+- Keep entity relationships logical and maintainable
 
-2. **Performance Optimization**
-   - Use batch operations with MultiBinding when possible
-   - Subscribe to specific fields rather than entire entities
-   - Include relevant context fields in notifications to avoid additional queries
+### Performance Optimization
+- Use batch operations with MultiBinding when possible
+- Subscribe to specific fields rather than entire entities
+- Include relevant context fields in notifications to avoid additional queries
 
-3. **Error Handling**
-   - Always check connection status before operations
-   - Implement retry logic for transient failures
-   - Use proper error handling in notification callbacks
+### Error Handling
+- Always check connection status before operations
+- Implement retry logic for transient failures
+- Use proper error handling in notification callbacks
 
-4. **Schema Management**
-   - Define schemas early in application initialization
-   - Validate required fields during startup
-   - Consider schema versioning for application updates
+### Schema Management
+- Define schemas early in application initialization
+- Validate required fields during startup
+- Consider schema versioning for application updates
 
-5. **Memory Management**
-   - Unbind notification tokens when no longer needed
-   - Clean up entity references in MultiBinding sessions
-   - Use snapshots judiciously as they hold entire database state
+### Memory Management
+- Unbind notification tokens when no longer needed
+- Clean up entity references in MultiBinding sessions
+- Use snapshots judiciously as they hold entire database state
 
-### Naming Conventions
+## Naming Conventions
 
 Entity and field names in qlib follow strict naming conventions:
 
-1. **Pascal Case**
-   - Entity types must use PascalCase (e.g., `DeviceController`, `LightSwitch`)
-   - Field names must use PascalCase (e.g., `CurrentState`, `LastUpdateTime`)
-   - This applies to both schema definitions and runtime operations
+### Pascal Case
+- Entity types must use PascalCase (e.g., `DeviceController`, `LightSwitch`)
+- Field names must use PascalCase (e.g., `CurrentState`, `LastUpdateTime`)
+- This applies to both schema definitions and runtime operations
 
 ```go
 // Correct naming
-schema := schema.New("LightController").
+schema := qdata.NewSchema("LightController").
     AddField("PowerState", "string").
     AddField("BrightnessLevel", "int").
     AddField("LastStateChange", "timestamp")
 
 // Incorrect naming - will cause validation errors
-schema := schema.New("light_controller").
+schema := qdata.NewSchema("light_controller").
     AddField("power_state", "string").
     AddField("brightnessLevel", "int")
 ```
@@ -444,16 +510,16 @@ qlib supports referencing fields relative to an entity using the `->` delimiter.
 
 // Examples:
 store.Write(ctx,
-    request.New().
+    qdata.NewRequest().
         SetEntityId(deviceId).
         SetFieldName("Controller->Status").  // References Status field in Controller entity
-        SetValue(value.NewString("ON")),
+        SetValue(qdata.NewString("ON")),
 )
 
 // Multiple levels of indirection
 store.Notify(
     ctx,
-    notification.NewConfig().
+    qdata.NewConfig().
         SetEntityType("Device").
         SetFieldName("Zone->Building->Status").  // References Building's Status via Zone
         SetContextFields(
@@ -461,7 +527,7 @@ store.Notify(
             "Parent->Name",           // Get parent entity's Name
             "Zone->BuildingName",     // Get BuildingName from Zone entity
         ),
-    notification.NewCallback(func(ctx context.Context, n data.Notification) {
+    qdata.NewCallback(func(ctx context.Context, n qdata.Notification) {
         deviceName := n.GetContext(0).GetValue().GetString()
         parentName := n.GetContext(1).GetValue().GetString()
         buildingName := n.GetContext(2).GetValue().GetString()
@@ -469,12 +535,12 @@ store.Notify(
 )
 
 // Using EntityReference fields
-schema := schema.New("Device").
+schema := qdata.NewSchema("Device").
     AddField("Controller", "entityref").     // References another entity
     AddField("Zone", "entityref")
 
 // Query using indirection
-devices := query.New(store).
+devices := qdata.NewQuery(store).
     Select(
         "Name",
         "Controller->Status",         // Status from referenced Controller
@@ -485,7 +551,8 @@ devices := query.New(store).
     Execute(ctx)
 ```
 
-Common Use Cases for Indirection:
+#### Common Use Cases for Indirection
+
 1. **Hierarchical Data Access**
    ```go
    // Access parent data
@@ -513,7 +580,7 @@ Common Use Cases for Indirection:
 
 4. **Notification Context**
    ```go
-   notification.NewConfig().
+   qdata.NewConfig().
        SetEntityType("Device").
        SetFieldName("Status").
        SetContextFields(
@@ -524,7 +591,8 @@ Common Use Cases for Indirection:
        )
    ```
 
-Best Practices for Indirection:
+#### Best Practices for Indirection
+
 1. **Depth Management**
    - Keep indirection chains reasonably short
    - Consider creating direct references for frequently used deep paths
@@ -540,9 +608,11 @@ Best Practices for Indirection:
    - Handle missing intermediate entities gracefully
    - Log invalid indirection paths for debugging
 
-### Field Value Validation
+## Field Value Validation
 
 qlib enforces strict type validation for field values. Each field type has specific validation rules:
+
+### Type-Specific Validation
 
 1. **Int**
    ```go
@@ -607,19 +677,12 @@ qlib enforces strict type validation for field values. Each field type has speci
    ```go
    // Valid binary file assignments
    content := []byte{...}
-   encoded := data.FileEncode(content)
+   encoded := qdata.FileEncode(content)
    field.WriteBinaryFile(ctx, encoded)
    
    // Reading binary files
    encoded := field.ReadBinaryFile(ctx)
-   content := data.FileDecode(encoded)
-   ```
-
-8. **Transformation**
-   ```go
-   // Transformation fields contain scripts/expressions
-   field.WriteTransformation(ctx, "value * 2")
-   field.WriteTransformation(ctx, "Parent->Value + 10")
+   content := qdata.FileDecode(encoded)
    ```
 
 ### Working with Choice Fields
@@ -628,7 +691,7 @@ Choice fields represent a selected option from a predefined list of choices:
 
 ```go
 // Define schema with choice field
-schema := schema.New("Device").
+schema := qdata.NewSchema("Device").
     AddField("Status", "string").
     AddField("OperatingMode", "choice")
 
@@ -657,7 +720,7 @@ EntityList fields store collections of entity references:
 
 ```go
 // Define schema with entitylist field
-schema := schema.New("User").
+schema := qdata.NewSchema("User").
     AddField("Name", "string").
     AddField("Devices", "entitylist")
 
@@ -677,7 +740,7 @@ user.GetField("Devices").RemoveEntityFromList(ctx, "device-2")
 hasDevice := user.GetField("Devices").EntityListContains(ctx, "device-1")
 ```
 
-Best Practices for Field Values:
+### Best Practices for Field Values
 
 1. **Type Safety**
    ```go
@@ -707,7 +770,7 @@ Best Practices for Field Values:
 4. **Batch Updates**
    ```go
    // Use MultiBinding for multiple value updates
-   multi := binding.NewMulti(store)
+   multi := qdata.NewMulti(store)
    entity := multi.GetEntityById(ctx, entityId)
    
    entity.GetField("IntValue").WriteInt(ctx, 42)
@@ -731,7 +794,7 @@ Best Practices for Field Values:
 6. **Value Validation in Schema**
    ```go
    // Define field types in schema
-   schema := schema.New("Device").
+   schema := qdata.NewSchema("Device").
        AddField("Status", "string").
        AddField("Temperature", "float").
        AddField("IsActive", "bool").
@@ -749,14 +812,14 @@ The Readiness worker manages the application's ready state:
 
 ```go
 // Create readiness worker
-readinessWorker := workers.NewReadiness()
+readinessWorker := qapp.NewReadiness()
 
 // Add readiness criteria
-readinessWorker.AddCriteria(workers.NewStoreConnectedCriteria(store))
-readinessWorker.AddCriteria(workers.NewSchemaValidityCriteria(store))
+readinessWorker.AddCriteria(qapp.NewStoreConnectedCriteria(store))
+readinessWorker.AddCriteria(qapp.NewSchemaValidityCriteria(store))
 
 // Add custom criteria
-readinessWorker.AddCriteria(workers.ReadinessCriteriaFunc(func() bool {
+readinessWorker.AddCriteria(qapp.ReadinessCriteriaFunc(func() bool {
     return myCondition // e.g., database is connected
 }))
 
@@ -802,7 +865,7 @@ type MyWorker struct {
     isReady bool
 }
 
-func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
+func (w *MyWorker) Init(ctx context.Context, h qapp.Handle) {
     readiness.BecameReady.Connect(func() {
         w.isReady = true
         // Start operations
@@ -822,268 +885,6 @@ func (w *MyWorker) DoWork(ctx context.Context) {
 }
 ```
 
-## Web Communication
-
-The library uses Protocol Buffers for structured web communication over WebSocket connections. Messages follow a standard format:
-
-```protobuf
-message ApiMessage {
-    ApiHeader header = 1;
-    google.protobuf.Any payload = 2;
-}
-
-message ApiHeader {
-    string id = 1;
-    google.protobuf.Timestamp timestamp = 2;
-    AuthenticationStatusEnum authenticationStatus = 3;
-}
-```
-
-### Working with WebMessages
-
-1. **Sending Messages**
-
-```go
-// Create and send a message to a specific client
-client.Write(&qprotobufs.ApiMessage{
-    Header: &qprotobufs.ApiHeader{
-        Id: uuid.New().String(),
-        Timestamp: timestamppb.Now(),
-    },
-    Payload: myPayload, // any proto message
-})
-```
-
-2. **Handling Messages**
-
-```go
-// Set up a message handler
-client.SetMessageHandler(func(c web.Client, m web.Message) {
-    switch payload := m.GetPayload().(type) {
-    case *qprotobufs.ApiConfigCreateEntityRequest:
-        // Handle entity creation request
-    case *qprotobufs.ApiRuntimeDatabaseRequest:
-        // Handle database operation request
-    }
-})
-```
-
-### Common Message Types
-
-- Database Operations:
-  - `ApiRuntimeDatabaseRequest`: Read/write field values
-  - `ApiConfigCreateEntityRequest`: Create new entities
-  - `ApiConfigDeleteEntityRequest`: Delete entities
-  - `ApiConfigGetEntityRequest`: Retrieve entity details
-
-- Schema Operations:
-  - `ApiConfigGetEntitySchemaRequest`: Get entity type schema
-  - `ApiConfigSetEntitySchemaRequest`: Update entity schema
-  - `ApiConfigGetEntityTypesRequest`: List available entity types
-
-- Notifications:
-  - `ApiRuntimeRegisterNotificationRequest`: Subscribe to changes
-  - `ApiRuntimeGetNotificationsRequest`: Get pending notifications
-  - `ApiRuntimeUnregisterNotificationRequest`: Remove subscriptions
-
-Example database operation:
-
-```go
-// Send a database read request
-client.Write(&qprotobufs.ApiMessage{
-    Header: &qprotobufs.ApiHeader{
-        Id: uuid.New().String(),
-        Timestamp: timestamppb.Now(),
-    },
-    Payload: &anypb.Any{
-        TypeUrl: "ApiRuntimeDatabaseRequest",
-        Value: &qprotobufs.ApiRuntimeDatabaseRequest{
-            RequestType: qprotobufs.ApiRuntimeDatabaseRequest_READ,
-            Requests: []*qprotobufs.DatabaseRequest{
-                {
-                    Id: entityId,
-                    Field: "Status",
-                },
-            },
-        },
-    },
-})
-```
-
-## Worker Communication Patterns
-
-Workers in qlib can communicate with each other through the Store using several patterns:
-
-### Direct Field Communication
-
-Workers can communicate by writing to and monitoring specific fields:
-
-```go
-// Worker A: Sender
-type SenderWorker struct {
-    store data.Store
-}
-
-func (w *SenderWorker) DoWork(ctx context.Context) {
-    w.store.Write(ctx,
-        request.New().
-            SetEntityId("command-entity").
-            SetFieldName("Command").
-            SetValue(value.NewString("start_operation")),
-    )
-}
-
-// Worker B: Receiver
-type ReceiverWorker struct {
-    store data.Store
-}
-
-func (w *ReceiverWorker) Init(ctx context.Context, h app.Handle) {
-    w.store.Notify(
-        ctx,
-        notification.NewConfig().
-            SetEntityType("command-entity").
-            SetFieldName("Command"),
-        notification.NewCallback(w.onCommand),
-    )
-}
-
-func (w *ReceiverWorker) onCommand(ctx context.Context, n data.Notification) {
-    command := n.GetCurrent().GetValue().GetString()
-    if command == "start_operation" {
-        // Handle command
-    }
-}
-```
-
-### Request-Response Pattern
-
-For request-response style communication:
-
-```go
-// Request entity schema
-schema := schema.New("Request").
-    AddField("Status", "string").     // "pending", "processing", "completed"
-    AddField("Data", "string").       // Request data
-    AddField("Response", "string").   // Response data
-    AddField("Error", "string")       // Error message if any
-
-// Worker A: Client
-func (w *ClientWorker) makeRequest(ctx context.Context, data string) {
-    // Create request entity
-    w.store.CreateEntity(ctx, "Request", parentId, "request-1")
-    
-    // Write request data
-    w.store.Write(ctx,
-        request.New().
-            SetEntityId("request-1").
-            SetFieldName("Data").
-            SetValue(value.NewString(data)),
-        request.New().
-            SetEntityId("request-1").
-            SetFieldName("Status").
-            SetValue(value.NewString("pending")),
-    )
-    
-    // Monitor for response
-    w.store.Notify(
-        ctx,
-        notification.NewConfig().
-            SetEntityId("request-1").
-            SetFieldName("Status").
-            SetContextFields("Response", "Error"),
-        notification.NewCallback(w.onResponse),
-    )
-}
-
-// Worker B: Server
-func (w *ServerWorker) Init(ctx context.Context, h app.Handle) {
-    w.store.Notify(
-        ctx,
-        notification.NewConfig().
-            SetEntityType("Request").
-            SetFieldName("Status"),
-        notification.NewCallback(w.onRequest),
-    )
-}
-
-func (w *ServerWorker) onRequest(ctx context.Context, n data.Notification) {
-    status := n.GetCurrent().GetValue().GetString()
-    if status != "pending" {
-        return
-    }
-    
-    requestId := n.GetCurrent().GetEntityId()
-    requestEntity := w.store.GetEntity(ctx, requestId)
-    
-    // Process request and write response
-    w.store.Write(ctx,
-        request.New().
-            SetEntityId(requestId).
-            SetFieldName("Response").
-            SetValue(value.NewString("result")),
-        request.New().
-            SetEntityId(requestId).
-            SetFieldName("Status").
-            SetValue(value.NewString("completed")),
-    )
-}
-```
-
-### Pub/Sub Pattern
-
-For broadcast-style communication:
-
-```go
-// Publisher worker publishes events
-func (w *PublisherWorker) publishEvent(ctx context.Context, eventType, data string) {
-    w.store.Write(ctx,
-        request.New().
-            SetEntityId("events").
-            SetFieldName(eventType).
-            SetValue(value.NewString(data)),
-    )
-}
-
-// Subscriber worker listens for events
-func (w *SubscriberWorker) Init(ctx context.Context, h app.Handle) {
-    w.store.Notify(
-        ctx,
-        notification.NewConfig().
-            SetEntityId("events").
-            SetFieldName("user_login"),  // Subscribe to specific event type
-        notification.NewCallback(w.onUserLogin),
-    )
-}
-
-func (w *SubscriberWorker) onUserLogin(ctx context.Context, n data.Notification) {
-    userData := n.GetCurrent().GetValue().GetString()
-    // Handle user login event
-}
-```
-
-### Best Practices for Worker Communication
-
-1. **Entity Design**
-   - Create dedicated entities for inter-worker communication
-   - Use clear field names for commands and events
-   - Include timestamps for tracking message age
-
-2. **Error Handling**
-   - Include error fields in request-response patterns
-   - Implement timeouts for pending requests
-   - Handle missing or invalid data gracefully
-
-3. **Performance**
-   - Use appropriate notification patterns (change-only vs. all updates)
-   - Clean up completed request entities
-   - Batch related field updates using MultiBinding
-
-4. **Testing**
-   - Test communication patterns in isolation
-   - Verify proper cleanup of temporary entities
-   - Simulate network and timing issues
-
 ## Getting Started
 
 1. Create a new application
@@ -1096,7 +897,7 @@ Example:
 
 ```go
 func main() {
-    app := app.NewApplication("myapp")
+    app := qapp.NewApplication("myapp")
     
     // Add workers
     app.AddWorker(NewMyWorker())
@@ -1105,20 +906,6 @@ func main() {
     app.Execute()
 }
 ```
-
-## Best Practices
-
-1. Keep workers focused on single responsibilities
-2. Use the main thread for coordination
-3. Leverage notifications for event-driven architecture
-4. Structure your database hierarchy logically
-5. Use leadership election for high availability
-
-## Environment Variables
-
-- `Q_IN_DOCKER`: Set when running in Docker container
-- `Q_LOG_LEVEL`: Application log level
-- `Q_LIB_LOG_LEVEL`: Library log level
 
 ## Application Lifecycle Management
 
@@ -1129,16 +916,13 @@ Applications in qlib follow a strict initialization and shutdown sequence to ens
 ```go
 func main() {
     // Create application with unique name
-    app := app.NewApplication("myapp")
+    app := qapp.NewApplication("myapp")
 
     // Configure workers before Execute()
-    storeWorker := workers.NewStore(myStore)
-    webWorker := workers.NewWeb(":8080")
+    storeWorker := qapp.NewStore(myStore)
     
-    // Order matters - add core workers first
+    // Add workers
     app.AddWorker(storeWorker)
-    app.AddWorker(leadershipWorker)
-    app.AddWorker(webWorker)
     app.AddWorker(myBusinessWorker)
 
     // Execute handles init/deinit
@@ -1152,18 +936,18 @@ Workers should properly initialize their resources:
 
 ```go
 type MyWorker struct {
-    store data.Store
-    subscriptions []data.NotificationToken
+    store qdata.Store
+    subscriptions []qdata.NotificationToken
 }
 
-func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
+func (w *MyWorker) Init(ctx context.Context, h qapp.Handle) {
     // Set up notification subscriptions
     w.subscriptions = append(w.subscriptions,
         w.store.Notify(ctx,
-            notification.NewConfig().
+            qdata.NewConfig().
                 SetEntityType("Device").
                 SetFieldName("Status"),
-            notification.NewCallback(w.onStatusChange),
+            qdata.NewCallback(w.onStatusChange),
         ),
     )
 
@@ -1211,20 +995,20 @@ func (w *MyWorker) DoWork(ctx context.Context) {
 
     // Handle recoverable errors
     if err := w.doSomething(ctx); err != nil {
-        log.Error("Operation failed: %v", err)
+        qlog.Error("Operation failed: %v", err)
         // Update status to reflect error
         w.store.Write(ctx,
-            request.New().
+            qdata.NewRequest().
                 SetEntityId(w.entityId).
                 SetFieldName("Error").
-                SetValue(value.NewString(err.Error())),
+                SetValue(qdata.NewString(err.Error())),
         )
         return
     }
 
     // Handle fatal errors
     if err := w.criticalOperation(ctx); err != nil {
-        log.Panic("Critical error: %v", err)
+        qlog.Panic("Critical error: %v", err)
         // Application will shut down
     }
 }
@@ -1236,11 +1020,11 @@ Managing worker dependencies:
 
 ```go
 type MyWorker struct {
-    store data.Store
+    store qdata.Store
     isStoreConnected bool
 }
 
-func (w *MyWorker) Init(ctx context.Context, h app.Handle) {
+func (w *MyWorker) Init(ctx context.Context, h qapp.Handle) {
     // Subscribe to store connection status
     w.store.Connected().Connect(func(ctx context.Context) {
         w.isStoreConnected = true
@@ -1267,7 +1051,7 @@ The application handles system signals:
 
 ```go
 func main() {
-    app := app.NewApplication("myapp")
+    app := qapp.NewApplication("myapp")
     
     // App.Execute() handles:
     // - SIGINT (Ctrl+C)
@@ -1297,17 +1081,10 @@ Environment variables that affect application behavior:
 # Application identification
 APP_NAME=myapp                  # Override application name
 Q_IN_DOCKER=true               # Running in container
-
-# Store configuration
-Q_LEADER_STORE_ADDR=redis:6379 # Leadership store address
-Q_LEADER_STORE_PASSWORD=secret # Leadership store password
-
-# Runtime behavior
-Q_LOG_LEVEL=INFO              # Application log level
-Q_LIB_LOG_LEVEL=WARN         # Library log level
 ```
 
-Best Practices:
+## Best Practices Summary
+
 1. **Worker State**
    - Initialize all state in Init()
    - Clean up all resources in Deinit()
@@ -1319,8 +1096,8 @@ Best Practices:
    - Wait for goroutines to finish
 
 3. **Error Handling**
-   - Use log.Error for recoverable errors
-   - Use log.Panic for fatal errors
+   - Use qlog.Error for recoverable errors
+   - Use qlog.Panic for fatal errors
    - Update entity status on errors
 
 4. **Dependencies**
