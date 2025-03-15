@@ -34,11 +34,11 @@ func (me *StoreConnectedCriteria) IsReady() bool {
 	return me.isConnected
 }
 
-func (me *StoreConnectedCriteria) OnStoreConnected() {
+func (me *StoreConnectedCriteria) OnStoreConnected(context.Context) {
 	me.isConnected = true
 }
 
-func (me *StoreConnectedCriteria) OnStoreDisconnected() {
+func (me *StoreConnectedCriteria) OnStoreDisconnected(context.Context) {
 	me.isConnected = false
 }
 

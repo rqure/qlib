@@ -29,7 +29,7 @@ func NewEntityFieldValidator(store Store) EntityFieldValidator {
 			"Permission":           {"Name", "Description", "Parent", "Children"},
 			"AreaOfResponsibility": {"Name", "Description", "Parent", "Children"},
 			"Role":                 {"Name", "Description", "Parent", "Children", "Permissions", "AreasOfResponsibilities"},
-			"User":                 {"Name", "Description", "Parent", "Children", "Roles", "SelectedRole", "Permissions", "TotalPermissions", "AreasOfResponsibilities", "SelectAORs", "SourceOfTruth", "KeycloakId", "Email", "FirstName", "LastName", "IsEmailVerified", "IsEnabled", "JSON"},
+			"User":                 {"Name", "Description", "Parent", "Children", "Roles", "SelectedRole", "Permissions", "TotalPermissions", "AreasOfResponsibilities", "SelectedAORs", "SourceOfTruth", "KeycloakId", "Email", "FirstName", "LastName", "IsEmailVerified", "IsEnabled", "JSON"},
 			"Client":               {"Name", "Description", "Parent", "Children", "LogLevel", "QLibLogLevel", "Permissions"},
 			"SessionController":    {"Name", "Description", "Parent", "Children", "LastEventTime", "Logout"},
 		},
