@@ -117,32 +117,32 @@ func (me *Store) onConnected() {
 				})),
 		)
 
-		services := qquery.New(me.store).
+		clients := qquery.New(me.store).
 			Select("LogLevel", "QLibLogLevel").
-			From("Service").
-			Where("ApplicationName").Equals(qapp.GetName()).
+			From("Client").
+			Where("Name").Equals(qapp.GetName()).
 			Execute(ctx)
 
-		for _, service := range services {
-			logLevel := service.GetField("LogLevel").GetInt()
+		for _, client := range clients {
+			logLevel := client.GetField("LogLevel").GetInt()
 			qlog.SetLevel(qlog.Level(logLevel))
 
 			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
 				ctx,
 				qnotify.NewConfig().
-					SetEntityId(service.GetId()).
+					SetEntityId(client.GetId()).
 					SetFieldName("LogLevel").
 					SetNotifyOnChange(true),
 				qnotify.NewCallback(me.onLogLevelChanged),
 			))
 
-			qlibLogLevel := service.GetField("QLibLogLevel").GetInt()
+			qlibLogLevel := client.GetField("QLibLogLevel").GetInt()
 			qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
 			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
 				ctx,
 				qnotify.NewConfig().
-					SetEntityId(service.GetId()).
+					SetEntityId(client.GetId()).
 					SetFieldName("QLibLogLevel").
 					SetNotifyOnChange(true),
 				qnotify.NewCallback(me.onQLibLogLevelChanged),
