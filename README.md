@@ -824,11 +824,11 @@ readinessWorker.AddCriteria(qapp.ReadinessCriteriaFunc(func() bool {
 }))
 
 // Handle readiness changes
-readinessWorker.BecameReady.Connect(func() {
+readinessWorker.BecameReady().Connect(func() {
     // Application is now ready
 })
 
-readinessWorker.BecameUnready.Connect(func() {
+readinessWorker.BecameUnready().Connect(func() {
     // Application is no longer ready
 })
 
@@ -866,12 +866,12 @@ type MyWorker struct {
 }
 
 func (w *MyWorker) Init(ctx context.Context, h qapp.Handle) {
-    readiness.BecameReady.Connect(func() {
+    readiness.BecameReady().Connect(func() {
         w.isReady = true
         // Start operations
     })
     
-    readiness.BecameUnready.Connect(func() {
+    readiness.BecameUnready().Connect(func() {
         w.isReady = false
         // Stop operations
     })

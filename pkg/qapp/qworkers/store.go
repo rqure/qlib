@@ -13,10 +13,17 @@ import (
 	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
-type Store struct {
-	Connected     qss.Signal
-	Disconnected  qss.Signal
-	SchemaUpdated qss.Signal
+type Store interface {
+	qapp.Worker
+	Connected() qss.Signal
+	Disconnected() qss.Signal
+	SchemaUpdated() qss.Signal
+}
+
+type storeWorker struct {
+	connected     qss.Signal
+	disconnected  qss.Signal
+	schemaUpdated qss.Signal
 
 	store       qdata.Store
 	isConnected bool
@@ -29,11 +36,11 @@ type Store struct {
 	handle qapp.Handle
 }
 
-func NewStore(store qdata.Store) *Store {
-	return &Store{
-		Connected:     qsignal.New(),
-		Disconnected:  qsignal.New(),
-		SchemaUpdated: qsignal.New(),
+func NewStore(store qdata.Store) Store {
+	return &storeWorker{
+		connected:     qsignal.New(),
+		disconnected:  qsignal.New(),
+		schemaUpdated: qsignal.New(),
 
 		store:       store,
 		isConnected: false,
@@ -42,7 +49,19 @@ func NewStore(store qdata.Store) *Store {
 	}
 }
 
-func (me *Store) Init(ctx context.Context) {
+func (me *storeWorker) Connected() qss.Signal {
+	return me.connected
+}
+
+func (me *storeWorker) Disconnected() qss.Signal {
+	return me.disconnected
+}
+
+func (me *storeWorker) SchemaUpdated() qss.Signal {
+	return me.schemaUpdated
+}
+
+func (me *storeWorker) Init(ctx context.Context) {
 	me.handle = qapp.GetHandle(ctx)
 	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
 	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
@@ -56,12 +75,12 @@ func (me *Store) Init(ctx context.Context) {
 	me.tryConnect(ctx)
 }
 
-func (me *Store) Deinit(context.Context) {
+func (me *storeWorker) Deinit(context.Context) {
 	me.sessionRefreshTimer.Stop()
 	me.connectionAttemptTimer.Stop()
 }
 
-func (me *Store) DoWork(ctx context.Context) {
+func (me *storeWorker) DoWork(ctx context.Context) {
 	select {
 	case <-me.sessionRefreshTimer.C:
 		me.tryRefreshSession(ctx)
@@ -71,14 +90,14 @@ func (me *Store) DoWork(ctx context.Context) {
 	}
 }
 
-func (me *Store) tryConnect(ctx context.Context) {
+func (me *storeWorker) tryConnect(ctx context.Context) {
 	if !me.isConnected {
 		qlog.Info("Trying to connect to the store...")
 		me.store.Connect(ctx)
 	}
 }
 
-func (me *Store) tryRefreshSession(ctx context.Context) {
+func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 	client := me.store.AuthClient(ctx)
 
 	if client == nil {
@@ -94,7 +113,7 @@ func (me *Store) tryRefreshSession(ctx context.Context) {
 	}
 }
 
-func (me *Store) onConnected() {
+func (me *storeWorker) onConnected() {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isConnected = true
 
@@ -113,7 +132,7 @@ func (me *Store) onConnected() {
 					SetEntityType("Root").
 					SetFieldName("SchemaUpdateTrigger"),
 				qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
-					me.SchemaUpdated.Emit(ctx)
+					me.schemaUpdated.Emit(ctx)
 				})),
 		)
 
@@ -149,41 +168,41 @@ func (me *Store) onConnected() {
 			))
 		}
 
-		me.Connected.Emit(ctx)
+		me.connected.Emit(ctx)
 
-		me.SchemaUpdated.Emit(ctx)
+		me.schemaUpdated.Emit(ctx)
 	})
 }
 
-func (me *Store) onDisconnected(err error) {
+func (me *storeWorker) onDisconnected(err error) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isConnected = false
 
 		qlog.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
 
-		me.Disconnected.Emit()
+		me.disconnected.Emit()
 	})
 }
 
-func (me *Store) IsConnected() bool {
+func (me *storeWorker) IsConnected() bool {
 	return me.isConnected
 }
 
-func (me *Store) onLogLevelChanged(ctx context.Context, n qdata.Notification) {
+func (me *storeWorker) onLogLevelChanged(ctx context.Context, n qdata.Notification) {
 	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
 	qlog.SetLevel(level)
 
 	qlog.Info("Log level changed to [%s]", level.String())
 }
 
-func (me *Store) onQLibLogLevelChanged(ctx context.Context, n qdata.Notification) {
+func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notification) {
 	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
 	qlog.SetLibLevel(level)
 
 	qlog.Info("QLib log level changed to [%s]", level.String())
 }
 
-func (me *Store) onConsumed(invokeCallbacksFn func(context.Context)) {
+func (me *storeWorker) onConsumed(invokeCallbacksFn func(context.Context)) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		invokeCallbacksFn(ctx)
 	})

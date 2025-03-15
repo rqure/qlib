@@ -30,16 +30,16 @@ type StoreConnectedCriteria struct {
 	isConnected bool
 }
 
-func (c *StoreConnectedCriteria) IsReady() bool {
-	return c.isConnected
+func (me *StoreConnectedCriteria) IsReady() bool {
+	return me.isConnected
 }
 
-func (c *StoreConnectedCriteria) OnStoreConnected() {
-	c.isConnected = true
+func (me *StoreConnectedCriteria) OnStoreConnected() {
+	me.isConnected = true
 }
 
-func (c *StoreConnectedCriteria) OnStoreDisconnected() {
-	c.isConnected = false
+func (me *StoreConnectedCriteria) OnStoreDisconnected() {
+	me.isConnected = false
 }
 
 func NewStoreConnectedCriteria(s Store) ReadinessCriteria {
@@ -47,8 +47,8 @@ func NewStoreConnectedCriteria(s Store) ReadinessCriteria {
 		isConnected: false,
 	}
 
-	s.Connected.Connect(c.OnStoreConnected)
-	s.Disconnected.Connect(c.OnStoreDisconnected)
+	s.Connected().Connect(c.OnStoreConnected)
+	s.Disconnected().Connect(c.OnStoreDisconnected)
 
 	return c
 }
@@ -58,45 +58,55 @@ type SchemaValidityCriteria struct {
 	validator qdata.EntityFieldValidator
 }
 
-func (c *SchemaValidityCriteria) IsReady() bool {
-	return c.isValid
+func (me *SchemaValidityCriteria) IsReady() bool {
+	return me.isValid
 }
 
-func (c *SchemaValidityCriteria) RegisterEntityFields(entityType string, fields ...string) {
-	c.validator.RegisterEntityFields(entityType, fields...)
+func (me *SchemaValidityCriteria) RegisterEntityFields(entityType string, fields ...string) {
+	me.validator.RegisterEntityFields(entityType, fields...)
 }
 
-func (c *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
-	c.isValid = true
+func (me *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
+	me.isValid = true
 
-	if err := c.validator.ValidateFields(ctx); err != nil {
-		c.isValid = false
+	if err := me.validator.ValidateFields(ctx); err != nil {
+		me.isValid = false
 	}
 }
 
-func NewSchemaValidityCriteria(s Store) ReadinessCriteria {
+func NewSchemaValidityCriteria(s storeWorker) ReadinessCriteria {
 	c := &SchemaValidityCriteria{
 		isValid:   false,
 		validator: qdata.NewEntityFieldValidator(s.store),
 	}
 
-	s.SchemaUpdated.Connect(c.OnSchemaUpdated)
+	s.schemaUpdated.Connect(c.OnSchemaUpdated)
 
 	return c
 }
 
-type Readiness struct {
-	BecameReady   qss.Signal
-	BecameUnready qss.Signal
+type Readiness interface {
+	qapp.Worker
+	AddCriteria(c ReadinessCriteria)
+	RemoveCriteria(c ReadinessCriteria)
+	GetState() ReadinessState
+	IsReady() bool
+	BecameReady() qss.Signal
+	BecameUnready() qss.Signal
+}
+
+type readinessWorker struct {
+	becameReady   qss.Signal
+	becameUnready qss.Signal
 
 	criterias []ReadinessCriteria
 	state     ReadinessState
 }
 
-func NewReadiness() *Readiness {
-	w := &Readiness{
-		BecameReady:   qsignal.New(),
-		BecameUnready: qsignal.New(),
+func NewReadiness() Readiness {
+	w := &readinessWorker{
+		becameReady:   qsignal.New(),
+		becameUnready: qsignal.New(),
 
 		criterias: []ReadinessCriteria{},
 		state:     NotReady,
@@ -105,37 +115,45 @@ func NewReadiness() *Readiness {
 	return w
 }
 
-func (w *Readiness) AddCriteria(c ReadinessCriteria) {
-	w.criterias = append(w.criterias, c)
+func (me *readinessWorker) BecameReady() qss.Signal {
+	return me.becameReady
 }
 
-func (w *Readiness) RemoveCriteria(c ReadinessCriteria) {
-	for i, criteria := range w.criterias {
+func (me *readinessWorker) BecameUnready() qss.Signal {
+	return me.becameUnready
+}
+
+func (me *readinessWorker) AddCriteria(c ReadinessCriteria) {
+	me.criterias = append(me.criterias, c)
+}
+
+func (me *readinessWorker) RemoveCriteria(c ReadinessCriteria) {
+	for i, criteria := range me.criterias {
 		if criteria == c {
-			w.criterias = append(w.criterias[:i], w.criterias[i+1:]...)
+			me.criterias = append(me.criterias[:i], me.criterias[i+1:]...)
 			return
 		}
 	}
 }
 
-func (w *Readiness) Init(ctx context.Context, h qapp.Handle) {
+func (me *readinessWorker) Init(ctx context.Context) {
 
 }
 
-func (w *Readiness) Deinit(ctx context.Context) {
+func (me *readinessWorker) Deinit(ctx context.Context) {
 
 }
 
-func (w *Readiness) DoWork(ctx context.Context) {
-	if w.IsReady() {
-		w.setState(Ready)
+func (me *readinessWorker) DoWork(ctx context.Context) {
+	if me.IsReady() {
+		me.setState(Ready)
 	} else {
-		w.setState(NotReady)
+		me.setState(NotReady)
 	}
 }
 
-func (w *Readiness) IsReady() bool {
-	for _, criteria := range w.criterias {
+func (me *readinessWorker) IsReady() bool {
+	for _, criteria := range me.criterias {
 		if !criteria.IsReady() {
 			return false
 		}
@@ -144,20 +162,20 @@ func (w *Readiness) IsReady() bool {
 	return true
 }
 
-func (w *Readiness) GetState() ReadinessState {
-	return w.state
+func (me *readinessWorker) GetState() ReadinessState {
+	return me.state
 }
 
-func (w *Readiness) setState(state ReadinessState) {
-	if w.state == state {
+func (me *readinessWorker) setState(state ReadinessState) {
+	if me.state == state {
 		return
 	}
 
-	w.state = state
+	me.state = state
 
 	if state == Ready {
-		w.BecameReady.Emit()
+		me.becameReady.Emit()
 	} else {
-		w.BecameUnready.Emit()
+		me.becameUnready.Emit()
 	}
 }
