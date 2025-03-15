@@ -62,6 +62,10 @@ func (c *SchemaValidityCriteria) IsReady() bool {
 	return c.isValid
 }
 
+func (c *SchemaValidityCriteria) RegisterEntityFields(entityType string, fields ...string) {
+	c.validator.RegisterEntityFields(entityType, fields...)
+}
+
 func (c *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
 	c.isValid = true
 
