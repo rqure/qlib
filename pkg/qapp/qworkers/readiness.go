@@ -74,13 +74,13 @@ func (me *SchemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
 	}
 }
 
-func NewSchemaValidityCriteria(s storeWorker) ReadinessCriteria {
+func NewSchemaValidityCriteria(storeWorker Store, store qdata.Store) ReadinessCriteria {
 	c := &SchemaValidityCriteria{
 		isValid:   false,
-		validator: qdata.NewEntityFieldValidator(s.store),
+		validator: qdata.NewEntityFieldValidator(store),
 	}
 
-	s.schemaUpdated.Connect(c.OnSchemaUpdated)
+	storeWorker.SchemaUpdated().Connect(c.OnSchemaUpdated)
 
 	return c
 }
