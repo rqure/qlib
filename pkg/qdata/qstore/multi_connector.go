@@ -7,7 +7,6 @@ import (
 
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
 type multiConnectorImpl struct {
@@ -18,8 +17,8 @@ type multiConnectorImpl struct {
 	connectedCount atomic.Int32
 
 	// Signals
-	connected    qss.Signal
-	disconnected qss.Signal
+	connected    qss.Signal[qss.VoidType]
+	disconnected qss.Signal[error]
 }
 
 type MultiConnector interface {
@@ -30,8 +29,8 @@ type MultiConnector interface {
 func NewMultiConnector() MultiConnector {
 	return &multiConnectorImpl{
 		connectors:   make([]qdata.Connector, 0),
-		connected:    qsignal.New(),
-		disconnected: qsignal.New(),
+		connected:    qss.New[qss.VoidType](),
+		disconnected: qss.New[error](),
 	}
 }
 
@@ -40,9 +39,9 @@ func (me *multiConnectorImpl) AddConnector(connector qdata.Connector) {
 	defer me.connMu.Unlock()
 
 	// Connect signals before adding to slice to avoid race conditions
-	connector.Connected().Connect(func() {
+	connector.Connected().Connect(func(qss.VoidType) {
 		if me.onConnectorConnected() {
-			me.connected.Emit()
+			me.connected.Emit(qss.Void)
 		}
 	})
 
@@ -97,10 +96,10 @@ func (me *multiConnectorImpl) IsConnected(ctx context.Context) bool {
 	return len(me.connectors) > 0
 }
 
-func (me *multiConnectorImpl) Connected() qss.Signal {
+func (me *multiConnectorImpl) Connected() qss.Signal[qss.VoidType] {
 	return me.connected
 }
 
-func (me *multiConnectorImpl) Disconnected() qss.Signal {
+func (me *multiConnectorImpl) Disconnected() qss.Signal[error] {
 	return me.disconnected
 }

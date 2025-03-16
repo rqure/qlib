@@ -35,11 +35,11 @@ func (m *MultiBinding) IsConnected(ctx context.Context) bool {
 	return m.impl.IsConnected(ctx)
 }
 
-func (m *MultiBinding) Connected() qss.Signal {
+func (m *MultiBinding) Connected() qss.Signal[qss.VoidType] {
 	return m.impl.Connected()
 }
 
-func (m *MultiBinding) Disconnected() qss.Signal {
+func (m *MultiBinding) Disconnected() qss.Signal[error] {
 	return m.impl.Disconnected()
 }
 
@@ -124,7 +124,7 @@ func (m *MultiBinding) UnnotifyCallback(ctx context.Context, subscriptionId stri
 	m.impl.UnnotifyCallback(ctx, subscriptionId, callback)
 }
 
-func (m *MultiBinding) Consumed() qss.Signal {
+func (m *MultiBinding) Consumed() qss.Signal[func(context.Context)] {
 	return m.impl.Consumed()
 }
 

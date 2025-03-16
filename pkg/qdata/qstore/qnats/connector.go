@@ -5,21 +5,20 @@ import (
 
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
 type Connector struct {
 	core Core
 
-	connected    qss.Signal
-	disconnected qss.Signal
+	connected    qss.Signal[qss.VoidType]
+	disconnected qss.Signal[error]
 }
 
 func NewConnector(core Core) qdata.Connector {
 	connector := &Connector{
 		core:         core,
-		connected:    qsignal.New(),
-		disconnected: qsignal.New(),
+		connected:    qss.New[qss.VoidType](),
+		disconnected: qss.New[error](),
 	}
 
 	core.Connected().Connect(connector.onConnected)
@@ -44,18 +43,18 @@ func (c *Connector) IsConnected(ctx context.Context) bool {
 	return c.core.IsConnected(ctx)
 }
 
-func (c *Connector) onConnected() {
-	c.connected.Emit()
+func (c *Connector) onConnected(qss.VoidType) {
+	c.connected.Emit(qss.Void)
 }
 
 func (c *Connector) onDisconnected(err error) {
 	c.disconnected.Emit(err)
 }
 
-func (c *Connector) Connected() qss.Signal {
+func (c *Connector) Connected() qss.Signal[qss.VoidType] {
 	return c.connected
 }
 
-func (c *Connector) Disconnected() qss.Signal {
+func (c *Connector) Disconnected() qss.Signal[error] {
 	return c.disconnected
 }

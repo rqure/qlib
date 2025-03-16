@@ -10,14 +10,13 @@ import (
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
 type Connector struct {
 	core Core
 
-	connected    qss.Signal
-	disconnected qss.Signal
+	connected    qss.Signal[qss.VoidType]
+	disconnected qss.Signal[error]
 
 	healthCheckCtx    context.Context
 	healthCheckCancel context.CancelFunc
@@ -33,8 +32,8 @@ type Connector struct {
 func NewConnector(core Core) qdata.Connector {
 	return &Connector{
 		core:         core,
-		connected:    qsignal.New(),
-		disconnected: qsignal.New(),
+		connected:    qss.New[qss.VoidType](),
+		disconnected: qss.New[error](),
 	}
 }
 
@@ -65,7 +64,7 @@ func (me *Connector) setConnected(connected bool, err error) {
 	wasConnected := me.isConnected.Swap(connected)
 	if wasConnected != connected {
 		if connected {
-			me.connected.Emit()
+			me.connected.Emit(qss.Void)
 		} else {
 			me.disconnected.Emit(err)
 		}
@@ -160,10 +159,10 @@ func (me *Connector) IsConnected(ctx context.Context) bool {
 	return me.isConnected.Load()
 }
 
-func (me *Connector) Connected() qss.Signal {
+func (me *Connector) Connected() qss.Signal[qss.VoidType] {
 	return me.connected
 }
 
-func (me *Connector) Disconnected() qss.Signal {
+func (me *Connector) Disconnected() qss.Signal[error] {
 	return me.disconnected
 }

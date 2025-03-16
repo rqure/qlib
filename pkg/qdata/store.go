@@ -36,8 +36,8 @@ type Connector interface {
 	Disconnect(context.Context)
 	IsConnected(context.Context) bool
 
-	Connected() qss.Signal
-	Disconnected() qss.Signal
+	Connected() qss.Signal[qss.VoidType]
+	Disconnected() qss.Signal[error]
 }
 
 type SnapshotManager interface {
@@ -115,7 +115,7 @@ type NotificationConsumer interface {
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) NotificationToken
 	Unnotify(ctx context.Context, subscriptionId string)
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
-	Consumed() qss.Signal
+	Consumed() qss.Signal[func(context.Context)]
 }
 
 type ModifiableNotificationConsumer interface {

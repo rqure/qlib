@@ -11,7 +11,6 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -34,9 +33,9 @@ type Core interface {
 
 	SetAuthProvider(qdata.AuthProvider)
 
-	Connected() qss.Signal
-	Disconnected() qss.Signal
-	BeforeConnected() qss.Signal
+	Connected() qss.Signal[qss.VoidType]
+	Disconnected() qss.Signal[error]
+	BeforeConnected() qss.Signal[qss.VoidType]
 }
 
 type coreInternal struct {
@@ -48,22 +47,22 @@ type coreInternal struct {
 
 	ap qdata.AuthProvider
 
-	beforeConnected qss.Signal
-	connected       qss.Signal
-	disconnected    qss.Signal
+	beforeConnected qss.Signal[qss.VoidType]
+	connected       qss.Signal[qss.VoidType]
+	disconnected    qss.Signal[error]
 }
 
 func NewCore(config Config) Core {
 	return &coreInternal{
 		config:          config,
 		kg:              NewKeyGenerator(),
-		connected:       qsignal.New(),
-		disconnected:    qsignal.New(),
-		beforeConnected: qsignal.New(),
+		connected:       qss.New[qss.VoidType](),
+		disconnected:    qss.New[error](),
+		beforeConnected: qss.New[qss.VoidType](),
 	}
 }
 
-func (me *coreInternal) BeforeConnected() qss.Signal {
+func (me *coreInternal) BeforeConnected() qss.Signal[qss.VoidType] {
 	return me.beforeConnected
 }
 
@@ -77,13 +76,13 @@ func (c *coreInternal) Connect(ctx context.Context) {
 	opts := []natsgo.Option{
 		natsgo.MaxReconnects(-1),
 		natsgo.ConnectHandler(func(nc *natsgo.Conn) {
-			c.beforeConnected.Emit()
-			c.connected.Emit()
+			c.beforeConnected.Emit(qss.Void)
+			c.connected.Emit(qss.Void)
 		}),
 		natsgo.ReconnectHandler(func(nc *natsgo.Conn) {
 			c.cleanupSubscriptions()
-			c.beforeConnected.Emit()
-			c.connected.Emit()
+			c.beforeConnected.Emit(qss.Void)
+			c.connected.Emit(qss.Void)
 		}),
 		natsgo.DisconnectErrHandler(func(nc *natsgo.Conn, err error) {
 			c.disconnected.Emit(err)
@@ -224,11 +223,11 @@ func (c *coreInternal) GetKeyGenerator() KeyGenerator {
 	return c.kg
 }
 
-func (c *coreInternal) Connected() qss.Signal {
+func (c *coreInternal) Connected() qss.Signal[qss.VoidType] {
 	return c.connected
 }
 
-func (c *coreInternal) Disconnected() qss.Signal {
+func (c *coreInternal) Disconnected() qss.Signal[error] {
 	return c.disconnected
 }
 

@@ -10,23 +10,22 @@ import (
 	"github.com/rqure/qlib/pkg/qdata/qquery"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
 type Store interface {
 	qapp.Worker
-	Connected() qss.Signal
-	Disconnected() qss.Signal
-	SchemaUpdated() qss.Signal
+	Connected() qss.Signal[context.Context]
+	Disconnected() qss.Signal[context.Context]
+	SchemaUpdated() qss.Signal[context.Context]
 
-	OnReady()
-	OnNotReady()
+	OnReady(context.Context)
+	OnNotReady(context.Context)
 }
 
 type storeWorker struct {
-	connected     qss.Signal
-	disconnected  qss.Signal
-	schemaUpdated qss.Signal
+	connected     qss.Signal[context.Context]
+	disconnected  qss.Signal[context.Context]
+	schemaUpdated qss.Signal[context.Context]
 
 	store       qdata.Store
 	isConnected bool
@@ -41,9 +40,9 @@ type storeWorker struct {
 
 func NewStore(store qdata.Store) Store {
 	return &storeWorker{
-		connected:     qsignal.New(),
-		disconnected:  qsignal.New(),
-		schemaUpdated: qsignal.New(),
+		connected:     qss.New[context.Context](),
+		disconnected:  qss.New[context.Context](),
+		schemaUpdated: qss.New[context.Context](),
 
 		store:       store,
 		isConnected: false,
@@ -52,15 +51,15 @@ func NewStore(store qdata.Store) Store {
 	}
 }
 
-func (me *storeWorker) Connected() qss.Signal {
+func (me *storeWorker) Connected() qss.Signal[context.Context] {
 	return me.connected
 }
 
-func (me *storeWorker) Disconnected() qss.Signal {
+func (me *storeWorker) Disconnected() qss.Signal[context.Context] {
 	return me.disconnected
 }
 
-func (me *storeWorker) SchemaUpdated() qss.Signal {
+func (me *storeWorker) SchemaUpdated() qss.Signal[context.Context] {
 	return me.schemaUpdated
 }
 
@@ -116,7 +115,7 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 	}
 }
 
-func (me *storeWorker) onConnected() {
+func (me *storeWorker) onConnected(qss.VoidType) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isConnected = true
 
@@ -133,7 +132,7 @@ func (me *storeWorker) onDisconnected(err error) {
 
 		qlog.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
 
-		me.disconnected.Emit()
+		me.disconnected.Emit(ctx)
 	})
 }
 
@@ -161,59 +160,57 @@ func (me *storeWorker) onConsumed(invokeCallbacksFn func(context.Context)) {
 	})
 }
 
-func (me *storeWorker) OnReady() {
-	me.handle.DoInMainThread(func(ctx context.Context) {
-		for _, token := range me.notificationTokens {
-			token.Unbind(ctx)
-		}
+func (me *storeWorker) OnReady(ctx context.Context) {
+	for _, token := range me.notificationTokens {
+		token.Unbind(ctx)
+	}
 
-		me.notificationTokens = make([]qdata.NotificationToken, 0)
+	me.notificationTokens = make([]qdata.NotificationToken, 0)
 
-		me.notificationTokens = append(me.notificationTokens,
-			me.store.Notify(
-				ctx,
-				qnotify.NewConfig().
-					SetEntityType("Root").
-					SetFieldName("SchemaUpdateTrigger"),
-				qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
-					me.schemaUpdated.Emit(ctx)
-				})),
-		)
+	me.notificationTokens = append(me.notificationTokens,
+		me.store.Notify(
+			ctx,
+			qnotify.NewConfig().
+				SetEntityType("Root").
+				SetFieldName("SchemaUpdateTrigger"),
+			qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
+				me.schemaUpdated.Emit(ctx)
+			})),
+	)
 
-		clients := qquery.New(me.store).
-			Select("LogLevel", "QLibLogLevel").
-			From("Client").
-			Where("Name").Equals(qapp.GetName()).
-			Execute(ctx)
+	clients := qquery.New(me.store).
+		Select("LogLevel", "QLibLogLevel").
+		From("Client").
+		Where("Name").Equals(qapp.GetName()).
+		Execute(ctx)
 
-		for _, client := range clients {
-			logLevel := client.GetField("LogLevel").GetChoice().Index() + 1
-			qlog.SetLevel(qlog.Level(logLevel))
+	for _, client := range clients {
+		logLevel := client.GetField("LogLevel").GetChoice().Index() + 1
+		qlog.SetLevel(qlog.Level(logLevel))
 
-			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
-				ctx,
-				qnotify.NewConfig().
-					SetEntityId(client.GetId()).
-					SetFieldName("LogLevel").
-					SetNotifyOnChange(true),
-				qnotify.NewCallback(me.onLogLevelChanged),
-			))
+		me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+			ctx,
+			qnotify.NewConfig().
+				SetEntityId(client.GetId()).
+				SetFieldName("LogLevel").
+				SetNotifyOnChange(true),
+			qnotify.NewCallback(me.onLogLevelChanged),
+		))
 
-			qlibLogLevel := client.GetField("QLibLogLevel").GetChoice().Index() + 1
-			qlog.SetLibLevel(qlog.Level(qlibLogLevel))
+		qlibLogLevel := client.GetField("QLibLogLevel").GetChoice().Index() + 1
+		qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
-			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
-				ctx,
-				qnotify.NewConfig().
-					SetEntityId(client.GetId()).
-					SetFieldName("QLibLogLevel").
-					SetNotifyOnChange(true),
-				qnotify.NewCallback(me.onQLibLogLevelChanged),
-			))
-		}
-	})
+		me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+			ctx,
+			qnotify.NewConfig().
+				SetEntityId(client.GetId()).
+				SetFieldName("QLibLogLevel").
+				SetNotifyOnChange(true),
+			qnotify.NewCallback(me.onQLibLogLevelChanged),
+		))
+	}
 }
 
-func (me *storeWorker) OnNotReady() {
+func (me *storeWorker) OnNotReady(ctx context.Context) {
 
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
 type EventType string
@@ -147,8 +146,14 @@ func (e *keycloakEvent) Details() map[string]string {
 	return e.details
 }
 
+type EmittedEvent struct {
+	Ctx   context.Context
+	Event Event
+}
+
 type EventEmitter interface {
-	Signal() qss.Signal
+	Signal() qss.Signal[EmittedEvent]
+
 	GetLastEventTime() time.Time
 	SetLastEventTime(time.Time)
 	ProcessNextBatch(ctx context.Context, session Session) error
@@ -163,7 +168,7 @@ type EventEmitterOption func(*eventEmitterConfig)
 
 type eventEmitter struct {
 	core          Core
-	signal        qss.Signal
+	signal        qss.Signal[EmittedEvent]
 	config        *eventEmitterConfig
 	lastEventTime time.Time
 }
@@ -197,13 +202,13 @@ func NewEventEmitter(core Core, opts ...EventEmitterOption) EventEmitter {
 
 	return &eventEmitter{
 		core:          core,
-		signal:        qsignal.New(),
+		signal:        qss.New[EmittedEvent](),
 		config:        config,
 		lastEventTime: time.Now(),
 	}
 }
 
-func (me *eventEmitter) Signal() qss.Signal {
+func (me *eventEmitter) Signal() qss.Signal[EmittedEvent] {
 	return me.signal
 }
 
@@ -269,7 +274,7 @@ func (me *eventEmitter) ProcessNextBatch(ctx context.Context, session Session) e
 			me.lastEventTime = event.Time()
 		}
 
-		me.signal.Emit(ctx, event)
+		me.signal.Emit(EmittedEvent{ctx, event})
 	}
 
 	return nil

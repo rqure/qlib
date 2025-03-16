@@ -7,7 +7,6 @@ import (
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 )
 
 type ReadinessState int
@@ -101,13 +100,13 @@ type Readiness interface {
 	RemoveCriteria(c ReadinessCriteria)
 	GetState() ReadinessState
 	IsReady() bool
-	BecameReady() qss.Signal
-	BecameNotReady() qss.Signal
+	BecameReady() qss.Signal[context.Context]
+	BecameNotReady() qss.Signal[context.Context]
 }
 
 type readinessWorker struct {
-	becameReady    qss.Signal
-	becameNotReady qss.Signal
+	becameReady    qss.Signal[context.Context]
+	becameNotReady qss.Signal[context.Context]
 
 	criterias []ReadinessCriteria
 	state     ReadinessState
@@ -115,8 +114,8 @@ type readinessWorker struct {
 
 func NewReadiness() Readiness {
 	w := &readinessWorker{
-		becameReady:    qsignal.New(),
-		becameNotReady: qsignal.New(),
+		becameReady:    qss.New[context.Context](),
+		becameNotReady: qss.New[context.Context](),
 
 		criterias: []ReadinessCriteria{},
 		state:     NotReady,
@@ -125,11 +124,11 @@ func NewReadiness() Readiness {
 	return w
 }
 
-func (me *readinessWorker) BecameReady() qss.Signal {
+func (me *readinessWorker) BecameReady() qss.Signal[context.Context] {
 	return me.becameReady
 }
 
-func (me *readinessWorker) BecameNotReady() qss.Signal {
+func (me *readinessWorker) BecameNotReady() qss.Signal[context.Context] {
 	return me.becameNotReady
 }
 
@@ -156,9 +155,9 @@ func (me *readinessWorker) Deinit(ctx context.Context) {
 
 func (me *readinessWorker) DoWork(ctx context.Context) {
 	if me.IsReady() {
-		me.setState(Ready)
+		me.setState(ctx, Ready)
 	} else {
-		me.setState(NotReady)
+		me.setState(ctx, NotReady)
 	}
 }
 
@@ -176,7 +175,7 @@ func (me *readinessWorker) GetState() ReadinessState {
 	return me.state
 }
 
-func (me *readinessWorker) setState(state ReadinessState) {
+func (me *readinessWorker) setState(ctx context.Context, state ReadinessState) {
 	if me.state == state {
 		return
 	}
@@ -185,9 +184,9 @@ func (me *readinessWorker) setState(state ReadinessState) {
 
 	if state == Ready {
 		qlog.Info("Application status changed to [READY]")
-		me.becameReady.Emit()
+		me.becameReady.Emit(ctx)
 	} else {
 		qlog.Info("Application status changed to [NOT READY]")
-		me.becameNotReady.Emit()
+		me.becameNotReady.Emit(ctx)
 	}
 }

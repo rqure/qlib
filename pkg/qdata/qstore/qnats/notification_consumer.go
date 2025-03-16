@@ -13,7 +13,6 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"github.com/rqure/qlib/pkg/qss"
-	"github.com/rqure/qlib/pkg/qss/qsignal"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -22,7 +21,7 @@ type NotificationConsumer struct {
 	mu              sync.RWMutex
 	callbacks       map[string][]qdata.NotificationCallback
 	keepAlive       *time.Ticker
-	consumed        qss.Signal
+	consumed        qss.Signal[func(context.Context)]
 	cancelKeepAlive context.CancelFunc
 }
 
@@ -31,7 +30,7 @@ func NewNotificationConsumer(core Core) qdata.ModifiableNotificationConsumer {
 		core:      core,
 		callbacks: map[string][]qdata.NotificationCallback{},
 		keepAlive: time.NewTicker(30 * time.Second),
-		consumed:  qsignal.New(),
+		consumed:  qss.New[func(context.Context)](),
 	}
 
 	// Subscribe to connection events
@@ -41,7 +40,7 @@ func NewNotificationConsumer(core Core) qdata.ModifiableNotificationConsumer {
 	return consumer
 }
 
-func (me *NotificationConsumer) onConnected() {
+func (me *NotificationConsumer) onConnected(qss.VoidType) {
 	// Subscribe to non-distributed notifications (all instances receive these)
 	groupSubject := me.core.GetKeyGenerator().GetNotificationGroupSubject(qapp.GetName())
 	me.core.Subscribe(groupSubject, me.handleNotification)
@@ -181,7 +180,7 @@ func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token stri
 	me.mu.Unlock()
 }
 
-func (me *NotificationConsumer) Consumed() qss.Signal {
+func (me *NotificationConsumer) Consumed() qss.Signal[func(context.Context)] {
 	return me.consumed
 }
 
