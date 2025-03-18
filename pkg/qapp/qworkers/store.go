@@ -14,10 +14,18 @@ import (
 
 type Store interface {
 	qapp.Worker
+
+	// Fired when the store is connected
 	Connected() qss.Signal[context.Context]
 	Disconnected() qss.Signal[context.Context]
 	SchemaUpdated() qss.Signal[context.Context]
 
+	// Fired when the session to the store has authenticated successfully
+	AuthReady() qss.Signal[context.Context]
+	AuthNotReady() qss.Signal[context.Context]
+
+	// Callback when the store has connected and the session is authenticated
+	// The ReadinessWorker will fire this when all readiness criteria are met
 	OnReady(context.Context)
 	OnNotReady(context.Context)
 }
@@ -27,8 +35,12 @@ type storeWorker struct {
 	disconnected  qss.Signal[context.Context]
 	schemaUpdated qss.Signal[context.Context]
 
+	authReady    qss.Signal[context.Context]
+	authNotReady qss.Signal[context.Context]
+
 	store            qdata.Store
 	isStoreConnected bool
+	isAuthReady      bool
 
 	notificationTokens []qdata.NotificationToken
 
@@ -107,6 +119,8 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 	client := me.store.AuthClient(ctx)
 
 	if client == nil {
+		qlog.Warn("Failed to get auth client")
+		me.setAuthReadiness(ctx, false)
 		return
 	}
 
@@ -117,10 +131,15 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 			err := session.Refresh(ctx)
 			if err != nil {
 				qlog.Warn("Failed to refresh session: %v", err)
+				me.setAuthReadiness(ctx, false)
 			} else {
 				qlog.Info("Client auth session refreshed successfully")
+				me.setAuthReadiness(ctx, true)
 			}
 		}
+	} else {
+		qlog.Warn("Client auth session is not valid")
+		me.setAuthReadiness(ctx, false)
 	}
 }
 
@@ -222,4 +241,26 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 
 func (me *storeWorker) OnNotReady(ctx context.Context) {
 
+}
+
+func (me *storeWorker) AuthReady() qss.Signal[context.Context] {
+	return me.authReady
+}
+
+func (me *storeWorker) AuthNotReady() qss.Signal[context.Context] {
+	return me.authNotReady
+}
+
+func (me *storeWorker) setAuthReadiness(ctx context.Context, ready bool) {
+	if me.isAuthReady == ready {
+		return
+	}
+
+	me.isAuthReady = ready
+
+	if ready {
+		me.authReady.Emit(ctx)
+	} else {
+		me.authNotReady.Emit(ctx)
+	}
 }

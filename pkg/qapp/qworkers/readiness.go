@@ -28,10 +28,11 @@ func (f ReadinessCriteriaFunc) IsReady() bool {
 
 type StoreConnectedCriteria struct {
 	isConnected bool
+	isAuthReady bool
 }
 
 func (me *StoreConnectedCriteria) IsReady() bool {
-	return me.isConnected
+	return me.isConnected && me.isAuthReady
 }
 
 func (me *StoreConnectedCriteria) OnStoreConnected(context.Context) {
@@ -42,6 +43,14 @@ func (me *StoreConnectedCriteria) OnStoreDisconnected(context.Context) {
 	me.isConnected = false
 }
 
+func (me *StoreConnectedCriteria) OnAuthReady(context.Context) {
+	me.isAuthReady = true
+}
+
+func (me *StoreConnectedCriteria) OnAuthNotReady(context.Context) {
+	me.isAuthReady = false
+}
+
 func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 	c := &StoreConnectedCriteria{
 		isConnected: false,
@@ -49,6 +58,9 @@ func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 
 	s.Connected().Connect(c.OnStoreConnected)
 	s.Disconnected().Connect(c.OnStoreDisconnected)
+
+	s.AuthReady().Connect(c.OnAuthReady)
+	s.AuthNotReady().Connect(c.OnAuthNotReady)
 
 	r.BecameReady().Connect(s.OnReady)
 	r.BecameNotReady().Connect(s.OnNotReady)
