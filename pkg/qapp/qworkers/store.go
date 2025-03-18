@@ -2,6 +2,7 @@ package qworkers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rqure/qlib/pkg/qapp"
@@ -123,8 +124,7 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 	client := me.store.AuthClient(ctx)
 
 	if client == nil {
-		qlog.Warn("Failed to get auth client")
-		me.setAuthReadiness(ctx, false)
+		me.setAuthReadiness(ctx, false, "Failed to get auth client")
 		return
 	}
 
@@ -134,16 +134,13 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 		if session.PastHalfLife(ctx) {
 			err := session.Refresh(ctx)
 			if err != nil {
-				qlog.Warn("Failed to refresh session: %v", err)
-				me.setAuthReadiness(ctx, false)
+				me.setAuthReadiness(ctx, false, fmt.Sprintf("Failed to refresh session: %v", err))
 			} else {
-				qlog.Info("Client auth session refreshed successfully")
-				me.setAuthReadiness(ctx, true)
+				me.setAuthReadiness(ctx, true, "")
 			}
 		}
 	} else {
-		qlog.Warn("Client auth session is not valid")
-		me.setAuthReadiness(ctx, false)
+		me.setAuthReadiness(ctx, false, "Client auth session is not valid")
 	}
 }
 
@@ -255,7 +252,7 @@ func (me *storeWorker) AuthNotReady() qss.Signal[context.Context] {
 	return me.authNotReady
 }
 
-func (me *storeWorker) setAuthReadiness(ctx context.Context, ready bool) {
+func (me *storeWorker) setAuthReadiness(ctx context.Context, ready bool, reason string) {
 	if me.isAuthReady == ready {
 		return
 	}
@@ -266,7 +263,7 @@ func (me *storeWorker) setAuthReadiness(ctx context.Context, ready bool) {
 		qlog.Info("Authentication status changed to [READY]")
 		me.authReady.Emit(ctx)
 	} else {
-		qlog.Info("Authentication status changed to [NOT READY]")
+		qlog.Warn("Authentication status changed to [NOT READY] with reason: %s", reason)
 		me.authNotReady.Emit(ctx)
 	}
 }

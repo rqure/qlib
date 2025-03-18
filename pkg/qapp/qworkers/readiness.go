@@ -54,6 +54,7 @@ func (me *StoreConnectedCriteria) OnAuthNotReady(context.Context) {
 func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 	c := &StoreConnectedCriteria{
 		isConnected: false,
+		isAuthReady: false,
 	}
 
 	s.Connected().Connect(c.OnStoreConnected)
