@@ -167,6 +167,6 @@ func (m *MultiBinding) GetImpl() qdata.Store {
 	return m.impl
 }
 
-func (m *MultiBinding) FindEntitiesPaginated(ctx context.Context, entityType string, pageSize int) qdata.PaginatedResult {
-	return m.impl.FindEntitiesPaginated(ctx, entityType, pageSize)
+func (m *MultiBinding) FindEntitiesPaginated(ctx context.Context, entityType string, page, pageSize int) qdata.PaginatedResult {
+	return m.impl.FindEntitiesPaginated(ctx, entityType, page, pageSize)
 }
