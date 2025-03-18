@@ -139,3 +139,77 @@ func (me *EntityManager) EntityExists(ctx context.Context, entityId string) bool
 
 	return response.Exists
 }
+
+type paginatedResult struct {
+	em          *EntityManager
+	ctx         context.Context
+	entityType  string
+	pageSize    int
+	totalCount  int
+	currentPage int
+	entities    []string
+	current     int
+	lastErr     error
+}
+
+func (p *paginatedResult) Next(ctx context.Context) bool {
+	// If we've reached the end of current page, fetch next page
+	if p.entities == nil || p.current >= len(p.entities) {
+		msg := &qprotobufs.ApiRuntimeGetEntitiesPaginatedRequest{
+			EntityType: p.entityType,
+			Page:       int32(p.currentPage),
+			PageSize:   int32(p.pageSize),
+		}
+
+		resp, err := p.em.core.Request(ctx, p.em.core.GetKeyGenerator().GetReadSubject(), msg)
+		if err != nil {
+			p.lastErr = err
+			return false
+		}
+
+		var response qprotobufs.ApiRuntimeGetEntitiesPaginatedResponse
+		if err := resp.Payload.UnmarshalTo(&response); err != nil {
+			p.lastErr = err
+			return false
+		}
+
+		if len(response.Entities) == 0 {
+			return false
+		}
+
+		p.entities = make([]string, len(response.Entities))
+		for i, e := range response.Entities {
+			p.entities[i] = e.Id
+		}
+		p.totalCount = int(response.TotalCount)
+		p.current = 0
+		p.currentPage++
+	}
+
+	p.current++
+	return true
+}
+
+func (p *paginatedResult) Value() string {
+	if p.current > 0 && p.current <= len(p.entities) {
+		return p.entities[p.current-1]
+	}
+	return ""
+}
+
+func (p *paginatedResult) Error() error {
+	return p.lastErr
+}
+
+func (p *paginatedResult) TotalCount() int {
+	return p.totalCount
+}
+
+func (me *EntityManager) FindEntitiesPaginated(ctx context.Context, entityType string, pageSize int) qdata.PaginatedResult {
+	return &paginatedResult{
+		em:         me,
+		ctx:        ctx,
+		entityType: entityType,
+		pageSize:   pageSize,
+	}
+}

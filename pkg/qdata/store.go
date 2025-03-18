@@ -53,11 +53,19 @@ type ModifiableSnapshotManager interface {
 	SnapshotManager
 }
 
+type PaginatedResult interface {
+	Next(context.Context) bool
+	Value() string
+	Error() error
+	TotalCount() int
+}
+
 type EntityManager interface {
 	CreateEntity(ctx context.Context, entityType, parentId, name string) string
 	GetEntity(ctx context.Context, entityId string) Entity
 	DeleteEntity(ctx context.Context, entityId string)
 	FindEntities(ctx context.Context, entityType string) []string
+	FindEntitiesPaginated(ctx context.Context, entityType string, pageSize int) PaginatedResult
 	GetEntityTypes(ctx context.Context) []string
 	EntityExists(ctx context.Context, entityId string) bool
 }

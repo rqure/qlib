@@ -7,7 +7,7 @@ type ExecutableQuery interface {
 	Execute(ctx context.Context) []EntityBinding
 }
 
-// Query represents a database query
+// Query represents a database query (V1)
 type Query interface {
 	ExecutableQuery
 
@@ -24,10 +24,29 @@ type Query interface {
 	Where(fieldName string) FieldQuery
 }
 
+// QueryV2 represents an SQL-based query with pagination
 type QueryV2 interface {
-	ExecutableQuery
+	// WithSQL sets the SQL query string
+	WithSQL(sql string) QueryV2
 
-	WithSQL(sql string) Query
+	// Next fetches the next page of results
+	// Returns false when no more results are available
+	Next(ctx context.Context) bool
+
+	// GetCurrentPage returns the current page of results
+	GetCurrentPage() []EntityBinding
+
+	// GetTotalCount returns the total number of results
+	GetTotalCount() int
+
+	// GetPageCount returns the total number of pages
+	GetPageCount() int
+
+	// GetCurrentPageNum returns the current page number
+	GetCurrentPageNum() int
+
+	// PageSize sets the number of items per page
+	PageSize(size int) QueryV2
 }
 
 // FieldQuery represents a field condition in a query

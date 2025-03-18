@@ -8,6 +8,6 @@ func NewQuery(store qdata.Store) qdata.Query {
 }
 
 // NewQueryV2 creates an advanced SQL-based query
-func NewQueryV2(store qdata.Store) qdata.Query {
+func NewQueryV2(store qdata.Store) qdata.QueryV2 {
 	return NewV2(store)
 }

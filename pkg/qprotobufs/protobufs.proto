@@ -202,6 +202,17 @@ message ApiRuntimeGetEntitiesResponse {
     repeated DatabaseEntity entities = 1;
 }
 
+message ApiRuntimeGetEntitiesPaginatedRequest {
+    string entityType = 1;
+    int32 page = 2;
+    int32 pageSize = 3;
+}
+
+message ApiRuntimeGetEntitiesPaginatedResponse {
+    repeated DatabaseEntity entities = 1;
+    int32 totalCount = 2;
+}
+
 message ApiRuntimeFieldExistsRequest {
     string fieldName = 1;
     string entityType = 2;
@@ -217,6 +228,28 @@ message ApiRuntimeEntityExistsRequest {
 
 message ApiRuntimeEntityExistsResponse {
     bool exists = 1;
+}
+
+message ApiQueryRequest {
+    string query = 1;            // SQL query for V2
+    int32 page = 2;             // Page number (1-based)
+    int32 page_size = 3;        // Items per page
+    string sort_field = 4;       // Field to sort by
+    bool sort_desc = 5;         // Sort direction
+}
+
+message ApiQueryResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    repeated DatabaseEntity entities = 2;
+    int32 total_count = 3;      // Total number of results
+    int32 page_count = 4;       // Total number of pages
+    int32 current_page = 5;     // Current page number
 }
 
 message DatabaseEntity {

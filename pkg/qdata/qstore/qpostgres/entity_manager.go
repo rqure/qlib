@@ -142,6 +142,94 @@ func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []
 	return entities
 }
 
+type paginatedResult struct {
+	tx         pgx.Tx
+	entityType string
+	pageSize   int
+	totalCount int
+	lastErr    error
+	value      string
+	page       int
+	rows       pgx.Rows
+}
+
+func (p *paginatedResult) Next(ctx context.Context) bool {
+	if p.lastErr != nil {
+		return false
+	}
+
+	// If we have active rows and there's a next row, use it
+	if p.rows != nil && p.rows.Next() {
+		p.lastErr = p.rows.Scan(&p.value)
+		return p.lastErr == nil
+	}
+
+	// Clean up previous rows if any
+	if p.rows != nil {
+		p.rows.Close()
+	}
+
+	// Get next page
+	offset := p.page * p.pageSize
+	p.rows, p.lastErr = p.tx.Query(ctx, `
+        SELECT id FROM Entities 
+        WHERE type = $1 
+        ORDER BY cursor_id
+        LIMIT $2 OFFSET $3
+    `, p.entityType, p.pageSize, offset)
+
+	if p.lastErr != nil {
+		return false
+	}
+
+	p.page++
+
+	if p.rows.Next() {
+		p.lastErr = p.rows.Scan(&p.value)
+		return p.lastErr == nil
+	}
+
+	return false
+}
+
+func (p *paginatedResult) Value() string {
+	return p.value
+}
+
+func (p *paginatedResult) Error() error {
+	return p.lastErr
+}
+
+func (p *paginatedResult) TotalCount() int {
+	return p.totalCount
+}
+
+func (me *EntityManager) FindEntitiesPaginated(ctx context.Context, entityType string, pageSize int) qdata.PaginatedResult {
+	var result *paginatedResult
+
+	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+		// Get total count
+		var totalCount int
+		err := tx.QueryRow(ctx, `
+            SELECT COUNT(*) FROM Entities WHERE type = $1
+        `, entityType).Scan(&totalCount)
+
+		if err != nil {
+			result = &paginatedResult{lastErr: err}
+			return
+		}
+
+		result = &paginatedResult{
+			tx:         tx,
+			entityType: entityType,
+			pageSize:   pageSize,
+			totalCount: totalCount,
+		}
+	})
+
+	return result
+}
+
 func (me *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	entityTypes := []string{}
 

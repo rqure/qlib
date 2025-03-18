@@ -9,17 +9,6 @@ import (
 	"github.com/rqure/qlib/pkg/qdata/qbinding"
 )
 
-func (q *QueryV2) processSQL(sql string) string {
-	// Replace field indirection syntax with valid SQLite column names
-	parts := strings.Split(sql, " ")
-	for i, part := range parts {
-		if strings.Contains(part, "->") {
-			parts[i] = q.sanitizeColumnName(part)
-		}
-	}
-	return strings.Join(parts, " ")
-}
-
 func (q *QueryV2) sanitizeColumnName(name string) string {
 	// Convert field indirection syntax to valid SQLite column name
 	// Example: "NextStation->Name" becomes "NextStation_Name"
@@ -51,6 +40,10 @@ func (q *QueryV2) getFieldValue(field qdata.FieldBinding) interface{} {
 		return value.GetEntityReference()
 	case value.IsBinaryFile():
 		return value.GetBinaryFile()
+	case value.IsChoice():
+		return value.GetChoice().Index()
+	case value.IsEntityList():
+		return value.GetEntityList().GetEntities()
 	default:
 		return nil
 	}
