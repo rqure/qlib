@@ -56,8 +56,12 @@ func NewStore(store qdata.Store) Store {
 		disconnected:  qss.New[context.Context](),
 		schemaUpdated: qss.New[context.Context](),
 
+		authReady:    qss.New[context.Context](),
+		authNotReady: qss.New[context.Context](),
+
 		store:            store,
 		isStoreConnected: false,
+		isAuthReady:      false,
 
 		notificationTokens: make([]qdata.NotificationToken, 0),
 	}
@@ -259,8 +263,10 @@ func (me *storeWorker) setAuthReadiness(ctx context.Context, ready bool) {
 	me.isAuthReady = ready
 
 	if ready {
+		qlog.Info("Authentication status changed to [READY]")
 		me.authReady.Emit(ctx)
 	} else {
+		qlog.Info("Authentication status changed to [NOT READY]")
 		me.authNotReady.Emit(ctx)
 	}
 }
