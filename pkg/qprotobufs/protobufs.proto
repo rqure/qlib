@@ -234,8 +234,6 @@ message ApiQueryRequest {
     string query = 1;            // SQL query for V2
     int32 page = 2;             // Page number (1-based)
     int32 page_size = 3;        // Items per page
-    string sort_field = 4;       // Field to sort by
-    bool sort_desc = 5;         // Sort direction
 }
 
 message ApiQueryResponse {
