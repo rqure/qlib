@@ -179,12 +179,22 @@ func (me *session) PastHalfLife(ctx context.Context) bool {
 		return false
 	}
 
-	// Check if token has expired
-	if exp, ok := (*claims)["exp"].(float64); ok {
-		expirationTime := time.Unix(int64(exp), 0)
-		halfLifeTime := time.Until(expirationTime) / 2
-		return time.Now().After(expirationTime.Add(-halfLifeTime))
+	// Get expiration and issued at times
+	exp, expOk := (*claims)["exp"].(float64)
+	iat, iatOk := (*claims)["iat"].(float64)
+
+	if !expOk || !iatOk {
+		// If we can't get both timestamps, default to false
+		return false
 	}
 
-	return false
+	expirationTime := time.Unix(int64(exp), 0)
+	issuedAtTime := time.Unix(int64(iat), 0)
+
+	// Calculate total lifetime and midpoint
+	totalLifetime := expirationTime.Sub(issuedAtTime)
+	midpoint := issuedAtTime.Add(totalLifetime / 2)
+
+	// If current time is past the midpoint, we're in the second half of the token's lifetime
+	return time.Now().After(midpoint)
 }

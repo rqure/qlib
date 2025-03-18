@@ -138,6 +138,8 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 			} else {
 				me.setAuthReadiness(ctx, true, "")
 			}
+		} else {
+			me.setAuthReadiness(ctx, true, "")
 		}
 	} else {
 		me.setAuthReadiness(ctx, false, "Client auth session is not valid")
@@ -159,7 +161,7 @@ func (me *storeWorker) onDisconnected(err error) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isStoreConnected = false
 
-		qlog.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
+		qlog.Info("Connection status changed to [DISCONNECTED] with reason: %v", err)
 
 		me.disconnected.Emit(ctx)
 	})
