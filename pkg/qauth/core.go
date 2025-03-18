@@ -1,6 +1,8 @@
 package qauth
 
-import "github.com/Nerzal/gocloak/v13"
+import (
+	"github.com/Nerzal/gocloak/v13"
+)
 
 type Core interface {
 	GetClient() *gocloak.GoCloak
@@ -44,6 +46,6 @@ func NewCore(opts ...CoreOption) Core {
 	}
 }
 
-func (c *core) GetClient() *gocloak.GoCloak {
-	return c.client
+func (me *core) GetClient() *gocloak.GoCloak {
+	return me.client
 }

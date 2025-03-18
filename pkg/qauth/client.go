@@ -51,7 +51,7 @@ func (me *client) GetSession(ctx context.Context) Session {
 			})
 
 		if err != nil {
-			qlog.Error("Failed to get token: %v", err)
+			qlog.Warn("Failed to get token: %v", err)
 			me.session = NewSession(me.core, nil, me.id, me.secret, me.realm)
 		} else {
 			me.session = NewSession(me.core, token, me.id, me.secret, me.realm)

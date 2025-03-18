@@ -30,7 +30,7 @@ func (me *authProvider) AuthClient(ctx context.Context) qauth.Client {
 		client, err := admin.GetOrCreateClient(ctx, qapp.GetName())
 
 		if err != nil {
-			qlog.Error("Failed to get or create client: %v", err)
+			qlog.Warn("Failed to get or create client: %v", err)
 			return nil
 		}
 

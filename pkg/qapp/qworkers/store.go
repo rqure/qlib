@@ -27,8 +27,8 @@ type storeWorker struct {
 	disconnected  qss.Signal[context.Context]
 	schemaUpdated qss.Signal[context.Context]
 
-	store       qdata.Store
-	isConnected bool
+	store            qdata.Store
+	isStoreConnected bool
 
 	notificationTokens []qdata.NotificationToken
 
@@ -44,8 +44,8 @@ func NewStore(store qdata.Store) Store {
 		disconnected:  qss.New[context.Context](),
 		schemaUpdated: qss.New[context.Context](),
 
-		store:       store,
-		isConnected: false,
+		store:            store,
+		isStoreConnected: false,
 
 		notificationTokens: make([]qdata.NotificationToken, 0),
 	}
@@ -86,17 +86,21 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 	select {
 	case <-me.sessionRefreshTimer.C:
 		me.tryRefreshSession(ctx)
-	case <-me.connectionAttemptTimer.C:
-		me.tryConnect(ctx)
 	default:
+	}
+
+	if !me.isStoreConnected {
+		select {
+		case <-me.connectionAttemptTimer.C:
+			me.tryConnect(ctx)
+		default:
+		}
 	}
 }
 
 func (me *storeWorker) tryConnect(ctx context.Context) {
-	if !me.isConnected {
-		qlog.Info("Trying to connect to the store...")
-		me.store.Connect(ctx)
-	}
+	qlog.Info("Trying to connect to the store...")
+	me.store.Connect(ctx)
 }
 
 func (me *storeWorker) tryRefreshSession(ctx context.Context) {
@@ -110,14 +114,19 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 
 	if session.IsValid(ctx) {
 		if session.PastHalfLife(ctx) {
-			session.Refresh(ctx)
+			err := session.Refresh(ctx)
+			if err != nil {
+				qlog.Warn("Failed to refresh session: %v", err)
+			} else {
+				qlog.Info("Client auth session refreshed successfully")
+			}
 		}
 	}
 }
 
 func (me *storeWorker) onConnected(qss.VoidType) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
-		me.isConnected = true
+		me.isStoreConnected = true
 
 		qlog.Info("Connection status changed to [CONNECTED]")
 
@@ -128,7 +137,7 @@ func (me *storeWorker) onConnected(qss.VoidType) {
 
 func (me *storeWorker) onDisconnected(err error) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
-		me.isConnected = false
+		me.isStoreConnected = false
 
 		qlog.Info("Connection status changed to [DISCONNECTED] with reason [%v]", err)
 
@@ -137,7 +146,7 @@ func (me *storeWorker) onDisconnected(err error) {
 }
 
 func (me *storeWorker) IsConnected() bool {
-	return me.isConnected
+	return me.isStoreConnected
 }
 
 func (me *storeWorker) onLogLevelChanged(ctx context.Context, n qdata.Notification) {
