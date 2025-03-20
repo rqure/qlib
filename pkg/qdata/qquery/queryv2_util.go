@@ -2,11 +2,10 @@ package qquery
 
 import (
 	"context"
-	"database/sql"
+	"fmt"
 	"strings"
 
-	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qdata/qbinding"
+	"github.com/rqure/qlib/pkg/qdata/qfield"
 )
 
 func (q *QueryV2) sanitizeColumnName(name string) string {
@@ -15,87 +14,64 @@ func (q *QueryV2) sanitizeColumnName(name string) string {
 	return strings.ReplaceAll(name, "->", "_")
 }
 
-func (q *QueryV2) getFieldValue(field qdata.FieldBinding) interface{} {
-	if field == nil {
-		return nil
-	}
-
-	value := field.GetValue()
-	if value == nil {
-		return nil
-	}
-
-	switch {
-	case value.IsString():
-		return value.GetString()
-	case value.IsInt():
-		return value.GetInt()
-	case value.IsFloat():
-		return value.GetFloat()
-	case value.IsBool():
-		return value.GetBool()
-	case value.IsTimestamp():
-		return value.GetTimestamp().Unix()
-	case value.IsEntityReference():
-		return value.GetEntityReference()
-	case value.IsBinaryFile():
-		return value.GetBinaryFile()
-	case value.IsChoice():
-		return value.GetChoice().Index()
-	case value.IsEntityList():
-		return value.GetEntityList().GetEntities()
-	default:
-		return nil
-	}
-}
-
-func (q *QueryV2) processResults(ctx context.Context, rows *sql.Rows) []qdata.EntityBinding {
-	columns, err := rows.Columns()
+func (q *QueryV2) ensureColumns(ctx context.Context, columnMap map[string]struct{}) error {
+	tx, err := q.db.Begin()
 	if err != nil {
-		return nil
+		return err
+	}
+	defer tx.Rollback()
+
+	entitySchema := q.store.GetEntitySchema(ctx, q.entityType)
+	if entitySchema == nil {
+		return fmt.Errorf("entity type %s not found", q.entityType)
 	}
 
-	var results []qdata.EntityBinding
-	multi := qbinding.NewMulti(q.store)
-
-	// Prepare value holders
-	values := make([]interface{}, len(columns))
-	valuePtrs := make([]interface{}, len(columns))
-	for i := range values {
-		valuePtrs[i] = &values[i]
-	}
-
-	// Process each row
-	for rows.Next() {
-		if err := rows.Scan(valuePtrs...); err != nil {
+	for fieldName := range columnMap {
+		if fieldName == "id" {
 			continue
 		}
 
-		// Get entity ID (first column)
-		if id, ok := values[0].(string); ok {
-			entity := qbinding.NewEntity(ctx, q.store, id)
+		sqlType := "TEXT" // default type
+		fieldSchema := entitySchema.GetField(fieldName)
+		if fieldSchema == nil {
+			return fmt.Errorf("field %s not found in schema", fieldName)
+		}
 
-			// Set field values from query results
-			for i := 1; i < len(columns); i++ {
-				if values[i] == nil {
-					continue
-				}
+		sqlType = q.getSQLiteType(fieldSchema.GetFieldType())
+		columnName := q.sanitizeColumnName(fieldName)
 
-				fieldName := columns[i]
-				// Convert SQLite column name back to indirection syntax
-				fieldName = strings.ReplaceAll(fieldName, "_", "->")
-
-				// Let the entity system handle field resolution
-				field := entity.GetField(fieldName)
-				if field != nil {
-					field.ReadValue(ctx)
-				}
-			}
-
-			results = append(results, entity)
+		// Add columns for field value, writer, and write_time
+		_, err = tx.Exec(fmt.Sprintf(
+			`ALTER TABLE entities ADD COLUMN IF NOT EXISTS %s %s;
+			 ALTER TABLE entities ADD COLUMN IF NOT EXISTS %s_writer TEXT;
+			 ALTER TABLE entities ADD COLUMN IF NOT EXISTS %s_write_time INTEGER;`,
+			columnName, sqlType, columnName, columnName),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to add columns for field %s: %v", fieldName, err)
 		}
 	}
 
-	multi.Commit(ctx)
-	return results
+	return tx.Commit()
+}
+
+func (q *QueryV2) getSQLiteType(fieldType string) string {
+	switch fieldType {
+	case qfield.Int:
+		return "INTEGER"
+	case qfield.Float:
+		return "REAL"
+	case qfield.Bool:
+		return "INTEGER" // SQLite has no boolean, use INTEGER 0/1
+	case qfield.Timestamp:
+		return "INTEGER" // Store as Unix timestamp
+	case qfield.EntityReference:
+		return "TEXT" // Store entity ID as text
+	case qfield.EntityList:
+		return "TEXT" // Store as comma-separated list
+	case qfield.Choice:
+		return "INTEGER" // Store choice index
+	default:
+		return "TEXT"
+	}
 }

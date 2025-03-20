@@ -29,13 +29,14 @@ type QueryV2 struct {
 	initialized   bool
 
 	// Processing state
-	entityIdsMap map[string]bool // To track processed entity IDs
+	entityCache map[string]qdata.EntityBinding // Cache for entity field values
 }
 
 func NewV2(s qdata.Store) qdata.QueryV2 {
 	return &QueryV2{
-		store:    s,
-		pageSize: 50, // Default page size
+		store:       s,
+		pageSize:    50, // Default page size
+		entityCache: make(map[string]qdata.EntityBinding),
 	}
 }
 
@@ -82,13 +83,18 @@ func (q *QueryV2) PageSize(size int) qdata.QueryV2 {
 }
 
 func (q *QueryV2) Next(ctx context.Context) bool {
-	// Initialize if this is the first call
 	if !q.initialized {
 		if err := q.initialize(ctx); err != nil {
 			qlog.Error("Failed to initialize query: %v", err)
 			return false
 		}
 		q.initialized = true
+
+		// Execute the full query once with row numbers
+		if err := q.executeFullQuery(); err != nil {
+			qlog.Error("Failed to execute full query: %v", err)
+			return false
+		}
 	}
 
 	// Check if we've reached the end
@@ -100,11 +106,15 @@ func (q *QueryV2) Next(ctx context.Context) bool {
 	q.currentPage++
 	offset := (q.currentPage - 1) * q.pageSize
 
-	// Query directly from the results table with pagination, no join needed
-	rows, err := q.db.Query(
-		`SELECT * FROM query_results ORDER BY row_num LIMIT ? OFFSET ?`,
-		q.pageSize, offset,
-	)
+	// Query with pagination using row numbers from the window function
+	rows, err := q.db.Query(fmt.Sprintf(`
+        WITH numbered_results AS (
+            SELECT *, ROW_NUMBER() OVER () as row_num 
+            FROM (%s)
+        )
+        SELECT id FROM numbered_results 
+        WHERE row_num > ? AND row_num <= ?
+    `, q.sqlQuery), offset, offset+q.pageSize)
 
 	if err != nil {
 		qlog.Error("Failed to execute paginated query: %v", err)
@@ -112,7 +122,7 @@ func (q *QueryV2) Next(ctx context.Context) bool {
 	}
 	defer rows.Close()
 
-	q.currentResult = q.processResultsFromFinal(ctx, rows)
+	q.currentResult = q.processResultsFromFinal(rows)
 	return len(q.currentResult) > 0
 }
 
@@ -142,8 +152,6 @@ func (q *QueryV2) initialize(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize SQLite: %v", err)
 	}
 
-	q.entityIdsMap = make(map[string]bool)
-
 	// Process entities and execute query
 	if err := q.processEntitiesAndExecuteQuery(ctx); err != nil {
 		q.db.Close()
@@ -171,35 +179,12 @@ func (q *QueryV2) initDB() error {
 		return err
 	}
 
-	// Create entities table for processing batches
+	// Create single entities table with just the ID
 	_, err = q.db.Exec(`
-		CREATE TABLE entities (
-			id TEXT PRIMARY KEY,
-			writer TEXT GENERATED ALWAYS AS (
-				CASE 
-					WHEN id IS NOT NULL THEN ''
-					ELSE NULL 
-				END
-			) STORED,
-			write_time INTEGER GENERATED ALWAYS AS (
-				CASE 
-					WHEN id IS NOT NULL THEN unixepoch()
-					ELSE NULL 
-				END
-			) STORED
-		)
-	`)
-
-	if err != nil {
-		return err
-	}
-
-	// Create results table with just ID and row_num initially
-	// We'll add columns as needed based on the query
-	_, err = q.db.Exec(`CREATE TABLE query_results (
-		id TEXT PRIMARY KEY,
-		row_num INTEGER
-	)`)
+        CREATE TABLE entities (
+            id TEXT PRIMARY KEY
+        )
+    `)
 
 	return err
 }
@@ -208,13 +193,8 @@ func (q *QueryV2) processEntitiesAndExecuteQuery(ctx context.Context) error {
 	// Extract column names needed for this query
 	columnMap := q.extractRequiredColumns()
 
-	// Ensure columns exist for entities table
-	if err := q.ensureColumns("entities", columnMap); err != nil {
-		return err
-	}
-
-	// Also ensure the same columns exist in results table
-	if err := q.ensureColumns("query_results", columnMap); err != nil {
+	// Ensure columns exist in entities table
+	if err := q.ensureColumns(ctx, columnMap); err != nil {
 		return err
 	}
 
@@ -223,7 +203,6 @@ func (q *QueryV2) processEntitiesAndExecuteQuery(ctx context.Context) error {
 	currentOffset := 0
 
 	for {
-		// Get a batch of entity IDs
 		result := q.store.FindEntitiesPaginated(ctx, q.entityType, currentOffset/batchSize, batchSize)
 		if result == nil {
 			return fmt.Errorf("failed to get paginated entities")
@@ -232,41 +211,22 @@ func (q *QueryV2) processEntitiesAndExecuteQuery(ctx context.Context) error {
 		var entityIds []string
 		hasEntities := false
 
-		// Collect entity IDs for this batch
 		for result.Next(ctx) {
 			entityId := result.Value()
-			if entityId != "" && !q.entityIdsMap[entityId] {
+			if entityId != "" {
 				entityIds = append(entityIds, entityId)
-				q.entityIdsMap[entityId] = true
 				hasEntities = true
-			}
-
-			if err := result.Error(); err != nil {
-				return fmt.Errorf("error during entity pagination: %v", err)
 			}
 		}
 
-		// If no more entities, we're done
 		if !hasEntities {
 			break
 		}
 
-		// Process this batch of entities
 		if err := q.processBatch(ctx, entityIds, columnMap); err != nil {
 			return err
 		}
 
-		// Execute the query on current data and append to results
-		if err := q.appendQueryResults(columnMap); err != nil {
-			return err
-		}
-
-		// Clear entities table for next batch to save memory
-		if _, err := q.db.Exec("DELETE FROM entities"); err != nil {
-			return fmt.Errorf("failed to clear entities table: %v", err)
-		}
-
-		// Move to next batch
 		currentOffset += len(entityIds)
 	}
 
@@ -304,132 +264,123 @@ func (q *QueryV2) extractRequiredColumns() map[string]struct{} {
 	return columnMap
 }
 
-func (q *QueryV2) ensureColumns(tableName string, columnMap map[string]struct{}) error {
-	// Ensure columns exist for all fields in the specified table
-	for fieldName := range columnMap {
-		// Skip id as it's already in the table schema
-		if fieldName == "id" {
-			continue
-		}
-
-		_, err := q.db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS %s TEXT",
-			tableName, q.sanitizeColumnName(fieldName)))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (q *QueryV2) processBatch(ctx context.Context, entityIds []string, columnMap map[string]struct{}) error {
 	multi := qbinding.NewMulti(q.store)
-	defer multi.Commit(ctx)
 
-	for _, entityId := range entityIds {
-		entity := qbinding.NewEntity(ctx, q.store, entityId)
-		if err := q.addEntityToTable(ctx, entity, columnMap); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (q *QueryV2) addEntityToTable(ctx context.Context, entity qdata.EntityBinding, columnMap map[string]struct{}) error {
-	// Begin transaction
 	tx, err := q.db.Begin()
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() // Will be committed if everything goes well
+	defer tx.Rollback()
 
-	// Insert entity data
-	cols := []string{"id"}
-	vals := []interface{}{entity.GetId()}
-	placeholders := []string{"?"}
-
-	// Add field values
+	// Prepare columns for INSERT statement - each field has value, writer, write_time
+	var columns []string
 	for fieldName := range columnMap {
-		if fieldName == "id" {
+		sanitized := q.sanitizeColumnName(fieldName)
+		if sanitized == "id" {
+			columns = append(columns, "id")
 			continue
 		}
-
-		// Use GetField and ReadValue to handle indirect fields
-		field := entity.GetField(fieldName)
-		if field != nil {
-			field.ReadValue(ctx) // Ensure the field value is loaded
-			if field.GetValue() != nil {
-				cols = append(cols, q.sanitizeColumnName(fieldName))
-				vals = append(vals, q.getFieldValue(field))
-				placeholders = append(placeholders, "?")
-			}
-		}
+		columns = append(columns,
+			sanitized,
+			sanitized+"_writer",
+			sanitized+"_write_time",
+		)
 	}
 
+	// Create INSERT statement with placeholders
+	placeholders := make([]string, len(columns))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
 	query := fmt.Sprintf(
 		"INSERT INTO entities (%s) VALUES (%s)",
-		strings.Join(cols, ", "),
+		strings.Join(columns, ", "),
 		strings.Join(placeholders, ", "),
 	)
 
-	if _, err := tx.Exec(query, vals...); err != nil {
+	stmt, err := tx.Prepare(query)
+	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
-	return tx.Commit()
-}
+	for _, entityId := range entityIds {
+		entity := qbinding.NewEntity(ctx, q.store, entityId)
+		q.entityCache[entityId] = entity
 
-func (q *QueryV2) appendQueryResults(columnMap map[string]struct{}) error {
-	// Create a processed version of the SQL query that inserts all needed columns into results table
-	resultSQL, err := q.createResultInsertSQL(columnMap)
-	if err != nil {
-		return fmt.Errorf("failed to create results SQL: %v", err)
-	}
+		// Prepare values for all columns including writer and write_time
+		values := make([]interface{}, len(columns))
+		valueIdx := 0
 
-	// Execute the query and store results with all necessary columns
-	_, err = q.db.Exec(resultSQL)
-	if err != nil {
-		return fmt.Errorf("failed to execute result query: %v", err)
-	}
+		// Handle ID first
+		for i, col := range columns {
+			if col == "id" {
+				values[i] = entityId
+				valueIdx = i + 1
+				break
+			}
+		}
 
-	return nil
-}
-
-func (q *QueryV2) createResultInsertSQL(columnMap map[string]struct{}) (string, error) {
-	switch stmt := q.stmt.(type) {
-	case *sqlparser.Select:
-		// Build column list for INSERT statement
-		columns := []string{"id", "row_num"}
-		selectColumns := []string{"id", "(SELECT COALESCE(MAX(row_num), 0) + 1 FROM query_results)"}
-
-		// Add all required columns
+		// Handle remaining fields
 		for fieldName := range columnMap {
 			if fieldName == "id" {
 				continue
 			}
-			sanitizedName := q.sanitizeColumnName(fieldName)
-			columns = append(columns, sanitizedName)
-			selectColumns = append(selectColumns, sanitizedName)
+
+			field := entity.GetField(fieldName)
+			if field != nil {
+				field.ReadValue(ctx)
+				values[valueIdx] = q.getFieldValue(field)
+				values[valueIdx+1] = field.GetWriter()
+				values[valueIdx+2] = field.GetWriteTime().Unix()
+			} else {
+				values[valueIdx] = nil
+				values[valueIdx+1] = nil
+				values[valueIdx+2] = nil
+			}
+			valueIdx += 3
 		}
 
-		// Process the AST to handle field indirection
-		processedSQL, err := q.processAST(stmt)
-		if err != nil {
-			return "", err
+		if _, err := stmt.Exec(values...); err != nil {
+			return err
 		}
-
-		// Build insert statement that includes all columns
-		insertSQL := fmt.Sprintf(
-			"INSERT OR IGNORE INTO query_results (%s) SELECT %s FROM (%s)",
-			strings.Join(columns, ", "),
-			strings.Join(selectColumns, ", "),
-			processedSQL,
-		)
-
-		return insertSQL, nil
 	}
 
-	return "", fmt.Errorf("unsupported SQL statement type")
+	multi.Commit(ctx)
+	return tx.Commit()
+}
+
+func (q *QueryV2) getFieldValue(field qdata.FieldBinding) interface{} {
+	if field == nil || field.GetValue() == nil {
+		return nil
+	}
+
+	value := field.GetValue()
+	switch {
+	case value.IsString():
+		return value.GetString()
+	case value.IsInt():
+		return value.GetInt()
+	case value.IsFloat():
+		return value.GetFloat()
+	case value.IsBool():
+		return value.GetBool()
+	case value.IsTimestamp():
+		return value.GetTimestamp().Unix()
+	case value.IsEntityReference():
+		return value.GetEntityReference()
+	case value.IsBinaryFile():
+		return value.GetBinaryFile()
+	case value.IsChoice():
+		return value.GetChoice().Index()
+	case value.IsEntityList():
+		// Convert entity list to JSON array of IDs
+		entities := value.GetEntityList().GetEntities()
+		return strings.Join(entities, ",")
+	default:
+		return nil
+	}
 }
 
 func (q *QueryV2) extractColumnsFromExpr(expr sqlparser.Expr, columnMap map[string]struct{}) {
@@ -581,51 +532,34 @@ func (q *QueryV2) getTotalCount() (int, error) {
 }
 
 // New method to process results from the final results table
-func (q *QueryV2) processResultsFromFinal(ctx context.Context, rows *sql.Rows) []qdata.EntityBinding {
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil
-	}
-
+func (q *QueryV2) processResultsFromFinal(rows *sql.Rows) []qdata.EntityBinding {
 	var results []qdata.EntityBinding
-	multi := qbinding.NewMulti(q.store)
-	idIndex := -1
 
-	// Find the index of the ID column
-	for i, col := range columns {
-		if col == "id" {
-			idIndex = i
-			break
-		}
-	}
-
-	if idIndex == -1 {
-		return nil // No ID column found
-	}
-
-	// Prepare value holders
-	values := make([]interface{}, len(columns))
-	valuePtrs := make([]interface{}, len(columns))
-	for i := range values {
-		valuePtrs[i] = &values[i]
-	}
-
-	// Process each row
+	// We only need to scan the ID since that's all we store now
+	var id string
 	for rows.Next() {
-		if err := rows.Scan(valuePtrs...); err != nil {
+		if err := rows.Scan(&id); err != nil {
 			continue
 		}
 
-		// Get entity ID
-		idValue := values[idIndex]
-		if id, ok := idValue.(string); ok && id != "" {
-			entity := qbinding.NewEntity(ctx, q.store, id)
-
-			// Add entity to results
+		// Get the cached entity
+		if entity, ok := q.entityCache[id]; ok {
 			results = append(results, entity)
 		}
 	}
 
-	multi.Commit(ctx)
 	return results
+}
+
+func (q *QueryV2) executeFullQuery() error {
+	// Count total results
+	var count int
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM (%s)", q.sqlQuery)
+	if err := q.db.QueryRow(countQuery).Scan(&count); err != nil {
+		return err
+	}
+
+	q.totalCount = count
+	q.pageCount = (count + q.pageSize - 1) / q.pageSize
+	return nil
 }
