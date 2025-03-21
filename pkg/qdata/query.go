@@ -26,8 +26,8 @@ type Query interface {
 
 // QueryV2 represents an SQL-based query with pagination
 type QueryV2 interface {
-	// WithSQL sets the SQL query string
-	WithSQL(sql string) QueryV2
+	// Prepare sets the SQL query string
+	Prepare(sql string) QueryV2
 
 	// Next fetches the next page of results
 	// Returns false when no more results are available

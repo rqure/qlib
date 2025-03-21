@@ -40,7 +40,7 @@ func NewV2(s qdata.Store) qdata.QueryV2 {
 	}
 }
 
-func (q *QueryV2) WithSQL(sql string) qdata.QueryV2 {
+func (q *QueryV2) Prepare(sql string) qdata.QueryV2 {
 	parser, err := sqlparser.New(sqlparser.Options{})
 	if err != nil {
 		qlog.Error("Failed to create SQL parser: %v", err)
