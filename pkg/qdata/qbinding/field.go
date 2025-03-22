@@ -11,15 +11,19 @@ import (
 )
 
 type Field struct {
-	store *qdata.Store
-	req   qdata.Request
+	fieldOperator qdata.FieldOperator
+	entityManager qdata.EntityManager
+	schemaManager qdata.SchemaManager
+	req           qdata.Request
 }
 
-func NewField(store *qdata.Store, entityId, fieldName string) qdata.FieldBinding {
+func NewField(fieldOperator qdata.FieldOperator, entityManager qdata.EntityManager, schemaManager qdata.SchemaManager, entityId, fieldName string) qdata.FieldBinding {
 	r := qrequest.New().SetEntityId(entityId).SetFieldName(fieldName)
 	return &Field{
-		store: store,
-		req:   r,
+		fieldOperator: fieldOperator,
+		entityManager: entityManager,
+		schemaManager: schemaManager,
+		req:           r,
 	}
 }
 
@@ -43,14 +47,12 @@ func (me *Field) GetValue() qdata.Value {
 	return me.req.GetValue()
 }
 
-func (me *Field) WriteValue(ctx context.Context, v qdata.Value) qdata.FieldBinding {
+func (me *Field) WriteValue(ctx context.Context, v qdata.Value) {
 	me.req.SetValue(v)
-	me.withStore().Write(ctx, me.req)
-
-	return me
+	me.doWrite(ctx, me.req)
 }
 
-func (me *Field) WriteInt(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteInt(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = 0
 
@@ -78,15 +80,13 @@ func (me *Field) WriteInt(ctx context.Context, args ...interface{}) qdata.FieldB
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteFloat(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteFloat(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = 0.0
 
@@ -114,15 +114,13 @@ func (me *Field) WriteFloat(ctx context.Context, args ...interface{}) qdata.Fiel
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteString(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteString(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = ""
 
@@ -150,15 +148,13 @@ func (me *Field) WriteString(ctx context.Context, args ...interface{}) qdata.Fie
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteBool(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteBool(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = false
 
@@ -186,15 +182,13 @@ func (me *Field) WriteBool(ctx context.Context, args ...interface{}) qdata.Field
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = ""
 
@@ -222,15 +216,13 @@ func (me *Field) WriteBinaryFile(ctx context.Context, args ...interface{}) qdata
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteEntityReference(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteEntityReference(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = ""
 
@@ -258,15 +250,13 @@ func (me *Field) WriteEntityReference(ctx context.Context, args ...interface{}) 
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteTimestamp(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteTimestamp(ctx context.Context, args ...interface{}) {
 	var v interface{}
 	v = time.Time{}
 
@@ -294,15 +284,13 @@ func (me *Field) WriteTimestamp(ctx context.Context, args ...interface{}) qdata.
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) {
 	var selectedIndex interface{} = 0
 
 	if len(args) > 0 {
@@ -310,13 +298,8 @@ func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) qdata.Fie
 	}
 
 	if choice, ok := selectedIndex.(string); ok {
-		entity := me.withStore().GetEntity(ctx, me.req.GetEntityId())
-
-		store := me.withStore()
-		if impl, ok := store.(*MultiBinding); ok {
-			store = impl.GetImpl()
-		}
-		schema := store.GetFieldSchema(ctx, entity.GetType(), me.req.GetFieldName())
+		entity := me.entityManager.GetEntity(ctx, me.req.GetEntityId())
+		schema := me.schemaManager.GetFieldSchema(ctx, entity.GetType(), me.req.GetFieldName())
 
 		if schema.IsChoice() {
 			choices := schema.AsChoiceFieldSchema().GetChoices()
@@ -350,15 +333,13 @@ func (me *Field) WriteChoice(ctx context.Context, args ...interface{}) qdata.Fie
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
-func (me *Field) WriteEntityList(ctx context.Context, args ...interface{}) qdata.FieldBinding {
+func (me *Field) WriteEntityList(ctx context.Context, args ...interface{}) {
 	var entities interface{}
 	entities = []string{}
 
@@ -387,61 +368,59 @@ func (me *Field) WriteEntityList(ctx context.Context, args ...interface{}) qdata
 		}
 	}
 
-	me.withStore().Write(ctx, me.req)
+	me.doWrite(ctx, me.req)
 
 	// Clear settings for future use
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
-
-	return me
 }
 
 func (me *Field) ReadValue(ctx context.Context) qdata.Value {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetValue()
 }
 
 func (me *Field) ReadInt(ctx context.Context) int64 {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetInt()
 }
 
 func (me *Field) ReadFloat(ctx context.Context) float64 {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetFloat()
 }
 
 func (me *Field) ReadString(ctx context.Context) string {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetString()
 }
 
 func (me *Field) ReadBool(ctx context.Context) bool {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetBool()
 }
 
 func (me *Field) ReadBinaryFile(ctx context.Context) string {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetBinaryFile()
 }
 
 func (me *Field) ReadEntityReference(ctx context.Context) string {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetEntityReference()
 }
 
 func (me *Field) ReadTimestamp(ctx context.Context) time.Time {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetTimestamp()
 }
 
 func (me *Field) ReadChoice(ctx context.Context) qdata.CompleteChoice {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetCompleteChoice(ctx)
 }
 
 func (me *Field) ReadEntityList(ctx context.Context) qdata.EntityList {
-	me.withStore().Read(ctx, me.req)
+	me.fieldOperator.Read(ctx, me.req)
 	return me.GetEntityList()
 }
 
@@ -520,12 +499,8 @@ func (me *Field) GetCompleteChoice(ctx context.Context) qdata.CompleteChoice {
 		return nil
 	}
 
-	entity := me.withStore().GetEntity(ctx, me.req.GetEntityId())
-	store := me.withStore()
-	if impl, ok := store.(*MultiBinding); ok {
-		store = impl.GetImpl()
-	}
-	schema := store.GetFieldSchema(ctx, entity.GetType(), me.req.GetFieldName())
+	entity := me.entityManager.GetEntity(ctx, me.req.GetEntityId())
+	schema := me.schemaManager.GetFieldSchema(ctx, entity.GetType(), me.req.GetFieldName())
 	if schema.IsChoice() {
 		choices := schema.AsChoiceFieldSchema().GetChoices()
 		choice.SetOptions(choices)
@@ -538,11 +513,16 @@ func (me *Field) GetEntityList() qdata.EntityList {
 	return me.GetValue().GetEntityList()
 }
 
-func (me *Field) SetValue(v qdata.Value) qdata.FieldBinding {
+func (me *Field) SetValue(v qdata.Value) {
 	me.req.SetValue(v)
-	return me
 }
 
-func (me *Field) withStore() qdata.Store {
-	return *me.store
+func (me *Field) doWrite(ctx context.Context, reqs ...qdata.Request) {
+	fieldOperator := ctx.Value(qdata.TransactionKey).(qdata.FieldOperator)
+
+	if fieldOperator == nil {
+		fieldOperator = me.fieldOperator
+	}
+
+	fieldOperator.Write(ctx, reqs...)
 }

@@ -8,10 +8,10 @@ import (
 )
 
 type TengoMulti struct {
-	m qdata.MultiBinding
+	m qdata.BulkFieldOperator
 }
 
-func NewTengoMulti(m qdata.MultiBinding) *TengoMulti {
+func NewTengoMulti(m qdata.BulkFieldOperator) *TengoMulti {
 	return &TengoMulti{m: m}
 }
 

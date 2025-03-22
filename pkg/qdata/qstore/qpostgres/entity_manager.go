@@ -204,7 +204,7 @@ func (p *paginatedResult) TotalCount() int {
 	return p.totalCount
 }
 
-func (me *EntityManager) FindEntitiesPaginated(ctx context.Context, entityType string, page, pageSize int) qdata.PaginatedResult {
+func (me *EntityManager) FindEntitiesPaginated(ctx context.Context, entityType string, page, pageSize int) qdata.FindEntitiesPaginatedResult {
 	var result *paginatedResult
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {

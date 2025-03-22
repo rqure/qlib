@@ -5,27 +5,19 @@ import (
 	"time"
 )
 
-type MultiBinding interface {
-	Store
-
-	GetEntityById(context.Context, string) EntityBinding
-	Commit(context.Context)
-}
-
 type EntityBinding interface {
 	Entity
-
-	DoMulti(context.Context, func(EntityBinding))
-
 	GetField(string) FieldBinding
 }
 
-type FieldBinding interface {
+type FieldBasicInfo interface {
 	GetEntityId() string
 	GetFieldName() string
 	GetWriteTime() time.Time
 	GetWriter() string
+}
 
+type FieldTypeInfo interface {
 	IsInt() bool
 	IsFloat() bool
 	IsString() bool
@@ -35,7 +27,9 @@ type FieldBinding interface {
 	IsTimestamp() bool
 	IsChoice() bool
 	IsEntityList() bool
+}
 
+type FieldValueGetter interface {
 	GetValue() Value
 	GetInt() int64
 	GetFloat() float64
@@ -47,20 +41,26 @@ type FieldBinding interface {
 	GetChoice() Choice
 	GetCompleteChoice(context.Context) CompleteChoice
 	GetEntityList() EntityList
+}
 
-	SetValue(Value) FieldBinding
+type FieldValueSetter interface {
+	SetValue(Value)
+}
 
-	WriteValue(context.Context, Value) FieldBinding
-	WriteInt(context.Context, ...interface{}) FieldBinding
-	WriteFloat(context.Context, ...interface{}) FieldBinding
-	WriteString(context.Context, ...interface{}) FieldBinding
-	WriteBool(context.Context, ...interface{}) FieldBinding
-	WriteBinaryFile(context.Context, ...interface{}) FieldBinding
-	WriteEntityReference(context.Context, ...interface{}) FieldBinding
-	WriteTimestamp(context.Context, ...interface{}) FieldBinding
-	WriteChoice(context.Context, ...interface{}) FieldBinding
-	WriteEntityList(context.Context, ...interface{}) FieldBinding
+type FieldValueWriter interface {
+	WriteValue(context.Context, Value)
+	WriteInt(context.Context, ...interface{})
+	WriteFloat(context.Context, ...interface{})
+	WriteString(context.Context, ...interface{})
+	WriteBool(context.Context, ...interface{})
+	WriteBinaryFile(context.Context, ...interface{})
+	WriteEntityReference(context.Context, ...interface{})
+	WriteTimestamp(context.Context, ...interface{})
+	WriteChoice(context.Context, ...interface{})
+	WriteEntityList(context.Context, ...interface{})
+}
 
+type FieldValueReader interface {
 	ReadValue(context.Context) Value
 	ReadInt(context.Context) int64
 	ReadFloat(context.Context) float64
@@ -71,4 +71,15 @@ type FieldBinding interface {
 	ReadTimestamp(context.Context) time.Time
 	ReadChoice(context.Context) CompleteChoice
 	ReadEntityList(context.Context) EntityList
+}
+
+type FieldBinding interface {
+	FieldBasicInfo
+	FieldTypeInfo
+
+	FieldValueGetter
+	FieldValueSetter
+
+	FieldValueWriter
+	FieldValueReader
 }

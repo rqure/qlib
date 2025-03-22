@@ -3,11 +3,6 @@ package qdata
 type Entity interface {
 	GetId() string
 	GetType() string
-
-	SetId(string)
-	SetType(string)
-
-	Impl() any
 }
 
 type EntitySchema interface {
@@ -15,6 +10,17 @@ type EntitySchema interface {
 	GetFields() []FieldSchema
 	GetFieldNames() []string
 	GetField(string) FieldSchema
+}
+
+type ModifiableEntity interface {
+	Entity
+
+	SetId(string)
+	SetType(string)
+}
+
+type ModifiableEntitySchema interface {
+	EntitySchema
 
 	SetType(string)
 	SetFields([]FieldSchema)

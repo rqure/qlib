@@ -53,7 +53,7 @@ type ModifiableSnapshotManager interface {
 	SnapshotManager
 }
 
-type PaginatedResult interface {
+type FindEntitiesPaginatedResult interface {
 	Next(context.Context) bool
 	Value() string
 	Error() error
@@ -64,8 +64,9 @@ type EntityManager interface {
 	CreateEntity(ctx context.Context, entityType, parentId, name string) string
 	GetEntity(ctx context.Context, entityId string) Entity
 	DeleteEntity(ctx context.Context, entityId string)
+	Find(sql string) Query
 	FindEntities(ctx context.Context, entityType string) []string
-	FindEntitiesPaginated(ctx context.Context, entityType string, page, pageSize int) PaginatedResult
+	FindEntitiesPaginated(ctx context.Context, entityType string, page, pageSize int) FindEntitiesPaginatedResult
 	GetEntityTypes(ctx context.Context) []string
 	EntityExists(ctx context.Context, entityId string) bool
 }
@@ -159,13 +160,14 @@ type Store interface {
 	SnapshotManager
 }
 
-type LimitedStore struct {
-	Connector
-	EntityManager
-	FieldOperator
-	NotificationConsumer
-	NotificationPublisher
-	SchemaManager
-	AuthProvider
-	SnapshotManager
+type TransactionKeyType string
+
+const TransactionKey TransactionKeyType = "Transaction"
+
+type Transaction interface {
+	Prepare(func(ctx context.Context)) TransactionCommitter
+}
+
+type TransactionCommitter interface {
+	Commit(context.Context)
 }
