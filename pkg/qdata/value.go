@@ -16,10 +16,6 @@ const (
 	EntityListType      ValueType = "entityList"
 )
 
-type RawValueProvider interface {
-	Raw() interface{}
-}
-
 type ValueTypeProvider interface {
 	Type() ValueType
 	IsInt() bool
@@ -33,113 +29,114 @@ type ValueTypeProvider interface {
 	IsEntityList() bool
 }
 
+type ValueProvider interface {
+	RawProvider
+	IntProvider
+	FloatProvider
+	StringProvider
+	BoolProvider
+	BinaryFileProvider
+	EntityReferenceProvider
+	TimestampProvider
+	ChoiceProvider
+	EntityListProvider
+}
+
+type ValueReceiver interface {
+	RawReceiver
+	IntReceiver
+	FloatReceiver
+	StringReceiver
+	BoolReceiver
+	BinaryFileReceiver
+	EntityReferenceReceiver
+	TimestampReceiver
+	ChoiceReceiver
+	EntityListReceiver
+}
+
 type Value interface {
-	RawValueProvider
 	ValueTypeProvider
-
-	IntValue
-	FloatValue
-	StringValue
-	BoolValue
-	BinaryFileValue
-	EntityReferenceValue
-	TimestampValue
-	ChoiceValue
-	EntityListValue
+	ValueProvider
+	ValueReceiver
 }
 
-type ModifiableValue interface {
-	RawValueProvider
-	ValueTypeProvider
-
-	ModifiableIntValue
-	ModifiableFloatValue
-	ModifiableStringValue
-	ModifiableBoolValue
-	ModifiableBinaryFileValue
-	ModifiableEntityReferenceValue
-	ModifiableTimestampValue
-	ModifiableChoiceValue
-	ModifiableEntityListValue
+type RawProvider interface {
+	GetRaw() interface{}
 }
 
-type IntValue interface {
+type RawReceiver interface {
+	SetRaw(value interface{})
+}
+
+type IntProvider interface {
 	GetInt() int
 }
 
-type FloatValue interface {
+type FloatProvider interface {
 	GetFloat() float64
 }
 
-type StringValue interface {
+type StringProvider interface {
 	GetString() string
 }
 
-type BoolValue interface {
+type BoolProvider interface {
 	GetBool() bool
 }
 
-type BinaryFileValue interface {
+type BinaryFileProvider interface {
 	GetBinaryFile() string
 }
 
-type EntityReferenceValue interface {
+type EntityReferenceProvider interface {
 	GetEntityReference() string
 }
 
-type TimestampValue interface {
+type TimestampProvider interface {
 	GetTimestamp() time.Time
 }
 
-type ChoiceValue interface {
+type ChoiceProvider interface {
 	GetChoice() int
 }
 
-type EntityListValue interface {
+type EntityListProvider interface {
 	GetEntityList() []string
 }
 
-type ModifiableIntValue interface {
-	IntValue
-	SetInt(int) ModifiableIntValue
+type IntReceiver interface {
+	SetInt(value int)
 }
 
-type ModifiableFloatValue interface {
-	FloatValue
-	SetFloat(float64) ModifiableFloatValue
+type FloatReceiver interface {
+	SetFloat(value float64)
 }
 
-type ModifiableStringValue interface {
-	StringValue
-	SetString(string) ModifiableStringValue
+type StringReceiver interface {
+	SetString(value string)
 }
 
-type ModifiableBoolValue interface {
-	BoolValue
-	SetBool(bool) ModifiableBoolValue
+type BoolReceiver interface {
+	SetBool(value bool)
 }
 
-type ModifiableBinaryFileValue interface {
-	BinaryFileValue
-	SetBinaryFile(string) ModifiableBinaryFileValue
+type BinaryFileReceiver interface {
+	SetBinaryFile(value string)
 }
 
-type ModifiableEntityReferenceValue interface {
-	EntityReferenceValue
-	SetEntityReference(string) ModifiableEntityReferenceValue
+type EntityReferenceReceiver interface {
+	SetEntityReference(value string)
 }
 
-type ModifiableTimestampValue interface {
-	TimestampValue
-	SetTimestamp(time.Time) ModifiableTimestampValue
+type TimestampReceiver interface {
+	SetTimestamp(value time.Time)
 }
 
-type ModifiableChoiceValue interface {
-	ChoiceValue
-	SetChoice(int) ModifiableChoiceValue
+type ChoiceReceiver interface {
+	SetChoice(value int)
 }
 
-type ModifiableEntityListValue interface {
-	EntityListValue
-	SetEntityList([]string) ModifiableEntityListValue
+type EntityListReceiver interface {
+	SetEntityList(value []string)
 }

@@ -6,7 +6,7 @@ type Bool struct {
 	Value bool
 }
 
-func NewBool(v ...bool) qdata.ModifiableValue {
+func NewBool(v ...bool) qdata.Value {
 	me := &Bool{
 		Value: false, // Default false
 	}
@@ -19,8 +19,10 @@ func NewBool(v ...bool) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.BoolType,
 		},
-		RawValueProvider:    me,
-		ModifiableBoolValue: me,
+		RawProvider:  me,
+		RawReceiver:  me,
+		BoolProvider: me,
+		BoolReceiver: me,
 	}
 }
 
@@ -28,11 +30,16 @@ func (me *Bool) GetBool() bool {
 	return me.Value
 }
 
-func (me *Bool) SetBool(value bool) qdata.ModifiableBoolValue {
+func (me *Bool) SetBool(value bool) {
 	me.Value = value
-	return me
 }
 
-func (me *Bool) Raw() interface{} {
+func (me *Bool) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *Bool) SetRaw(value interface{}) {
+	if v, ok := value.(bool); ok {
+		me.Value = v
+	}
 }

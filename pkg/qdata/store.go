@@ -64,7 +64,7 @@ type EntityManager interface {
 	CreateEntity(ctx context.Context, entityType, parentId, name string) string
 	GetEntity(ctx context.Context, entityId string) Entity
 	DeleteEntity(ctx context.Context, entityId string)
-	Find(sql string) Query
+	// Find(sql string) Query
 	FindEntities(ctx context.Context, entityType string) []string
 	FindEntitiesPaginated(ctx context.Context, entityType string, page, pageSize int) FindEntitiesPaginatedResult
 	GetEntityTypes(ctx context.Context) []string

@@ -6,7 +6,7 @@ type BinaryFile struct {
 	Value string
 }
 
-func NewBinaryFile(v ...string) qdata.ModifiableValue {
+func NewBinaryFile(v ...string) qdata.Value {
 	me := &BinaryFile{
 		Value: "", // Empty path as default
 	}
@@ -19,8 +19,10 @@ func NewBinaryFile(v ...string) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.BinaryFileType,
 		},
-		RawValueProvider:          me,
-		ModifiableBinaryFileValue: me,
+		RawProvider:        me,
+		RawReceiver:        me,
+		BinaryFileProvider: me,
+		BinaryFileReceiver: me,
 	}
 }
 
@@ -28,11 +30,16 @@ func (me *BinaryFile) GetBinaryFile() string {
 	return me.Value
 }
 
-func (me *BinaryFile) SetBinaryFile(value string) qdata.ModifiableBinaryFileValue {
+func (me *BinaryFile) SetBinaryFile(value string) {
 	me.Value = value
-	return me
 }
 
-func (me *BinaryFile) Raw() interface{} {
+func (me *BinaryFile) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *BinaryFile) SetRaw(value interface{}) {
+	if v, ok := value.(string); ok {
+		me.Value = v
+	}
 }

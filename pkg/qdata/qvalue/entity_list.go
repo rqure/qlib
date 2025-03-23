@@ -6,7 +6,7 @@ type EntityList struct {
 	Value []string
 }
 
-func NewEntityList(v ...[]string) qdata.ModifiableValue {
+func NewEntityList(v ...[]string) qdata.Value {
 	me := &EntityList{
 		Value: []string{}, // Empty list as default
 	}
@@ -19,8 +19,10 @@ func NewEntityList(v ...[]string) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.EntityListType,
 		},
-		RawValueProvider:          me,
-		ModifiableEntityListValue: me,
+		RawProvider:        me,
+		RawReceiver:        me,
+		EntityListProvider: me,
+		EntityListReceiver: me,
 	}
 }
 
@@ -28,11 +30,16 @@ func (me *EntityList) GetEntityList() []string {
 	return append([]string(nil), me.Value...)
 }
 
-func (me *EntityList) SetEntityList(value []string) qdata.ModifiableEntityListValue {
+func (me *EntityList) SetEntityList(value []string) {
 	me.Value = value
-	return me
 }
 
-func (me *EntityList) Raw() interface{} {
+func (me *EntityList) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *EntityList) SetRaw(value interface{}) {
+	if v, ok := value.([]string); ok {
+		me.Value = v
+	}
 }

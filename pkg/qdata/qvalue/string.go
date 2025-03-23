@@ -6,7 +6,7 @@ type String struct {
 	Value string
 }
 
-func NewString(v ...string) qdata.ModifiableValue {
+func NewString(v ...string) qdata.Value {
 	me := &String{
 		Value: "",
 	}
@@ -19,8 +19,10 @@ func NewString(v ...string) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.StringType,
 		},
-		RawValueProvider:      me,
-		ModifiableStringValue: me,
+		RawProvider:    me,
+		RawReceiver:    me,
+		StringProvider: me,
+		StringReceiver: me,
 	}
 }
 
@@ -28,11 +30,16 @@ func (me *String) GetString() string {
 	return me.Value
 }
 
-func (me *String) SetString(value string) qdata.ModifiableStringValue {
+func (me *String) SetString(value string) {
 	me.Value = value
-	return me
 }
 
-func (me *String) Raw() interface{} {
+func (me *String) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *String) SetRaw(value interface{}) {
+	if v, ok := value.(string); ok {
+		me.Value = v
+	}
 }

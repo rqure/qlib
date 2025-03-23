@@ -10,7 +10,7 @@ type Timestamp struct {
 	Value time.Time
 }
 
-func NewTimestamp(v ...time.Time) qdata.ModifiableValue {
+func NewTimestamp(v ...time.Time) qdata.Value {
 	me := &Timestamp{
 		Value: time.Time{},
 	}
@@ -23,8 +23,10 @@ func NewTimestamp(v ...time.Time) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.TimestampType,
 		},
-		RawValueProvider:         me,
-		ModifiableTimestampValue: me,
+		RawProvider:       me,
+		RawReceiver:       me,
+		TimestampProvider: me,
+		TimestampReceiver: me,
 	}
 }
 
@@ -32,11 +34,16 @@ func (me *Timestamp) GetTimestamp() time.Time {
 	return me.Value
 }
 
-func (me *Timestamp) SetTimestamp(value time.Time) qdata.ModifiableTimestampValue {
+func (me *Timestamp) SetTimestamp(value time.Time) {
 	me.Value = value
-	return me
 }
 
-func (me *Timestamp) Raw() interface{} {
+func (me *Timestamp) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *Timestamp) SetRaw(value interface{}) {
+	if v, ok := value.(time.Time); ok {
+		me.Value = v
+	}
 }

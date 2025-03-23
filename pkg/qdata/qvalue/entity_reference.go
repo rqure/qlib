@@ -6,9 +6,9 @@ type EntityReference struct {
 	Value string
 }
 
-func NewEntityReference(v ...string) qdata.ModifiableValue {
+func NewEntityReference(v ...string) qdata.Value {
 	me := &EntityReference{
-		Value: "", // Empty reference as default
+		Value: "",
 	}
 
 	if len(v) > 0 {
@@ -19,8 +19,10 @@ func NewEntityReference(v ...string) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.EntityReferenceType,
 		},
-		RawValueProvider:               me,
-		ModifiableEntityReferenceValue: me,
+		RawProvider:             me,
+		RawReceiver:             me,
+		EntityReferenceProvider: me,
+		EntityReferenceReceiver: me,
 	}
 }
 
@@ -28,11 +30,16 @@ func (me *EntityReference) GetEntityReference() string {
 	return me.Value
 }
 
-func (me *EntityReference) SetEntityReference(value string) qdata.ModifiableEntityReferenceValue {
+func (me *EntityReference) SetEntityReference(value string) {
 	me.Value = value
-	return me
 }
 
-func (me *EntityReference) Raw() interface{} {
+func (me *EntityReference) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *EntityReference) SetRaw(value interface{}) {
+	if v, ok := value.(string); ok {
+		me.Value = v
+	}
 }

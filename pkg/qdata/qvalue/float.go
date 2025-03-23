@@ -6,7 +6,7 @@ type Float struct {
 	Value float64
 }
 
-func NewFloat(v ...float64) qdata.ModifiableValue {
+func NewFloat(v ...float64) qdata.Value {
 	me := &Float{
 		Value: 0.0,
 	}
@@ -19,8 +19,10 @@ func NewFloat(v ...float64) qdata.ModifiableValue {
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.FloatType,
 		},
-		RawValueProvider:     me,
-		ModifiableFloatValue: me,
+		RawProvider:   me,
+		RawReceiver:   me,
+		FloatProvider: me,
+		FloatReceiver: me,
 	}
 }
 
@@ -28,11 +30,16 @@ func (me *Float) GetFloat() float64 {
 	return me.Value
 }
 
-func (me *Float) SetFloat(value float64) qdata.ModifiableFloatValue {
+func (me *Float) SetFloat(value float64) {
 	me.Value = value
-	return me
 }
 
-func (me *Float) Raw() interface{} {
+func (me *Float) GetRaw() interface{} {
 	return me.Value
+}
+
+func (me *Float) SetRaw(value interface{}) {
+	if v, ok := value.(float64); ok {
+		me.Value = v
+	}
 }
