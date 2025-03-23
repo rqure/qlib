@@ -6,7 +6,7 @@ import (
 	"github.com/rqure/qlib/pkg/qdata"
 )
 
-type Entity struct {
+type EntityBinding struct {
 	impl qdata.Entity
 
 	entityManager qdata.EntityManager
@@ -27,7 +27,7 @@ func NewEntity(ctx context.Context, entityManager qdata.EntityManager, schemaMan
 }
 
 func NewEntityFromImpl(entityManager qdata.EntityManager, schemaManager qdata.SchemaManager, fieldOperator qdata.FieldOperator, impl qdata.Entity) qdata.EntityBinding {
-	return &Entity{
+	return &EntityBinding{
 		impl: impl,
 
 		entityManager: entityManager,
@@ -38,14 +38,14 @@ func NewEntityFromImpl(entityManager qdata.EntityManager, schemaManager qdata.Sc
 	}
 }
 
-func (e *Entity) GetId() string {
+func (e *EntityBinding) GetId() string {
 	return e.impl.GetId()
 }
 
-func (e *Entity) GetType() string {
+func (e *EntityBinding) GetType() string {
 	return e.impl.GetType()
 }
 
-func (e *Entity) GetField(fieldName string) qdata.FieldBinding {
+func (e *EntityBinding) GetField(fieldName string) qdata.FieldBinding {
 	return e.fields[fieldName]
 }

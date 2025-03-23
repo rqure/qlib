@@ -68,7 +68,7 @@ func (r *Wrapper) IsSuccessful() bool {
 	return r.impl.Success
 }
 
-func (r *Wrapper) GetValue() qdata.Value {
+func (r *Wrapper) GetValue() qdata.ValueTypeProvider {
 	return qfield.FromAnyPb(&r.impl.Value)
 }
 
@@ -112,7 +112,7 @@ func (r *Wrapper) SetSuccessful(success bool) qdata.Request {
 	return r
 }
 
-func (r *Wrapper) SetValue(v qdata.Value) qdata.Request {
+func (r *Wrapper) SetValue(v qdata.ValueTypeProvider) qdata.Request {
 	r.impl.Value = qfield.ToAnyPb(v)
 	return r
 }

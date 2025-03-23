@@ -43,11 +43,11 @@ func (me *Field) GetWriter() string {
 	return qfield.FromRequest(me.req).GetWriter()
 }
 
-func (me *Field) GetValue() qdata.Value {
+func (me *Field) GetValue() qdata.ValueTypeProvider {
 	return me.req.GetValue()
 }
 
-func (me *Field) WriteValue(ctx context.Context, v qdata.Value) {
+func (me *Field) WriteValue(ctx context.Context, v qdata.ValueTypeProvider) {
 	me.req.SetValue(v)
 	me.doWrite(ctx, me.req)
 }
@@ -374,7 +374,7 @@ func (me *Field) WriteEntityList(ctx context.Context, args ...interface{}) {
 	me.req.SetWriteTime(nil).SetWriter(nil).SetWriteOpt(qdata.WriteNormal)
 }
 
-func (me *Field) ReadValue(ctx context.Context) qdata.Value {
+func (me *Field) ReadValue(ctx context.Context) qdata.ValueTypeProvider {
 	me.fieldOperator.Read(ctx, me.req)
 	return me.GetValue()
 }
@@ -513,7 +513,7 @@ func (me *Field) GetEntityList() qdata.EntityList {
 	return me.GetValue().GetEntityList()
 }
 
-func (me *Field) SetValue(v qdata.Value) {
+func (me *Field) SetValue(v qdata.ValueTypeProvider) {
 	me.req.SetValue(v)
 }
 

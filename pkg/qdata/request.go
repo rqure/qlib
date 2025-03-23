@@ -14,14 +14,14 @@ type Request interface {
 	GetFieldName() string
 	GetWriteTime() *time.Time
 	GetWriter() *string
-	GetValue() Value
+	GetValue() ValueTypeProvider
 	IsSuccessful() bool
 
 	SetEntityId(string) Request
 	SetFieldName(string) Request
 	SetWriteTime(*time.Time) Request
 	SetWriter(*string) Request
-	SetValue(Value) Request
+	SetValue(ValueTypeProvider) Request
 	SetSuccessful(bool) Request
 
 	GetWriteOpt() WriteOpt

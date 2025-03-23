@@ -15,13 +15,13 @@ type Value struct {
 	impl **anypb.Any
 }
 
-func NewValue() qdata.Value {
+func NewValue() qdata.ValueTypeProvider {
 	return &Value{
 		impl: new(*anypb.Any),
 	}
 }
 
-func FromAnyPb(impl **anypb.Any) qdata.Value {
+func FromAnyPb(impl **anypb.Any) qdata.ValueTypeProvider {
 	if impl == nil {
 		impl = new(*anypb.Any)
 		*impl = nil
@@ -32,7 +32,7 @@ func FromAnyPb(impl **anypb.Any) qdata.Value {
 	}
 }
 
-func ToAnyPb(v qdata.Value) *anypb.Any {
+func ToAnyPb(v qdata.ValueTypeProvider) *anypb.Any {
 	if v == nil {
 		return nil
 	}
@@ -211,7 +211,7 @@ func (me *Value) GetEntityList() qdata.EntityList {
 	return NewEntityList(m.Raw...)
 }
 
-func (me *Value) SetInt(i interface{}) qdata.Value {
+func (me *Value) SetInt(i interface{}) qdata.ValueTypeProvider {
 	value := int64(0)
 
 	switch c := i.(type) {
@@ -266,7 +266,7 @@ func (me *Value) SetInt(i interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetFloat(f interface{}) qdata.Value {
+func (me *Value) SetFloat(f interface{}) qdata.ValueTypeProvider {
 	value := float64(0)
 
 	switch c := f.(type) {
@@ -321,7 +321,7 @@ func (me *Value) SetFloat(f interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetString(s interface{}) qdata.Value {
+func (me *Value) SetString(s interface{}) qdata.ValueTypeProvider {
 	value := ""
 
 	switch c := s.(type) {
@@ -370,7 +370,7 @@ func (me *Value) SetString(s interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetBool(b interface{}) qdata.Value {
+func (me *Value) SetBool(b interface{}) qdata.ValueTypeProvider {
 	value := false
 
 	switch c := b.(type) {
@@ -427,7 +427,7 @@ func (me *Value) SetBool(b interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetBinaryFile(b interface{}) qdata.Value {
+func (me *Value) SetBinaryFile(b interface{}) qdata.ValueTypeProvider {
 	value := ""
 
 	switch c := b.(type) {
@@ -450,7 +450,7 @@ func (me *Value) SetBinaryFile(b interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetEntityReference(e interface{}) qdata.Value {
+func (me *Value) SetEntityReference(e interface{}) qdata.ValueTypeProvider {
 	value := ""
 
 	switch c := e.(type) {
@@ -473,7 +473,7 @@ func (me *Value) SetEntityReference(e interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetTimestamp(t interface{}) qdata.Value {
+func (me *Value) SetTimestamp(t interface{}) qdata.ValueTypeProvider {
 	value := time.Now()
 
 	switch c := t.(type) {
@@ -522,7 +522,7 @@ func (me *Value) SetTimestamp(t interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetChoice(selected interface{}) qdata.Value {
+func (me *Value) SetChoice(selected interface{}) qdata.ValueTypeProvider {
 	value := int64(0)
 
 	switch c := selected.(type) {
@@ -576,7 +576,7 @@ func (me *Value) SetChoice(selected interface{}) qdata.Value {
 	return me
 }
 
-func (me *Value) SetEntityList(entities interface{}) qdata.Value {
+func (me *Value) SetEntityList(entities interface{}) qdata.ValueTypeProvider {
 	var entityList []string
 
 	switch list := entities.(type) {

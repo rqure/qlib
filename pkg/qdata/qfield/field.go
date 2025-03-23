@@ -55,7 +55,7 @@ func FromRequest(r qdata.Request) qdata.Field {
 	}
 }
 
-func (f *Field) GetValue() qdata.Value {
+func (f *Field) GetValue() qdata.ValueTypeProvider {
 	return FromAnyPb(&f.impl.Value)
 }
 

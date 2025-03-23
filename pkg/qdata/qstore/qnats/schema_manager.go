@@ -46,7 +46,7 @@ func (me *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType 
 	return response.Exists
 }
 
-func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) qdata.EntitySchema {
+func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) qdata.ModifiableEntitySchema {
 	msg := &qprotobufs.ApiConfigGetEntitySchemaRequest{
 		Type: entityType,
 	}

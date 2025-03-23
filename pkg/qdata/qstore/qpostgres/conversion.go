@@ -36,7 +36,7 @@ func getTableForType(fieldType string) string {
 	}
 }
 
-func convertToValue(fieldType string, value interface{}) qdata.Value {
+func convertToValue(fieldType string, value interface{}) qdata.ValueTypeProvider {
 	if value == nil {
 		return nil
 	}
@@ -146,7 +146,7 @@ func fieldTypeToProtoType(fieldType string) *anypb.Any {
 	}
 }
 
-func fieldValueToInterface(v qdata.Value) interface{} {
+func fieldValueToInterface(v qdata.ValueTypeProvider) interface{} {
 	if v == nil || v.IsNil() {
 		return nil
 	}

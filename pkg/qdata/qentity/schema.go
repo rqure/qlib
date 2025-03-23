@@ -24,7 +24,7 @@ func ToSchemaPb(s qdata.EntitySchema) *qprotobufs.DatabaseEntitySchema {
 	}
 }
 
-func FromSchemaPb(impl *qprotobufs.DatabaseEntitySchema) qdata.EntitySchema {
+func FromSchemaPb(impl *qprotobufs.DatabaseEntitySchema) qdata.ModifiableEntitySchema {
 	if impl != nil {
 		for _, f := range impl.Fields {
 			if f == nil {

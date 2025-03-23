@@ -121,15 +121,15 @@ func (me *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType 
 	return exists
 }
 
-func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.EntitySchema) {
+func (me *SchemaManager) SetEntitySchema(ctx context.Context, requestedSchema qdata.EntitySchema) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Get existing schema for comparison
-		oldSchema := me.GetEntitySchema(ctx, schema.GetType())
+		oldSchema := me.GetEntitySchema(ctx, requestedSchema.GetType())
 
 		// Delete existing schema
 		_, err := tx.Exec(ctx, `
 			DELETE FROM EntitySchema WHERE entity_type = $1
-		`, schema.GetType())
+		`, requestedSchema.GetType())
 		if err != nil {
 			qlog.Error("Failed to delete existing schema: %v", err)
 			return
@@ -138,7 +138,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
 		// Delete existing choice options
 		_, err = tx.Exec(ctx, `
 			DELETE FROM ChoiceOptions WHERE entity_type = $1
-		`, schema.GetType())
+		`, requestedSchema.GetType())
 		if err != nil {
 			qlog.Error("Failed to delete existing choice options: %v", err)
 			return
@@ -146,34 +146,36 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
 
 		// Build new schema
 		fields := []qdata.FieldSchema{}
-		if !slices.ContainsFunc(schema.GetFields(), func(field qdata.FieldSchema) bool {
+		if !slices.ContainsFunc(requestedSchema.GetFields(), func(field qdata.FieldSchema) bool {
 			return field.GetFieldName() == "Name"
 		}) {
 			fields = append(fields, qfield.NewSchema("Name", qfield.String))
 		}
 
-		if !slices.ContainsFunc(schema.GetFields(), func(field qdata.FieldSchema) bool {
+		if !slices.ContainsFunc(requestedSchema.GetFields(), func(field qdata.FieldSchema) bool {
 			return field.GetFieldName() == "Description"
 		}) {
 			fields = append(fields, qfield.NewSchema("Description", qfield.String))
 		}
 
-		if !slices.ContainsFunc(schema.GetFields(), func(field qdata.FieldSchema) bool {
+		if !slices.ContainsFunc(requestedSchema.GetFields(), func(field qdata.FieldSchema) bool {
 			return field.GetFieldName() == "Parent"
 		}) {
 			fields = append(fields, qfield.NewSchema("Parent", qfield.EntityReference))
 		}
 
-		if !slices.ContainsFunc(schema.GetFields(), func(field qdata.FieldSchema) bool {
+		if !slices.ContainsFunc(requestedSchema.GetFields(), func(field qdata.FieldSchema) bool {
 			return field.GetFieldName() == "Children"
 		}) {
 			fields = append(fields, qfield.NewSchema("Children", qfield.EntityList))
 		}
 
-		fields = append(fields, schema.GetFields()...)
-		schema.SetFields(fields)
+		fields = append(fields, requestedSchema.GetFields()...)
+		modifiableSchema := qentity.FromSchemaPb(&qprotobufs.DatabaseEntitySchema{})
+		modifiableSchema.SetType(requestedSchema.GetType())
+		modifiableSchema.SetFields(fields)
 
-		for i, field := range schema.GetFields() {
+		for i, field := range modifiableSchema.GetFields() {
 			// Remove non-existant entity ids from read/write permissions
 			readPermissions := []string{}
 			for _, id := range field.GetReadPermissions() {
@@ -196,7 +198,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (entity_type, field_name) 
             DO UPDATE SET field_type = $3, read_permissions = $4, write_permissions = $5, rank = $6
-        `, schema.GetType(), field.GetFieldName(), field.GetFieldType(), readPermissions, writePermissions, i)
+        `, modifiableSchema.GetType(), field.GetFieldName(), field.GetFieldType(), readPermissions, writePermissions, i)
 
 			if err != nil {
 				qlog.Error("Failed to set field schema: %v", err)
@@ -213,7 +215,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
                 VALUES ($1, $2, $3)
                 ON CONFLICT (entity_type, field_name)
                 DO UPDATE SET options = $3
-            `, schema.GetType(), field.GetFieldName(), options)
+            `, modifiableSchema.GetType(), field.GetFieldName(), options)
 
 				if err != nil {
 					qlog.Error("Failed to set choice options: %v", err)
@@ -230,7 +232,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
 			// Find removed fields
 			for _, oldField := range oldSchema.GetFields() {
 				found := false
-				for _, newField := range schema.GetFields() {
+				for _, newField := range modifiableSchema.GetFields() {
 					if oldField.GetFieldName() == newField.GetFieldName() {
 						found = true
 						break
@@ -242,7 +244,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
 			}
 
 			// Find new fields
-			for _, newField := range schema.GetFields() {
+			for _, newField := range modifiableSchema.GetFields() {
 				found := false
 				for _, oldField := range oldSchema.GetFields() {
 					if newField.GetFieldName() == oldField.GetFieldName() {
@@ -256,7 +258,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
 			}
 
 			// Update existing entities
-			entities := me.entityManager.FindEntities(ctx, schema.GetType())
+			entities := me.entityManager.FindEntities(ctx, modifiableSchema.GetType())
 			for _, entityId := range entities {
 				// Remove deleted fields
 				for _, fieldName := range removedFields {
@@ -284,7 +286,7 @@ func (me *SchemaManager) SetEntitySchema(ctx context.Context, schema qdata.Entit
 	})
 }
 
-func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) qdata.EntitySchema {
+func (me *SchemaManager) GetEntitySchema(ctx context.Context, entityType string) qdata.ModifiableEntitySchema {
 	schema := qentity.FromSchemaPb(&qprotobufs.DatabaseEntitySchema{})
 	schema.SetType(entityType)
 	var fields []qdata.FieldSchema

@@ -79,7 +79,7 @@ type ModifiableEntityManager interface {
 
 type SchemaManager interface {
 	FieldExists(ctx context.Context, entityType, fieldName string) bool
-	GetEntitySchema(ctx context.Context, entityType string) EntitySchema
+	GetEntitySchema(ctx context.Context, entityType string) ModifiableEntitySchema
 	SetEntitySchema(context.Context, EntitySchema)
 	GetFieldSchema(ctx context.Context, entityType, fieldName string) FieldSchema
 	SetFieldSchema(ctx context.Context, entityType, fieldName string, schema FieldSchema)
