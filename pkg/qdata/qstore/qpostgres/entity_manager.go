@@ -21,7 +21,7 @@ type EntityManager struct {
 	fieldOperator qdata.FieldOperator
 }
 
-func NewEntityManager(core Core) qdata.ModifiableEntityManager {
+func NewEntityManager(core Core) qdata.EntityManager {
 	return &EntityManager{
 		core: core,
 	}

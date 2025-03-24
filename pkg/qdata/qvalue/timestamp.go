@@ -10,7 +10,7 @@ type Timestamp struct {
 	Value time.Time
 }
 
-func NewTimestamp(v ...time.Time) qdata.Value {
+func NewTimestamp(v ...time.Time) *qdata.Value {
 	me := &Timestamp{
 		Value: time.Time{},
 	}
@@ -19,10 +19,11 @@ func NewTimestamp(v ...time.Time) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.TimestampType,
 		},
+		ValueConstructor:  me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		TimestampProvider: me,
@@ -46,4 +47,8 @@ func (me *Timestamp) SetRaw(value interface{}) {
 	if v, ok := value.(time.Time); ok {
 		me.Value = v
 	}
+}
+
+func (me *Timestamp) Clone() *qdata.Value {
+	return NewTimestamp(me.Value)
 }

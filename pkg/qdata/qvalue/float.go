@@ -6,7 +6,7 @@ type Float struct {
 	Value float64
 }
 
-func NewFloat(v ...float64) qdata.Value {
+func NewFloat(v ...float64) *qdata.Value {
 	me := &Float{
 		Value: 0.0,
 	}
@@ -15,14 +15,15 @@ func NewFloat(v ...float64) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.FloatType,
 		},
-		RawProvider:   me,
-		RawReceiver:   me,
-		FloatProvider: me,
-		FloatReceiver: me,
+		ValueConstructor: me,
+		RawProvider:      me,
+		RawReceiver:      me,
+		FloatProvider:    me,
+		FloatReceiver:    me,
 	}
 }
 
@@ -42,4 +43,8 @@ func (me *Float) SetRaw(value interface{}) {
 	if v, ok := value.(float64); ok {
 		me.Value = v
 	}
+}
+
+func (me *Float) Clone() *qdata.Value {
+	return NewFloat(me.Value)
 }

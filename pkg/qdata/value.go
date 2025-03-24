@@ -1,6 +1,10 @@
 package qdata
 
-import "time"
+import (
+	"time"
+
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type ValueType string
 
@@ -29,36 +33,8 @@ type ValueTypeProvider interface {
 	IsEntityList() bool
 }
 
-type ValueProvider interface {
-	RawProvider
-	IntProvider
-	FloatProvider
-	StringProvider
-	BoolProvider
-	BinaryFileProvider
-	EntityReferenceProvider
-	TimestampProvider
-	ChoiceProvider
-	EntityListProvider
-}
-
-type ValueReceiver interface {
-	RawReceiver
-	IntReceiver
-	FloatReceiver
-	StringReceiver
-	BoolReceiver
-	BinaryFileReceiver
-	EntityReferenceReceiver
-	TimestampReceiver
-	ChoiceReceiver
-	EntityListReceiver
-}
-
-type Value interface {
-	ValueTypeProvider
-	ValueProvider
-	ValueReceiver
+type ValueTypeReceiver interface {
+	SetType(value ValueType)
 }
 
 type RawProvider interface {
@@ -139,4 +115,40 @@ type ChoiceReceiver interface {
 
 type EntityListReceiver interface {
 	SetEntityList(value []string)
+}
+
+type ValueConstructor interface {
+	Clone() *Value
+}
+
+type AnyPbConverter interface {
+	AsAnyPb() *anypb.Any
+}
+
+type Value struct {
+	ValueConstructor
+	AnyPbConverter
+	ValueTypeProvider
+
+	RawProvider
+	IntProvider
+	FloatProvider
+	StringProvider
+	BoolProvider
+	BinaryFileProvider
+	EntityReferenceProvider
+	TimestampProvider
+	ChoiceProvider
+	EntityListProvider
+
+	RawReceiver
+	IntReceiver
+	FloatReceiver
+	StringReceiver
+	BoolReceiver
+	BinaryFileReceiver
+	EntityReferenceReceiver
+	TimestampReceiver
+	ChoiceReceiver
+	EntityListReceiver
 }

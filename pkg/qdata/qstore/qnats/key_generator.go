@@ -1,6 +1,6 @@
 package qnats
 
-type KeyGenerator interface {
+type NatsKeyGenerator interface {
 	GetReadSubject() string
 	GetWriteSubject() string
 	GetNotificationRegistrationSubject() string
@@ -8,28 +8,28 @@ type KeyGenerator interface {
 	GetDistributedNotificationGroupSubject(serviceId string) string
 }
 
-type keyGenerator struct{}
+type natsKeyGenerator struct{}
 
-func NewKeyGenerator() KeyGenerator {
-	return &keyGenerator{}
+func NewKeyGenerator() NatsKeyGenerator {
+	return &natsKeyGenerator{}
 }
 
-func (g *keyGenerator) GetReadSubject() string {
+func (g *natsKeyGenerator) GetReadSubject() string {
 	return "q.store.read.request"
 }
 
-func (g *keyGenerator) GetWriteSubject() string {
+func (g *natsKeyGenerator) GetWriteSubject() string {
 	return "q.store.read.request"
 }
 
-func (g *keyGenerator) GetNotificationRegistrationSubject() string {
+func (g *natsKeyGenerator) GetNotificationRegistrationSubject() string {
 	return "q.store.notification"
 }
 
-func (g *keyGenerator) GetNotificationGroupSubject(serviceId string) string {
+func (g *natsKeyGenerator) GetNotificationGroupSubject(serviceId string) string {
 	return "q.store.notification.group." + serviceId
 }
 
-func (g *keyGenerator) GetDistributedNotificationGroupSubject(serviceId string) string {
+func (g *natsKeyGenerator) GetDistributedNotificationGroupSubject(serviceId string) string {
 	return "q.store.notification.distributed." + serviceId
 }

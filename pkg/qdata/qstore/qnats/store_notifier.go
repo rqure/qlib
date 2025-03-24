@@ -16,8 +16,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type NotificationConsumer struct {
-	core            Core
+type NatsStoreNotifier struct {
+	core            NatsCore
 	mu              sync.RWMutex
 	callbacks       map[string][]qdata.NotificationCallback
 	keepAlive       *time.Ticker
@@ -25,8 +25,8 @@ type NotificationConsumer struct {
 	cancelKeepAlive context.CancelFunc
 }
 
-func NewNotificationConsumer(core Core) qdata.ModifiableNotificationConsumer {
-	consumer := &NotificationConsumer{
+func NewStoreNotifier(core NatsCore) qdata.StoreNotifier {
+	consumer := &NatsStoreNotifier{
 		core:      core,
 		callbacks: map[string][]qdata.NotificationCallback{},
 		keepAlive: time.NewTicker(30 * time.Second),
@@ -40,7 +40,7 @@ func NewNotificationConsumer(core Core) qdata.ModifiableNotificationConsumer {
 	return consumer
 }
 
-func (me *NotificationConsumer) onConnected(qss.VoidType) {
+func (me *NatsStoreNotifier) onConnected(qss.VoidType) {
 	// Subscribe to non-distributed notifications (all instances receive these)
 	groupSubject := me.core.GetKeyGenerator().GetNotificationGroupSubject(qapp.GetName())
 	me.core.Subscribe(groupSubject, me.handleNotification)
@@ -55,7 +55,7 @@ func (me *NotificationConsumer) onConnected(qss.VoidType) {
 	go me.keepAliveTask(ctx)
 }
 
-func (me *NotificationConsumer) onDisconnected(err error) {
+func (me *NatsStoreNotifier) onDisconnected(err error) {
 	// Stop keepAliveTask
 	if me.cancelKeepAlive != nil {
 		me.cancelKeepAlive()
@@ -63,7 +63,7 @@ func (me *NotificationConsumer) onDisconnected(err error) {
 	}
 }
 
-func (me *NotificationConsumer) handleNotification(msg *nats.Msg) {
+func (me *NatsStoreNotifier) handleNotification(msg *nats.Msg) {
 	apiMsg := &qprotobufs.ApiMessage{}
 	if err := proto.Unmarshal(msg.Data, apiMsg); err != nil {
 		qlog.Error("Failed to unmarshal web message: %v", err)
@@ -80,7 +80,7 @@ func (me *NotificationConsumer) handleNotification(msg *nats.Msg) {
 	me.consumed.Emit(me.generateInvokeCallbacksFn(notif))
 }
 
-func (me *NotificationConsumer) keepAliveTask(ctx context.Context) {
+func (me *NatsStoreNotifier) keepAliveTask(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -96,7 +96,7 @@ func (me *NotificationConsumer) keepAliveTask(ctx context.Context) {
 	}
 }
 
-func (me *NotificationConsumer) sendNotify(ctx context.Context, config qdata.NotificationConfig) error {
+func (me *NatsStoreNotifier) sendNotify(ctx context.Context, config qdata.NotificationConfig) error {
 	if config.GetServiceId() == "" {
 		config.SetServiceId(qapp.GetName())
 	}
@@ -122,7 +122,7 @@ func (me *NotificationConsumer) sendNotify(ctx context.Context, config qdata.Not
 	return nil
 }
 
-func (me *NotificationConsumer) Notify(ctx context.Context, config qdata.NotificationConfig, cb qdata.NotificationCallback) qdata.NotificationToken {
+func (me *NatsStoreNotifier) Notify(ctx context.Context, config qdata.NotificationConfig, cb qdata.NotificationCallback) qdata.NotificationToken {
 	tokenId := config.GetToken()
 	var err error
 
@@ -142,7 +142,7 @@ func (me *NotificationConsumer) Notify(ctx context.Context, config qdata.Notific
 	return qnotify.NewToken("", me, nil)
 }
 
-func (me *NotificationConsumer) Unnotify(ctx context.Context, token string) {
+func (me *NatsStoreNotifier) Unnotify(ctx context.Context, token string) {
 	msg := &qprotobufs.ApiRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
 	}
@@ -156,7 +156,7 @@ func (me *NotificationConsumer) Unnotify(ctx context.Context, token string) {
 	me.mu.Unlock()
 }
 
-func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) {
+func (me *NatsStoreNotifier) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) {
 	me.mu.Lock()
 	if me.callbacks[token] == nil {
 		me.mu.Unlock()
@@ -180,11 +180,11 @@ func (me *NotificationConsumer) UnnotifyCallback(ctx context.Context, token stri
 	me.mu.Unlock()
 }
 
-func (me *NotificationConsumer) Consumed() qss.Signal[func(context.Context)] {
+func (me *NatsStoreNotifier) Consumed() qss.Signal[func(context.Context)] {
 	return me.consumed
 }
 
-func (me *NotificationConsumer) generateInvokeCallbacksFn(notif qdata.Notification) func(context.Context) {
+func (me *NatsStoreNotifier) generateInvokeCallbacksFn(notif qdata.Notification) func(context.Context) {
 	return func(ctx context.Context) {
 		callbacksCopy := []qdata.NotificationCallback{}
 		me.mu.RLock()

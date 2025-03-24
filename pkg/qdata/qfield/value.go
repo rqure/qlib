@@ -16,7 +16,7 @@ type Value struct {
 }
 
 func NewValue() qdata.ValueTypeProvider {
-	return &Value{
+	return &qdata.Value{
 		impl: new(*anypb.Any),
 	}
 }
@@ -27,7 +27,7 @@ func FromAnyPb(impl **anypb.Any) qdata.ValueTypeProvider {
 		*impl = nil
 	}
 
-	return &Value{
+	return &qdata.Value{
 		impl: impl,
 	}
 }

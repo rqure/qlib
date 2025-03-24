@@ -6,7 +6,7 @@ type Bool struct {
 	Value bool
 }
 
-func NewBool(v ...bool) qdata.Value {
+func NewBool(v ...bool) *qdata.Value {
 	me := &Bool{
 		Value: false, // Default false
 	}
@@ -15,14 +15,15 @@ func NewBool(v ...bool) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.BoolType,
 		},
-		RawProvider:  me,
-		RawReceiver:  me,
-		BoolProvider: me,
-		BoolReceiver: me,
+		ValueConstructor: me,
+		RawProvider:      me,
+		RawReceiver:      me,
+		BoolProvider:     me,
+		BoolReceiver:     me,
 	}
 }
 
@@ -42,4 +43,8 @@ func (me *Bool) SetRaw(value interface{}) {
 	if v, ok := value.(bool); ok {
 		me.Value = v
 	}
+}
+
+func (me *Bool) Clone() *qdata.Value {
+	return NewBool(me.Value)
 }

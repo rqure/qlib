@@ -6,7 +6,7 @@ type EntityList struct {
 	Value []string
 }
 
-func NewEntityList(v ...[]string) qdata.Value {
+func NewEntityList(v ...[]string) *qdata.Value {
 	me := &EntityList{
 		Value: []string{}, // Empty list as default
 	}
@@ -15,10 +15,11 @@ func NewEntityList(v ...[]string) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.EntityListType,
 		},
+		ValueConstructor:   me,
 		RawProvider:        me,
 		RawReceiver:        me,
 		EntityListProvider: me,
@@ -42,4 +43,8 @@ func (me *EntityList) SetRaw(value interface{}) {
 	if v, ok := value.([]string); ok {
 		me.Value = v
 	}
+}
+
+func (me *EntityList) Clone() *qdata.Value {
+	return NewEntityList(me.Value)
 }

@@ -1,12 +1,16 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type Int struct {
 	Value int
 }
 
-func NewInt(v ...int) qdata.Value {
+func NewInt(v ...int) *qdata.Value {
 	me := &Int{
 		Value: 0,
 	}
@@ -15,14 +19,16 @@ func NewInt(v ...int) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.IntType,
 		},
-		RawProvider: me,
-		RawReceiver: me,
-		IntProvider: me,
-		IntReceiver: me,
+		ValueConstructor: me,
+		AnyPbConverter:   me,
+		RawProvider:      me,
+		RawReceiver:      me,
+		IntProvider:      me,
+		IntReceiver:      me,
 	}
 }
 
@@ -42,4 +48,20 @@ func (me *Int) SetRaw(value interface{}) {
 	if v, ok := value.(int); ok {
 		me.Value = v
 	}
+}
+
+func (me *Int) Clone() *qdata.Value {
+	return NewInt(me.Value)
+}
+
+func (me *Int) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.Int{
+		Raw: int64(me.Value),
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

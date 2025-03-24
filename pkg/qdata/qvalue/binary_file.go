@@ -1,12 +1,18 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"encoding/base64"
+	"strings"
+
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qlog"
+)
 
 type BinaryFile struct {
 	Value string
 }
 
-func NewBinaryFile(v ...string) qdata.Value {
+func NewBinaryFile(v ...string) *qdata.Value {
 	me := &BinaryFile{
 		Value: "", // Empty path as default
 	}
@@ -15,10 +21,11 @@ func NewBinaryFile(v ...string) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.BinaryFileType,
 		},
+		ValueConstructor:   me,
 		RawProvider:        me,
 		RawReceiver:        me,
 		BinaryFileProvider: me,
@@ -42,4 +49,29 @@ func (me *BinaryFile) SetRaw(value interface{}) {
 	if v, ok := value.(string); ok {
 		me.Value = v
 	}
+}
+
+func (me *BinaryFile) Clone() *qdata.Value {
+	return NewBinaryFile(me.Value)
+}
+
+func FileEncode(content []byte) string {
+	prefix := "data:application/octet-stream;base64,"
+	return prefix + base64.StdEncoding.EncodeToString(content)
+}
+
+func FileDecode(encoded string) []byte {
+	prefix := "data:application/octet-stream;base64,"
+	if !strings.HasPrefix(encoded, prefix) {
+		qlog.Error("Invalid prefix: %v", encoded)
+		return []byte{}
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(encoded, prefix))
+	if err != nil {
+		qlog.Error("Failed to decode: %v", err)
+		return []byte{}
+	}
+
+	return decoded
 }

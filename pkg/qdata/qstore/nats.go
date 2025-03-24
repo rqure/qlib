@@ -4,7 +4,7 @@ import "github.com/rqure/qlib/pkg/qdata/qstore/qnats"
 
 func CommunicateOverNats(address string) ConfigFn {
 	return func(store *Store) {
-		core := qnats.NewCore(qnats.Config{Address: address})
+		core := qnats.NewCore(qnats.NatsConfig{Address: address})
 		core.SetAuthProvider(store.AuthProvider)
 
 		store.MultiConnector.AddConnector(qnats.NewConnector(core))
@@ -20,7 +20,7 @@ func CommunicateOverNats(address string) ConfigFn {
 
 func PersistOverNats(address string) ConfigFn {
 	return func(store *Store) {
-		core := qnats.NewCore(qnats.Config{Address: address})
+		core := qnats.NewCore(qnats.NatsConfig{Address: address})
 		core.SetAuthProvider(store.AuthProvider)
 
 		store.MultiConnector.AddConnector(qnats.NewConnector(core))
@@ -33,7 +33,7 @@ func PersistOverNats(address string) ConfigFn {
 
 func NotifyOverNats(address string) ConfigFn {
 	return func(store *Store) {
-		core := qnats.NewCore(qnats.Config{Address: address})
+		core := qnats.NewCore(qnats.NatsConfig{Address: address})
 		core.SetAuthProvider(store.AuthProvider)
 
 		store.MultiConnector.AddConnector(qnats.NewConnector(core))

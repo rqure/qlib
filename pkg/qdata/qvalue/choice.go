@@ -6,7 +6,7 @@ type Choice struct {
 	Value int
 }
 
-func NewChoice(v ...int) qdata.Value {
+func NewChoice(v ...int) *qdata.Value {
 	me := &Choice{
 		Value: 0, // Default choice index
 	}
@@ -15,14 +15,15 @@ func NewChoice(v ...int) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.ChoiceType,
 		},
-		RawProvider:    me,
-		RawReceiver:    me,
-		ChoiceProvider: me,
-		ChoiceReceiver: me,
+		ValueConstructor: me,
+		RawProvider:      me,
+		RawReceiver:      me,
+		ChoiceProvider:   me,
+		ChoiceReceiver:   me,
 	}
 }
 
@@ -42,4 +43,8 @@ func (me *Choice) SetRaw(value interface{}) {
 	if v, ok := value.(int); ok {
 		me.Value = v
 	}
+}
+
+func (me *Choice) Clone() *qdata.Value {
+	return NewChoice(me.Value)
 }

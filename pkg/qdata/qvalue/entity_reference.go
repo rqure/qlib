@@ -6,7 +6,7 @@ type EntityReference struct {
 	Value string
 }
 
-func NewEntityReference(v ...string) qdata.Value {
+func NewEntityReference(v ...string) *qdata.Value {
 	me := &EntityReference{
 		Value: "",
 	}
@@ -15,10 +15,11 @@ func NewEntityReference(v ...string) qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &Value{
+	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
 			ValueType: qdata.EntityReferenceType,
 		},
+		ValueConstructor:        me,
 		RawProvider:             me,
 		RawReceiver:             me,
 		EntityReferenceProvider: me,
@@ -42,4 +43,8 @@ func (me *EntityReference) SetRaw(value interface{}) {
 	if v, ok := value.(string); ok {
 		me.Value = v
 	}
+}
+
+func (me *EntityReference) Clone() *qdata.Value {
+	return NewEntityReference(me.Value)
 }

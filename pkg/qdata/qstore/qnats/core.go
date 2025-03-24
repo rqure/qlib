@@ -15,20 +15,20 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type Config struct {
+type NatsConfig struct {
 	Address string
 }
 
-type Core interface {
+type NatsCore interface {
 	Connect(ctx context.Context)
 	Disconnect(ctx context.Context)
 	IsConnected(ctx context.Context) bool
 	Publish(subject string, msg proto.Message) error
 	Request(ctx context.Context, subject string, msg proto.Message) (*qprotobufs.ApiMessage, error)
 	Subscribe(subject string, handler natsgo.MsgHandler)
-	SetConfig(config Config)
-	GetConfig() Config
-	GetKeyGenerator() KeyGenerator
+	SetConfig(config NatsConfig)
+	GetConfig() NatsConfig
+	GetKeyGenerator() NatsKeyGenerator
 	QueueSubscribe(subject string, handler natsgo.MsgHandler)
 
 	SetAuthProvider(qdata.AuthProvider)
@@ -38,11 +38,11 @@ type Core interface {
 	BeforeConnected() qss.Signal[qss.VoidType]
 }
 
-type coreInternal struct {
-	config Config
+type natsCore struct {
+	config NatsConfig
 	conn   *natsgo.Conn
 	subs   []*natsgo.Subscription
-	kg     KeyGenerator
+	kg     NatsKeyGenerator
 	mu     sync.RWMutex
 
 	ap qdata.AuthProvider
@@ -52,8 +52,8 @@ type coreInternal struct {
 	disconnected    qss.Signal[error]
 }
 
-func NewCore(config Config) Core {
-	return &coreInternal{
+func NewCore(config NatsConfig) NatsCore {
+	return &natsCore{
 		config:          config,
 		kg:              NewKeyGenerator(),
 		connected:       qss.New[qss.VoidType](),
@@ -62,15 +62,15 @@ func NewCore(config Config) Core {
 	}
 }
 
-func (me *coreInternal) BeforeConnected() qss.Signal[qss.VoidType] {
+func (me *natsCore) BeforeConnected() qss.Signal[qss.VoidType] {
 	return me.beforeConnected
 }
 
-func (c *coreInternal) SetAuthProvider(sp qdata.AuthProvider) {
+func (c *natsCore) SetAuthProvider(sp qdata.AuthProvider) {
 	c.ap = sp
 }
 
-func (c *coreInternal) Connect(ctx context.Context) {
+func (c *natsCore) Connect(ctx context.Context) {
 	c.Disconnect(ctx)
 
 	opts := []natsgo.Option{
@@ -100,7 +100,7 @@ func (c *coreInternal) Connect(ctx context.Context) {
 	c.mu.Unlock()
 }
 
-func (c *coreInternal) Disconnect(ctx context.Context) {
+func (c *natsCore) Disconnect(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -111,13 +111,13 @@ func (c *coreInternal) Disconnect(ctx context.Context) {
 	}
 }
 
-func (c *coreInternal) IsConnected(ctx context.Context) bool {
+func (c *natsCore) IsConnected(ctx context.Context) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.conn != nil && c.conn.IsConnected()
 }
 
-func (c *coreInternal) Publish(subject string, msg proto.Message) error {
+func (c *natsCore) Publish(subject string, msg proto.Message) error {
 	apiMsg := &qprotobufs.ApiMessage{}
 	apiMsg.Header = &qprotobufs.ApiHeader{}
 	apiMsg.Payload, _ = anypb.New(msg)
@@ -137,7 +137,7 @@ func (c *coreInternal) Publish(subject string, msg proto.Message) error {
 	return c.conn.Publish(subject, data)
 }
 
-func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Message) (*qprotobufs.ApiMessage, error) {
+func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Message) (*qprotobufs.ApiMessage, error) {
 	apiMsg := &qprotobufs.ApiMessage{}
 	apiMsg.Header = &qprotobufs.ApiHeader{}
 	apiMsg.Payload, _ = anypb.New(msg)
@@ -175,7 +175,7 @@ func (c *coreInternal) Request(ctx context.Context, subject string, msg proto.Me
 	return &respMsg, nil
 }
 
-func (c *coreInternal) Subscribe(subject string, handler natsgo.MsgHandler) {
+func (c *natsCore) Subscribe(subject string, handler natsgo.MsgHandler) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -193,7 +193,7 @@ func (c *coreInternal) Subscribe(subject string, handler natsgo.MsgHandler) {
 	c.subs = append(c.subs, sub)
 }
 
-func (c *coreInternal) QueueSubscribe(subject string, handler natsgo.MsgHandler) {
+func (c *natsCore) QueueSubscribe(subject string, handler natsgo.MsgHandler) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -211,27 +211,27 @@ func (c *coreInternal) QueueSubscribe(subject string, handler natsgo.MsgHandler)
 	c.subs = append(c.subs, sub)
 }
 
-func (c *coreInternal) SetConfig(config Config) {
+func (c *natsCore) SetConfig(config NatsConfig) {
 	c.config = config
 }
 
-func (c *coreInternal) GetConfig() Config {
+func (c *natsCore) GetConfig() NatsConfig {
 	return c.config
 }
 
-func (c *coreInternal) GetKeyGenerator() KeyGenerator {
+func (c *natsCore) GetKeyGenerator() NatsKeyGenerator {
 	return c.kg
 }
 
-func (c *coreInternal) Connected() qss.Signal[qss.VoidType] {
+func (c *natsCore) Connected() qss.Signal[qss.VoidType] {
 	return c.connected
 }
 
-func (c *coreInternal) Disconnected() qss.Signal[error] {
+func (c *natsCore) Disconnected() qss.Signal[error] {
 	return c.disconnected
 }
 
-func (c *coreInternal) cleanupSubscriptions() {
+func (c *natsCore) cleanupSubscriptions() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
