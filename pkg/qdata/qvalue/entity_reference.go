@@ -1,6 +1,10 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type EntityReference struct {
 	Value string
@@ -20,6 +24,7 @@ func NewEntityReference(v ...string) *qdata.Value {
 			ValueType: qdata.EntityReferenceType,
 		},
 		ValueConstructor:        me,
+		AnyPbConverter:          me,
 		RawProvider:             me,
 		RawReceiver:             me,
 		EntityReferenceProvider: me,
@@ -47,4 +52,16 @@ func (me *EntityReference) SetRaw(value interface{}) {
 
 func (me *EntityReference) Clone() *qdata.Value {
 	return NewEntityReference(me.Value)
+}
+
+func (me *EntityReference) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.EntityReference{
+		Raw: me.Value,
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

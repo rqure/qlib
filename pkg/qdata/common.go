@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type WriteOpt int
@@ -13,6 +14,26 @@ type EntityType string
 type FieldType string
 
 type WriteTime time.Time
+
+func (me *WriteTime) AsTimestampPb() *qprotobufs.Timestamp {
+	if me == nil {
+		return nil
+	}
+
+	return &qprotobufs.Timestamp{
+		Raw: timestamppb.New(time.Time(*me)),
+	}
+}
+
+func (me *EntityId) AsStringPb() *qprotobufs.String {
+	if me == nil {
+		return nil
+	}
+
+	return &qprotobufs.String{
+		Raw: string(*me),
+	}
+}
 
 const (
 	WriteNormal WriteOpt = iota
@@ -156,8 +177,8 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 	return &qprotobufs.DatabaseRequest{
 		Id:        string(me.EId),
 		Field:     string(me.FType),
-		Value:     me.V.ToAnyPb(),
-		WriteTime: me.WT.ToPb(),
-		WriterId:  string(me.WId),
+		Value:     me.V.AsAnyPb(),
+		WriteTime: me.WT.AsTimestampPb(),
+		WriterId:  me.WId.AsStringPb(),
 	}
 }

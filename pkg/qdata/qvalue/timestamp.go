@@ -4,6 +4,9 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Timestamp struct {
@@ -24,6 +27,7 @@ func NewTimestamp(v ...time.Time) *qdata.Value {
 			ValueType: qdata.TimestampType,
 		},
 		ValueConstructor:  me,
+		AnyPbConverter:    me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		TimestampProvider: me,
@@ -51,4 +55,17 @@ func (me *Timestamp) SetRaw(value interface{}) {
 
 func (me *Timestamp) Clone() *qdata.Value {
 	return NewTimestamp(me.Value)
+}
+
+func (me *Timestamp) AsAnyPb() *anypb.Any {
+	ts := timestamppb.New(me.Value)
+	a, err := anypb.New(&qprotobufs.Timestamp{
+		Raw: ts,
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

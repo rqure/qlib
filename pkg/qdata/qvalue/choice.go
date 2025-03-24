@@ -1,6 +1,10 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type Choice struct {
 	Value int
@@ -20,6 +24,7 @@ func NewChoice(v ...int) *qdata.Value {
 			ValueType: qdata.ChoiceType,
 		},
 		ValueConstructor: me,
+		AnyPbConverter:   me,
 		RawProvider:      me,
 		RawReceiver:      me,
 		ChoiceProvider:   me,
@@ -47,4 +52,16 @@ func (me *Choice) SetRaw(value interface{}) {
 
 func (me *Choice) Clone() *qdata.Value {
 	return NewChoice(me.Value)
+}
+
+func (me *Choice) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.Choice{
+		Raw: int64(me.Value),
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

@@ -6,6 +6,8 @@ import (
 
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type BinaryFile struct {
@@ -26,6 +28,7 @@ func NewBinaryFile(v ...string) *qdata.Value {
 			ValueType: qdata.BinaryFileType,
 		},
 		ValueConstructor:   me,
+		AnyPbConverter:     me,
 		RawProvider:        me,
 		RawReceiver:        me,
 		BinaryFileProvider: me,
@@ -74,4 +77,16 @@ func FileDecode(encoded string) []byte {
 	}
 
 	return decoded
+}
+
+func (me *BinaryFile) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.BinaryFile{
+		Raw: me.Value,
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

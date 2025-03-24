@@ -1,6 +1,10 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type EntityList struct {
 	Value []string
@@ -20,6 +24,7 @@ func NewEntityList(v ...[]string) *qdata.Value {
 			ValueType: qdata.EntityListType,
 		},
 		ValueConstructor:   me,
+		AnyPbConverter:     me,
 		RawProvider:        me,
 		RawReceiver:        me,
 		EntityListProvider: me,
@@ -47,4 +52,16 @@ func (me *EntityList) SetRaw(value interface{}) {
 
 func (me *EntityList) Clone() *qdata.Value {
 	return NewEntityList(me.Value)
+}
+
+func (me *EntityList) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.EntityList{
+		Raw: me.GetEntityList(),
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

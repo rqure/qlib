@@ -1,6 +1,10 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type Float struct {
 	Value float64
@@ -20,6 +24,7 @@ func NewFloat(v ...float64) *qdata.Value {
 			ValueType: qdata.FloatType,
 		},
 		ValueConstructor: me,
+		AnyPbConverter:   me,
 		RawProvider:      me,
 		RawReceiver:      me,
 		FloatProvider:    me,
@@ -47,4 +52,16 @@ func (me *Float) SetRaw(value interface{}) {
 
 func (me *Float) Clone() *qdata.Value {
 	return NewFloat(me.Value)
+}
+
+func (me *Float) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.Float{
+		Raw: me.Value,
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }

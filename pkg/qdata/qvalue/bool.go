@@ -1,6 +1,10 @@
 package qvalue
 
-import "github.com/rqure/qlib/pkg/qdata"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/types/known/anypb"
+)
 
 type Bool struct {
 	Value bool
@@ -20,6 +24,7 @@ func NewBool(v ...bool) *qdata.Value {
 			ValueType: qdata.BoolType,
 		},
 		ValueConstructor: me,
+		AnyPbConverter:   me,
 		RawProvider:      me,
 		RawReceiver:      me,
 		BoolProvider:     me,
@@ -47,4 +52,16 @@ func (me *Bool) SetRaw(value interface{}) {
 
 func (me *Bool) Clone() *qdata.Value {
 	return NewBool(me.Value)
+}
+
+func (me *Bool) AsAnyPb() *anypb.Any {
+	a, err := anypb.New(&qprotobufs.Bool{
+		Raw: me.Value,
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return a
 }
