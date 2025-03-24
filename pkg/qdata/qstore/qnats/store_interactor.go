@@ -6,9 +6,8 @@ import (
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qentity"
-	"github.com/rqure/qlib/pkg/qdata/qfield"
 	"github.com/rqure/qlib/pkg/qdata/qquery"
-	"github.com/rqure/qlib/pkg/qdata/qrequest"
+	"github.com/rqure/qlib/pkg/qdata/qvalue"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 )
@@ -64,7 +63,7 @@ func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId string) *
 		return nil
 	}
 
-	return qentity.FromEntityPb(response.Entity)
+	return new(qdata.Entity).FromEntityPb(response.Entity)
 }
 
 func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId string) {
@@ -141,7 +140,7 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 	}
 
 	for i, r := range requests {
-		msg.Requests[i] = r.
+		msg.Requests[i] = r.AsRequestPb()
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -158,15 +157,15 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 		if i >= len(requests) {
 			break
 		}
-		requests[i].SetValue(qfield.FromAnyPb(&r.Value))
-		requests[i].SetSuccessful(r.Success)
+		requests[i].V = qvalue.FromAnyPb(r.Value)
+		requests[i].Success = r.Success
 		if r.WriteTime != nil {
-			wt := r.WriteTime.Raw.AsTime()
-			requests[i].SetWriteTime(&wt)
+			wt := qdata.WriteTime(r.WriteTime.Raw.AsTime())
+			requests[i].WT = &wt
 		}
 		if r.WriterId != nil {
-			wr := r.WriterId.Raw
-			requests[i].SetWriter(&wr)
+			wr := qdata.EntityId(r.WriterId.Raw)
+			requests[i].WId = &wr
 		}
 	}
 }
@@ -178,7 +177,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 	}
 
 	for i, r := range requests {
-		writer := r.GetWriter()
+		writer := r.WId
 		if writer == nil || *writer == "" {
 			if me.clientId == nil {
 				clients := qquery.New(&qdata.LimitedStore{
@@ -207,7 +206,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 				r.SetWriter(me.clientId)
 			}
 		}
-		msg.Requests[i] = qrequest.ToPb(r)
+		msg.Requests[i] = r.AsRequestPb()
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
@@ -224,7 +223,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 		if i >= len(requests) {
 			break
 		}
-		requests[i].SetSuccessful(r.Success)
+		requests[i].Success = r.Success
 	}
 }
 

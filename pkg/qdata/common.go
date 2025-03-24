@@ -53,7 +53,7 @@ type EntitySchema struct {
 type Field struct {
 	EId   EntityId
 	FType FieldType
-	V     Value
+	V     *Value
 	WT    WriteTime
 	WId   EntityId
 }
@@ -70,7 +70,7 @@ type FieldSchema struct {
 type Request struct {
 	EId     EntityId
 	FType   FieldType
-	V       Value
+	V       *Value
 	WO      WriteOpt
 	WT      *WriteTime // optional
 	WId     *EntityId  // optional
@@ -95,7 +95,7 @@ func (me *Field) Clone() *Field {
 	return &Field{
 		EId:   me.EId,
 		FType: me.FType,
-		V:     me.V,
+		V:     me.V.Clone(),
 		WT:    me.WT,
 		WId:   me.WId,
 	}
@@ -127,7 +127,7 @@ func (me *Request) Clone() *Request {
 	return &Request{
 		EId:     me.EId,
 		FType:   me.FType,
-		V:       me.V,
+		V:       me.V.Clone(),
 		WO:      me.WO,
 		WT:      wt,
 		WId:     wId,
@@ -149,7 +149,7 @@ func (me *Request) AsField() *Field {
 	return &Field{
 		EId:   me.EId,
 		FType: me.FType,
-		V:     me.V,
+		V:     me.V.Clone(),
 		WT:    *wt,
 		WId:   *wId,
 	}
@@ -165,7 +165,7 @@ func (me *Field) AsRequest() *Request {
 	return &Request{
 		EId:     me.EId,
 		FType:   me.FType,
-		V:       me.V,
+		V:       me.V.Clone(),
 		WO:      WriteNormal,
 		WT:      wt,
 		WId:     wId,
@@ -181,4 +181,11 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 		WriteTime: me.WT.AsTimestampPb(),
 		WriterId:  me.WId.AsStringPb(),
 	}
+}
+
+func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
+	me.EId = EntityId(pb.Id)
+	me.EType = EntityType(pb.Type)
+
+	return me
 }
