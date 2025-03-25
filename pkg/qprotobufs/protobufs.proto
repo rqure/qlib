@@ -292,6 +292,7 @@ message DatabaseFieldSchema {
     repeated string choice_options = 3;
     repeated string read_permissions = 4;
     repeated string write_permissions = 5;
+    int32 rank = 6;
 }
 
 message DatabaseRequest {
