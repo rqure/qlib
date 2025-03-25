@@ -25,6 +25,22 @@ func (me *WriteTime) AsTimestampPb() *qprotobufs.Timestamp {
 	}
 }
 
+func (me *WriteTime) Update(t time.Time) {
+	if me == nil {
+		return
+	}
+
+	*me = WriteTime(t)
+}
+
+func (me *EntityId) Update(id string) {
+	if me == nil {
+		return
+	}
+
+	*me = EntityId(id)
+}
+
 func (me *EntityId) AsStringPb() *qprotobufs.String {
 	if me == nil {
 		return nil
@@ -43,6 +59,8 @@ const (
 type Entity struct {
 	EntityId   EntityId
 	EntityType EntityType
+
+	Fields map[FieldType]*Field
 }
 
 type EntitySchema struct {
@@ -156,19 +174,13 @@ func (me *Request) AsField() *Field {
 }
 
 func (me *Field) AsRequest() *Request {
-	wt := new(WriteTime)
-	*wt = me.WriteTime
-
-	wId := new(EntityId)
-	*wId = me.WriterId
-
 	return &Request{
 		EntityId:  me.EntityId,
 		FieldType: me.FieldType,
-		Value:     me.Value.Clone(),
+		Value:     me.Value, // Don't clone so the field is updated
 		WriteOpt:  WriteNormal,
-		WriteTime: wt,
-		WriterId:  wId,
+		WriteTime: &me.WriteTime,
+		WriterId:  &me.WriterId,
 		Success:   false,
 	}
 }
@@ -188,4 +200,24 @@ func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
 	me.EntityType = EntityType(pb.Type)
 
 	return me
+}
+
+func (me *Entity) Field(fieldType FieldType) *Field {
+	if me.Fields == nil {
+		me.Fields = make(map[FieldType]*Field)
+	}
+
+	if f, ok := me.Fields[fieldType]; ok {
+		return f
+	}
+
+	f := &Field{
+		EntityId:  me.EntityId,
+		FieldType: fieldType,
+		Value:     &Value{},
+	}
+
+	me.Fields[fieldType] = f
+
+	return f
 }

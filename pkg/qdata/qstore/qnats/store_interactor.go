@@ -157,15 +157,13 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 		if i >= len(requests) {
 			break
 		}
-		requests[i].Value = qvalue.FromAnyPb(r.Value)
+		requests[i].Value.Update(qvalue.FromAnyPb(r.Value))
 		requests[i].Success = r.Success
-		if r.WriteTime != nil {
-			wt := qdata.WriteTime(r.WriteTime.Raw.AsTime())
-			requests[i].WriteTime = &wt
+		if r.WriteTime != nil && r.WriteTime.Raw != nil {
+			requests[i].WriteTime.Update(r.WriteTime.Raw.AsTime())
 		}
 		if r.WriterId != nil {
-			wr := qdata.EntityId(r.WriterId.Raw)
-			requests[i].WriterId = &wr
+			requests[i].WriterId.Update(r.WriterId.Raw)
 		}
 	}
 }

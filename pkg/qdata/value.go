@@ -152,3 +152,29 @@ type Value struct {
 	ChoiceReceiver
 	EntityListReceiver
 }
+
+func (me *Value) Update(o *Value) {
+	me.ValueConstructor = o.ValueConstructor
+	me.AnyPbConverter = o.AnyPbConverter
+	me.ValueTypeProvider = o.ValueTypeProvider
+	me.RawProvider = o.RawProvider
+	me.IntProvider = o.IntProvider
+	me.FloatProvider = o.FloatProvider
+	me.StringProvider = o.StringProvider
+	me.BoolProvider = o.BoolProvider
+	me.BinaryFileProvider = o.BinaryFileProvider
+	me.EntityReferenceProvider = o.EntityReferenceProvider
+	me.TimestampProvider = o.TimestampProvider
+	me.ChoiceProvider = o.ChoiceProvider
+	me.EntityListProvider = o.EntityListProvider
+	me.RawReceiver = o.RawReceiver
+	me.IntReceiver = o.IntReceiver
+	me.FloatReceiver = o.FloatReceiver
+	me.StringReceiver = o.StringReceiver
+	me.BoolReceiver = o.BoolReceiver
+	me.BinaryFileReceiver = o.BinaryFileReceiver
+	me.EntityReferenceReceiver = o.EntityReferenceReceiver
+	me.TimestampReceiver = o.TimestampReceiver
+	me.ChoiceReceiver = o.ChoiceReceiver
+	me.EntityListReceiver = o.EntityListReceiver
+}
