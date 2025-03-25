@@ -230,7 +230,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 	}
 }
 
-func (me *NatsStoreInteractor) FieldExists(ctx context.Context, fieldType qdata.FieldType, entityType qdata.EntityType) bool {
+func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) bool {
 	msg := &qprotobufs.ApiRuntimeFieldExistsRequest{
 		FieldName:  string(fieldType),
 		EntityType: string(entityType),
