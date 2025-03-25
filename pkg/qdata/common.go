@@ -68,13 +68,13 @@ type FieldSchema struct {
 }
 
 type Request struct {
-	EId     EntityId
-	FType   FieldType
-	V       *Value
-	WO      WriteOpt
-	WT      *WriteTime // optional
-	WId     *EntityId  // optional
-	Success bool
+	EntityId  EntityId
+	FieldType FieldType
+	Value     *Value
+	WriteOpt  WriteOpt   // optional
+	WriteTime *WriteTime // optional
+	WriterId  *EntityId  // optional
+	Success   bool
 }
 
 func (me *Entity) Clone() *Entity {
@@ -113,43 +113,43 @@ func (me *FieldSchema) Clone() *FieldSchema {
 
 func (me *Request) Clone() *Request {
 	var wt *WriteTime
-	if me.WT != nil {
+	if me.WriteTime != nil {
 		wt = new(WriteTime)
-		*wt = *me.WT
+		*wt = *me.WriteTime
 	}
 
 	var wId *EntityId
-	if me.WId != nil {
+	if me.WriterId != nil {
 		wId = new(EntityId)
-		*wId = *me.WId
+		*wId = *me.WriterId
 	}
 
 	return &Request{
-		EId:     me.EId,
-		FType:   me.FType,
-		V:       me.V.Clone(),
-		WO:      me.WO,
-		WT:      wt,
-		WId:     wId,
-		Success: me.Success,
+		EntityId:  me.EntityId,
+		FieldType: me.FieldType,
+		Value:     me.Value.Clone(),
+		WriteOpt:  me.WriteOpt,
+		WriteTime: wt,
+		WriterId:  wId,
+		Success:   me.Success,
 	}
 }
 
 func (me *Request) AsField() *Field {
 	wt := new(WriteTime)
-	if me.WT != nil {
-		*wt = *me.WT
+	if me.WriteTime != nil {
+		*wt = *me.WriteTime
 	}
 
 	wId := new(EntityId)
-	if me.WId != nil {
-		*wId = *me.WId
+	if me.WriterId != nil {
+		*wId = *me.WriterId
 	}
 
 	return &Field{
-		EntityId:  me.EId,
-		FieldType: me.FType,
-		Value:     me.V.Clone(),
+		EntityId:  me.EntityId,
+		FieldType: me.FieldType,
+		Value:     me.Value.Clone(),
 		WriteTime: *wt,
 		WriterId:  *wId,
 	}
@@ -163,23 +163,23 @@ func (me *Field) AsRequest() *Request {
 	*wId = me.WriterId
 
 	return &Request{
-		EId:     me.EntityId,
-		FType:   me.FieldType,
-		V:       me.Value.Clone(),
-		WO:      WriteNormal,
-		WT:      wt,
-		WId:     wId,
-		Success: false,
+		EntityId:  me.EntityId,
+		FieldType: me.FieldType,
+		Value:     me.Value.Clone(),
+		WriteOpt:  WriteNormal,
+		WriteTime: wt,
+		WriterId:  wId,
+		Success:   false,
 	}
 }
 
 func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 	return &qprotobufs.DatabaseRequest{
-		Id:        string(me.EId),
-		Field:     string(me.FType),
-		Value:     me.V.AsAnyPb(),
-		WriteTime: me.WT.AsTimestampPb(),
-		WriterId:  me.WId.AsStringPb(),
+		Id:        string(me.EntityId),
+		Field:     string(me.FieldType),
+		Value:     me.Value.AsAnyPb(),
+		WriteTime: me.WriteTime.AsTimestampPb(),
+		WriterId:  me.WriterId.AsStringPb(),
 	}
 }
 

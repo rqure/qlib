@@ -157,15 +157,15 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 		if i >= len(requests) {
 			break
 		}
-		requests[i].V = qvalue.FromAnyPb(r.Value)
+		requests[i].Value = qvalue.FromAnyPb(r.Value)
 		requests[i].Success = r.Success
 		if r.WriteTime != nil {
 			wt := qdata.WriteTime(r.WriteTime.Raw.AsTime())
-			requests[i].WT = &wt
+			requests[i].WriteTime = &wt
 		}
 		if r.WriterId != nil {
 			wr := qdata.EntityId(r.WriterId.Raw)
-			requests[i].WId = &wr
+			requests[i].WriterId = &wr
 		}
 	}
 }
@@ -177,7 +177,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 	}
 
 	for i, r := range requests {
-		writer := r.WId
+		writer := r.WriterId
 		if writer == nil || *writer == "" {
 			if me.clientId == nil {
 				clients := qquery.New(&qdata.LimitedStore{
