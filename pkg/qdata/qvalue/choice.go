@@ -21,7 +21,7 @@ func NewChoice(v ...int) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.ChoiceType,
+			ValueType: qdata.Choice,
 		},
 		ValueConstructor: me,
 		AnyPbConverter:   me,

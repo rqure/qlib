@@ -20,10 +20,10 @@ func NewStoreInteractor(core NatsCore) qdata.StoreInteractor {
 	return &NatsStoreInteractor{core: core}
 }
 
-func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
+func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) string {
 	msg := &qprotobufs.ApiConfigCreateEntityRequest{
-		Type:     entityType,
-		ParentId: parentId,
+		Type:     string(entityType),
+		ParentId: string(parentId),
 		Name:     name,
 	}
 
@@ -44,9 +44,9 @@ func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType, par
 	return response.Id
 }
 
-func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId string) *qdata.Entity {
+func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId qdata.EntityId) *qdata.Entity {
 	msg := &qprotobufs.ApiConfigGetEntityRequest{
-		Id: entityId,
+		Id: string(entityId),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -66,9 +66,9 @@ func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId string) *
 	return new(qdata.Entity).FromEntityPb(response.Entity)
 }
 
-func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId string) {
+func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) {
 	msg := &qprotobufs.ApiConfigDeleteEntityRequest{
-		Id: entityId,
+		Id: string(entityId),
 	}
 
 	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
@@ -77,9 +77,9 @@ func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId string
 	}
 }
 
-func (me *NatsStoreInteractor) FindEntities(ctx context.Context, entityType string) []string {
+func (me *NatsStoreInteractor) FindEntities(ctx context.Context, entityType qdata.EntityType) []qdata.EntityId {
 	msg := &qprotobufs.ApiRuntimeGetEntitiesRequest{
-		EntityType: entityType,
+		EntityType: string(entityType),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -92,14 +92,14 @@ func (me *NatsStoreInteractor) FindEntities(ctx context.Context, entityType stri
 		return nil
 	}
 
-	ids := make([]string, len(response.Entities))
+	ids := make([]qdata.EntityId, len(response.Entities))
 	for i, e := range response.Entities {
-		ids[i] = e.Id
+		ids[i] = qdata.EntityId(e.Id)
 	}
 	return ids
 }
 
-func (me *NatsStoreInteractor) GetEntityTypes(ctx context.Context) []string {
+func (me *NatsStoreInteractor) GetEntityTypes(ctx context.Context) []qdata.EntityType {
 	msg := &qprotobufs.ApiConfigGetEntityTypesRequest{}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -112,12 +112,17 @@ func (me *NatsStoreInteractor) GetEntityTypes(ctx context.Context) []string {
 		return nil
 	}
 
-	return response.Types
+	types := make([]qdata.EntityType, len(response.Types))
+	for _, t := range response.Types {
+		types = append(types, qdata.EntityType(t))
+	}
+
+	return types
 }
 
-func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId string) bool {
+func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) bool {
 	msg := &qprotobufs.ApiRuntimeEntityExistsRequest{
-		EntityId: entityId,
+		EntityId: string(entityId),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -225,10 +230,10 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 	}
 }
 
-func (me *NatsStoreInteractor) FieldExists(ctx context.Context, fieldName, entityType string) bool {
+func (me *NatsStoreInteractor) FieldExists(ctx context.Context, fieldType qdata.FieldType, entityType qdata.EntityType) bool {
 	msg := &qprotobufs.ApiRuntimeFieldExistsRequest{
-		FieldName:  fieldName,
-		EntityType: entityType,
+		FieldName:  string(fieldType),
+		EntityType: string(entityType),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -244,9 +249,9 @@ func (me *NatsStoreInteractor) FieldExists(ctx context.Context, fieldName, entit
 	return response.Exists
 }
 
-func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType string) *qdata.EntitySchema {
+func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) *qdata.EntitySchema {
 	msg := &qprotobufs.ApiConfigGetEntitySchemaRequest{
-		Type: entityType,
+		Type: string(entityType),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -268,7 +273,7 @@ func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType s
 
 func (me *NatsStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) {
 	msg := &qprotobufs.ApiConfigSetEntitySchemaRequest{
-		Schema: qentity.ToSchemaPb(schema),
+		Schema: schema.AsEntitySchemaPb(),
 	}
 
 	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
@@ -277,37 +282,24 @@ func (me *NatsStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdat
 	}
 }
 
-func (me *NatsStoreInteractor) GetFieldSchema(ctx context.Context, entityType, fieldName string) *qdata.FieldSchema {
+func (me *NatsStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) *qdata.FieldSchema {
 	schema := me.GetEntitySchema(ctx, entityType)
 	if schema == nil {
 		return nil
 	}
 
-	return schema.GetField(fieldName)
+	return schema.Fields[fieldType]
 }
 
-func (me *NatsStoreInteractor) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema *qdata.FieldSchema) {
+func (me *NatsStoreInteractor) SetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType, schema *qdata.FieldSchema) {
 	entitySchema := me.GetEntitySchema(ctx, entityType)
 	if entitySchema == nil {
 		qlog.Error("Failed to get entity schema for type %s", entityType)
 		return
 	}
 
-	fields := entitySchema.GetFields()
-	updated := false
-	for i, f := range fields {
-		if f.GetFieldName() == fieldName {
-			fields[i] = schema
-			updated = true
-			break
-		}
-	}
+	entitySchema.Fields[fieldType] = schema
 
-	if !updated {
-		fields = append(fields, schema)
-	}
-
-	entitySchema.SetFields(fields)
 	me.SetEntitySchema(ctx, entitySchema)
 }
 

@@ -11,37 +11,37 @@ func (me *ValueTypeProvider) Type() qdata.ValueType {
 }
 
 func (me *ValueTypeProvider) IsInt() bool {
-	return me.Type() == qdata.IntType
+	return me.Type() == qdata.Int
 }
 
 func (me *ValueTypeProvider) IsFloat() bool {
-	return me.Type() == qdata.FloatType
+	return me.Type() == qdata.Float
 }
 
 func (me *ValueTypeProvider) IsString() bool {
-	return me.Type() == qdata.StringType
+	return me.Type() == qdata.String
 }
 
 func (me *ValueTypeProvider) IsBool() bool {
-	return me.Type() == qdata.BoolType
+	return me.Type() == qdata.Bool
 }
 
 func (me *ValueTypeProvider) IsBinaryFile() bool {
-	return me.Type() == qdata.BinaryFileType
+	return me.Type() == qdata.BinaryFile
 }
 
 func (me *ValueTypeProvider) IsEntityReference() bool {
-	return me.Type() == qdata.EntityReferenceType
+	return me.Type() == qdata.EntityReference
 }
 
 func (me *ValueTypeProvider) IsTimestamp() bool {
-	return me.Type() == qdata.TimestampType
+	return me.Type() == qdata.Timestamp
 }
 
 func (me *ValueTypeProvider) IsChoice() bool {
-	return me.Type() == qdata.ChoiceType
+	return me.Type() == qdata.Choice
 }
 
 func (me *ValueTypeProvider) IsEntityList() bool {
-	return me.Type() == qdata.EntityListType
+	return me.Type() == qdata.EntityList
 }

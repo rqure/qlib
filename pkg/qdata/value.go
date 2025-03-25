@@ -9,16 +9,53 @@ import (
 type ValueType string
 
 const (
-	IntType             ValueType = "int"
-	FloatType           ValueType = "float"
-	StringType          ValueType = "string"
-	BoolType            ValueType = "bool"
-	BinaryFileType      ValueType = "binaryFile"
-	EntityReferenceType ValueType = "entityReference"
-	TimestampType       ValueType = "timestamp"
-	ChoiceType          ValueType = "choice"
-	EntityListType      ValueType = "entityList"
+	Int             ValueType = "int"
+	Float           ValueType = "float"
+	String          ValueType = "string"
+	Bool            ValueType = "bool"
+	BinaryFile      ValueType = "binaryFile"
+	EntityReference ValueType = "entityReference"
+	Timestamp       ValueType = "timestamp"
+	Choice          ValueType = "choice"
+	EntityList      ValueType = "entityList"
 )
+
+var ValueTypes = []ValueType{
+	Int,
+	Float,
+	String,
+	Bool,
+	BinaryFile,
+	EntityReference,
+	Timestamp,
+	Choice,
+	EntityList,
+}
+
+func (me *ValueType) ProtobufName() string {
+	switch *me {
+	case Int:
+		return "qprotobufs.Int"
+	case Float:
+		return "qprotobufs.Float"
+	case String:
+		return "qprotobufs.String"
+	case Bool:
+		return "qprotobufs.Bool"
+	case BinaryFile:
+		return "qprotobufs.BinaryFile"
+	case EntityReference:
+		return "qprotobufs.EntityReference"
+	case Timestamp:
+		return "qprotobufs.Timestamp"
+	case Choice:
+		return "qprotobufs.Choice"
+	case EntityList:
+		return "qprotobufs.EntityList"
+	}
+
+	return ""
+}
 
 type ValueTypeProvider interface {
 	Type() ValueType

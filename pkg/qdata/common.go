@@ -65,7 +65,7 @@ type Entity struct {
 
 type EntitySchema struct {
 	EntityType EntityType
-	Fields     []*FieldSchema
+	Fields     map[FieldType]*FieldSchema
 }
 
 type Field struct {
@@ -80,6 +80,7 @@ type FieldSchema struct {
 	EntityType EntityType
 	FieldType  FieldType
 	ValueType  ValueType
+	Rank       int
 
 	ReadPermissions  []EntityId
 	WritePermissions []EntityId
@@ -96,16 +97,27 @@ type Request struct {
 }
 
 func (me *Entity) Clone() *Entity {
+	fields := make(map[FieldType]*Field)
+	for k, v := range me.Fields {
+		fields[k] = v.Clone()
+	}
+
 	return &Entity{
 		EntityId:   me.EntityId,
 		EntityType: me.EntityType,
+		Fields:     fields,
 	}
 }
 
 func (me *EntitySchema) Clone() *EntitySchema {
+	fields := make(map[FieldType]*FieldSchema)
+	for k, v := range me.Fields {
+		fields[k] = v.Clone()
+	}
+
 	return &EntitySchema{
 		EntityType: me.EntityType,
-		Fields:     me.Fields,
+		Fields:     fields,
 	}
 }
 
@@ -192,6 +204,38 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 		Value:     me.Value.AsAnyPb(),
 		WriteTime: me.WriteTime.AsTimestampPb(),
 		WriterId:  me.WriterId.AsStringPb(),
+	}
+}
+
+func (me *EntitySchema) AsEntitySchemaPb() *qprotobufs.DatabaseEntitySchema {
+	fields := make([]*qprotobufs.DatabaseFieldSchema, 0, len(me.Fields))
+	for _, f := range me.Fields {
+		fields = append(fields, f.AsFieldSchemaPb())
+	}
+
+	return &qprotobufs.DatabaseEntitySchema{
+		Name:   string(me.EntityType),
+		Fields: fields,
+	}
+}
+
+func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
+	readPermissions := make([]string, len(me.ReadPermissions))
+	writePermissions := make([]string, len(me.WritePermissions))
+
+	for i, p := range me.ReadPermissions {
+		readPermissions[i] = string(p)
+	}
+
+	for i, p := range me.WritePermissions {
+		writePermissions[i] = string(p)
+	}
+
+	return &qprotobufs.DatabaseFieldSchema{
+		Name:             string(me.FieldType),
+		Type:             me.ValueType.ProtobufName(),
+		ReadPermissions:  readPermissions,
+		WritePermissions: writePermissions,
 	}
 }
 

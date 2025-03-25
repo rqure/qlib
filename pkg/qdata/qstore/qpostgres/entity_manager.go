@@ -35,7 +35,7 @@ func (me *EntityManager) SetFieldOperator(fieldOperator qdata.FieldOperator) {
 	me.fieldOperator = fieldOperator
 }
 
-func (me *EntityManager) GetEntity(ctx context.Context, entityId string) qdata.Entity {
+func (me *EntityManager) GetEntity(ctx context.Context, entityId qdata.EntityId) qdata.Entity {
 	var result qdata.Entity
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -66,7 +66,7 @@ func (me *EntityManager) GetEntity(ctx context.Context, entityId string) qdata.E
 	return result
 }
 
-func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId, name string) string {
+func (me *EntityManager) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) string {
 	entityId := uuid.New().String()
 
 	for me.EntityExists(ctx, entityId) {
@@ -117,7 +117,7 @@ func (me *EntityManager) CreateEntity(ctx context.Context, entityType, parentId,
 	return entityId
 }
 
-func (me *EntityManager) FindEntities(ctx context.Context, entityType string) []string {
+func (me *EntityManager) FindEntities(ctx context.Context, entityType qdata.EntityType) []qdata.EntityId {
 	entities := []string{}
 
 	err := BatchedQuery(me.core, ctx,
@@ -231,7 +231,7 @@ func (me *EntityManager) FindEntitiesPaginated(ctx context.Context, entityType s
 	return result
 }
 
-func (me *EntityManager) GetEntityTypes(ctx context.Context) []string {
+func (me *EntityManager) GetEntityTypes(ctx context.Context) []qdata.EntityType {
 	entityTypes := []string{}
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -258,7 +258,7 @@ func (me *EntityManager) GetEntityTypes(ctx context.Context) []string {
 	return entityTypes
 }
 
-func (me *EntityManager) DeleteEntity(ctx context.Context, entityId string) {
+func (me *EntityManager) DeleteEntity(ctx context.Context, entityId qdata.EntityId) {
 	// Collect all entities to delete in the correct order (children before parents)
 	entitiesToDelete := me.collectDeletionOrderIterative(ctx, entityId)
 
@@ -435,7 +435,7 @@ func (me *EntityManager) deleteEntityWithoutChildren(ctx context.Context, entity
 	})
 }
 
-func (me *EntityManager) EntityExists(ctx context.Context, entityId string) bool {
+func (me *EntityManager) EntityExists(ctx context.Context, entityId qdata.EntityId) bool {
 	exists := false
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {

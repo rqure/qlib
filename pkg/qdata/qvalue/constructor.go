@@ -8,23 +8,23 @@ import (
 
 func New(vType qdata.ValueType) *qdata.Value {
 	switch vType {
-	case qdata.IntType:
+	case qdata.Int:
 		return NewInt()
-	case qdata.FloatType:
+	case qdata.Float:
 		return NewFloat()
-	case qdata.StringType:
+	case qdata.String:
 		return NewString()
-	case qdata.EntityReferenceType:
+	case qdata.EntityReference:
 		return NewEntityReference()
-	case qdata.TimestampType:
+	case qdata.Timestamp:
 		return NewTimestamp()
-	case qdata.BoolType:
+	case qdata.Bool:
 		return NewBool()
-	case qdata.BinaryFileType:
+	case qdata.BinaryFile:
 		return NewBinaryFile()
-	case qdata.ChoiceType:
+	case qdata.Choice:
 		return NewChoice()
-	case qdata.EntityListType:
+	case qdata.EntityList:
 		return NewEntityList()
 	}
 

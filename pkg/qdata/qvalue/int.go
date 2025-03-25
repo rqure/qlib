@@ -21,7 +21,7 @@ func NewInt(v ...int) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.IntType,
+			ValueType: qdata.Int,
 		},
 		ValueConstructor: me,
 		AnyPbConverter:   me,

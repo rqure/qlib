@@ -216,10 +216,10 @@ type Store interface {
     IsConnected(context.Context) bool
 
     // Entity operations
-    CreateEntity(ctx context.Context, entityType, parentId, name string)
-    GetEntity(ctx context.Context, entityId string) Entity
-    DeleteEntity(ctx context.Context, entityId string)
-    FindEntities(ctx context.Context, entityType string) []string
+    CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string)
+    GetEntity(ctx context.Context, entityId qdata.EntityId) Entity
+    DeleteEntity(ctx context.Context, entityId qdata.EntityId)
+    FindEntities(ctx context.Context, entityType qdata.EntityType) []qdata.EntityId
 
     // Field operations
     Read(context.Context, ...Request)

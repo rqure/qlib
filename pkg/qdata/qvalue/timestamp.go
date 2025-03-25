@@ -24,7 +24,7 @@ func NewTimestamp(v ...time.Time) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.TimestampType,
+			ValueType: qdata.Timestamp,
 		},
 		ValueConstructor:  me,
 		AnyPbConverter:    me,

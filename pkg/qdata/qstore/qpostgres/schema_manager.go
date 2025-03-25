@@ -103,7 +103,7 @@ func (me *SchemaManager) SetFieldSchema(ctx context.Context, entityType, fieldNa
 	me.SetEntitySchema(ctx, entitySchema)
 }
 
-func (me *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType string) bool {
+func (me *SchemaManager) FieldExists(ctx context.Context, fieldName, entityType qdata.EntityType) bool {
 	exists := false
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {

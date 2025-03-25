@@ -21,7 +21,7 @@ func NewString(v ...string) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.StringType,
+			ValueType: qdata.String,
 		},
 		ValueConstructor: me,
 		AnyPbConverter:   me,

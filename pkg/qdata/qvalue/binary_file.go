@@ -25,7 +25,7 @@ func NewBinaryFile(v ...string) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.BinaryFileType,
+			ValueType: qdata.BinaryFile,
 		},
 		ValueConstructor:   me,
 		AnyPbConverter:     me,

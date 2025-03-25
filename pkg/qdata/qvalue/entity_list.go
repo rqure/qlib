@@ -21,7 +21,7 @@ func NewEntityList(v ...[]string) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.EntityListType,
+			ValueType: qdata.EntityList,
 		},
 		ValueConstructor:   me,
 		AnyPbConverter:     me,

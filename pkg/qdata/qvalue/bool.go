@@ -21,7 +21,7 @@ func NewBool(v ...bool) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.BoolType,
+			ValueType: qdata.Bool,
 		},
 		ValueConstructor: me,
 		AnyPbConverter:   me,

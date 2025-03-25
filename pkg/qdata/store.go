@@ -17,21 +17,21 @@ type StoreConnector interface {
 }
 
 type StoreInteractor interface {
-	CreateEntity(ctx context.Context, entityType, parentId, name string) string
-	GetEntity(ctx context.Context, entityId string) *Entity
-	DeleteEntity(ctx context.Context, entityId string)
+	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) string
+	GetEntity(context.Context, EntityId) *Entity
+	DeleteEntity(context.Context, EntityId)
 
 	// Find(sql string) Query
-	FindEntities(ctx context.Context, entityType string) []string
-	GetEntityTypes(ctx context.Context) []string
+	FindEntities(context.Context, EntityType) []EntityId
+	GetEntityTypes(context.Context) []EntityType
 
-	EntityExists(ctx context.Context, entityId string) bool
-	FieldExists(ctx context.Context, entityType, fieldName string) bool
+	EntityExists(context.Context, EntityId) bool
+	FieldExists(context.Context, EntityType, FieldType) bool
 
-	GetEntitySchema(ctx context.Context, entityType string) *EntitySchema
+	GetEntitySchema(context.Context, EntityType) *EntitySchema
 	SetEntitySchema(context.Context, *EntitySchema)
-	GetFieldSchema(ctx context.Context, entityType, fieldName string) *FieldSchema
-	SetFieldSchema(ctx context.Context, entityType, fieldName string, schema *FieldSchema)
+	GetFieldSchema(context.Context, EntityType, FieldType) *FieldSchema
+	SetFieldSchema(context.Context, EntityType, FieldType, *FieldSchema)
 
 	PublishNotifications(ctx context.Context, curr *Request, prev *Request)
 

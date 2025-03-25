@@ -21,7 +21,7 @@ func NewEntityReference(v ...string) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.EntityReferenceType,
+			ValueType: qdata.EntityReference,
 		},
 		ValueConstructor:        me,
 		AnyPbConverter:          me,

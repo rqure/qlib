@@ -21,7 +21,7 @@ func NewFloat(v ...float64) *qdata.Value {
 
 	return &qdata.Value{
 		ValueTypeProvider: &ValueTypeProvider{
-			ValueType: qdata.FloatType,
+			ValueType: qdata.Float,
 		},
 		ValueConstructor: me,
 		AnyPbConverter:   me,
