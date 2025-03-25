@@ -41,27 +41,27 @@ const (
 )
 
 type Entity struct {
-	EId   EntityId
-	EType EntityType
+	EntityId   EntityId
+	EntityType EntityType
 }
 
 type EntitySchema struct {
-	EType  EntityType
-	Fields []*FieldSchema
+	EntityType EntityType
+	Fields     []*FieldSchema
 }
 
 type Field struct {
-	EId   EntityId
-	FType FieldType
-	V     *Value
-	WT    WriteTime
-	WId   EntityId
+	EntityId  EntityId
+	FieldType FieldType
+	Value     *Value
+	WriteTime WriteTime
+	WriterId  EntityId
 }
 
 type FieldSchema struct {
-	EType EntityType
-	FType FieldType
-	VType ValueType
+	EntityType EntityType
+	FieldType  FieldType
+	ValueType  ValueType
 
 	ReadPermissions  []EntityId
 	WritePermissions []EntityId
@@ -79,33 +79,33 @@ type Request struct {
 
 func (me *Entity) Clone() *Entity {
 	return &Entity{
-		EId:   me.EId,
-		EType: me.EType,
+		EntityId:   me.EntityId,
+		EntityType: me.EntityType,
 	}
 }
 
 func (me *EntitySchema) Clone() *EntitySchema {
 	return &EntitySchema{
-		EType:  me.EType,
-		Fields: me.Fields,
+		EntityType: me.EntityType,
+		Fields:     me.Fields,
 	}
 }
 
 func (me *Field) Clone() *Field {
 	return &Field{
-		EId:   me.EId,
-		FType: me.FType,
-		V:     me.V.Clone(),
-		WT:    me.WT,
-		WId:   me.WId,
+		EntityId:  me.EntityId,
+		FieldType: me.FieldType,
+		Value:     me.Value.Clone(),
+		WriteTime: me.WriteTime,
+		WriterId:  me.WriterId,
 	}
 }
 
 func (me *FieldSchema) Clone() *FieldSchema {
 	return &FieldSchema{
-		EType:            me.EType,
-		FType:            me.FType,
-		VType:            me.VType,
+		EntityType:       me.EntityType,
+		FieldType:        me.FieldType,
+		ValueType:        me.ValueType,
 		ReadPermissions:  append([]EntityId{}, me.ReadPermissions...),
 		WritePermissions: append([]EntityId{}, me.WritePermissions...),
 	}
@@ -147,25 +147,25 @@ func (me *Request) AsField() *Field {
 	}
 
 	return &Field{
-		EId:   me.EId,
-		FType: me.FType,
-		V:     me.V.Clone(),
-		WT:    *wt,
-		WId:   *wId,
+		EntityId:  me.EId,
+		FieldType: me.FType,
+		Value:     me.V.Clone(),
+		WriteTime: *wt,
+		WriterId:  *wId,
 	}
 }
 
 func (me *Field) AsRequest() *Request {
 	wt := new(WriteTime)
-	*wt = me.WT
+	*wt = me.WriteTime
 
 	wId := new(EntityId)
-	*wId = me.WId
+	*wId = me.WriterId
 
 	return &Request{
-		EId:     me.EId,
-		FType:   me.FType,
-		V:       me.V.Clone(),
+		EId:     me.EntityId,
+		FType:   me.FieldType,
+		V:       me.Value.Clone(),
 		WO:      WriteNormal,
 		WT:      wt,
 		WId:     wId,
@@ -184,8 +184,8 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 }
 
 func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
-	me.EId = EntityId(pb.Id)
-	me.EType = EntityType(pb.Type)
+	me.EntityId = EntityId(pb.Id)
+	me.EntityType = EntityType(pb.Type)
 
 	return me
 }
