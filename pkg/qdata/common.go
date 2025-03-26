@@ -26,9 +26,21 @@ func CastSlice[I any, O any](i []I, convert func(I) O) []O {
 	return o
 }
 
+func CopySlice[I any](i []I) []I {
+	o := make([]I, 0, len(i))
+	o = append(o, i...)
+	return o
+}
+
 func CastStringSliceToEntityIdSlice(i []string) []EntityId {
 	return CastSlice(i, func(s string) EntityId {
 		return EntityId(s)
+	})
+}
+
+func CastEntityIdSliceToStringSlice(i []EntityId) []string {
+	return CastSlice(i, func(e EntityId) string {
+		return string(e)
 	})
 }
 
@@ -193,11 +205,7 @@ func (me *Entity) Clone() *Entity {
 		fields[k] = v.Clone()
 	}
 
-	return &Entity{
-		EntityId:   me.EntityId,
-		EntityType: me.EntityType,
-		Fields:     fields,
-	}
+	return new(Entity).Init(me.EntityType, me.EntityId, EOFields(fields))
 }
 
 func (me *EntitySchema) Clone() *EntitySchema {
@@ -206,54 +214,29 @@ func (me *EntitySchema) Clone() *EntitySchema {
 		fields[k] = v.Clone()
 	}
 
-	return &EntitySchema{
-		EntityType: me.EntityType,
-		Fields:     fields,
-	}
+	return new(EntitySchema).Init(me.EntityType, ESOFields(fields))
 }
 
 func (me *Field) Clone() *Field {
-	return &Field{
-		EntityId:  me.EntityId,
-		FieldType: me.FieldType,
-		Value:     me.Value.Clone(),
-		WriteTime: me.WriteTime,
-		WriterId:  me.WriterId,
-	}
+	return new(Field).Init(me.EntityId, me.FieldType, FOValue(me.Value.Clone()), FOWriteTime(me.WriteTime), FOWriterId(me.WriterId))
 }
 
 func (me *FieldSchema) Clone() *FieldSchema {
-	return &FieldSchema{
-		EntityType:       me.EntityType,
-		FieldType:        me.FieldType,
-		ValueType:        me.ValueType,
-		ReadPermissions:  append([]EntityId{}, me.ReadPermissions...),
-		WritePermissions: append([]EntityId{}, me.WritePermissions...),
-	}
+	return new(FieldSchema).Init(me.EntityType, me.FieldType, me.ValueType, FSOReadPermissions(CopySlice(me.ReadPermissions)), FSOWritePermissions(CopySlice(me.WritePermissions)))
 }
 
 func (me *Request) Clone() *Request {
-	var wt *WriteTime
+	r := new(Request).Init(me.EntityId, me.FieldType, ROValue(me.Value.Clone()))
+
 	if me.WriteTime != nil {
-		wt = new(WriteTime)
-		*wt = *me.WriteTime
+		r = r.ApplyOpts(ROWriteTime(*me.WriteTime))
 	}
 
-	var wId *EntityId
 	if me.WriterId != nil {
-		wId = new(EntityId)
-		*wId = *me.WriterId
+		r = r.ApplyOpts(ROWriterId(*me.WriterId))
 	}
 
-	return &Request{
-		EntityId:  me.EntityId,
-		FieldType: me.FieldType,
-		Value:     me.Value.Clone(),
-		WriteOpt:  me.WriteOpt,
-		WriteTime: wt,
-		WriterId:  wId,
-		Success:   me.Success,
-	}
+	return r
 }
 
 func (me *Request) AsField() *Field {
@@ -267,45 +250,19 @@ func (me *Request) AsField() *Field {
 		*wId = *me.WriterId
 	}
 
-	return &Field{
-		EntityId:  me.EntityId,
-		FieldType: me.FieldType,
-		Value:     me.Value.Clone(),
-		WriteTime: *wt,
-		WriterId:  *wId,
-	}
+	return new(Field).Init(me.EntityId, me.FieldType, FOValue(me.Value), FOWriteTime(*wt), FOWriterId(*wId))
 }
 
 func (me *Field) AsReadRequest(opts ...RequestOpts) *Request {
 	// Typically for read requests, we want to give a direct reference to the value, write time and writer id
 	// so it can be properly updated
-	r := &Request{
-		EntityId:  me.EntityId,
-		FieldType: me.FieldType,
-		Value:     me.Value,
-		WriteOpt:  WriteNormal,
-		WriteTime: &me.WriteTime,
-		WriterId:  &me.WriterId,
-		Success:   false,
-	}
-
-	return r.ApplyOpts(opts...)
+	return new(Request).Init(me.EntityId, me.FieldType, ROValue(me.Value), ROWriteTimePtr(&me.WriteTime), ROWriterIdPtr(&me.WriterId)).ApplyOpts(opts...)
 }
 
 func (me *Field) AsWriteRequest(opts ...RequestOpts) *Request {
-	// Typically for write requests, we want to give a copy of the value, write time and writer id
-
-	r := &Request{
-		EntityId:  me.EntityId,
-		FieldType: me.FieldType,
-		Value:     me.Value,
-		WriteOpt:  WriteNormal,
-		WriteTime: nil,
-		WriterId:  nil,
-		Success:   false,
-	}
-
-	return r.ApplyOpts(opts...)
+	// Typically for write requests, we want to give a direct reference to the write time and writer id
+	// We are giving a direct reference to the value for performance reasons such as large binary data
+	return new(Request).Init(me.EntityId, me.FieldType, ROValue(me.Value)).ApplyOpts(opts...)
 }
 
 func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
@@ -331,22 +288,11 @@ func (me *EntitySchema) AsEntitySchemaPb() *qprotobufs.DatabaseEntitySchema {
 }
 
 func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
-	readPermissions := make([]string, len(me.ReadPermissions))
-	writePermissions := make([]string, len(me.WritePermissions))
-
-	for i, p := range me.ReadPermissions {
-		readPermissions[i] = string(p)
-	}
-
-	for i, p := range me.WritePermissions {
-		writePermissions[i] = string(p)
-	}
-
 	return &qprotobufs.DatabaseFieldSchema{
 		Name:             string(me.FieldType),
 		Type:             me.ValueType.ProtobufName(),
-		ReadPermissions:  readPermissions,
-		WritePermissions: writePermissions,
+		ReadPermissions:  CastEntityIdSliceToStringSlice(me.ReadPermissions),
+		WritePermissions: CastEntityIdSliceToStringSlice(me.WritePermissions),
 	}
 }
 
@@ -366,11 +312,7 @@ func (me *Entity) Field(fieldType FieldType) *Field {
 		return f
 	}
 
-	f := &Field{
-		EntityId:  me.EntityId,
-		FieldType: fieldType,
-		Value:     new(Value),
-	}
+	f := new(Field).Init(me.EntityId, fieldType)
 
 	me.Fields[fieldType] = f
 
@@ -401,16 +343,28 @@ func ROWriteChanges() RequestOpts {
 	}
 }
 
-func ROWriteTime(t time.Time) RequestOpts {
+func ROWriteTime[T time.Time | WriteTime](t T) RequestOpts {
 	return func(r *Request) {
 		wt := WriteTime(t)
 		r.WriteTime = &wt
 	}
 }
 
+func ROWriteTimePtr(t *WriteTime) RequestOpts {
+	return func(r *Request) {
+		r.WriteTime = t
+	}
+}
+
 func ROWriterId(id EntityId) RequestOpts {
 	return func(r *Request) {
 		r.WriterId = &id
+	}
+}
+
+func ROWriterIdPtr(id *EntityId) RequestOpts {
+	return func(r *Request) {
+		r.WriterId = id
 	}
 }
 
@@ -435,7 +389,7 @@ func ROFieldType(ft FieldType) RequestOpts {
 func (me *Request) Init(entityId EntityId, fieldType FieldType, opts ...RequestOpts) *Request {
 	me.EntityId = entityId
 	me.FieldType = fieldType
-	me.Value = new(Value)
+	me.Value = new(Value).Init()
 	me.WriteOpt = WriteNormal
 	me.WriteTime = nil
 	me.WriterId = nil
@@ -444,6 +398,203 @@ func (me *Request) Init(entityId EntityId, fieldType FieldType, opts ...RequestO
 }
 
 func (me *Request) ApplyOpts(opts ...RequestOpts) *Request {
+	for _, o := range opts {
+		o(me)
+	}
+
+	return me
+}
+
+type FieldOpts func(*Field)
+
+func FOEntityId(id EntityId) FieldOpts {
+	return func(f *Field) {
+		f.EntityId = id
+	}
+}
+
+func FOFieldType(ft FieldType) FieldOpts {
+	return func(f *Field) {
+		f.FieldType = ft
+	}
+}
+
+func FOValue(v *Value) FieldOpts {
+	return func(f *Field) {
+		f.Value = v
+	}
+}
+
+func FOWriteTime[T time.Time | WriteTime](t T) FieldOpts {
+	return func(f *Field) {
+		f.WriteTime = WriteTime(t)
+	}
+}
+
+func FOWriterId(id EntityId) FieldOpts {
+	return func(f *Field) {
+		f.WriterId = id
+	}
+}
+
+type EntityOpts func(*Entity)
+
+func EOField(fieldType FieldType, opts ...FieldOpts) EntityOpts {
+	return func(e *Entity) {
+		e.Field(fieldType).ApplyOpts(opts...)
+	}
+}
+
+func EOFields(fields map[FieldType]*Field) EntityOpts {
+	return func(e *Entity) {
+		e.Fields = fields
+	}
+}
+
+func EOEntityType(et EntityType) EntityOpts {
+	return func(e *Entity) {
+		e.EntityType = et
+	}
+}
+
+func EOEntityId(eid EntityId) EntityOpts {
+	return func(e *Entity) {
+		e.EntityId = eid
+	}
+}
+
+type EntitySchemaOpts func(*EntitySchema)
+
+func ESOField(fieldType FieldType, opts ...FieldSchemaOpts) EntitySchemaOpts {
+	return func(es *EntitySchema) {
+		es.Field(fieldType).ApplyOpts(opts...)
+	}
+}
+
+func ESOFields(fields map[FieldType]*FieldSchema) EntitySchemaOpts {
+	return func(es *EntitySchema) {
+		es.Fields = fields
+	}
+}
+
+func ESOEntityType(et EntityType) EntitySchemaOpts {
+	return func(es *EntitySchema) {
+		es.EntityType = et
+	}
+}
+
+type FieldSchemaOpts func(*FieldSchema)
+
+func FSOValueType(vt ValueType) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.ValueType = vt
+	}
+}
+
+func FSOReadPermissions(permissions []EntityId) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.ReadPermissions = permissions
+	}
+}
+
+func FSOWritePermissions(permissions []EntityId) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.WritePermissions = permissions
+	}
+}
+
+func FSOChoices(choices ...string) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.Choices = choices
+	}
+}
+
+func FSOFieldRank(rank int) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.Rank = rank
+	}
+}
+
+func FSOEntityType(et EntityType) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.EntityType = et
+	}
+}
+
+func FSOFieldType(ft FieldType) FieldSchemaOpts {
+	return func(f *FieldSchema) {
+		f.FieldType = ft
+	}
+}
+
+func (me *Entity) Init(entityType EntityType, entityId EntityId, opts ...EntityOpts) *Entity {
+	me.EntityId = entityId
+	me.EntityType = entityType
+	me.Fields = make(map[FieldType]*Field)
+	return me.ApplyOpts(opts...)
+}
+
+func (me *Entity) ApplyOpts(opts ...EntityOpts) *Entity {
+	for _, o := range opts {
+		o(me)
+	}
+
+	return me
+}
+
+func (me *EntitySchema) Init(entityType EntityType, opts ...EntitySchemaOpts) *EntitySchema {
+	me.EntityType = entityType
+	me.Fields = make(map[FieldType]*FieldSchema)
+	return me.ApplyOpts(opts...)
+}
+
+func (me *EntitySchema) ApplyOpts(opts ...EntitySchemaOpts) *EntitySchema {
+	for _, o := range opts {
+		o(me)
+	}
+
+	return me
+}
+
+func (me *EntitySchema) Field(fieldType FieldType) *FieldSchema {
+	if f, ok := me.Fields[fieldType]; ok {
+		return f
+	}
+
+	f := new(FieldSchema).Init(me.EntityType, fieldType, ValueType(""))
+
+	me.Fields[fieldType] = f
+
+	return f
+}
+
+func (me *Field) Init(entityId EntityId, fieldType FieldType, opts ...FieldOpts) *Field {
+	me.EntityId = entityId
+	me.FieldType = fieldType
+	me.Value = new(Value).Init()
+	me.WriteTime = WriteTime(time.Time{})
+	me.WriterId = EntityId("")
+	return me.ApplyOpts(opts...)
+}
+
+func (me *Field) ApplyOpts(opts ...FieldOpts) *Field {
+	for _, o := range opts {
+		o(me)
+	}
+
+	return me
+}
+
+func (me *FieldSchema) Init(entityType EntityType, fieldType FieldType, valueType ValueType, opts ...FieldSchemaOpts) *FieldSchema {
+	me.EntityType = entityType
+	me.FieldType = fieldType
+	me.ValueType = valueType
+	me.ReadPermissions = make([]EntityId, 0)
+	me.WritePermissions = make([]EntityId, 0)
+	return me.ApplyOpts(opts...)
+}
+
+func (me *FieldSchema) ApplyOpts(opts ...FieldSchemaOpts) *FieldSchema {
 	for _, o := range opts {
 		o(me)
 	}

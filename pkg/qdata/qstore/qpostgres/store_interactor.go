@@ -29,14 +29,14 @@ func (me *PostgresStoreInteractor) GetEntity(ctx context.Context, entityId qdata
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// First get the entity's basic info
-		row := tx.QueryRow(ctx, `
-		SELECT id, type
+		var entityType string
+
+		err := tx.QueryRow(ctx, `
+		SELECT type
 		FROM Entities
 		WHERE id = $1
-		`, entityId)
+		`, entityId.AsString()).Scan(&entityType)
 
-		var entityType string
-		err := row.Scan(&entityId, &entityType)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				qlog.Error("Failed to get entity: %v", err)
@@ -64,7 +64,7 @@ func (me *PostgresStoreInteractor) CreateEntity(ctx context.Context, entityType 
 		_, err := tx.Exec(ctx, `
             INSERT INTO Entities (id, type)
             VALUES ($1, $2)
-        `, entityId, entityType)
+        `, entityId.AsString(), entityType.AsString())
 
 		if err != nil {
 			qlog.Error("Failed to create entity: %v", err)
@@ -891,7 +891,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 		// Delete existing schema
 		_, err := tx.Exec(ctx, `
 			DELETE FROM EntitySchema WHERE entity_type = $1
-		`, requestedSchema.EntityType)
+		`, requestedSchema.EntityType.AsString())
 		if err != nil {
 			qlog.Error("Failed to delete existing schema: %v", err)
 			return
@@ -900,14 +900,14 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 		// Delete existing choice options
 		_, err = tx.Exec(ctx, `
 			DELETE FROM ChoiceOptions WHERE entity_type = $1
-		`, requestedSchema.EntityType)
+		`, requestedSchema.EntityType.AsString())
 		if err != nil {
 			qlog.Error("Failed to delete existing choice options: %v", err)
 			return
 		}
 
 		// Build new schema
-		fields := []qdata.FieldSchema{}
+		requestedSchema.Fields[qdata.FTName] = new(qdata.FieldSchema).Init()
 		if !slices.ContainsFunc(requestedSchema.Fields, func(field qdata.FieldSchema) bool {
 			return field.FieldType == qdata.FTName
 		}) {
@@ -988,8 +988,8 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 
 		// Handle field changes for existing entities
 		if oldSchema != nil {
-			removedFields := []string{}
-			newFields := []string{}
+			removedFields := []qdata.FieldType{}
+			newFields := []qdata.FieldType{}
 
 			// Find removed fields
 			for _, oldField := range oldSchema.Fields {
@@ -1023,15 +1023,15 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			entities := me.FindEntities(ctx, modifiableSchema.EntityType)
 			for _, entityId := range entities {
 				// Remove deleted fields
-				for _, fieldName := range removedFields {
-					tableName := getTableNameForType(oldSchema.GetField(fieldName).GetFieldType())
+				for _, fieldType := range removedFields {
+					tableName := getTableNameForType(oldSchema.Fields[fieldType].ValueType)
 					if tableName == "" {
 						continue
 					}
 					_, err = tx.Exec(ctx, fmt.Sprintf(`
 						DELETE FROM %s 
 						WHERE entity_id = $1 AND field_type = $2
-					`, tableName), entityId, fieldName)
+					`, tableName), entityId, fieldType)
 					if err != nil {
 						qlog.Error("Failed to delete field: %v", err)
 						continue
@@ -1039,9 +1039,9 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 				}
 
 				// Initialize new fields
-				for _, fieldName := range newFields {
-					req := new(qdata.Request).Init(entityId, fieldName)
-					me.fieldOperator.Write(ctx, req)
+				for _, fieldType := range newFields {
+					req := new(qdata.Request).Init(entityId, fieldType)
+					me.Write(ctx, req)
 				}
 			}
 		}
