@@ -132,7 +132,7 @@ func (me *PostgresStoreInteractor) FindEntities(ctx context.Context, entityType 
 }
 
 func (me *PostgresStoreInteractor) GetEntityTypes(ctx context.Context) []qdata.EntityType {
-	entityTypes := []string{}
+	entityTypes := []qdata.EntityType{}
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		rows, err := tx.Query(ctx, `
@@ -151,7 +151,7 @@ func (me *PostgresStoreInteractor) GetEntityTypes(ctx context.Context) []qdata.E
 				qlog.Error("Failed to scan entity type: %v", err)
 				continue
 			}
-			entityTypes = append(entityTypes, entityType)
+			entityTypes = append(entityTypes, qdata.EntityType(entityType))
 		}
 	})
 
@@ -170,8 +170,8 @@ func (me *PostgresStoreInteractor) DeleteEntity(ctx context.Context, entityId qd
 
 // collectDeletionOrderIterative builds a list of entities to delete in the right order (children before parents)
 // using an iterative depth-first traversal approach
-func (me *PostgresStoreInteractor) collectDeletionOrderIterative(ctx context.Context, rootEntityId string) []string {
-	var result []string
+func (me *PostgresStoreInteractor) collectDeletionOrderIterative(ctx context.Context, rootEntityId qdata.EntityId) []qdata.EntityId {
+	var result []qdata.EntityId
 
 	// We need two data structures:
 	// 1. A stack for DFS traversal
@@ -181,8 +181,8 @@ func (me *PostgresStoreInteractor) collectDeletionOrderIterative(ctx context.Con
 		processed bool // Whether we've already processed children
 	}
 
-	stack := []stackItem{{id: rootEntityId, processed: false}}
-	visited := make(map[string]bool)
+	stack := []stackItem{{id: rootEntityId.AsString(), processed: false}}
+	visited := make(map[qdata.EntityId]bool)
 
 	for len(stack) > 0 {
 		// Get the top item from stack
@@ -191,15 +191,15 @@ func (me *PostgresStoreInteractor) collectDeletionOrderIterative(ctx context.Con
 		if current.processed {
 			// If we've already processed children, add to result and pop from stack
 			stack = stack[:len(stack)-1]
-			if !visited[current.id] {
-				result = append(result, current.id)
-				visited[current.id] = true
+			if !visited[qdata.EntityId(current.id)] {
+				result = append(result, qdata.EntityId(current.id))
+				visited[qdata.EntityId(current.id)] = true
 			}
 		} else {
 			// Mark as processed and get children
 			stack[len(stack)-1].processed = true
 
-			childrenReq := new(qdata.Request).Init(current.id, qdata.FTChildren)
+			childrenReq := new(qdata.Request).Init(qdata.EntityId(current.id), qdata.FTChildren)
 			me.Read(ctx, childrenReq)
 
 			if childrenReq.Success {
@@ -210,7 +210,7 @@ func (me *PostgresStoreInteractor) collectDeletionOrderIterative(ctx context.Con
 					childId := children[i]
 					// Only add if not already visited
 					if !visited[childId] {
-						stack = append(stack, stackItem{id: childId, processed: false})
+						stack = append(stack, stackItem{id: childId.AsString(), processed: false})
 					}
 				}
 			}
@@ -269,7 +269,7 @@ func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Conte
 					} else if req.Value.IsEntityList() {
 						// If it's a list of references, remove this entity from the list
 						entities := req.Value.GetEntityList()
-						updatedEntities := []string{}
+						updatedEntities := []qdata.EntityId{}
 
 						for _, id := range entities {
 							if id != entityId {
@@ -292,20 +292,20 @@ func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Conte
 			_, err = tx.Exec(ctx, `
                 DELETE FROM ReverseEntityReferences WHERE referenced_entity_id = $1
                 OR referenced_by_entity_id = $1
-            `, entityId)
+            `, entityId.AsString())
 			if err != nil {
 				qlog.Error("Failed to delete reverse references: %v", err)
 			}
 		}
 
-		if entity.GetType() == "Permission" {
+		if entity.EntityType == qdata.ETPermission {
 			// Remove permissions from schemas
 			_, err := tx.Exec(ctx, `
 				UPDATE EntitySchema 
 				SET read_permissions = array_remove(read_permissions, $1),
 					write_permissions = array_remove(write_permissions, $1)
 				WHERE $1 = ANY(read_permissions) OR $1 = ANY(write_permissions)
-			`, entityId)
+			`, entityId.AsString())
 
 			if err != nil {
 				qlog.Error("Failed to remove permission from schemas: %v", err)
@@ -341,7 +341,7 @@ func (me *PostgresStoreInteractor) EntityExists(ctx context.Context, entityId qd
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		err := tx.QueryRow(ctx, `
 			SELECT EXISTS(SELECT 1 FROM Entities WHERE id = $1)
-		`, entityId).Scan(&exists)
+		`, entityId.AsString()).Scan(&exists)
 
 		if err != nil {
 			qlog.Error("Failed to check entity existence: %v", err)
@@ -352,15 +352,15 @@ func (me *PostgresStoreInteractor) EntityExists(ctx context.Context, entityId qd
 }
 
 func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.Request) {
-	ir := qquery.NewIndirectionResolver(me.me)
+	ir := qdata.NewIndirectionResolver(me)
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, req := range requests {
-			req.SetSuccessful(false)
+			req.Success = false
 
-			indirectEntity, indirectField := ir.Resolve(ctx, req.GetEntityId(), req.FieldType)
+			indirectEntity, indirectField := ir.Resolve(ctx, req.EntityId, req.FieldType)
 			if indirectField == "" || indirectEntity == "" {
-				qlog.Error("Failed to resolve indirection for: %s->%s", req.GetEntityId(), req.FieldType)
+				qlog.Error("Failed to resolve indirection for: %s->%s", req.EntityId, req.FieldType)
 				continue
 			}
 
@@ -370,21 +370,21 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				continue
 			}
 
-			schema := me.GetFieldSchema(ctx, entity.GetType(), indirectField)
+			schema := me.GetFieldSchema(ctx, entity.EntityType, indirectField)
 			if schema == nil {
-				qlog.Error("Failed to get field schema: %s->%s", entity.GetType(), indirectField)
+				qlog.Error("Failed to get field schema: %s->%s", entity.EntityType, indirectField)
 				continue
 			}
 
 			tableName := getTableForType(schema.GetFieldType())
 			if tableName == "" {
-				qlog.Error("Invalid field type %s for field %s->%s", schema.GetFieldType(), entity.GetType(), indirectField)
+				qlog.Error("Invalid field type %s for field %s->%s", schema.GetFieldType(), entity.EntityType, indirectField)
 				continue
 			}
 
 			if authorizer, ok := ctx.Value(qdata.FieldAuthorizerKey).(qdata.FieldAuthorizer); ok {
 				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField, false) {
-					qlog.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.FieldType)
+					qlog.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.EntityId, req.FieldType)
 					continue
 				}
 			}
@@ -410,7 +410,7 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 
 			value := convertToValue(schema.GetFieldType(), fieldValue)
 			if value == nil {
-				qlog.Error("Failed to convert value for field %s->%s", entity.GetType(), indirectField)
+				qlog.Error("Failed to convert value for field %s->%s", entity.EntityType, indirectField)
 				continue
 			}
 
@@ -427,9 +427,9 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, req := range requests {
-			indirectEntity, indirectField := ir.Resolve(ctx, req.GetEntityId(), req.FieldType)
+			indirectEntity, indirectField := ir.Resolve(ctx, req.EntityId, req.FieldType)
 			if indirectField == "" || indirectEntity == "" {
-				qlog.Error("Failed to resolve indirection for: %s->%s", req.GetEntityId(), req.FieldType)
+				qlog.Error("Failed to resolve indirection for: %s->%s", req.EntityId, req.FieldType)
 				continue
 			}
 
@@ -466,7 +466,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				req.SetValue(qfield.FromAnyPb(&anyPbField))
 			}
 
-			oldReq := new(qdata.Request).Init(req.GetEntityId(), req.FieldType)
+			oldReq := new(qdata.Request).Init(req.EntityId, req.FieldType)
 			me.Read(ctx, oldReq)
 
 			if oldReq.Success && req.GetWriteOpt() == qdata.WriteChanges {
@@ -522,7 +522,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 
 			if authorizer, ok := ctx.Value(qdata.FieldAuthorizerKey).(qdata.FieldAuthorizer); ok {
 				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField, true) {
-					qlog.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.GetEntityId(), req.FieldType)
+					qlog.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.EntityId, req.FieldType)
 					continue
 				}
 			}
@@ -722,7 +722,7 @@ func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss qdata
 			_, err := tx.Exec(ctx, `
 			INSERT INTO Entities (id, type)
 			VALUES ($1, $2)
-		`, e.GetId(), e.GetType())
+		`, e.GetId(), e.EntityType)
 			if err != nil {
 				qlog.Error("Failed to restore entity: %v", err)
 				continue
@@ -797,14 +797,14 @@ func (me *PostgresStoreInteractor) initializeDatabase(ctx context.Context) error
 	return err
 }
 
-func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityType, fieldName string) qdata.FieldSchema {
+func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.EntityType) qdata.FieldSchema {
 	schemaPb := &qprotobufs.DatabaseFieldSchema{}
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		err := tx.QueryRow(ctx, `
             SELECT field_type, value_type, read_permissions, write_permissions
             FROM EntitySchema
             WHERE entity_type = $1 AND field_type = $2
-        `, entityType, fieldName).Scan(&schemaPb.Name, &schemaPb.Type, &schemaPb.ReadPermissions, &schemaPb.WritePermissions)
+        `, entityType, fieldType).Scan(&schemaPb.Name, &schemaPb.Type, &schemaPb.ReadPermissions, &schemaPb.WritePermissions)
 		if err != nil {
 			qlog.Error("Failed to get field schema: %v", err)
 			schemaPb = nil
@@ -823,7 +823,7 @@ func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityTyp
 				SELECT options
 				FROM ChoiceOptions
 				WHERE entity_type = $1 AND field_type = $2
-			`, entityType, fieldName).Scan(&options)
+			`, entityType, fieldType).Scan(&options)
 			if err != nil {
 				if !errors.Is(err, pgx.ErrNoRows) {
 					qlog.Error("Failed to get choice options: %v", err)
@@ -886,12 +886,12 @@ func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, fieldName, e
 func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requestedSchema qdata.EntitySchema) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Get existing schema for comparison
-		oldSchema := me.GetEntitySchema(ctx, requestedSchema.GetType())
+		oldSchema := me.GetEntitySchema(ctx, requestedSchema.EntityType)
 
 		// Delete existing schema
 		_, err := tx.Exec(ctx, `
 			DELETE FROM EntitySchema WHERE entity_type = $1
-		`, requestedSchema.GetType())
+		`, requestedSchema.EntityType)
 		if err != nil {
 			qlog.Error("Failed to delete existing schema: %v", err)
 			return
@@ -900,7 +900,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 		// Delete existing choice options
 		_, err = tx.Exec(ctx, `
 			DELETE FROM ChoiceOptions WHERE entity_type = $1
-		`, requestedSchema.GetType())
+		`, requestedSchema.EntityType)
 		if err != nil {
 			qlog.Error("Failed to delete existing choice options: %v", err)
 			return
@@ -934,7 +934,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 
 		fields = append(fields, requestedSchema.Fields...)
 		modifiableSchema := qentity.FromSchemaPb(&qprotobufs.DatabaseEntitySchema{})
-		modifiableSchema.SetType(requestedSchema.GetType())
+		modifiableSchema.SetType(requestedSchema.EntityType)
 		modifiableSchema.SetFields(fields)
 
 		for i, field := range modifiableSchema.Fields {
@@ -942,7 +942,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			readPermissions := []string{}
 			for _, id := range field.GetReadPermissions() {
 				entity := me.GetEntity(ctx, id)
-				if entity != nil && entity.GetType() == "Permission" {
+				if entity != nil && entity.EntityType == qdata.ETPermission {
 					readPermissions = append(readPermissions, id)
 				}
 			}
@@ -950,7 +950,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			writePermissions := []string{}
 			for _, id := range field.GetWritePermissions() {
 				entity := me.GetEntity(ctx, id)
-				if entity != nil && entity.GetType() == "Permission" {
+				if entity != nil && entity.EntityType == qdata.ETPermission {
 					writePermissions = append(writePermissions, id)
 				}
 			}
@@ -960,7 +960,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (entity_type, field_type) 
             DO UPDATE SET value_type = $3, read_permissions = $4, write_permissions = $5, rank = $6
-        `, modifiableSchema.GetType(), field.FieldType, field.GetFieldType(), readPermissions, writePermissions, i)
+        `, modifiableSchema.EntityType, field.FieldType, field.GetFieldType(), readPermissions, writePermissions, i)
 
 			if err != nil {
 				qlog.Error("Failed to set field schema: %v", err)
@@ -977,7 +977,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
                 VALUES ($1, $2, $3)
                 ON CONFLICT (entity_type, field_type)
                 DO UPDATE SET options = $3
-            `, modifiableSchema.GetType(), field.FieldType, options)
+            `, modifiableSchema.EntityType, field.FieldType, options)
 
 				if err != nil {
 					qlog.Error("Failed to set choice options: %v", err)
@@ -1020,7 +1020,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			}
 
 			// Update existing entities
-			entities := me.FindEntities(ctx, modifiableSchema.GetType())
+			entities := me.FindEntities(ctx, modifiableSchema.EntityType)
 			for _, entityId := range entities {
 				// Remove deleted fields
 				for _, fieldName := range removedFields {
