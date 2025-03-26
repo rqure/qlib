@@ -1,7 +1,6 @@
 package qdata
 
 import (
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -10,7 +9,7 @@ type ValueInt struct {
 	Value int
 }
 
-func NewInt(v ...int) *qdata.Value {
+func NewInt(v ...int) *Value {
 	me := &ValueInt{
 		Value: 0,
 	}
@@ -19,16 +18,14 @@ func NewInt(v ...int) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.Int,
-		},
-		ValueConstructor: me,
-		AnyPbConverter:   me,
-		RawProvider:      me,
-		RawReceiver:      me,
-		IntProvider:      me,
-		IntReceiver:      me,
+	return &Value{
+		ValueTypeProvider: new(ValueType).As(Int),
+		ValueConstructor:  me,
+		AnyPbConverter:    me,
+		RawProvider:       me,
+		RawReceiver:       me,
+		IntProvider:       me,
+		IntReceiver:       me,
 	}
 }
 
@@ -50,7 +47,7 @@ func (me *ValueInt) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueInt) Clone() *qdata.Value {
+func (me *ValueInt) Clone() *Value {
 	return NewInt(me.Value)
 }
 

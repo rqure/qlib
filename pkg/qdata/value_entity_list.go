@@ -1,7 +1,6 @@
 package qdata
 
 import (
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -10,7 +9,7 @@ type ValueEntityList struct {
 	Value []string
 }
 
-func NewEntityList(v ...[]string) *qdata.Value {
+func NewEntityList(v ...[]string) *Value {
 	me := &ValueEntityList{
 		Value: []string{}, // Empty list as default
 	}
@@ -19,10 +18,8 @@ func NewEntityList(v ...[]string) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.EntityList,
-		},
+	return &Value{
+		ValueTypeProvider:  new(ValueType).As(EntityList),
 		ValueConstructor:   me,
 		AnyPbConverter:     me,
 		RawProvider:        me,
@@ -50,7 +47,7 @@ func (me *ValueEntityList) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueEntityList) Clone() *qdata.Value {
+func (me *ValueEntityList) Clone() *Value {
 	return NewEntityList(me.Value)
 }
 

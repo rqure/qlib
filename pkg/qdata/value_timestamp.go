@@ -3,7 +3,6 @@ package qdata
 import (
 	"time"
 
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,7 +12,7 @@ type ValueTimestamp struct {
 	Value time.Time
 }
 
-func NewTimestamp(v ...time.Time) *qdata.Value {
+func NewTimestamp(v ...time.Time) *Value {
 	me := &ValueTimestamp{
 		Value: time.Time{},
 	}
@@ -22,10 +21,8 @@ func NewTimestamp(v ...time.Time) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.Timestamp,
-		},
+	return &Value{
+		ValueTypeProvider: new(ValueType).As(Timestamp),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,
@@ -53,7 +50,7 @@ func (me *ValueTimestamp) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueTimestamp) Clone() *qdata.Value {
+func (me *ValueTimestamp) Clone() *Value {
 	return NewTimestamp(me.Value)
 }
 

@@ -1,7 +1,6 @@
 package qdata
 
 import (
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -10,7 +9,7 @@ type ValueEntityReference struct {
 	Value string
 }
 
-func NewEntityReference(v ...string) *qdata.Value {
+func NewEntityReference(v ...string) *Value {
 	me := &ValueEntityReference{
 		Value: "",
 	}
@@ -19,10 +18,8 @@ func NewEntityReference(v ...string) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.EntityReference,
-		},
+	return &Value{
+		ValueTypeProvider:       new(ValueType).As(EntityReference),
 		ValueConstructor:        me,
 		AnyPbConverter:          me,
 		RawProvider:             me,
@@ -50,7 +47,7 @@ func (me *ValueEntityReference) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueEntityReference) Clone() *qdata.Value {
+func (me *ValueEntityReference) Clone() *Value {
 	return NewEntityReference(me.Value)
 }
 

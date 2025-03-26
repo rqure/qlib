@@ -1,7 +1,6 @@
 package qdata
 
 import (
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -10,7 +9,7 @@ type ValueChoice struct {
 	Value int
 }
 
-func NewChoice(v ...int) *qdata.Value {
+func NewChoice(v ...int) *Value {
 	me := &ValueChoice{
 		Value: 0, // Default choice index
 	}
@@ -19,16 +18,14 @@ func NewChoice(v ...int) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.Choice,
-		},
-		ValueConstructor: me,
-		AnyPbConverter:   me,
-		RawProvider:      me,
-		RawReceiver:      me,
-		ChoiceProvider:   me,
-		ChoiceReceiver:   me,
+	return &Value{
+		ValueTypeProvider: new(ValueType).As(Choice),
+		ValueConstructor:  me,
+		AnyPbConverter:    me,
+		RawProvider:       me,
+		RawReceiver:       me,
+		ChoiceProvider:    me,
+		ChoiceReceiver:    me,
 	}
 }
 
@@ -50,7 +47,7 @@ func (me *ValueChoice) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueChoice) Clone() *qdata.Value {
+func (me *ValueChoice) Clone() *Value {
 	return NewChoice(me.Value)
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -14,7 +13,7 @@ type ValueBinaryFile struct {
 	Value string
 }
 
-func NewBinaryFile(v ...string) *qdata.Value {
+func NewBinaryFile(v ...string) *Value {
 	me := &ValueBinaryFile{
 		Value: "", // Empty path as default
 	}
@@ -23,10 +22,8 @@ func NewBinaryFile(v ...string) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.BinaryFile,
-		},
+	return &Value{
+		ValueTypeProvider:  new(ValueType).As(BinaryFile),
 		ValueConstructor:   me,
 		AnyPbConverter:     me,
 		RawProvider:        me,
@@ -54,7 +51,7 @@ func (me *ValueBinaryFile) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueBinaryFile) Clone() *qdata.Value {
+func (me *ValueBinaryFile) Clone() *Value {
 	return NewBinaryFile(me.Value)
 }
 

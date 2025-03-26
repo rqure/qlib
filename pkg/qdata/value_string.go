@@ -1,7 +1,6 @@
 package qdata
 
 import (
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -10,7 +9,7 @@ type ValueString struct {
 	Value string
 }
 
-func NewString(v ...string) *qdata.Value {
+func NewString(v ...string) *Value {
 	me := &ValueString{
 		Value: "",
 	}
@@ -19,16 +18,14 @@ func NewString(v ...string) *qdata.Value {
 		me.Value = v[0]
 	}
 
-	return &qdata.Value{
-		ValueTypeProvider: &valueTypeProvider{
-			ValueType: qdata.String,
-		},
-		ValueConstructor: me,
-		AnyPbConverter:   me,
-		RawProvider:      me,
-		RawReceiver:      me,
-		StringProvider:   me,
-		StringReceiver:   me,
+	return &Value{
+		ValueTypeProvider: new(ValueType).As(String),
+		ValueConstructor:  me,
+		AnyPbConverter:    me,
+		RawProvider:       me,
+		RawReceiver:       me,
+		StringProvider:    me,
+		StringReceiver:    me,
 	}
 }
 
@@ -50,7 +47,7 @@ func (me *ValueString) SetRaw(value interface{}) {
 	}
 }
 
-func (me *ValueString) Clone() *qdata.Value {
+func (me *ValueString) Clone() *Value {
 	return NewString(me.Value)
 }
 

@@ -1,37 +1,42 @@
 package qdata
 
 import (
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func NewValue(vType qdata.ValueType) *qdata.Value {
+func NewValue(vType ValueType, args ...interface{}) *Value {
+	var value *Value
+
 	switch vType {
-	case qdata.Int:
-		return NewInt()
-	case qdata.Float:
-		return NewFloat()
-	case qdata.String:
-		return NewString()
-	case qdata.EntityReference:
-		return NewEntityReference()
-	case qdata.Timestamp:
-		return NewTimestamp()
-	case qdata.Bool:
-		return NewBool()
-	case qdata.BinaryFile:
-		return NewBinaryFile()
-	case qdata.Choice:
-		return NewChoice()
-	case qdata.EntityList:
-		return NewEntityList()
+	case Int:
+		value = NewInt()
+	case Float:
+		value = NewFloat()
+	case String:
+		value = NewString()
+	case EntityReference:
+		value = NewEntityReference()
+	case Timestamp:
+		value = NewTimestamp()
+	case Bool:
+		value = NewBool()
+	case BinaryFile:
+		value = NewBinaryFile()
+	case Choice:
+		value = NewChoice()
+	case EntityList:
+		value = NewEntityList()
 	}
 
-	return nil
+	if value != nil && len(args) > 0 {
+		value.SetRaw(args[0])
+	}
+
+	return value
 }
 
-func NewValueFromAnyPb(a *anypb.Any) *qdata.Value {
+func NewValueFromAnyPb(a *anypb.Any) *Value {
 	if a.MessageIs(&qprotobufs.Int{}) {
 		m := new(qprotobufs.Int)
 		if err := a.UnmarshalTo(m); err != nil {
