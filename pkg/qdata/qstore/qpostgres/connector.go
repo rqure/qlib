@@ -12,8 +12,8 @@ import (
 	"github.com/rqure/qlib/pkg/qss"
 )
 
-type Connector struct {
-	core Core
+type PostgresConnector struct {
+	core PostgresCore
 
 	connected    qss.Signal[qss.VoidType]
 	disconnected qss.Signal[error]
@@ -29,15 +29,15 @@ type Connector struct {
 	connMu sync.Mutex
 }
 
-func NewConnector(core Core) qdata.Connector {
-	return &Connector{
+func NewConnector(core PostgresCore) qdata.StoreConnector {
+	return &PostgresConnector{
 		core:         core,
 		connected:    qss.New[qss.VoidType](),
 		disconnected: qss.New[error](),
 	}
 }
 
-func (me *Connector) startHealthCheck() {
+func (me *PostgresConnector) startHealthCheck() {
 	me.healthCheckMu.Lock()
 	defer me.healthCheckMu.Unlock()
 
@@ -49,7 +49,7 @@ func (me *Connector) startHealthCheck() {
 	go me.healthCheckWorker(me.healthCheckCtx)
 }
 
-func (me *Connector) stopHealthCheck() {
+func (me *PostgresConnector) stopHealthCheck() {
 	me.healthCheckMu.Lock()
 	defer me.healthCheckMu.Unlock()
 
@@ -60,7 +60,7 @@ func (me *Connector) stopHealthCheck() {
 	}
 }
 
-func (me *Connector) setConnected(connected bool, err error) {
+func (me *PostgresConnector) setConnected(connected bool, err error) {
 	wasConnected := me.isConnected.Swap(connected)
 	if wasConnected != connected {
 		if connected {
@@ -71,7 +71,7 @@ func (me *Connector) setConnected(connected bool, err error) {
 	}
 }
 
-func (me *Connector) closePool() {
+func (me *PostgresConnector) closePool() {
 	me.connMu.Lock()
 	defer me.connMu.Unlock()
 
@@ -82,7 +82,7 @@ func (me *Connector) closePool() {
 	me.setConnected(false, nil)
 }
 
-func (me *Connector) healthCheckWorker(ctx context.Context) {
+func (me *PostgresConnector) healthCheckWorker(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -111,7 +111,7 @@ func (me *Connector) healthCheckWorker(ctx context.Context) {
 	}
 }
 
-func (me *Connector) Connect(ctx context.Context) {
+func (me *PostgresConnector) Connect(ctx context.Context) {
 	me.connMu.Lock()
 	defer me.connMu.Unlock()
 
@@ -143,7 +143,7 @@ func (me *Connector) Connect(ctx context.Context) {
 	me.startHealthCheck()
 }
 
-func (me *Connector) Disconnect(ctx context.Context) {
+func (me *PostgresConnector) Disconnect(ctx context.Context) {
 	me.connMu.Lock()
 	defer me.connMu.Unlock()
 
@@ -155,14 +155,14 @@ func (me *Connector) Disconnect(ctx context.Context) {
 	me.setConnected(false, nil)
 }
 
-func (me *Connector) IsConnected(ctx context.Context) bool {
+func (me *PostgresConnector) IsConnected(ctx context.Context) bool {
 	return me.isConnected.Load()
 }
 
-func (me *Connector) Connected() qss.Signal[qss.VoidType] {
+func (me *PostgresConnector) Connected() qss.Signal[qss.VoidType] {
 	return me.connected
 }
 
-func (me *Connector) Disconnected() qss.Signal[error] {
+func (me *PostgresConnector) Disconnected() qss.Signal[error] {
 	return me.disconnected
 }

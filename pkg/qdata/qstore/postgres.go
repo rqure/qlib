@@ -4,7 +4,7 @@ import "github.com/rqure/qlib/pkg/qdata/qstore/qpostgres"
 
 func PersistOverPostgres(address string) ConfigFn {
 	return func(store *Store) {
-		core := qpostgres.NewCore(qpostgres.Config{ConnectionString: address})
+		core := qpostgres.NewCore(qpostgres.PostgresConfig{ConnectionString: address})
 
 		store.MultiConnector.AddConnector(qpostgres.NewConnector(core))
 		store.ModifiableSchemaManager = qpostgres.NewSchemaManager(core)

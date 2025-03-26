@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_entitylists_field_value ON EntityLists USING GIN(
 -- Reverse references indexes (critical for entity relationship queries)
 CREATE INDEX IF NOT EXISTS idx_reverseentityreferences_referenced_entity_id ON ReverseEntityReferences(referenced_entity_id);
 CREATE INDEX IF NOT EXISTS idx_reverseentityreferences_referenced_by_entity_id ON ReverseEntityReferences(referenced_by_entity_id);
-CREATE INDEX IF NOT EXISTS idx_reverseentityreferences_referenced_by_field_name ON ReverseEntityReferences(referenced_by_field_name);
+CREATE INDEX IF NOT EXISTS idx_reverseentityreferences_referenced_by_field_type ON ReverseEntityReferences(referenced_by_field_type);
 
 -- Write time indexes for temporal queries
 CREATE INDEX IF NOT EXISTS idx_strings_write_time ON Strings(write_time);

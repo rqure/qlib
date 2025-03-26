@@ -9,45 +9,45 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
-type Config struct {
+type PostgresConfig struct {
 	ConnectionString string
 }
 
-type Core interface {
+type PostgresCore interface {
 	WithTx(ctx context.Context, fn func(context.Context, pgx.Tx))
 	SetPool(pool *pgxpool.Pool)
 	GetPool() *pgxpool.Pool
-	SetConfig(config Config)
-	GetConfig() Config
+	SetConfig(config PostgresConfig)
+	GetConfig() PostgresConfig
 }
 
-type coreInternal struct {
+type postgresCore struct {
 	pool   *pgxpool.Pool
 	tx     pgx.Tx
-	config Config
+	config PostgresConfig
 }
 
-func NewCore(config Config) Core {
-	return &coreInternal{config: config}
+func NewCore(config PostgresConfig) PostgresCore {
+	return &postgresCore{config: config}
 }
 
-func (me *coreInternal) SetPool(pool *pgxpool.Pool) {
+func (me *postgresCore) SetPool(pool *pgxpool.Pool) {
 	me.pool = pool
 }
 
-func (me *coreInternal) GetPool() *pgxpool.Pool {
+func (me *postgresCore) GetPool() *pgxpool.Pool {
 	return me.pool
 }
 
-func (me *coreInternal) SetConfig(config Config) {
+func (me *postgresCore) SetConfig(config PostgresConfig) {
 	me.config = config
 }
 
-func (me *coreInternal) GetConfig() Config {
+func (me *postgresCore) GetConfig() PostgresConfig {
 	return me.config
 }
 
-func (me *coreInternal) WithTx(ctx context.Context, fn func(context.Context, pgx.Tx)) {
+func (me *postgresCore) WithTx(ctx context.Context, fn func(context.Context, pgx.Tx)) {
 	if me.tx == nil {
 		tx, err := me.pool.Begin(ctx)
 		if err != nil {
@@ -71,7 +71,7 @@ func (me *coreInternal) WithTx(ctx context.Context, fn func(context.Context, pgx
 
 const defaultBatchSize = 10000
 
-func BatchedQuery[T any](c Core, ctx context.Context,
+func BatchedQuery[T any](c PostgresCore, ctx context.Context,
 	query string,
 	args []any,
 	batchSize int,
