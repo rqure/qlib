@@ -27,7 +27,7 @@ type StoreInteractor interface {
 	GetEntity(context.Context, EntityId) *Entity
 	DeleteEntity(context.Context, EntityId)
 
-	// Find(sql string) Query
+	Find(sql string) Query
 	FindEntities(context.Context, EntityType) []EntityId
 	GetEntityTypes(context.Context) []EntityType
 
