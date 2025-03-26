@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
@@ -6,12 +6,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type Float struct {
+type ValueFloat struct {
 	Value float64
 }
 
 func NewFloat(v ...float64) *qdata.Value {
-	me := &Float{
+	me := &ValueFloat{
 		Value: 0.0,
 	}
 
@@ -20,7 +20,7 @@ func NewFloat(v ...float64) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.Float,
 		},
 		ValueConstructor: me,
@@ -32,29 +32,29 @@ func NewFloat(v ...float64) *qdata.Value {
 	}
 }
 
-func (me *Float) GetFloat() float64 {
+func (me *ValueFloat) GetFloat() float64 {
 	return me.Value
 }
 
-func (me *Float) SetFloat(value float64) {
+func (me *ValueFloat) SetFloat(value float64) {
 	me.Value = value
 }
 
-func (me *Float) GetRaw() interface{} {
+func (me *ValueFloat) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *Float) SetRaw(value interface{}) {
+func (me *ValueFloat) SetRaw(value interface{}) {
 	if v, ok := value.(float64); ok {
 		me.Value = v
 	}
 }
 
-func (me *Float) Clone() *qdata.Value {
+func (me *ValueFloat) Clone() *qdata.Value {
 	return NewFloat(me.Value)
 }
 
-func (me *Float) AsAnyPb() *anypb.Any {
+func (me *ValueFloat) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.Float{
 		Raw: me.Value,
 	})

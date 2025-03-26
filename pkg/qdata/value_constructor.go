@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func New(vType qdata.ValueType) *qdata.Value {
+func NewValue(vType qdata.ValueType) *qdata.Value {
 	switch vType {
 	case qdata.Int:
 		return NewInt()
@@ -31,7 +31,7 @@ func New(vType qdata.ValueType) *qdata.Value {
 	return nil
 }
 
-func FromAnyPb(a *anypb.Any) *qdata.Value {
+func NewValueFromAnyPb(a *anypb.Any) *qdata.Value {
 	if a.MessageIs(&qprotobufs.Int{}) {
 		m := new(qprotobufs.Int)
 		if err := a.UnmarshalTo(m); err != nil {

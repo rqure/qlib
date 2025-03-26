@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"encoding/base64"
@@ -10,12 +10,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type BinaryFile struct {
+type ValueBinaryFile struct {
 	Value string
 }
 
 func NewBinaryFile(v ...string) *qdata.Value {
-	me := &BinaryFile{
+	me := &ValueBinaryFile{
 		Value: "", // Empty path as default
 	}
 
@@ -24,7 +24,7 @@ func NewBinaryFile(v ...string) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.BinaryFile,
 		},
 		ValueConstructor:   me,
@@ -36,25 +36,25 @@ func NewBinaryFile(v ...string) *qdata.Value {
 	}
 }
 
-func (me *BinaryFile) GetBinaryFile() string {
+func (me *ValueBinaryFile) GetBinaryFile() string {
 	return me.Value
 }
 
-func (me *BinaryFile) SetBinaryFile(value string) {
+func (me *ValueBinaryFile) SetBinaryFile(value string) {
 	me.Value = value
 }
 
-func (me *BinaryFile) GetRaw() interface{} {
+func (me *ValueBinaryFile) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *BinaryFile) SetRaw(value interface{}) {
+func (me *ValueBinaryFile) SetRaw(value interface{}) {
 	if v, ok := value.(string); ok {
 		me.Value = v
 	}
 }
 
-func (me *BinaryFile) Clone() *qdata.Value {
+func (me *ValueBinaryFile) Clone() *qdata.Value {
 	return NewBinaryFile(me.Value)
 }
 
@@ -79,7 +79,7 @@ func FileDecode(encoded string) []byte {
 	return decoded
 }
 
-func (me *BinaryFile) AsAnyPb() *anypb.Any {
+func (me *ValueBinaryFile) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.BinaryFile{
 		Raw: me.Value,
 	})

@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
@@ -6,12 +6,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type Bool struct {
+type ValueBool struct {
 	Value bool
 }
 
 func NewBool(v ...bool) *qdata.Value {
-	me := &Bool{
+	me := &ValueBool{
 		Value: false, // Default false
 	}
 
@@ -20,7 +20,7 @@ func NewBool(v ...bool) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.Bool,
 		},
 		ValueConstructor: me,
@@ -32,29 +32,29 @@ func NewBool(v ...bool) *qdata.Value {
 	}
 }
 
-func (me *Bool) GetBool() bool {
+func (me *ValueBool) GetBool() bool {
 	return me.Value
 }
 
-func (me *Bool) SetBool(value bool) {
+func (me *ValueBool) SetBool(value bool) {
 	me.Value = value
 }
 
-func (me *Bool) GetRaw() interface{} {
+func (me *ValueBool) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *Bool) SetRaw(value interface{}) {
+func (me *ValueBool) SetRaw(value interface{}) {
 	if v, ok := value.(bool); ok {
 		me.Value = v
 	}
 }
 
-func (me *Bool) Clone() *qdata.Value {
+func (me *ValueBool) Clone() *qdata.Value {
 	return NewBool(me.Value)
 }
 
-func (me *Bool) AsAnyPb() *anypb.Any {
+func (me *ValueBool) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.Bool{
 		Raw: me.Value,
 	})

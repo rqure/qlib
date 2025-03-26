@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"time"
@@ -9,12 +9,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type Timestamp struct {
+type ValueTimestamp struct {
 	Value time.Time
 }
 
 func NewTimestamp(v ...time.Time) *qdata.Value {
-	me := &Timestamp{
+	me := &ValueTimestamp{
 		Value: time.Time{},
 	}
 
@@ -23,7 +23,7 @@ func NewTimestamp(v ...time.Time) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.Timestamp,
 		},
 		ValueConstructor:  me,
@@ -35,29 +35,29 @@ func NewTimestamp(v ...time.Time) *qdata.Value {
 	}
 }
 
-func (me *Timestamp) GetTimestamp() time.Time {
+func (me *ValueTimestamp) GetTimestamp() time.Time {
 	return me.Value
 }
 
-func (me *Timestamp) SetTimestamp(value time.Time) {
+func (me *ValueTimestamp) SetTimestamp(value time.Time) {
 	me.Value = value
 }
 
-func (me *Timestamp) GetRaw() interface{} {
+func (me *ValueTimestamp) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *Timestamp) SetRaw(value interface{}) {
+func (me *ValueTimestamp) SetRaw(value interface{}) {
 	if v, ok := value.(time.Time); ok {
 		me.Value = v
 	}
 }
 
-func (me *Timestamp) Clone() *qdata.Value {
+func (me *ValueTimestamp) Clone() *qdata.Value {
 	return NewTimestamp(me.Value)
 }
 
-func (me *Timestamp) AsAnyPb() *anypb.Any {
+func (me *ValueTimestamp) AsAnyPb() *anypb.Any {
 	ts := timestamppb.New(me.Value)
 	a, err := anypb.New(&qprotobufs.Timestamp{
 		Raw: ts,

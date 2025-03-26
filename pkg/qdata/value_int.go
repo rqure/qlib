@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
@@ -6,12 +6,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type Int struct {
+type ValueInt struct {
 	Value int
 }
 
 func NewInt(v ...int) *qdata.Value {
-	me := &Int{
+	me := &ValueInt{
 		Value: 0,
 	}
 
@@ -20,7 +20,7 @@ func NewInt(v ...int) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.Int,
 		},
 		ValueConstructor: me,
@@ -32,29 +32,29 @@ func NewInt(v ...int) *qdata.Value {
 	}
 }
 
-func (me *Int) GetInt() int {
+func (me *ValueInt) GetInt() int {
 	return me.Value
 }
 
-func (me *Int) SetInt(value int) {
+func (me *ValueInt) SetInt(value int) {
 	me.Value = value
 }
 
-func (me *Int) GetRaw() interface{} {
+func (me *ValueInt) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *Int) SetRaw(value interface{}) {
+func (me *ValueInt) SetRaw(value interface{}) {
 	if v, ok := value.(int); ok {
 		me.Value = v
 	}
 }
 
-func (me *Int) Clone() *qdata.Value {
+func (me *ValueInt) Clone() *qdata.Value {
 	return NewInt(me.Value)
 }
 
-func (me *Int) AsAnyPb() *anypb.Any {
+func (me *ValueInt) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.Int{
 		Raw: int64(me.Value),
 	})

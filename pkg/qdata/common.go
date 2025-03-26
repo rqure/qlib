@@ -84,6 +84,8 @@ type FieldSchema struct {
 
 	ReadPermissions  []EntityId
 	WritePermissions []EntityId
+
+	Choices []string
 }
 
 type Request struct {

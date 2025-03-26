@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
@@ -6,12 +6,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type EntityList struct {
+type ValueEntityList struct {
 	Value []string
 }
 
 func NewEntityList(v ...[]string) *qdata.Value {
-	me := &EntityList{
+	me := &ValueEntityList{
 		Value: []string{}, // Empty list as default
 	}
 
@@ -20,7 +20,7 @@ func NewEntityList(v ...[]string) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.EntityList,
 		},
 		ValueConstructor:   me,
@@ -32,29 +32,29 @@ func NewEntityList(v ...[]string) *qdata.Value {
 	}
 }
 
-func (me *EntityList) GetEntityList() []string {
+func (me *ValueEntityList) GetEntityList() []string {
 	return append([]string(nil), me.Value...)
 }
 
-func (me *EntityList) SetEntityList(value []string) {
+func (me *ValueEntityList) SetEntityList(value []string) {
 	me.Value = value
 }
 
-func (me *EntityList) GetRaw() interface{} {
+func (me *ValueEntityList) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *EntityList) SetRaw(value interface{}) {
+func (me *ValueEntityList) SetRaw(value interface{}) {
 	if v, ok := value.([]string); ok {
 		me.Value = v
 	}
 }
 
-func (me *EntityList) Clone() *qdata.Value {
+func (me *ValueEntityList) Clone() *qdata.Value {
 	return NewEntityList(me.Value)
 }
 
-func (me *EntityList) AsAnyPb() *anypb.Any {
+func (me *ValueEntityList) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.EntityList{
 		Raw: me.GetEntityList(),
 	})

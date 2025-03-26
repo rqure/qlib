@@ -1,4 +1,4 @@
-package qvalue
+package qdata
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
@@ -6,12 +6,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type Choice struct {
+type ValueChoice struct {
 	Value int
 }
 
 func NewChoice(v ...int) *qdata.Value {
-	me := &Choice{
+	me := &ValueChoice{
 		Value: 0, // Default choice index
 	}
 
@@ -20,7 +20,7 @@ func NewChoice(v ...int) *qdata.Value {
 	}
 
 	return &qdata.Value{
-		ValueTypeProvider: &ValueTypeProvider{
+		ValueTypeProvider: &valueTypeProvider{
 			ValueType: qdata.Choice,
 		},
 		ValueConstructor: me,
@@ -32,29 +32,29 @@ func NewChoice(v ...int) *qdata.Value {
 	}
 }
 
-func (me *Choice) GetChoice() int {
+func (me *ValueChoice) GetChoice() int {
 	return me.Value
 }
 
-func (me *Choice) SetChoice(value int) {
+func (me *ValueChoice) SetChoice(value int) {
 	me.Value = value
 }
 
-func (me *Choice) GetRaw() interface{} {
+func (me *ValueChoice) GetRaw() interface{} {
 	return me.Value
 }
 
-func (me *Choice) SetRaw(value interface{}) {
+func (me *ValueChoice) SetRaw(value interface{}) {
 	if v, ok := value.(int); ok {
 		me.Value = v
 	}
 }
 
-func (me *Choice) Clone() *qdata.Value {
+func (me *ValueChoice) Clone() *qdata.Value {
 	return NewChoice(me.Value)
 }
 
-func (me *Choice) AsAnyPb() *anypb.Any {
+func (me *ValueChoice) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.Choice{
 		Raw: int64(me.Value),
 	})
