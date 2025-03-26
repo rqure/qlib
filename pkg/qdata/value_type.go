@@ -29,6 +29,8 @@ var ValueTypes = []ValueType{
 }
 
 type ValueTypeProvider interface {
+	Type() ValueType
+
 	IsNil() bool
 	IsInt() bool
 	IsFloat() bool
@@ -71,6 +73,10 @@ func (me *ValueType) As(o ValueType) *ValueType {
 	return me
 }
 
+func (me *ValueType) Type() ValueType {
+	return *me
+}
+
 func (me *ValueType) IsNil() bool {
 	return !slices.Contains(ValueTypes, *me)
 }
@@ -109,4 +115,35 @@ func (me *ValueType) IsChoice() bool {
 
 func (me *ValueType) IsEntityList() bool {
 	return *me == VTEntityList
+}
+
+func (me *ValueType) NewValue(args ...interface{}) *Value {
+	var value *Value
+
+	switch *me {
+	case VTInt:
+		value = NewInt()
+	case VTFloat:
+		value = NewFloat()
+	case VTString:
+		value = NewString()
+	case VTBool:
+		value = NewBool()
+	case VTBinaryFile:
+		value = NewBinaryFile()
+	case VTEntityReference:
+		value = NewEntityReference()
+	case VTTimestamp:
+		value = NewTimestamp()
+	case VTChoice:
+		value = NewChoice()
+	case VTEntityList:
+		value = NewEntityList()
+	}
+
+	if value != nil && len(args) > 0 {
+		value.SetRaw(args[0])
+	}
+
+	return value
 }

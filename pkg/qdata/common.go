@@ -44,19 +44,28 @@ func (me *FieldType) AsString() string {
 	return string(*me)
 }
 
-func (me *FieldType) FromString(s string) FieldType {
-	*me = FieldType(s)
-	return *me
+func (me *FieldType) FromString(s string) *FieldType {
+	if me != nil {
+		*me = FieldType(s)
+	}
+
+	return me
 }
 
-func (me *EntityId) FromString(s string) EntityId {
-	*me = EntityId(s)
-	return *me
+func (me *EntityId) FromString(s string) *EntityId {
+	if me != nil {
+		*me = EntityId(s)
+	}
+
+	return me
 }
 
-func (me *EntityType) FromString(s string) EntityType {
-	*me = EntityType(s)
-	return *me
+func (me *EntityType) FromString(s string) *EntityType {
+	if me != nil {
+		*me = EntityType(s)
+	}
+
+	return me
 }
 
 func (me *EntityId) IsEmpty() bool {
@@ -101,20 +110,14 @@ func (me *WriteTime) AsTimestampPb() *qprotobufs.Timestamp {
 	}
 }
 
-func (me *WriteTime) Update(t time.Time) {
+func (me *WriteTime) FromTime(t time.Time) *WriteTime {
 	if me == nil {
-		return
+		return nil
 	}
 
 	*me = WriteTime(t)
-}
 
-func (me *EntityId) Update(id string) {
-	if me == nil {
-		return
-	}
-
-	*me = EntityId(id)
+	return me
 }
 
 func (me *EntityId) AsStringPb() *qprotobufs.String {
@@ -273,16 +276,36 @@ func (me *Request) AsField() *Field {
 	}
 }
 
-func (me *Field) AsRequest() *Request {
-	return &Request{
+func (me *Field) AsReadRequest(opts ...RequestOpts) *Request {
+	// Typically for read requests, we want to give a direct reference to the value, write time and writer id
+	// so it can be properly updated
+	r := &Request{
 		EntityId:  me.EntityId,
 		FieldType: me.FieldType,
-		Value:     me.Value, // Don't clone so the field is updated
+		Value:     me.Value,
 		WriteOpt:  WriteNormal,
 		WriteTime: &me.WriteTime,
 		WriterId:  &me.WriterId,
 		Success:   false,
 	}
+
+	return r.ApplyOpts(opts...)
+}
+
+func (me *Field) AsWriteRequest(opts ...RequestOpts) *Request {
+	// Typically for write requests, we want to give a copy of the value, write time and writer id
+
+	r := &Request{
+		EntityId:  me.EntityId,
+		FieldType: me.FieldType,
+		Value:     me.Value,
+		WriteOpt:  WriteNormal,
+		WriteTime: nil,
+		WriterId:  nil,
+		Success:   false,
+	}
+
+	return r.ApplyOpts(opts...)
 }
 
 func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
@@ -393,7 +416,7 @@ func ROWriterId(id EntityId) RequestOpts {
 
 func ROValue(v *Value) RequestOpts {
 	return func(r *Request) {
-		r.Value.Update(v)
+		r.Value.FromValue(v)
 	}
 }
 

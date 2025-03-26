@@ -1,6 +1,7 @@
 package qdata
 
 import (
+	"slices"
 	"time"
 
 	"github.com/rqure/qlib/pkg/qprotobufs"
@@ -123,7 +124,7 @@ type Value struct {
 	EntityListReceiver
 }
 
-func (me *Value) Update(o *Value) {
+func (me *Value) FromValue(o *Value) {
 	me.ValueConstructor = o.ValueConstructor
 	me.AnyPbConverter = o.AnyPbConverter
 	me.ValueTypeProvider = o.ValueTypeProvider
@@ -150,128 +151,156 @@ func (me *Value) Update(o *Value) {
 }
 
 func (me *Value) FromInt(v int) *Value {
-	me.Update(NewInt(v))
+	me.FromValue(NewInt(v))
 	return me
 }
 
 func (me *Value) FromFloat(v float64) *Value {
-	me.Update(NewFloat(v))
+	me.FromValue(NewFloat(v))
 	return me
 }
 
 func (me *Value) FromString(v string) *Value {
-	me.Update(NewString(v))
+	me.FromValue(NewString(v))
 	return me
 }
 
 func (me *Value) FromBool(v bool) *Value {
-	me.Update(NewBool(v))
+	me.FromValue(NewBool(v))
 	return me
 }
 
 func (me *Value) FromBinaryFile(v string) *Value {
-	me.Update(NewBinaryFile(v))
+	me.FromValue(NewBinaryFile(v))
 	return me
 }
 
 func (me *Value) FromEntityReference(v EntityId) *Value {
-	me.Update(NewEntityReference(v))
+	me.FromValue(NewEntityReference(v))
 	return me
 }
 
 func (me *Value) FromTimestamp(v time.Time) *Value {
-	me.Update(NewTimestamp(v))
+	me.FromValue(NewTimestamp(v))
 	return me
 }
 
 func (me *Value) FromChoice(v int) *Value {
-	me.Update(NewChoice(v))
+	me.FromValue(NewChoice(v))
 	return me
 }
 
 func (me *Value) FromEntityList(v []EntityId) *Value {
-	me.Update(NewEntityList(v))
+	me.FromValue(NewEntityList(v))
 	return me
 }
 
 func (me *Value) FromAnyPb(a *anypb.Any) *Value {
 	if a.MessageIs(&qprotobufs.Int{}) {
 		m := new(qprotobufs.Int)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromInt(int(m.Raw))
 		}
-		return NewInt(int(m.Raw))
 	}
 
 	if a.MessageIs(&qprotobufs.Float{}) {
 		m := new(qprotobufs.Float)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromFloat(m.Raw)
 		}
-		return NewFloat(m.Raw)
 	}
 
 	if a.MessageIs(&qprotobufs.String{}) {
 		m := new(qprotobufs.String)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromString(m.Raw)
 		}
-		return NewString(m.Raw)
 	}
 
 	if a.MessageIs(&qprotobufs.EntityReference{}) {
 		m := new(qprotobufs.EntityReference)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromEntityReference(EntityId(m.Raw))
 		}
-		return NewEntityReference(new(EntityId).FromString(m.Raw))
 	}
 
 	if a.MessageIs(&qprotobufs.Timestamp{}) {
 		m := new(qprotobufs.Timestamp)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromTimestamp(m.Raw.AsTime())
 		}
-		return NewTimestamp(m.Raw.AsTime())
 	}
 
 	if a.MessageIs(&qprotobufs.Bool{}) {
 		m := new(qprotobufs.Bool)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromBool(m.Raw)
 		}
-		return NewBool(m.Raw)
 	}
 
 	if a.MessageIs(&qprotobufs.BinaryFile{}) {
 		m := new(qprotobufs.BinaryFile)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromBinaryFile(m.Raw)
 		}
-		return NewBinaryFile(m.Raw)
 	}
 
 	if a.MessageIs(&qprotobufs.Choice{}) {
 		m := new(qprotobufs.Choice)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromChoice(int(m.Raw))
 		}
-		return NewChoice(int(m.Raw))
 	}
 
 	if a.MessageIs(&qprotobufs.EntityList{}) {
 		m := new(qprotobufs.EntityList)
-		if err := a.UnmarshalTo(m); err != nil {
-			return nil
+		if err := a.UnmarshalTo(m); err == nil {
+			me.FromEntityList(CastStringSliceToEntityIdSlice(m.Raw))
 		}
-
-		list := make([]EntityId, 0, len(m.Raw))
-		for _, v := range m.Raw {
-			list = append(list, EntityId(v))
-		}
-
-		return NewEntityList(list)
 	}
 
-	return nil
+	return me
+}
+
+func (me *Value) Init() *Value {
+	me.ValueTypeProvider = new(ValueType)
+
+	return me
+}
+
+func (me *Value) Equals(o *Value) bool {
+	if me.ValueTypeProvider != o.ValueTypeProvider {
+		return false
+	}
+
+	if me.ValueTypeProvider == nil {
+		return false
+	}
+
+	if me.Type() != o.Type() {
+		return false
+	}
+
+	switch me.Type() {
+	case VTInt:
+		return me.GetInt() == o.GetInt()
+	case VTFloat:
+		return me.GetFloat() == o.GetFloat()
+	case VTString:
+		return me.GetString() == o.GetString()
+	case VTBool:
+		return me.GetBool() == o.GetBool()
+	case VTBinaryFile:
+		return me.GetBinaryFile() == o.GetBinaryFile()
+	case VTEntityReference:
+		return me.GetEntityReference() == o.GetEntityReference()
+	case VTTimestamp:
+		return me.GetTimestamp().Equal(o.GetTimestamp())
+	case VTChoice:
+		return me.GetChoice() == o.GetChoice()
+	case VTEntityList:
+		return slices.Equal(me.GetEntityList(), o.GetEntityList())
+	}
+
+	return false
 }

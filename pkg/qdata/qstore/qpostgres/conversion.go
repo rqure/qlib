@@ -2,7 +2,7 @@ package qpostgres
 
 import "github.com/rqure/qlib/pkg/qdata"
 
-func getTableForType(valueType qdata.ValueType) string {
+func getTableNameForType(valueType qdata.ValueType) string {
 	switch valueType {
 	case qdata.VTInt:
 		return "Ints"

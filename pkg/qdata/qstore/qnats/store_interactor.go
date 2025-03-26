@@ -7,7 +7,6 @@ import (
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qentity"
 	"github.com/rqure/qlib/pkg/qdata/qquery"
-	"github.com/rqure/qlib/pkg/qdata/qvalue"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 )
@@ -162,13 +161,13 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 		if i >= len(requests) {
 			break
 		}
-		requests[i].Value.Update(qvalue.FromAnyPb(r.Value))
+		requests[i].Value.FromAnyPb(r.Value)
 		requests[i].Success = r.Success
 		if r.WriteTime != nil && r.WriteTime.Raw != nil {
-			requests[i].WriteTime.Update(r.WriteTime.Raw.AsTime())
+			requests[i].WriteTime.FromTime(r.WriteTime.Raw.AsTime())
 		}
 		if r.WriterId != nil {
-			requests[i].WriterId.Update(r.WriterId.Raw)
+			requests[i].WriterId.FromString(r.WriterId.Raw)
 		}
 	}
 }

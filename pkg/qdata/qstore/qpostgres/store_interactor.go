@@ -18,7 +18,6 @@ import (
 	"github.com/rqure/qlib/pkg/qdata/qsnapshot"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
-	"google.golang.org/protobuf/proto"
 )
 
 type PostgresStoreInteractor struct {
@@ -313,8 +312,8 @@ func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Conte
 		}
 
 		// Delete all field values
-		for _, table := range qfield.Types() {
-			tableName := table + "s" // abbreviated
+		for _, valueType := range qdata.ValueTypes {
+			tableName := getTableNameForType(valueType)
 			_, err := tx.Exec(ctx, fmt.Sprintf(`
                 DELETE FROM %s WHERE entity_id = $1
             `, tableName), entityId)
@@ -376,9 +375,9 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				continue
 			}
 
-			tableName := getTableForType(schema.GetFieldType())
+			tableName := getTableNameForType(schema.ValueType)
 			if tableName == "" {
-				qlog.Error("Invalid field type %s for field %s->%s", schema.GetFieldType(), entity.EntityType, indirectField)
+				qlog.Error("Invalid value_type '%s' for field %s->%s", schema.ValueType, entity.EntityType, indirectField)
 				continue
 			}
 
@@ -389,17 +388,15 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				}
 			}
 
-			row := tx.QueryRow(ctx, fmt.Sprintf(`
-					SELECT field_value, write_time, writer
-					FROM %s
-					WHERE entity_id = $1 AND field_type = $2
-				`, tableName), indirectEntity, indirectField)
-
 			var fieldValue interface{}
 			var writeTime time.Time
 			var writer string
+			err := tx.QueryRow(ctx, fmt.Sprintf(`
+					SELECT field_value, write_time, writer
+					FROM %s
+					WHERE entity_id = $1 AND field_type = $2
+				`, tableName), indirectEntity.AsString(), indirectField.AsString()).Scan(&fieldValue, &writeTime, &writer)
 
-			err := row.Scan(&fieldValue, &writeTime, &writer)
 			if err != nil {
 				if !errors.Is(err, pgx.ErrNoRows) {
 					qlog.Error("Failed to read field: %v", err)
@@ -408,22 +405,22 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				continue
 			}
 
-			value := convertToValue(schema.GetFieldType(), fieldValue)
+			value := schema.ValueType.NewValue(fieldValue)
 			if value == nil {
 				qlog.Error("Failed to convert value for field %s->%s", entity.EntityType, indirectField)
 				continue
 			}
 
-			req.SetValue(value)
-			req.SetWriteTime(&writeTime)
-			req.SetWriter(&writer)
-			req.SetSuccessful(true)
+			req.Value.FromValue(value)
+			req.WriteTime.FromTime(writeTime)
+			req.WriterId.FromString(writer)
+			req.Success = true
 		}
 	})
 }
 
 func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata.Request) {
-	ir := qquery.NewIndirectionResolver(me.me)
+	ir := qdata.NewIndirectionResolver(me)
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		for _, req := range requests {
@@ -434,8 +431,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			}
 
 			// Get entity and schema info in a single query
-			var entityType string
-			schema := &qprotobufs.DatabaseFieldSchema{}
+			var entityType, fieldType, valueType string
 			err := tx.QueryRow(ctx, `
 				WITH entity_type AS (
 					SELECT type FROM Entities WHERE id = $1
@@ -448,46 +444,49 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				LEFT JOIN EntitySchema ON 
 					EntitySchema.entity_type = entity_type.type
 					AND EntitySchema.field_type = $2
-			`, indirectEntity, indirectField).Scan(&entityType, &schema.Name, &schema.Type)
+			`, indirectEntity.AsString(), indirectField.AsString()).Scan(&entityType, &fieldType, &valueType)
+			schema := new(qdata.FieldSchema)
+			schema.EntityType = qdata.EntityType(entityType)
+			schema.FieldType = qdata.FieldType(fieldType)
+			schema.ValueType = qdata.ValueType(valueType)
 
 			if err != nil {
 				qlog.Error("Failed to get entity and schema info: %v", err)
 				continue
 			}
 
-			tableName := getTableForType(schema.Type)
+			tableName := getTableNameForType(schema.ValueType)
 			if tableName == "" {
-				qlog.Error("Invalid field type %s for field %s->%s", schema.Type, entityType, indirectField)
+				qlog.Error("Invalid value_type '%s' for field %s->%s", valueType, entityType, indirectField)
 				continue
 			}
 
 			if req.Value.IsNil() {
-				anyPbField := fieldTypeToProtoType(schema.Type)
-				req.SetValue(qfield.FromAnyPb(&anyPbField))
+				req.Value.FromValue(schema.ValueType.NewValue())
 			}
 
 			oldReq := new(qdata.Request).Init(req.EntityId, req.FieldType)
 			me.Read(ctx, oldReq)
 
-			if oldReq.Success && req.GetWriteOpt() == qdata.WriteChanges {
-				if proto.Equal(qfield.ToAnyPb(oldReq.Value), qfield.ToAnyPb(req.Value)) {
-					req.SetSuccessful(true)
+			if oldReq.Success && req.WriteOpt == qdata.WriteChanges {
+				if oldReq.Value.Equals(req.Value) {
+					req.Success = true
 					continue
 				}
 			}
 
-			fieldValue := fieldValueToInterface(req.Value)
+			fieldValue := req.Value.GetRaw()
 			if fieldValue == nil {
 				qlog.Error("Failed to convert value for field %s->%s", entityType, indirectField)
 				continue
 			}
 
-			if req.GetWriteTime() == nil {
+			if req.WriteTime == nil {
 				wt := time.Now()
-				req.SetWriteTime(&wt)
+				req.WriteTime = new(qdata.WriteTime).FromTime(wt)
 			}
 
-			if req.GetWriter() == nil {
+			if req.WriterId == nil {
 				wr := ""
 
 				if me.clientId == nil && qapp.GetName() != "" {
@@ -517,7 +516,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 					wr = *me.clientId
 				}
 
-				req.SetWriter(&wr)
+				req.WriterId = new(qdata.EntityId).FromString(wr)
 			}
 
 			if authorizer, ok := ctx.Value(qdata.FieldAuthorizerKey).(qdata.FieldAuthorizer); ok {
@@ -528,11 +527,11 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			}
 
 			if oldReq.Success && (oldReq.Value.IsEntityReference() || oldReq.Value.IsEntityList()) {
-				var oldReferences []string
+				var oldReferences []qdata.EntityId
 				if oldReq.Value.IsEntityReference() {
 					oldRef := oldReq.Value.GetEntityReference()
-					if oldRef != "" {
-						oldReferences = []string{oldRef}
+					if !oldRef.IsEmpty() {
+						oldReferences = []qdata.EntityId{oldRef}
 					}
 				} else if oldReq.Value.IsEntityList() {
 					oldReferences = oldReq.Value.GetEntityList()
@@ -545,7 +544,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
                             WHERE referenced_entity_id = $1 
                             AND referenced_by_entity_id = $2
                             AND referenced_by_field_type = $3
-                        `, oldRef, indirectEntity, indirectField)
+                        `, oldRef.AsString(), indirectEntity.AsString(), indirectField.AsString())
 
 					if err != nil {
 						qlog.Error("Failed to delete old reverse entity reference: %v", err)
@@ -554,18 +553,18 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			}
 
 			if req.Value.IsEntityReference() || req.Value.IsEntityList() {
-				var newReferences []string
+				var newReferences []qdata.EntityId
 				if req.Value.IsEntityReference() {
 					newRef := req.Value.GetEntityReference()
-					if newRef != "" && me.EntityExists(ctx, newRef) {
-						newReferences = []string{newRef}
+					if !newRef.IsEmpty() && me.EntityExists(ctx, newRef) {
+						newReferences = []qdata.EntityId{newRef}
 						req.Value.SetEntityReference(newRef)
 					} else {
 						req.Value.SetEntityReference("")
 					}
 				} else if req.Value.IsEntityList() {
 					for _, newRef := range req.Value.GetEntityList() {
-						if newRef != "" && me.EntityExists(ctx, newRef) {
+						if !newRef.IsEmpty() && me.EntityExists(ctx, newRef) {
 							newReferences = append(newReferences, newRef)
 						}
 					}
@@ -580,7 +579,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
                         VALUES ($1, $2, $3)
                         ON CONFLICT (referenced_entity_id, referenced_by_entity_id, referenced_by_field_type) 
                         DO NOTHING
-                    `, newRef, indirectEntity, indirectField)
+                    `, newRef.AsString(), indirectEntity.AsString(), indirectField.AsString())
 
 					if err != nil {
 						qlog.Error("Failed to insert reverse entity reference: %v", err)
@@ -594,7 +593,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				VALUES ($1, $2, $3, $4, $5)
 				ON CONFLICT (entity_id, field_type) 
 				DO UPDATE SET field_value = $3, write_time = $4, writer = $5
-			`, tableName), indirectEntity, indirectField, fieldValue, *req.GetWriteTime(), *req.GetWriter())
+			`, tableName), indirectEntity.AsString(), indirectField.AsString(), fieldValue, req.WriteTime.AsTime(), req.WriterId.AsString())
 
 			if err != nil {
 				qlog.Error("Failed to write field: %v", err)
@@ -605,7 +604,8 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			if me.notificationPublisher != nil {
 				me.notificationPublisher.PublishNotifications(ctx, req, oldReq)
 			}
-			req.SetSuccessful(true)
+
+			req.Success = true
 		}
 	})
 }
@@ -722,7 +722,7 @@ func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss qdata
 			_, err := tx.Exec(ctx, `
 			INSERT INTO Entities (id, type)
 			VALUES ($1, $2)
-		`, e.GetId(), e.EntityType)
+		`, e.EntityId.AsString(), e.EntityType.AsString())
 			if err != nil {
 				qlog.Error("Failed to restore entity: %v", err)
 				continue
@@ -765,7 +765,7 @@ func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) qdata.Sna
 						// Add fields for this entity
 						for _, fieldName := range schema.GetFieldNames() {
 							req := new(qdata.Request).Init(entityId, fieldName)
-							me.fieldOperator.Read(ctx, req)
+							me.Read(ctx, req)
 							if req.Success {
 								ss.AppendField(qfield.FromRequest(req))
 							}
@@ -797,7 +797,7 @@ func (me *PostgresStoreInteractor) initializeDatabase(ctx context.Context) error
 	return err
 }
 
-func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.EntityType) qdata.FieldSchema {
+func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) *qdata.FieldSchema {
 	schemaPb := &qprotobufs.DatabaseFieldSchema{}
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		err := tx.QueryRow(ctx, `
@@ -1024,7 +1024,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			for _, entityId := range entities {
 				// Remove deleted fields
 				for _, fieldName := range removedFields {
-					tableName := getTableForType(oldSchema.GetField(fieldName).GetFieldType())
+					tableName := getTableNameForType(oldSchema.GetField(fieldName).GetFieldType())
 					if tableName == "" {
 						continue
 					}
