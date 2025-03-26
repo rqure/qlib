@@ -4,24 +4,28 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qdata/qentity"
-	"github.com/rqure/qlib/pkg/qdata/qfield"
 	"github.com/rqure/qlib/pkg/qdata/qquery"
-	"github.com/rqure/qlib/pkg/qdata/qrequest"
-	"github.com/rqure/qlib/pkg/qdata/qsnapshot"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
+	"github.com/rqure/qlib/pkg/qss"
 )
 
 type PostgresStoreInteractor struct {
-	core PostgresCore
+	core         PostgresCore
+	publisherSig qss.Signal[qdata.PublishNotificationArgs]
+}
+
+func NewPostgresStoreInteractor(core PostgresCore) *PostgresStoreInteractor {
+	return &PostgresStoreInteractor{
+		core:         core,
+		publisherSig: qss.New[qdata.PublishNotificationArgs](),
+	}
 }
 
 func (me *PostgresStoreInteractor) GetEntity(ctx context.Context, entityId qdata.EntityId) *qdata.Entity {
@@ -601,9 +605,11 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			}
 
 			// Handle notifications
-			if me.notificationPublisher != nil {
-				me.notificationPublisher.PublishNotifications(ctx, req, oldReq)
-			}
+			me.publisherSig.Emit(qdata.PublishNotificationArgs{
+				Ctx:  ctx,
+				Curr: req,
+				Prev: oldReq,
+			})
 
 			req.Success = true
 		}
@@ -646,7 +652,7 @@ func (me *PostgresStoreInteractor) InitializeIfRequired(ctx context.Context) {
 	})
 }
 
-func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss qdata.Snapshot) {
+func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// First drop indexes explicitly
 		_, err := tx.Exec(ctx, `
@@ -713,12 +719,12 @@ func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss qdata
 			return
 		}
 
-		for _, schema := range ss.GetSchemas() {
+		for _, schema := range ss.Schemas {
 			me.SetEntitySchema(ctx, schema)
 		}
 
 		// Restore entities
-		for _, e := range ss.GetEntities() {
+		for _, e := range ss.Entities {
 			_, err := tx.Exec(ctx, `
 			INSERT INTO Entities (id, type)
 			VALUES ($1, $2)
@@ -731,19 +737,18 @@ func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss qdata
 
 		// Restore fields
 		for _, f := range ss.Fields {
-			req := qrequest.FromField(f)
-			me.fieldOperator.Write(ctx, req)
+			me.Write(ctx, f.AsWriteRequest())
 		}
 
 		// Restore schemas again because permissions are missed in the first pass
-		for _, schema := range ss.GetSchemas() {
+		for _, schema := range ss.Schemas {
 			me.SetEntitySchema(ctx, schema)
 		}
 	})
 }
 
-func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) qdata.Snapshot {
-	ss := qsnapshot.New()
+func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) *qdata.Snapshot {
+	ss := new(qdata.Snapshot).Init()
 
 	// Get all entity types and their schemas
 	entityTypes := me.GetEntityTypes(ctx)
@@ -753,21 +758,21 @@ func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) qdata.Sna
 			// Add schema
 			schema := me.GetEntitySchema(ctx, entityType)
 			if schema != nil {
-				ss.AppendSchema(schema)
+				ss.Schemas = append(ss.Schemas, schema)
 
 				// Add entities of this type and their fields
 				entities := me.FindEntities(ctx, entityType)
 				for _, entityId := range entities {
 					entity := me.GetEntity(ctx, entityId)
 					if entity != nil {
-						ss.AppendEntity(entity)
+						ss.Entities = append(ss.Entities, entity)
 
 						// Add fields for this entity
-						for _, fieldName := range schema.GetFieldNames() {
-							req := new(qdata.Request).Init(entityId, fieldName)
+						for fieldType, _ := range schema.Fields {
+							req := entity.Field(fieldType).AsReadRequest()
 							me.Read(ctx, req)
 							if req.Success {
-								ss.AppendField(qfield.FromRequest(req))
+								ss.Fields = append(ss.Fields, entity.Field(fieldType))
 							}
 						}
 					}
@@ -815,8 +820,8 @@ func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityTyp
 		return nil
 	}
 
-	schema := qfield.FromSchemaPb(schemaPb)
-	if schema.IsChoice() {
+	schema := new(qdata.FieldSchema).FromFieldSchemaPb(entityType, schemaPb)
+	if schema.ValueType == qdata.VTChoice {
 		var options []string
 		me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 			err := tx.QueryRow(ctx, `
@@ -831,13 +836,13 @@ func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityTyp
 			}
 		})
 
-		schema.AsChoiceFieldSchema().SetChoices(options)
+		schema.Choices = options
 	}
 
 	return schema
 }
 
-func (me *PostgresStoreInteractor) SetFieldSchema(ctx context.Context, entityType, fieldName string, schema qdata.FieldSchema) {
+func (me *PostgresStoreInteractor) SetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType, schema *qdata.FieldSchema) {
 	// Find entity schema
 	entitySchema := me.GetEntitySchema(ctx, entityType)
 	if entitySchema == nil {
@@ -845,22 +850,7 @@ func (me *PostgresStoreInteractor) SetFieldSchema(ctx context.Context, entityTyp
 		return
 	}
 
-	// Updating existing field schema under entity schema or append new field schema
-	updated := false
-	fields := entitySchema.Fields
-	for i, field := range fields {
-		if field.FieldType == fieldName {
-			fields[i] = schema
-			updated = true
-			break
-		}
-	}
-
-	if !updated {
-		fields = append(fields, schema)
-	}
-
-	entitySchema.SetFields(fields)
+	entitySchema.Fields[fieldType] = schema
 
 	me.SetEntitySchema(ctx, entitySchema)
 }
@@ -883,7 +873,7 @@ func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, fieldName, e
 	return exists
 }
 
-func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requestedSchema qdata.EntitySchema) {
+func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requestedSchema *qdata.EntitySchema) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Get existing schema for comparison
 		oldSchema := me.GetEntitySchema(ctx, requestedSchema.EntityType)
@@ -907,51 +897,26 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 		}
 
 		// Build new schema
-		requestedSchema.Fields[qdata.FTName] = new(qdata.FieldSchema).Init()
-		if !slices.ContainsFunc(requestedSchema.Fields, func(field qdata.FieldSchema) bool {
-			return field.FieldType == qdata.FTName
-		}) {
-			fields = append(fields, qfield.NewSchema(qdata.FTName, qfield.String))
-		}
+		requestedSchema.Field(qdata.FTName, qdata.FSOValueType(qdata.VTString))
+		requestedSchema.Field(qdata.FTDescription, qdata.FSOValueType(qdata.VTString))
+		requestedSchema.Field(qdata.FTParent, qdata.FSOValueType(qdata.VTEntityReference))
+		requestedSchema.Field(qdata.FTChildren, qdata.FSOValueType(qdata.VTEntityList))
 
-		if !slices.ContainsFunc(requestedSchema.Fields, func(field qdata.FieldSchema) bool {
-			return field.FieldType == qdata.FTDescription
-		}) {
-			fields = append(fields, qfield.NewSchema(qdata.FTDescription, qfield.String))
-		}
-
-		if !slices.ContainsFunc(requestedSchema.Fields, func(field qdata.FieldSchema) bool {
-			return field.FieldType == qdata.FTParent
-		}) {
-			fields = append(fields, qfield.NewSchema(qdata.FTParent, qfield.EntityReference))
-		}
-
-		if !slices.ContainsFunc(requestedSchema.Fields, func(field qdata.FieldSchema) bool {
-			return field.FieldType == qdata.FTChildren
-		}) {
-			fields = append(fields, qfield.NewSchema(qdata.FTChildren, qfield.EntityList))
-		}
-
-		fields = append(fields, requestedSchema.Fields...)
-		modifiableSchema := qentity.FromSchemaPb(&qprotobufs.DatabaseEntitySchema{})
-		modifiableSchema.SetType(requestedSchema.EntityType)
-		modifiableSchema.SetFields(fields)
-
-		for i, field := range modifiableSchema.Fields {
+		for _, fieldSchema := range requestedSchema.Fields {
 			// Remove non-existant entity ids from read/write permissions
 			readPermissions := []string{}
-			for _, id := range field.GetReadPermissions() {
+			for _, id := range fieldSchema.ReadPermissions {
 				entity := me.GetEntity(ctx, id)
 				if entity != nil && entity.EntityType == qdata.ETPermission {
-					readPermissions = append(readPermissions, id)
+					readPermissions = append(readPermissions, id.AsString())
 				}
 			}
 
 			writePermissions := []string{}
-			for _, id := range field.GetWritePermissions() {
+			for _, id := range fieldSchema.WritePermissions {
 				entity := me.GetEntity(ctx, id)
 				if entity != nil && entity.EntityType == qdata.ETPermission {
-					writePermissions = append(writePermissions, id)
+					writePermissions = append(writePermissions, id.AsString())
 				}
 			}
 
@@ -960,7 +925,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (entity_type, field_type) 
             DO UPDATE SET value_type = $3, read_permissions = $4, write_permissions = $5, rank = $6
-        `, modifiableSchema.EntityType, field.FieldType, field.GetFieldType(), readPermissions, writePermissions, i)
+        `, requestedSchema.EntityType.AsString(), fieldSchema.FieldType.AsString(), fieldSchema.ValueType.AsString(), readPermissions, writePermissions, fieldSchema.Rank)
 
 			if err != nil {
 				qlog.Error("Failed to set field schema: %v", err)
@@ -968,16 +933,13 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			}
 
 			// Handle choice options if this is a choice field
-			if field.IsChoice() {
-				choiceSchema := field.AsChoiceFieldSchema()
-				options := choiceSchema.GetChoices()
-
+			if fieldSchema.ValueType == qdata.VTChoice {
 				_, err = tx.Exec(ctx, `
                 INSERT INTO ChoiceOptions (entity_type, field_type, options)
                 VALUES ($1, $2, $3)
                 ON CONFLICT (entity_type, field_type)
                 DO UPDATE SET options = $3
-            `, modifiableSchema.EntityType, field.FieldType, options)
+            `, requestedSchema.EntityType.AsString(), fieldSchema.FieldType.AsString(), fieldSchema.Choices)
 
 				if err != nil {
 					qlog.Error("Failed to set choice options: %v", err)
@@ -994,7 +956,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			// Find removed fields
 			for _, oldField := range oldSchema.Fields {
 				found := false
-				for _, newField := range modifiableSchema.Fields {
+				for _, newField := range requestedSchema.Fields {
 					if oldField.FieldType == newField.FieldType {
 						found = true
 						break
@@ -1006,7 +968,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			}
 
 			// Find new fields
-			for _, newField := range modifiableSchema.Fields {
+			for _, newField := range requestedSchema.Fields {
 				found := false
 				for _, oldField := range oldSchema.Fields {
 					if newField.FieldType == oldField.FieldType {
@@ -1020,7 +982,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			}
 
 			// Update existing entities
-			entities := me.FindEntities(ctx, modifiableSchema.EntityType)
+			entities := me.FindEntities(ctx, requestedSchema.EntityType)
 			for _, entityId := range entities {
 				// Remove deleted fields
 				for _, fieldType := range removedFields {
@@ -1126,4 +1088,8 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 	}
 
 	return schema
+}
+
+func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
+	return me.publisherSig
 }

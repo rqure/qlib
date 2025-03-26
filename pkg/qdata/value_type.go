@@ -43,6 +43,10 @@ type ValueTypeProvider interface {
 	IsEntityList() bool
 }
 
+func (me ValueType) AsString() string {
+	return string(me)
+}
+
 func (me *ValueType) ProtobufName() string {
 	switch *me {
 	case VTInt:

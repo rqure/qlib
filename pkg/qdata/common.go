@@ -132,6 +132,14 @@ func (me *WriteTime) FromTime(t time.Time) *WriteTime {
 	return me
 }
 
+func (me *WriteTime) AsTime() time.Time {
+	if me == nil {
+		return time.Unix(0, 0)
+	}
+
+	return time.Time(*me)
+}
+
 func (me *EntityId) AsStringPb() *qprotobufs.String {
 	if me == nil {
 		return nil
@@ -303,7 +311,7 @@ func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
 	return me
 }
 
-func (me *Entity) Field(fieldType FieldType) *Field {
+func (me *Entity) Field(fieldType FieldType, opts ...FieldOpts) *Field {
 	if me.Fields == nil {
 		me.Fields = make(map[FieldType]*Field)
 	}
@@ -312,7 +320,7 @@ func (me *Entity) Field(fieldType FieldType) *Field {
 		return f
 	}
 
-	f := new(Field).Init(me.EntityId, fieldType)
+	f := new(Field).Init(me.EntityId, fieldType).ApplyOpts(opts...)
 
 	me.Fields[fieldType] = f
 
@@ -556,12 +564,12 @@ func (me *EntitySchema) ApplyOpts(opts ...EntitySchemaOpts) *EntitySchema {
 	return me
 }
 
-func (me *EntitySchema) Field(fieldType FieldType) *FieldSchema {
+func (me *EntitySchema) Field(fieldType FieldType, opts ...FieldSchemaOpts) *FieldSchema {
 	if f, ok := me.Fields[fieldType]; ok {
 		return f
 	}
 
-	f := new(FieldSchema).Init(me.EntityType, fieldType, ValueType(""))
+	f := new(FieldSchema).Init(me.EntityType, fieldType, ValueType("")).ApplyOpts(opts...)
 
 	me.Fields[fieldType] = f
 
@@ -598,6 +606,16 @@ func (me *FieldSchema) ApplyOpts(opts ...FieldSchemaOpts) *FieldSchema {
 	for _, o := range opts {
 		o(me)
 	}
+
+	return me
+}
+
+func (me *FieldSchema) FromFieldSchemaPb(entityType EntityType, pb *qprotobufs.DatabaseFieldSchema) *FieldSchema {
+	me.EntityType = EntityType(entityType)
+	me.FieldType = FieldType(pb.Name)
+	me.ValueType = ValueType(pb.Type)
+	me.ReadPermissions = CastStringSliceToEntityIdSlice(pb.ReadPermissions)
+	me.WritePermissions = CastStringSliceToEntityIdSlice(pb.WritePermissions)
 
 	return me
 }

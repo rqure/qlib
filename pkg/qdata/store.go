@@ -16,6 +16,12 @@ type StoreConnector interface {
 	Disconnected() qss.Signal[error]
 }
 
+type PublishNotificationArgs struct {
+	Ctx  context.Context
+	Curr *Request
+	Prev *Request
+}
+
 type StoreInteractor interface {
 	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) string
 	GetEntity(context.Context, EntityId) *Entity
@@ -33,7 +39,7 @@ type StoreInteractor interface {
 	GetFieldSchema(context.Context, EntityType, FieldType) *FieldSchema
 	SetFieldSchema(context.Context, EntityType, FieldType, *FieldSchema)
 
-	PublishNotifications(ctx context.Context, curr *Request, prev *Request)
+	PublishNotifications() qss.Signal[PublishNotificationArgs]
 
 	Read(context.Context, ...*Request)
 	Write(context.Context, ...*Request)
