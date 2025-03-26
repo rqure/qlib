@@ -3,6 +3,7 @@ package qdata
 import (
 	"time"
 
+	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -146,4 +147,125 @@ func (me *Value) Update(o *Value) {
 	me.TimestampReceiver = o.TimestampReceiver
 	me.ChoiceReceiver = o.ChoiceReceiver
 	me.EntityListReceiver = o.EntityListReceiver
+}
+
+func (me *Value) FromInt(v int) *Value {
+	me.Update(NewInt(v))
+	return me
+}
+
+func (me *Value) FromFloat(v float64) *Value {
+	me.Update(NewFloat(v))
+	return me
+}
+
+func (me *Value) FromString(v string) *Value {
+	me.Update(NewString(v))
+	return me
+}
+
+func (me *Value) FromBool(v bool) *Value {
+	me.Update(NewBool(v))
+	return me
+}
+
+func (me *Value) FromBinaryFile(v string) *Value {
+	me.Update(NewBinaryFile(v))
+	return me
+}
+
+func (me *Value) FromEntityReference(v string) *Value {
+	me.Update(NewEntityReference(v))
+	return me
+}
+
+func (me *Value) FromTimestamp(v time.Time) *Value {
+	me.Update(NewTimestamp(v))
+	return me
+}
+
+func (me *Value) FromChoice(v int) *Value {
+	me.Update(NewChoice(v))
+	return me
+}
+
+func (me *Value) FromEntityList(v []string) *Value {
+	me.Update(NewEntityList(v))
+	return me
+}
+
+func (me *Value) FromAnyPb(a *anypb.Any) *Value {
+	if a.MessageIs(&qprotobufs.Int{}) {
+		m := new(qprotobufs.Int)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewInt(int(m.Raw))
+	}
+
+	if a.MessageIs(&qprotobufs.Float{}) {
+		m := new(qprotobufs.Float)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewFloat(m.Raw)
+	}
+
+	if a.MessageIs(&qprotobufs.String{}) {
+		m := new(qprotobufs.String)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewString(m.Raw)
+	}
+
+	if a.MessageIs(&qprotobufs.EntityReference{}) {
+		m := new(qprotobufs.EntityReference)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewEntityReference(m.Raw)
+	}
+
+	if a.MessageIs(&qprotobufs.Timestamp{}) {
+		m := new(qprotobufs.Timestamp)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewTimestamp(m.Raw.AsTime())
+	}
+
+	if a.MessageIs(&qprotobufs.Bool{}) {
+		m := new(qprotobufs.Bool)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewBool(m.Raw)
+	}
+
+	if a.MessageIs(&qprotobufs.BinaryFile{}) {
+		m := new(qprotobufs.BinaryFile)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewBinaryFile(m.Raw)
+	}
+
+	if a.MessageIs(&qprotobufs.Choice{}) {
+		m := new(qprotobufs.Choice)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewChoice(int(m.Raw))
+	}
+
+	if a.MessageIs(&qprotobufs.EntityList{}) {
+		m := new(qprotobufs.EntityList)
+		if err := a.UnmarshalTo(m); err != nil {
+			return nil
+		}
+		return NewEntityList(m.Raw)
+	}
+
+	return nil
 }

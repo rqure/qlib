@@ -7,16 +7,16 @@ import (
 )
 
 type Token struct {
-	tokenId  string
-	manager  qdata.NotificationConsumer
-	callback qdata.NotificationCallback
+	tokenId       string
+	storeNotifier qdata.StoreNotifier
+	callback      qdata.NotificationCallback
 }
 
-func NewToken(tokenId string, store qdata.NotificationConsumer, callback qdata.NotificationCallback) qdata.NotificationToken {
+func NewToken(tokenId string, storeNotifier qdata.StoreNotifier, callback qdata.NotificationCallback) qdata.NotificationToken {
 	return &Token{
-		tokenId:  tokenId,
-		manager:  store,
-		callback: callback,
+		tokenId:       tokenId,
+		storeNotifier: storeNotifier,
+		callback:      callback,
 	}
 }
 
@@ -26,8 +26,8 @@ func (t *Token) Id() string {
 
 func (t *Token) Unbind(ctx context.Context) {
 	if t.callback != nil {
-		t.manager.UnnotifyCallback(ctx, t.tokenId, t.callback)
+		t.storeNotifier.UnnotifyCallback(ctx, t.tokenId, t.callback)
 	} else {
-		t.manager.Unnotify(ctx, t.tokenId)
+		t.storeNotifier.Unnotify(ctx, t.tokenId)
 	}
 }

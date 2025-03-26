@@ -1,21 +1,18 @@
-package qquery
+package qdata
 
 import (
 	"context"
-	"strings"
 
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qrequest"
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
-type IndirectionResolver struct {
-	entityManager qdata.EntityManager
-	fieldOperator qdata.FieldOperator
+type indirectionResolver struct {
+	store StoreInteractor
 }
 
-func NewIndirectionResolver(entityManager qdata.EntityManager, fieldOperator qdata.FieldOperator) qdata.IndirectionResolver {
-	return &IndirectionResolver{entityManager: entityManager, fieldOperator: fieldOperator}
+func NewIndirectionResolver(store StoreInteractor) IndirectionResolver {
+	return &indirectionResolver{}
 }
 
 // Examples or indirections
@@ -23,11 +20,11 @@ func NewIndirectionResolver(entityManager qdata.EntityManager, fieldOperator qda
 // 2. EntityList1->0->EntityReference1->Field
 // 3. Parent->Field // Parent is an EntityReference type field
 // 4. Children->0->Field // Children is an EntityList type field
-func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectField string) (string, string) {
-	fields := strings.Split(indirectField, "->")
+func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, indirectFieldTypes FieldType) (EntityId, FieldType) {
+	fields := indirectFieldTypes.AsIndirectionArray()
 
 	if len(fields) == 1 {
-		return entityId, indirectField
+		return entityId, indirectFieldTypes
 	}
 
 	for i, f := range fields[:len(fields)-1] {
@@ -42,7 +39,7 @@ func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectFi
 			// The previous field should have been an EntityList
 			// Its value is already loaded at this point, so we can just access it
 			r := qrequest.New().SetEntityId(entityId).SetFieldName(fields[i-1])
-			me.fieldOperator.Read(ctx, r)
+			me.store.Read(ctx, r)
 
 			if !r.IsSuccessful() {
 				qlog.Error("Failed to read entity list field: %v", fields[i-1])
@@ -67,7 +64,7 @@ func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectFi
 
 		// Normal field resolution
 		r := qrequest.New().SetEntityId(entityId).SetFieldName(f)
-		me.fieldOperator.Read(ctx, r)
+		me.store.Read(ctx, r)
 
 		if r.IsSuccessful() {
 			v := r.GetValue()
@@ -100,7 +97,7 @@ func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectFi
 		// If we can't resolve the field directly, try to find an entity by name
 		// Look for a child entity with matching name
 		childrenReq := qrequest.New().SetEntityId(entityId).SetFieldName("Children")
-		me.fieldOperator.Read(ctx, childrenReq)
+		me.store.Read(ctx, childrenReq)
 
 		if childrenReq.IsSuccessful() && childrenReq.GetValue().IsEntityList() {
 			childrenIds := childrenReq.GetValue().GetEntityList().GetEntities()
@@ -109,7 +106,7 @@ func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectFi
 			for _, childId := range childrenIds {
 				// Get the child's name
 				nameReq := qrequest.New().SetEntityId(childId).SetFieldName("Name")
-				me.fieldOperator.Read(ctx, nameReq)
+				me.store.Read(ctx, nameReq)
 
 				if nameReq.IsSuccessful() && nameReq.GetValue().IsString() {
 					childName := nameReq.GetValue().GetString()
@@ -128,7 +125,7 @@ func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectFi
 
 		// Look for parent entity with matching name
 		parentReq := qrequest.New().SetEntityId(entityId).SetFieldName("Parent")
-		me.fieldOperator.Read(ctx, parentReq)
+		me.store.Read(ctx, parentReq)
 
 		if parentReq.IsSuccessful() && parentReq.GetValue().IsEntityReference() {
 			parentId := parentReq.GetValue().GetEntityReference()
@@ -136,7 +133,7 @@ func (me *IndirectionResolver) Resolve(ctx context.Context, entityId, indirectFi
 			if parentId != "" {
 				// Get the parent's name
 				nameReq := qrequest.New().SetEntityId(parentId).SetFieldName("Name")
-				me.fieldOperator.Read(ctx, nameReq)
+				me.store.Read(ctx, nameReq)
 
 				if nameReq.IsSuccessful() && nameReq.GetValue().IsString() {
 					parentName := nameReq.GetValue().GetString()

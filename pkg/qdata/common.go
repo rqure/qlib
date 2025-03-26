@@ -1,6 +1,7 @@
 package qdata
 
 import (
+	"strings"
 	"time"
 
 	"github.com/rqure/qlib/pkg/qprotobufs"
@@ -14,6 +15,29 @@ type EntityType string
 type FieldType string
 
 type WriteTime time.Time
+
+func (me *EntityType) AsString() string {
+	return string(*me)
+}
+
+func (me *EntityId) AsString() string {
+	return string(*me)
+}
+
+func (me *FieldType) AsString() string {
+	return string(*me)
+}
+
+func (me *FieldType) AsIndirectionArray() []FieldType {
+	fields := strings.Split(me.AsString(), "->")
+	result := make([]FieldType, 0, len(fields))
+
+	for _, f := range fields {
+		result = append(result, FieldType(f))
+	}
+
+	return result
+}
 
 func (me *WriteTime) AsTimestampPb() *qprotobufs.Timestamp {
 	if me == nil {
@@ -47,7 +71,17 @@ func (me *EntityId) AsStringPb() *qprotobufs.String {
 	}
 
 	return &qprotobufs.String{
-		Raw: string(*me),
+		Raw: me.AsString(),
+	}
+}
+
+func (me *EntityId) AsEntityReferencePb() *qprotobufs.EntityReference {
+	if me == nil {
+		return nil
+	}
+
+	return &qprotobufs.EntityReference{
+		Raw: me.AsString(),
 	}
 }
 
@@ -260,10 +294,20 @@ func (me *Entity) Field(fieldType FieldType) *Field {
 	f := &Field{
 		EntityId:  me.EntityId,
 		FieldType: fieldType,
-		Value:     &Value{},
+		Value:     new(Value),
 	}
 
 	me.Fields[fieldType] = f
 
 	return f
+}
+
+func (me *Field) FromFieldPb(pb *qprotobufs.DatabaseField) *Field {
+	me.EntityId = EntityId(pb.Id)
+	me.FieldType = FieldType(pb.Name)
+	me.Value = new(Value).FromAnyPb(pb.Value)
+	me.WriteTime = WriteTime(pb.WriteTime.AsTime())
+	me.WriterId = EntityId(pb.WriterId)
+
+	return me
 }
