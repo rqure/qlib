@@ -221,7 +221,7 @@ func (me *PostgresStoreInteractor) collectDeletionOrderIterative(ctx context.Con
 }
 
 // deleteEntityWithoutChildren deletes a single entity, handling its references but not its children
-func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Context, entityId string) {
+func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Context, entityId qdata.EntityId) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Check if entity exists
 		entity := me.GetEntity(ctx, entityId)
@@ -232,7 +232,7 @@ func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Conte
 
 		type Ref struct {
 			ByEntityId  string
-			ByFieldName string
+			ByFieldType string
 		}
 
 		// Remove references to this entity from other entities
@@ -241,22 +241,22 @@ func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Conte
             FROM ReverseEntityReferences 
             WHERE referenced_entity_id = $1
         `,
-			[]any{entityId},
+			[]any{entityId.AsString()},
 			0,
 			func(rows pgx.Rows, cursorId *int64) (Ref, error) {
 				var ref Ref
-				err := rows.Scan(&ref.ByEntityId, &ref.ByFieldName, cursorId)
+				err := rows.Scan(&ref.ByEntityId, &ref.ByFieldType, cursorId)
 				return ref, err
 			},
 			func(batch []Ref) error {
 				for _, ref := range batch {
 
 					// Read the current value
-					req := new(qdata.Request).Init(ref.ByEntityId, ref.ByFieldName)
+					req := new(qdata.Request).Init(qdata.EntityId(ref.ByEntityId), qdata.FieldType(ref.ByFieldType))
 					me.Read(ctx, req)
 
 					if !req.Success {
-						return fmt.Errorf("failed to read field %s for entity %s", ref.ByFieldName, ref.ByEntityId)
+						return fmt.Errorf("failed to read field %s for entity %s", ref.ByFieldType, ref.ByEntityId)
 					}
 
 					// Update the reference based on its type
