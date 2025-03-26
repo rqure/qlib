@@ -19,7 +19,7 @@ func NewFloat(v ...float64) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider: new(ValueType).As(Float),
+		ValueTypeProvider: new(ValueType).As(VTFloat),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,

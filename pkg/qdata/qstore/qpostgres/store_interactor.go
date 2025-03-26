@@ -1103,7 +1103,7 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 		}
 
 		// If it's a choice field, get the options
-		if fieldSchema.ValueType == qdata.Choice {
+		if fieldSchema.ValueType == qdata.VTChoice {
 			var options []string
 			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 				err := tx.QueryRow(ctx, `

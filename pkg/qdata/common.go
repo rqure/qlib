@@ -1,6 +1,7 @@
 package qdata
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,42 @@ func (me *EntityId) AsString() string {
 
 func (me *FieldType) AsString() string {
 	return string(*me)
+}
+
+func (me *FieldType) FromString(s string) FieldType {
+	*me = FieldType(s)
+	return *me
+}
+
+func (me *EntityId) FromString(s string) EntityId {
+	*me = EntityId(s)
+	return *me
+}
+
+func (me *EntityType) FromString(s string) EntityType {
+	*me = EntityType(s)
+	return *me
+}
+
+func (me *EntityId) IsEmpty() bool {
+	return *me == ""
+}
+
+func (me *FieldType) IsListIndex() bool {
+	if _, err := strconv.Atoi(me.AsString()); err == nil {
+		return true
+	}
+
+	return false
+}
+
+func (me *FieldType) AsListIndex() int {
+	i, _ := strconv.Atoi(me.AsString())
+	return i
+}
+
+func (me *FieldType) IsIndirection() bool {
+	return strings.Contains(me.AsString(), "->")
 }
 
 func (me *FieldType) AsIndirectionArray() []FieldType {
@@ -308,6 +345,70 @@ func (me *Field) FromFieldPb(pb *qprotobufs.DatabaseField) *Field {
 	me.Value = new(Value).FromAnyPb(pb.Value)
 	me.WriteTime = WriteTime(pb.WriteTime.AsTime())
 	me.WriterId = EntityId(pb.WriterId)
+
+	return me
+}
+
+type RequestOpts func(*Request)
+
+func ROWriteNormal() RequestOpts {
+	return func(r *Request) {
+		r.WriteOpt = WriteNormal
+	}
+}
+
+func ROWriteChanges() RequestOpts {
+	return func(r *Request) {
+		r.WriteOpt = WriteChanges
+	}
+}
+
+func ROWriteTime(t time.Time) RequestOpts {
+	return func(r *Request) {
+		wt := WriteTime(t)
+		r.WriteTime = &wt
+	}
+}
+
+func ROWriterId(id EntityId) RequestOpts {
+	return func(r *Request) {
+		r.WriterId = &id
+	}
+}
+
+func ROValue(v *Value) RequestOpts {
+	return func(r *Request) {
+		r.Value.Update(v)
+	}
+}
+
+func ROEntityId(id EntityId) RequestOpts {
+	return func(r *Request) {
+		r.EntityId = id
+	}
+}
+
+func ROFieldType(ft FieldType) RequestOpts {
+	return func(r *Request) {
+		r.FieldType = ft
+	}
+}
+
+func (me *Request) Init(entityId EntityId, fieldType FieldType, opts ...RequestOpts) *Request {
+	me.EntityId = entityId
+	me.FieldType = fieldType
+	me.Value = new(Value)
+	me.WriteOpt = WriteNormal
+	me.WriteTime = nil
+	me.WriterId = nil
+	me.Success = false
+	return me.ApplyOpts(opts...)
+}
+
+func (me *Request) ApplyOpts(opts ...RequestOpts) *Request {
+	for _, o := range opts {
+		o(me)
+	}
 
 	return me
 }

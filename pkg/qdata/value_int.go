@@ -19,7 +19,7 @@ func NewInt(v ...int) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider: new(ValueType).As(Int),
+		ValueTypeProvider: new(ValueType).As(VTInt),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,

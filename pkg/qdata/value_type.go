@@ -5,27 +5,27 @@ import "slices"
 type ValueType string
 
 const (
-	Int             ValueType = "int"
-	Float           ValueType = "float"
-	String          ValueType = "string"
-	Bool            ValueType = "bool"
-	BinaryFile      ValueType = "binaryFile"
-	EntityReference ValueType = "entityReference"
-	Timestamp       ValueType = "timestamp"
-	Choice          ValueType = "choice"
-	EntityList      ValueType = "entityList"
+	VTInt             ValueType = "int"
+	VTFloat           ValueType = "float"
+	VTString          ValueType = "string"
+	VTBool            ValueType = "bool"
+	VTBinaryFile      ValueType = "binaryFile"
+	VTEntityReference ValueType = "entityReference"
+	VTTimestamp       ValueType = "timestamp"
+	VTChoice          ValueType = "choice"
+	VTEntityList      ValueType = "entityList"
 )
 
 var ValueTypes = []ValueType{
-	Int,
-	Float,
-	String,
-	Bool,
-	BinaryFile,
-	EntityReference,
-	Timestamp,
-	Choice,
-	EntityList,
+	VTInt,
+	VTFloat,
+	VTString,
+	VTBool,
+	VTBinaryFile,
+	VTEntityReference,
+	VTTimestamp,
+	VTChoice,
+	VTEntityList,
 }
 
 type ValueTypeProvider interface {
@@ -43,23 +43,23 @@ type ValueTypeProvider interface {
 
 func (me *ValueType) ProtobufName() string {
 	switch *me {
-	case Int:
+	case VTInt:
 		return "qprotobufs.Int"
-	case Float:
+	case VTFloat:
 		return "qprotobufs.Float"
-	case String:
+	case VTString:
 		return "qprotobufs.String"
-	case Bool:
+	case VTBool:
 		return "qprotobufs.Bool"
-	case BinaryFile:
+	case VTBinaryFile:
 		return "qprotobufs.BinaryFile"
-	case EntityReference:
+	case VTEntityReference:
 		return "qprotobufs.EntityReference"
-	case Timestamp:
+	case VTTimestamp:
 		return "qprotobufs.Timestamp"
-	case Choice:
+	case VTChoice:
 		return "qprotobufs.Choice"
-	case EntityList:
+	case VTEntityList:
 		return "qprotobufs.EntityList"
 	}
 
@@ -76,37 +76,37 @@ func (me *ValueType) IsNil() bool {
 }
 
 func (me *ValueType) IsInt() bool {
-	return *me == Int
+	return *me == VTInt
 }
 
 func (me *ValueType) IsFloat() bool {
-	return *me == Float
+	return *me == VTFloat
 }
 
 func (me *ValueType) IsString() bool {
-	return *me == String
+	return *me == VTString
 }
 
 func (me *ValueType) IsBool() bool {
-	return *me == Bool
+	return *me == VTBool
 }
 
 func (me *ValueType) IsBinaryFile() bool {
-	return *me == BinaryFile
+	return *me == VTBinaryFile
 }
 
 func (me *ValueType) IsEntityReference() bool {
-	return *me == EntityReference
+	return *me == VTEntityReference
 }
 
 func (me *ValueType) IsTimestamp() bool {
-	return *me == Timestamp
+	return *me == VTTimestamp
 }
 
 func (me *ValueType) IsChoice() bool {
-	return *me == Choice
+	return *me == VTChoice
 }
 
 func (me *ValueType) IsEntityList() bool {
-	return *me == EntityList
+	return *me == VTEntityList
 }

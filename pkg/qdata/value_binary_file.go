@@ -23,7 +23,7 @@ func NewBinaryFile(v ...string) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider:  new(ValueType).As(BinaryFile),
+		ValueTypeProvider:  new(ValueType).As(VTBinaryFile),
 		ValueConstructor:   me,
 		AnyPbConverter:     me,
 		RawProvider:        me,

@@ -19,7 +19,7 @@ func NewChoice(v ...int) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider: new(ValueType).As(Choice),
+		ValueTypeProvider: new(ValueType).As(VTChoice),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,

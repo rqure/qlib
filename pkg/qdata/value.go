@@ -36,7 +36,7 @@ type BinaryFileProvider interface {
 }
 
 type EntityReferenceProvider interface {
-	GetEntityReference() string
+	GetEntityReference() EntityId
 }
 
 type TimestampProvider interface {
@@ -48,7 +48,7 @@ type ChoiceProvider interface {
 }
 
 type EntityListProvider interface {
-	GetEntityList() []string
+	GetEntityList() []EntityId
 }
 
 type IntReceiver interface {
@@ -72,7 +72,7 @@ type BinaryFileReceiver interface {
 }
 
 type EntityReferenceReceiver interface {
-	SetEntityReference(value string)
+	SetEntityReference(value EntityId)
 }
 
 type TimestampReceiver interface {
@@ -84,7 +84,7 @@ type ChoiceReceiver interface {
 }
 
 type EntityListReceiver interface {
-	SetEntityList(value []string)
+	SetEntityList(value []EntityId)
 }
 
 type ValueConstructor interface {
@@ -174,7 +174,7 @@ func (me *Value) FromBinaryFile(v string) *Value {
 	return me
 }
 
-func (me *Value) FromEntityReference(v string) *Value {
+func (me *Value) FromEntityReference(v EntityId) *Value {
 	me.Update(NewEntityReference(v))
 	return me
 }
@@ -189,7 +189,7 @@ func (me *Value) FromChoice(v int) *Value {
 	return me
 }
 
-func (me *Value) FromEntityList(v []string) *Value {
+func (me *Value) FromEntityList(v []EntityId) *Value {
 	me.Update(NewEntityList(v))
 	return me
 }
@@ -224,7 +224,7 @@ func (me *Value) FromAnyPb(a *anypb.Any) *Value {
 		if err := a.UnmarshalTo(m); err != nil {
 			return nil
 		}
-		return NewEntityReference(m.Raw)
+		return NewEntityReference(new(EntityId).FromString(m.Raw))
 	}
 
 	if a.MessageIs(&qprotobufs.Timestamp{}) {
@@ -264,7 +264,13 @@ func (me *Value) FromAnyPb(a *anypb.Any) *Value {
 		if err := a.UnmarshalTo(m); err != nil {
 			return nil
 		}
-		return NewEntityList(m.Raw)
+
+		list := make([]EntityId, 0, len(m.Raw))
+		for _, v := range m.Raw {
+			list = append(list, EntityId(v))
+		}
+
+		return NewEntityList(list)
 	}
 
 	return nil

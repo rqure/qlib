@@ -19,7 +19,7 @@ func NewBool(v ...bool) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider: new(ValueType).As(Bool),
+		ValueTypeProvider: new(ValueType).As(VTBool),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,

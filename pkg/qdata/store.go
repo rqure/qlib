@@ -56,7 +56,7 @@ type StoreNotifier interface {
 }
 
 type IndirectionResolver interface {
-	Resolve(ctx context.Context, entityId string, fields string) (string, string)
+	Resolve(context.Context, EntityId, FieldType) (EntityId, FieldType)
 }
 
 type AuthProvider interface {

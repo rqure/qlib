@@ -22,7 +22,7 @@ func NewTimestamp(v ...time.Time) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider: new(ValueType).As(Timestamp),
+		ValueTypeProvider: new(ValueType).As(VTTimestamp),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,

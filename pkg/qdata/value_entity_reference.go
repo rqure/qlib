@@ -6,10 +6,10 @@ import (
 )
 
 type ValueEntityReference struct {
-	Value string
+	Value EntityId
 }
 
-func NewEntityReference(v ...string) *Value {
+func NewEntityReference(v ...EntityId) *Value {
 	me := &ValueEntityReference{
 		Value: "",
 	}
@@ -19,7 +19,7 @@ func NewEntityReference(v ...string) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider:       new(ValueType).As(EntityReference),
+		ValueTypeProvider:       new(ValueType).As(VTEntityReference),
 		ValueConstructor:        me,
 		AnyPbConverter:          me,
 		RawProvider:             me,
@@ -29,11 +29,11 @@ func NewEntityReference(v ...string) *Value {
 	}
 }
 
-func (me *ValueEntityReference) GetEntityReference() string {
+func (me *ValueEntityReference) GetEntityReference() EntityId {
 	return me.Value
 }
 
-func (me *ValueEntityReference) SetEntityReference(value string) {
+func (me *ValueEntityReference) SetEntityReference(value EntityId) {
 	me.Value = value
 }
 
@@ -42,7 +42,7 @@ func (me *ValueEntityReference) GetRaw() interface{} {
 }
 
 func (me *ValueEntityReference) SetRaw(value interface{}) {
-	if v, ok := value.(string); ok {
+	if v, ok := value.(EntityId); ok {
 		me.Value = v
 	}
 }
@@ -53,7 +53,7 @@ func (me *ValueEntityReference) Clone() *Value {
 
 func (me *ValueEntityReference) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.EntityReference{
-		Raw: me.Value,
+		Raw: me.Value.AsString(),
 	})
 
 	if err != nil {

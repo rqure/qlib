@@ -6,12 +6,12 @@ import (
 )
 
 type ValueEntityList struct {
-	Value []string
+	Value []EntityId
 }
 
-func NewEntityList(v ...[]string) *Value {
+func NewEntityList(v ...[]EntityId) *Value {
 	me := &ValueEntityList{
-		Value: []string{}, // Empty list as default
+		Value: []EntityId{}, // Empty list as default
 	}
 
 	if len(v) > 0 {
@@ -19,7 +19,7 @@ func NewEntityList(v ...[]string) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider:  new(ValueType).As(EntityList),
+		ValueTypeProvider:  new(ValueType).As(VTEntityList),
 		ValueConstructor:   me,
 		AnyPbConverter:     me,
 		RawProvider:        me,
@@ -29,11 +29,11 @@ func NewEntityList(v ...[]string) *Value {
 	}
 }
 
-func (me *ValueEntityList) GetEntityList() []string {
-	return append([]string(nil), me.Value...)
+func (me *ValueEntityList) GetEntityList() []EntityId {
+	return append([]EntityId{}, me.Value...)
 }
 
-func (me *ValueEntityList) SetEntityList(value []string) {
+func (me *ValueEntityList) SetEntityList(value []EntityId) {
 	me.Value = value
 }
 
@@ -42,7 +42,7 @@ func (me *ValueEntityList) GetRaw() interface{} {
 }
 
 func (me *ValueEntityList) SetRaw(value interface{}) {
-	if v, ok := value.([]string); ok {
+	if v, ok := value.([]EntityId); ok {
 		me.Value = v
 	}
 }
@@ -52,8 +52,14 @@ func (me *ValueEntityList) Clone() *Value {
 }
 
 func (me *ValueEntityList) AsAnyPb() *anypb.Any {
+	list := make([]string, 0, len(me.Value))
+
+	for _, v := range me.Value {
+		list = append(list, v.AsString())
+	}
+
 	a, err := anypb.New(&qprotobufs.EntityList{
-		Raw: me.GetEntityList(),
+		Raw: list,
 	})
 
 	if err != nil {

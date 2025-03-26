@@ -4,23 +4,23 @@ import "github.com/rqure/qlib/pkg/qdata"
 
 func getTableForType(valueType qdata.ValueType) string {
 	switch valueType {
-	case qdata.Int:
+	case qdata.VTInt:
 		return "Ints"
-	case qdata.Float:
+	case qdata.VTFloat:
 		return "Floats"
-	case qdata.String:
+	case qdata.VTString:
 		return "Strings"
-	case qdata.Bool:
+	case qdata.VTBool:
 		return "Bools"
-	case qdata.BinaryFile:
+	case qdata.VTBinaryFile:
 		return "BinaryFiles"
-	case qdata.EntityReference:
+	case qdata.VTEntityReference:
 		return "EntityReferences"
-	case qdata.Timestamp:
+	case qdata.VTTimestamp:
 		return "Timestamps"
-	case qdata.Choice:
+	case qdata.VTChoice:
 		return "Choices"
-	case qdata.EntityList:
+	case qdata.VTEntityList:
 		return "EntityLists"
 	default:
 		return ""

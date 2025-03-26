@@ -19,7 +19,7 @@ func NewString(v ...string) *Value {
 	}
 
 	return &Value{
-		ValueTypeProvider: new(ValueType).As(String),
+		ValueTypeProvider: new(ValueType).As(VTString),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
 		RawProvider:       me,
