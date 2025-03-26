@@ -56,24 +56,29 @@ func FromConfigPb(impl *qprotobufs.DatabaseNotificationConfig) qdata.Notificatio
 	}
 }
 
-func (me *notificationConfig) GetEntityId() string {
-	return me.impl.Id
+func (me *notificationConfig) GetEntityId() qdata.EntityId {
+	return qdata.EntityId(me.impl.Id)
 }
 
-func (me *notificationConfig) GetEntityType() string {
-	return me.impl.Type
+func (me *notificationConfig) GetEntityType() qdata.EntityType {
+	return qdata.EntityType(me.impl.Type)
 }
 
-func (me *notificationConfig) GetFieldName() string {
-	return me.impl.Field
+func (me *notificationConfig) GetFieldType() qdata.FieldType {
+	return qdata.FieldType(me.impl.Field)
 }
 
-func (me *notificationConfig) GetContextFields() []string {
+func (me *notificationConfig) GetContextFields() []qdata.FieldType {
 	if me.impl.ContextFields != nil {
-		return me.impl.ContextFields
+		fields := make([]qdata.FieldType, len(me.impl.ContextFields))
+		for i, f := range me.impl.ContextFields {
+			fields[i] = qdata.FieldType(f)
+		}
+
+		return fields
 	}
 
-	return []string{}
+	return []qdata.FieldType{}
 }
 
 func (me *notificationConfig) GetNotifyOnChange() bool {
@@ -98,23 +103,26 @@ func (me *notificationConfig) IsDistributed() bool {
 	return me.impl.Distributed
 }
 
-func (me *notificationConfig) SetEntityId(id string) qdata.NotificationConfig {
-	me.impl.Id = id
+func (me *notificationConfig) SetEntityId(id qdata.EntityId) qdata.NotificationConfig {
+	me.impl.Id = id.AsString()
 	return me
 }
 
-func (me *notificationConfig) SetEntityType(t string) qdata.NotificationConfig {
-	me.impl.Type = t
+func (me *notificationConfig) SetEntityType(t qdata.EntityType) qdata.NotificationConfig {
+	me.impl.Type = t.AsString()
 	return me
 }
 
-func (me *notificationConfig) SetFieldName(f string) qdata.NotificationConfig {
-	me.impl.Field = f
+func (me *notificationConfig) SetFieldType(f qdata.FieldType) qdata.NotificationConfig {
+	me.impl.Field = f.AsString()
 	return me
 }
 
-func (me *notificationConfig) SetContextFields(cf ...string) qdata.NotificationConfig {
-	me.impl.ContextFields = cf
+func (me *notificationConfig) SetContextFields(cf ...qdata.FieldType) qdata.NotificationConfig {
+	me.impl.ContextFields = make([]string, len(cf))
+	for i, f := range cf {
+		me.impl.ContextFields[i] = f.AsString()
+	}
 	return me
 }
 

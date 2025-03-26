@@ -2,7 +2,6 @@ package qnotify
 
 import (
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qdata/qfield"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 )
 
@@ -38,11 +37,11 @@ func (me *notification) GetCurrent() *qdata.Field {
 }
 
 func (me *notification) GetPrevious() *qdata.Field {
-	return qfield.FromFieldPb(me.impl.Previous)
+	return new(qdata.Field).FromFieldPb(me.impl.Previous)
 }
 
 func (me *notification) GetContext(index int) *qdata.Field {
-	return qfield.FromFieldPb(me.impl.Context[index])
+	return new(qdata.Field).FromFieldPb(me.impl.Context[index])
 }
 
 func (me *notification) GetContextCount() int {
