@@ -17,6 +17,21 @@ type FieldType string
 
 type WriteTime time.Time
 
+func CastSlice[I any, O any](i []I, convert func(I) O) []O {
+	o := make([]O, 0, len(i))
+	for _, v := range i {
+		o = append(o, convert(v))
+	}
+
+	return o
+}
+
+func CastStringSliceToEntityIdSlice(i []string) []EntityId {
+	return CastSlice(i, func(s string) EntityId {
+		return EntityId(s)
+	})
+}
+
 func (me *EntityType) AsString() string {
 	return string(*me)
 }
