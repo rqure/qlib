@@ -51,7 +51,7 @@ const FieldAuthorizerKey FieldAuthorizerKeyType = "Authorizer"
 
 type FieldAuthorizer interface {
 	AccessorId() string
-	IsAuthorized(ctx context.Context, entityId, fieldName string, forWrite bool) bool
+	IsAuthorized(ctx context.Context, entityId EntityId, fieldType FieldType, forWrite bool) bool
 }
 
 type StoreNotifier interface {
