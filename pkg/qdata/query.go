@@ -107,8 +107,10 @@ func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
 }
 
 type SQLiteBuilder struct {
-	db    *sql.DB
-	store StoreInteractor
+	db          *sql.DB
+	store       StoreInteractor
+	entityCache map[EntityId]*Entity // Cache entities by ID
+
 }
 
 func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
@@ -118,24 +120,38 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	}
 
 	return &SQLiteBuilder{
-		db:    db,
-		store: store,
+		db:          db,
+		store:       store,
+		entityCache: make(map[EntityId]*Entity),
 	}, nil
 }
 
-func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
-	// Get entity schema
-	schema := me.store.GetEntitySchema(ctx, entityType)
-	if schema == nil {
-		return fmt.Errorf("schema not found for entity type: %s", entityType)
+// GetEntityFromCache retrieves an entity from cache or loads it from the store
+func (me *SQLiteBuilder) GetEntityFromCache(ctx context.Context, entityId EntityId) *Entity {
+	if entity, found := me.entityCache[entityId]; found {
+		return entity
 	}
 
+	entity := me.store.GetEntity(ctx, entityId)
+	if entity != nil {
+		me.entityCache[entityId] = entity
+	}
+	return entity
+}
+
+func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
 	// Create table with all necessary columns
 	columns := make([]string, 0)
 	columns = append(columns, "id TEXT PRIMARY KEY")
 
-	for _, field := range schema.Fields {
-		colType := getSQLiteType(field.ValueType)
+	for _, field := range query.Fields {
+		var colType string
+		if field.FieldType.IsIndirection() {
+
+		} else {
+			schema := me.store.GetFieldSchema(ctx, entityType, field.FieldType)
+			colType = getSQLiteType(schema.ValueType)
+		}
 		if colType != "" {
 			columns = append(columns, fmt.Sprintf("%s %s", field.FieldType, colType))
 			// Add metadata columns if needed
@@ -159,7 +175,7 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 }
 
 // PopulateTableBatch loads entity data in batches and populates the SQLite table
-func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, schema *EntitySchema, pageSize int64, cursorId int64) (int64, bool, error) {
+func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (int64, bool, error) {
 	// Get entities in batches
 	pageOpts := []PageOpts{POPageSize(pageSize), POCursorId(cursorId)}
 	entityIterator := me.store.FindEntities(entityType, pageOpts...)
@@ -205,7 +221,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 
 	// Now load field data in bulk for all entities in this batch
 	if len(entityIds) > 0 {
-		if err := me.loadQueryFieldsBulk(ctx, entityIds, query, schema); err != nil {
+		if err := me.loadQueryFieldsBulk(ctx, entityIds, query); err != nil {
 			return cursorId, false, err
 		}
 	}
@@ -216,7 +232,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 }
 
 // loadQueryFieldsBulk loads only the fields specified in the query, handling indirection and metadata
-func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []EntityId, query *ParsedQuery, schema *EntitySchema) error {
+func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []EntityId, query *ParsedQuery) error {
 	if len(entityIds) == 0 {
 		return nil
 	}
@@ -224,20 +240,20 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	// Create a set of entities for which we need to get data
 	entityRequests := make(map[EntityId][]*Request)
 
-	// First, determine all the fields we need to fetch for direct fields
+	// First, populate the entity cache for all entities
 	for _, entityId := range entityIds {
+		if _, exists := me.entityCache[entityId]; !exists {
+			me.entityCache[entityId] = new(Entity).Init(entityId)
+		}
 		entityRequests[entityId] = make([]*Request, 0)
+	}
 
-		// Add each field from the query
-		for _, field := range query.Fields {
-			if field.IsMetadata {
-				// For metadata fields like WriterId(), WriteTime(), etc., we need to read the base field
-				req := new(Request).Init(entityId, field.FieldType)
-				entityRequests[entityId] = append(entityRequests[entityId], req)
-			} else {
-				// Direct fields
-				req := new(Request).Init(entityId, field.FieldType)
-				entityRequests[entityId] = append(entityRequests[entityId], req)
+	// Determine all the fields we need to fetch
+	for _, entityId := range entityIds {
+		if entity, exists := me.entityCache[entityId]; exists {
+			// Add each field from the query
+			for _, field := range query.Fields {
+				entityRequests[entityId] = append(entityRequests[entityId], entity.Field(field.FieldType).AsReadRequest())
 			}
 		}
 	}
@@ -297,8 +313,12 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
                         UPDATE entities SET %s_write_time = ? WHERE id = ?
                     `, queryField.ColumnName()), req.WriteTime.AsTime(), entityId)
 				case "EntityType":
-					// Already handled by the entity type column
-					continue
+					// EntityType is derived from the entity itself
+					if entity, exists := me.entityCache[entityId]; exists {
+						_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+                            UPDATE entities SET %s = ? WHERE id = ?
+                        `, queryField.ColumnName()), entity.EntityType, entityId)
+					}
 				}
 			} else {
 				// Direct field value
@@ -362,12 +382,6 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 
 // QueryWithPagination executes the query with pagination and returns a PageResult
 func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (*PageResult[*Entity], error) {
-	// Get entity schema for later use
-	schema := sb.store.GetEntitySchema(ctx, entityType)
-	if schema == nil {
-		return nil, fmt.Errorf("schema not found for entity type: %s", entityType)
-	}
-
 	// Create the SQLite table with the appropriate schema
 	if err := sb.BuildTable(ctx, entityType, query); err != nil {
 		return nil, fmt.Errorf("failed to build SQLite table: %v", err)
@@ -378,7 +392,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	var err error
 
 	// First batch load with the updated method that handles field loading properly
-	cursorId, hasMore, err = sb.PopulateTableBatch(ctx, entityType, query, schema, pageSize, cursorId)
+	cursorId, hasMore, err = sb.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate table: %v", err)
 	}
@@ -390,13 +404,11 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 	defer rows.Close()
 
-	// Convert results to entities
+	// Convert results to entities, using our cache
 	var entities []*Entity
-	schemaCache := make(map[EntityType]*EntitySchema)
-	schemaCache[entityType] = schema
 
 	for rows.Next() {
-		entity, err := sb.RowToEntity(ctx, rows, query, schemaCache)
+		entity, err := sb.RowToEntity(ctx, rows, query)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert row to entity: %v", err)
 		}
@@ -411,6 +423,38 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 			return sb.QueryWithPagination(ctx, entityType, query, pageSize, cursorId)
 		},
 	}, nil
+}
+
+// RowToEntity now uses the entity and schema caches
+func (sb *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query *ParsedQuery) (*Entity, error) {
+	// Get column names from the query
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get column names: %v", err)
+	}
+
+	// Create a slice of interface{} to hold the values
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	for i := range columns {
+		valuePtrs[i] = &values[i]
+	}
+
+	// Scan the row into the values slice
+	if err := rows.Scan(valuePtrs...); err != nil {
+		return nil, fmt.Errorf("failed to scan row: %v", err)
+	}
+
+	// First column should be the ID
+	entityId := EntityId(values[0].(string))
+
+	// Check if entity is in cache first
+	entity := sb.GetEntityFromCache(ctx, entityId)
+	if entity == nil {
+		return nil, fmt.Errorf("entity not found in cache: %s", entityId)
+	}
+
+	return entity, nil
 }
 
 func getSQLiteType(valueType ValueType) string {
@@ -455,62 +499,4 @@ func convertValueForSQLite(value *Value) interface{} {
 	default:
 		return nil
 	}
-}
-
-func (sb *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query *ParsedQuery, schemaCache map[EntityType]*EntitySchema) (*Entity, error) {
-	// Get column names from the query
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get column names: %v", err)
-	}
-
-	// Create a slice of interface{} to hold the values
-	values := make([]interface{}, len(columns))
-	valuePtrs := make([]interface{}, len(columns))
-	for i := range columns {
-		valuePtrs[i] = &values[i]
-	}
-
-	// Scan the row into the values slice
-	if err := rows.Scan(valuePtrs...); err != nil {
-		return nil, fmt.Errorf("failed to scan row: %v", err)
-	}
-
-	// First column should be the ID
-	entityId := EntityId(values[0].(string))
-	entityType := EntityType(query.Table.EntityType)
-
-	// Create the entity
-	entity := new(Entity).Init(entityType, entityId)
-
-	// Process each field
-	for i, field := range query.Fields {
-		fieldType := field.FieldType
-
-		value := values[i+1] // +1 because first column is ID
-		if value == nil {
-			continue
-		}
-
-		// Convert the value based on the field schema
-		if schemaCache[entityType] == nil {
-			schema := sb.store.GetEntitySchema(ctx, entityType)
-			if schema == nil {
-				continue
-			}
-			schemaCache[entityType] = schema
-		}
-
-		schema := schemaCache[entityType]
-
-		fieldValue := schema.Field(fieldType).ValueType.NewValue(value)
-		if fieldValue == nil {
-			continue
-		}
-
-		// Add the field to the entity
-		entity.Field(fieldType, FOValue(fieldValue))
-	}
-
-	return entity, nil
 }

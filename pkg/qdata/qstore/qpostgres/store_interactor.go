@@ -58,10 +58,14 @@ func (me *PostgresStoreInteractor) GetEntity(ctx context.Context, entityId qdata
 }
 
 func (me *PostgresStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) qdata.EntityId {
-	entityId := qdata.EntityId(uuid.New().String())
+	entityIdGenerator := func(entityType qdata.EntityType) qdata.EntityId {
+		return qdata.EntityId(fmt.Sprintf("%s$%s", entityType.AsString(), uuid.New().String()))
+	}
+
+	entityId := entityIdGenerator(entityType)
 
 	for me.EntityExists(ctx, entityId) {
-		entityId = qdata.EntityId(uuid.New().String())
+		entityId = entityIdGenerator(entityType)
 	}
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {

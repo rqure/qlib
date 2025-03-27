@@ -54,6 +54,10 @@ func (me *EntityType) AsString() string {
 	return string(*me)
 }
 
+func (me *EntityId) GetEntityType() EntityType {
+	return EntityType(strings.Split(me.AsString(), "$")[0])
+}
+
 func (me *EntityId) AsString() string {
 	return string(*me)
 }
@@ -219,7 +223,7 @@ func (me *Entity) Clone() *Entity {
 		fields[k] = v.Clone()
 	}
 
-	return new(Entity).Init(me.EntityType, me.EntityId, EOFields(fields))
+	return new(Entity).Init(me.EntityId, EOFields(fields))
 }
 
 func (me *EntitySchema) Clone() *EntitySchema {
@@ -541,9 +545,9 @@ func FSOFieldType(ft FieldType) FieldSchemaOpts {
 	}
 }
 
-func (me *Entity) Init(entityType EntityType, entityId EntityId, opts ...EntityOpts) *Entity {
+func (me *Entity) Init(entityId EntityId, opts ...EntityOpts) *Entity {
 	me.EntityId = entityId
-	me.EntityType = entityType
+	me.EntityType = entityId.GetEntityType()
 	me.Fields = make(map[FieldType]*Field)
 	return me.ApplyOpts(opts...)
 }
