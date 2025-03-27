@@ -22,14 +22,88 @@ type PublishNotificationArgs struct {
 	Prev *Request
 }
 
+type PageConfig struct {
+	PageSize int64
+	CursorId int64
+}
+
+func (me *PageConfig) ApplyOpts(opts ...PageOpts) *PageConfig {
+	for _, opt := range opts {
+		opt(me)
+	}
+
+	return me
+}
+
+func (me *PageConfig) IntoOpts() []PageOpts {
+	return []PageOpts{
+		POPageSize(me.PageSize),
+		POCursorId(me.CursorId),
+	}
+}
+
+func DefaultPageConfig() *PageConfig {
+	return &PageConfig{
+		PageSize: 100,
+		CursorId: 0,
+	}
+}
+
+type PageOpts func(*PageConfig)
+
+func POPageSize(pageSize int64) PageOpts {
+	return func(pc *PageConfig) {
+		pc.PageSize = pageSize
+	}
+}
+
+func POCursorId(cursorId int64) PageOpts {
+	return func(pc *PageConfig) {
+		pc.CursorId = cursorId
+	}
+}
+
+type PageResult[T any] struct {
+	Items    []T
+	HasMore  bool
+	NextPage func(ctx context.Context) (*PageResult[T], error)
+}
+
+func (p *PageResult[T]) Next(ctx context.Context) bool {
+	if len(p.Items) > 0 {
+		return true
+	}
+	if !p.HasMore {
+		return false
+	}
+
+	nextResult, err := p.NextPage(ctx)
+	if err != nil {
+		return false
+	}
+
+	*p = *nextResult
+	return len(p.Items) > 0
+}
+
+func (p *PageResult[T]) Get() T {
+	if len(p.Items) == 0 {
+		var zero T
+		return zero
+	}
+	item := p.Items[0]
+	p.Items = p.Items[1:]
+	return item
+}
+
 type StoreInteractor interface {
-	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) string
+	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) EntityId
 	GetEntity(context.Context, EntityId) *Entity
 	DeleteEntity(context.Context, EntityId)
 
 	Find(sql string) Query
-	FindEntities(context.Context, EntityType) []EntityId
-	GetEntityTypes(context.Context) []EntityType
+	FindEntities(entityType EntityType, pageOpts ...PageOpts) *PageResult[EntityId]
+	GetEntityTypes(pageOpts ...PageOpts) *PageResult[EntityType]
 
 	EntityExists(context.Context, EntityId) bool
 	FieldExists(context.Context, EntityType, FieldType) bool

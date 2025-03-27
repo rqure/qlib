@@ -109,56 +109,116 @@ func (me *PostgresStoreInteractor) CreateEntity(ctx context.Context, entityType 
 	return entityId
 }
 
-func (me *PostgresStoreInteractor) FindEntities(ctx context.Context, entityType qdata.EntityType) []qdata.EntityId {
-	entities := []qdata.EntityId{}
+func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityId] {
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
-	err := BatchedQuery(me.core, ctx,
-		`SELECT id, cursor_id FROM Entities WHERE type = $1`,
-		[]any{entityType},
-		0, // use default batch size
-		func(rows pgx.Rows, cursorId *int64) (string, error) {
-			var id string
-			err := rows.Scan(&id, cursorId)
-			return id, err
-		},
-		func(batch []string) error {
-			entities = append(entities, qdata.CastStringSliceToEntityIdSlice(batch)...)
-			return nil
-		},
-	)
+	return &qdata.PageResult[qdata.EntityId]{
+		Items:   []qdata.EntityId{},
+		HasMore: true,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
+			var entities []qdata.EntityId
+			var maxCursorId int64
 
-	if err != nil {
-		qlog.Error("Failed to find entities: %v", err)
+			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+				rows, err := tx.Query(ctx, `
+                    SELECT id, cursor_id 
+                    FROM Entities 
+                    WHERE type = $1 AND cursor_id > $2 
+                    ORDER BY cursor_id 
+                    LIMIT $3
+                `, entityType.AsString(), pageConfig.CursorId, pageConfig.PageSize+1)
+
+				if err != nil {
+					qlog.Error("Failed to find entities: %v", err)
+					return
+				}
+				defer rows.Close()
+
+				for rows.Next() {
+					var id string
+					var cursorId int64
+					if err := rows.Scan(&id, &cursorId); err != nil {
+						qlog.Error("Failed to scan entity: %v", err)
+						continue
+					}
+					entities = append(entities, qdata.EntityId(id))
+					maxCursorId = cursorId
+				}
+			})
+
+			hasMore := int64(len(entities)) > pageConfig.PageSize
+			if hasMore {
+				entities = entities[:pageConfig.PageSize]
+			}
+
+			pageConfig.CursorId = maxCursorId
+
+			return &qdata.PageResult[qdata.EntityId]{
+				Items:   entities,
+				HasMore: hasMore,
+				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
+					return me.FindEntities(entityType, pageConfig.IntoOpts()...), nil
+				},
+			}, nil
+		},
 	}
-
-	return entities
 }
 
-func (me *PostgresStoreInteractor) GetEntityTypes(ctx context.Context) []qdata.EntityType {
-	entityTypes := []qdata.EntityType{}
+func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityType] {
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		rows, err := tx.Query(ctx, `
-			SELECT DISTINCT entity_type
-			FROM EntitySchema
-		`)
-		if err != nil {
-			qlog.Error("Failed to get entity types: %v", err)
-			return
-		}
-		defer rows.Close()
+	var lastCursorId int64 = 0
 
-		for rows.Next() {
-			var entityType string
-			if err := rows.Scan(&entityType); err != nil {
-				qlog.Error("Failed to scan entity type: %v", err)
-				continue
+	return &qdata.PageResult[qdata.EntityType]{
+		Items:   []qdata.EntityType{},
+		HasMore: true,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
+			var types []qdata.EntityType
+			var maxCursorId int64
+
+			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+				rows, err := tx.Query(ctx, `
+					SELECT DISTINCT ON (entity_type) entity_type, cursor_id
+					FROM EntitySchema
+					WHERE cursor_id > $1
+					ORDER BY entity_type, cursor_id
+					LIMIT $2;
+                `, lastCursorId, pageConfig.PageSize+1)
+
+				if err != nil {
+					qlog.Error("Failed to get entity types: %v", err)
+					return
+				}
+				defer rows.Close()
+
+				for rows.Next() {
+					var entityType string
+					var cursorId int64
+					if err := rows.Scan(&entityType, &cursorId); err != nil {
+						qlog.Error("Failed to scan entity type: %v", err)
+						continue
+					}
+					types = append(types, qdata.EntityType(entityType))
+					maxCursorId = cursorId
+				}
+			})
+
+			hasMore := int64(len(types)) > pageConfig.PageSize
+			if hasMore {
+				types = types[:pageConfig.PageSize]
 			}
-			entityTypes = append(entityTypes, qdata.EntityType(entityType))
-		}
-	})
 
-	return entityTypes
+			pageConfig.CursorId = maxCursorId
+
+			return &qdata.PageResult[qdata.EntityType]{
+				Items:   types,
+				HasMore: hasMore,
+				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
+					return me.GetEntityTypes(pageConfig.IntoOpts()...), nil
+				},
+			}, nil
+		},
+	}
 }
 
 func (me *PostgresStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) {
@@ -751,18 +811,21 @@ func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) *qdata.Sn
 	ss := new(qdata.Snapshot).Init()
 
 	// Get all entity types and their schemas
-	entityTypes := me.GetEntityTypes(ctx)
+	entityTypesIterator := me.GetEntityTypes()
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		for _, entityType := range entityTypes {
+		for entityTypesIterator.Next(ctx) {
+			entityType := entityTypesIterator.Get()
+
 			// Add schema
 			schema := me.GetEntitySchema(ctx, entityType)
 			if schema != nil {
 				ss.Schemas = append(ss.Schemas, schema)
 
-				// Add entities of this type and their fields
-				entities := me.FindEntities(ctx, entityType)
-				for _, entityId := range entities {
+				// Add entitiesIterator of this type and their fields
+				entitiesIterator := me.FindEntities(entityType)
+				for entitiesIterator.Next(ctx) {
+					entityId := entitiesIterator.Get()
 					entity := me.GetEntity(ctx, entityId)
 					if entity != nil {
 						ss.Entities = append(ss.Entities, entity)
@@ -855,7 +918,7 @@ func (me *PostgresStoreInteractor) SetFieldSchema(ctx context.Context, entityTyp
 	me.SetEntitySchema(ctx, entitySchema)
 }
 
-func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, fieldName, entityType qdata.EntityType) bool {
+func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) bool {
 	exists := false
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -864,7 +927,7 @@ func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, fieldName, e
 				SELECT 1 FROM EntitySchema 
 				WHERE entity_type = $1 AND field_type = $2
 			)
-		`, entityType, fieldName).Scan(&exists)
+		`, entityType, fieldType).Scan(&exists)
 		if err != nil {
 			qlog.Error("Failed to check field existence: %v", err)
 		}
@@ -981,9 +1044,11 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 				}
 			}
 
-			// Update existing entities
-			entities := me.FindEntities(ctx, requestedSchema.EntityType)
-			for _, entityId := range entities {
+			// Update existing entitiesIterator
+			entitiesIterator := me.FindEntities(requestedSchema.EntityType)
+			for entitiesIterator.Next(ctx) {
+				entityId := entitiesIterator.Get()
+
 				// Remove deleted fields
 				for _, fieldType := range removedFields {
 					tableName := getTableNameForType(oldSchema.Fields[fieldType].ValueType)

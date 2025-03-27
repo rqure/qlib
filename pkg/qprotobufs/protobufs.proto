@@ -48,14 +48,6 @@ message ApiConfigDeleteEntityResponse {
     StatusEnum status = 1;
 }
 
-message ApiConfigGetEntityTypesRequest {
-
-}
-
-message ApiConfigGetEntityTypesResponse {
-    repeated string types = 1;
-}
-
 message ApiConfigGetEntityRequest {
     string id = 1;
 }
@@ -194,12 +186,27 @@ message ApiRuntimeGetDatabaseConnectionStatusResponse {
     bool connected = 1;
 }
 
-message ApiRuntimeGetEntitiesRequest {
-    string entityType = 1;
+message ApiRuntimeFindEntitiesRequest {
+    string entity_type = 1;
+    int32 page_size = 2;
+    string cursor = 3;
 }
 
-message ApiRuntimeGetEntitiesResponse {
-    repeated DatabaseEntity entities = 1;
+message ApiRuntimeFindEntitiesResponse {
+    repeated string entities = 1;
+    bool has_more = 2;
+    string next_cursor = 3;
+}
+
+message ApiRuntimeGetEntityTypesRequest {
+    int32 page_size = 1;
+    string cursor = 2;
+}
+
+message ApiRuntimeGetEntityTypesResponse {
+    repeated string entity_types = 1;
+    bool has_more = 2;
+    string next_cursor = 3;
 }
 
 message ApiRuntimeGetEntitiesPaginatedRequest {

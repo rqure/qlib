@@ -76,47 +76,85 @@ func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.
 	}
 }
 
-func (me *NatsStoreInteractor) FindEntities(ctx context.Context, entityType qdata.EntityType) []qdata.EntityId {
-	msg := &qprotobufs.ApiRuntimeGetEntitiesRequest{
-		EntityType: string(entityType),
-	}
+func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityId] {
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
-	if err != nil {
-		return nil
-	}
+	return &qdata.PageResult[qdata.EntityId]{
+		Items:   []qdata.EntityId{},
+		HasMore: true,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
+			msg := &qprotobufs.ApiRuntimeFindEntitiesRequest{
+				EntityType: entityType.AsString(),
+				PageSize:   pageConfig.PageSize,
+				Cursor:     pageConfig.CursorId,
+			}
 
-	var response qprotobufs.ApiRuntimeGetEntitiesResponse
-	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return nil
-	}
+			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+			if err != nil {
+				return nil, err
+			}
 
-	ids := make([]qdata.EntityId, len(response.Entities))
-	for i, e := range response.Entities {
-		ids[i] = qdata.EntityId(e.Id)
+			var response qprotobufs.ApiRuntimeFindEntitiesResponse
+			if err := resp.Payload.UnmarshalTo(&response); err != nil {
+				return nil, err
+			}
+
+			entities := make([]qdata.EntityId, 0, len(response.Entities))
+			for _, id := range response.Entities {
+				entities = append(entities, qdata.EntityId(id))
+			}
+
+			pageConfig.CursorId = response.NextCursor
+
+			return &qdata.PageResult[qdata.EntityId]{
+				Items:   entities,
+				HasMore: response.HasMore,
+				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
+					return me.FindEntities(entityType, pageOpts...), nil
+				},
+			}, nil
+		},
 	}
-	return ids
 }
 
-func (me *NatsStoreInteractor) GetEntityTypes(ctx context.Context) []qdata.EntityType {
-	msg := &qprotobufs.ApiConfigGetEntityTypesRequest{}
+func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityType] {
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
-	if err != nil {
-		return nil
+	return &qdata.PageResult[qdata.EntityType]{
+		Items:   []qdata.EntityType{},
+		HasMore: true,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
+			msg := &qprotobufs.ApiRuntimeGetEntityTypesRequest{
+				PageSize: pageConfig.PageSize,
+				Cursor:   pageConfig.CursorId,
+			}
+
+			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+			if err != nil {
+				return nil, err
+			}
+
+			var response qprotobufs.ApiRuntimeGetEntityTypesResponse
+			if err := resp.Payload.UnmarshalTo(&response); err != nil {
+				return nil, err
+			}
+
+			types := make([]qdata.EntityType, 0, len(response.EntityTypes))
+			for _, t := range response.EntityTypes {
+				types = append(types, qdata.EntityType(t))
+			}
+
+			pageConfig.CursorId = response.NextCursor
+
+			return &qdata.PageResult[qdata.EntityType]{
+				Items:   types,
+				HasMore: response.HasMore,
+				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
+					return me.GetEntityTypes(pageConfig.IntoOpts()...), nil
+				},
+			}, nil
+		},
 	}
-
-	var response qprotobufs.ApiConfigGetEntityTypesResponse
-	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return nil
-	}
-
-	types := make([]qdata.EntityType, len(response.Types))
-	for _, t := range response.Types {
-		types = append(types, qdata.EntityType(t))
-	}
-
-	return types
 }
 
 func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) bool {
