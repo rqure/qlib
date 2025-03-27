@@ -42,8 +42,11 @@ func (me *ValueEntityReference) GetRaw() interface{} {
 }
 
 func (me *ValueEntityReference) SetRaw(value interface{}) {
-	if v, ok := value.(EntityId); ok {
+	switch v := value.(type) {
+	case EntityId:
 		me.Value = v
+	case string:
+		me.Value = EntityId(v)
 	}
 }
 

@@ -1142,8 +1142,23 @@ func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.Publi
 }
 
 func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
+	// Extract page options if provided
+	pageOpts := []qdata.PageOpts{}
+	otherArgs := []interface{}{}
+
+	for _, arg := range args {
+		if opt, ok := arg.(qdata.PageOpts); ok {
+			pageOpts = append(pageOpts, opt)
+		} else {
+			otherArgs = append(otherArgs, arg)
+		}
+	}
+
+	// Apply page options or use defaults
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
 	// Parse the query
-	parsedQuery, err := qdata.ParseQuery(fmt.Sprintf(sql, args...))
+	parsedQuery, err := qdata.ParseQuery(fmt.Sprintf(sql, otherArgs...))
 	if err != nil {
 		qlog.Error("Failed to parse query: %v", err)
 		return &qdata.PageResult[*qdata.Entity]{
@@ -1164,39 +1179,14 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 		}
 	}
 
+	entityType := qdata.EntityType(parsedQuery.Table.EntityType)
+
 	return &qdata.PageResult[*qdata.Entity]{
 		Items:   []*qdata.Entity{},
 		HasMore: true,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
-			// Build SQLite table with data
-			entityType := qdata.EntityType(parsedQuery.Table.EntityType)
-			if err := builder.BuildTable(ctx, entityType, parsedQuery); err != nil {
-				return nil, fmt.Errorf("failed to build SQLite table: %v", err)
-			}
-
-			// Execute query against SQLite
-			rows, err := builder.ExecuteQuery(ctx, parsedQuery)
-			if err != nil {
-				return nil, fmt.Errorf("failed to execute query: %v", err)
-			}
-
-			// Convert results to entities
-			var entities []*qdata.Entity
-			schemaCache := make(map[qdata.EntityType]*qdata.EntitySchema)
-			for rows.Next() {
-				entity, err := builder.RowToEntity(ctx, rows, parsedQuery, schemaCache)
-				if err != nil {
-					qlog.Error("Failed to convert row to entity: %v", err)
-					continue
-				}
-				entities = append(entities, entity)
-			}
-
-			return &qdata.PageResult[*qdata.Entity]{
-				Items:    entities,
-				HasMore:  false, // SQLite handles pagination internally
-				NextPage: nil,
-			}, nil
+			// Use the improved pagination query method that properly handles all field types
+			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId)
 		},
 	}
 }

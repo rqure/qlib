@@ -1,6 +1,8 @@
 package qdata
 
 import (
+	"strings"
+
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -42,8 +44,13 @@ func (me *ValueEntityList) GetRaw() interface{} {
 }
 
 func (me *ValueEntityList) SetRaw(value interface{}) {
-	if v, ok := value.([]EntityId); ok {
+	switch v := value.(type) {
+	case []EntityId:
 		me.Value = v
+	case []string:
+		me.Value = CastStringSliceToEntityIdSlice(v)
+	case string:
+		me.Value = CastStringSliceToEntityIdSlice(strings.Split(v, ","))
 	}
 }
 
