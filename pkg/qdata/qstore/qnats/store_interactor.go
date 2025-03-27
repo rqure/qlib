@@ -2,6 +2,7 @@ package qnats
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qdata"
@@ -151,6 +152,78 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 				HasMore: response.HasMore,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 					return me.GetEntityTypes(pageConfig.IntoOpts()...), nil
+				},
+			}, nil
+		},
+	}
+}
+
+func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
+	// Format the query with args
+	interfaceArgs := []interface{}{}
+	pageOpts := []qdata.PageOpts{}
+	for _, arg := range args {
+		switch a := arg.(type) {
+		case qdata.PageOpts:
+			pageOpts = append(pageOpts, a)
+		default:
+			interfaceArgs = append(interfaceArgs, arg)
+		}
+	}
+
+	formattedQuery := fmt.Sprintf(sql, interfaceArgs...)
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
+	return &qdata.PageResult[*qdata.Entity]{
+		Items:   []*qdata.Entity{},
+		HasMore: true,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
+			// Create a query request message
+			msg := &qprotobufs.ApiRuntimeQueryRequest{
+				Query:    formattedQuery,
+				PageSize: pageConfig.PageSize,
+				Cursor:   pageConfig.CursorId,
+			}
+
+			// Send the query to the server
+			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to execute query: %v", err)
+			}
+
+			// Parse the response
+			var response qprotobufs.ApiRuntimeQueryResponse
+			if err := resp.Payload.UnmarshalTo(&response); err != nil {
+				return nil, fmt.Errorf("failed to parse query response: %v", err)
+			}
+
+			// Convert entities from protobuf
+			entities := make([]*qdata.Entity, 0, len(response.Entities))
+			for _, entityPb := range response.Entities {
+				entity := new(qdata.Entity).FromEntityPb(entityPb)
+				entities = append(entities, entity)
+			}
+
+			// Store cursor for next page
+			pageConfig.CursorId = response.NextCursor
+
+			newArgs := []interface{}{}
+			newArgs = append(newArgs, interfaceArgs...)
+			newArgs = append(newArgs, qdata.CastToInterfaceSlice(pageConfig.IntoOpts())...)
+
+			return &qdata.PageResult[*qdata.Entity]{
+				Items:   entities,
+				HasMore: response.HasMore,
+				NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
+					if !response.HasMore {
+						return &qdata.PageResult[*qdata.Entity]{
+							Items:    []*qdata.Entity{},
+							HasMore:  false,
+							NextPage: nil,
+						}, nil
+					}
+					// Create new request with updated cursor
+					return me.PrepareQuery(formattedQuery).NextPage(ctx)
 				},
 			}, nil
 		},

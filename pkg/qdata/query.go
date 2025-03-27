@@ -170,12 +170,12 @@ func (me *SQLiteBuilder) populateTable(ctx context.Context, entityType EntityTyp
 		args := []interface{}{entityId}
 
 		// Read all fields for this entity
-		for fieldType, _ := range schema.Fields {
+		for fieldType := range schema.Fields {
 			req := new(Request).Init(entityId, fieldType)
 			me.store.Read(ctx, req)
 
 			if req.Success {
-				cols = append(cols, string(fieldType))
+				cols = append(cols, fieldType.AsString())
 				vals = append(vals, "?")
 				args = append(args, convertValueForSQLite(req.Value))
 

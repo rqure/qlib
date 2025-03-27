@@ -188,36 +188,25 @@ message ApiRuntimeGetDatabaseConnectionStatusResponse {
 
 message ApiRuntimeFindEntitiesRequest {
     string entity_type = 1;
-    int32 page_size = 2;
-    string cursor = 3;
+    int64 page_size = 2;
+    int64 cursor = 3;
 }
 
 message ApiRuntimeFindEntitiesResponse {
     repeated string entities = 1;
     bool has_more = 2;
-    string next_cursor = 3;
+    int64 next_cursor = 3;
 }
 
 message ApiRuntimeGetEntityTypesRequest {
-    int32 page_size = 1;
-    string cursor = 2;
+    int64 page_size = 1;
+    int64 cursor = 2;
 }
 
 message ApiRuntimeGetEntityTypesResponse {
     repeated string entity_types = 1;
     bool has_more = 2;
-    string next_cursor = 3;
-}
-
-message ApiRuntimeGetEntitiesPaginatedRequest {
-    string entityType = 1;
-    int32 page = 2;
-    int32 pageSize = 3;
-}
-
-message ApiRuntimeGetEntitiesPaginatedResponse {
-    repeated DatabaseEntity entities = 1;
-    int32 totalCount = 2;
+    int64 next_cursor = 3;
 }
 
 message ApiRuntimeFieldExistsRequest {
@@ -237,24 +226,16 @@ message ApiRuntimeEntityExistsResponse {
     bool exists = 1;
 }
 
-message ApiQueryRequest {
-    string query = 1;            // SQL query for V2
-    int32 page = 2;             // Page number (1-based)
-    int32 page_size = 3;        // Items per page
+message ApiRuntimeQueryRequest {
+    string query = 1;
+    int64 page_size = 2;
+    int64 cursor = 3;
 }
 
-message ApiQueryResponse {
-    enum StatusEnum {
-        UNSPECIFIED = 0;
-        SUCCESS = 1;
-        FAILURE = 2;
-    }
-
-    StatusEnum status = 1;
-    repeated DatabaseEntity entities = 2;
-    int32 total_count = 3;      // Total number of results
-    int32 page_count = 4;       // Total number of pages
-    int32 current_page = 5;     // Current page number
+message ApiRuntimeQueryResponse {
+    repeated DatabaseEntity entities = 1;
+    bool has_more = 2;
+    int64 next_cursor = 3;
 }
 
 message DatabaseEntity {
