@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qdata/qquery"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"github.com/rqure/qlib/pkg/qss"
@@ -19,6 +18,7 @@ import (
 type PostgresStoreInteractor struct {
 	core         PostgresCore
 	publisherSig qss.Signal[qdata.PublishNotificationArgs]
+	clientId     *qdata.EntityId
 }
 
 func NewPostgresStoreInteractor(core PostgresCore) *PostgresStoreInteractor {
@@ -509,10 +509,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 					EntitySchema.entity_type = entity_type.type
 					AND EntitySchema.field_type = $2
 			`, indirectEntity.AsString(), indirectField.AsString()).Scan(&entityType, &fieldType, &valueType)
-			schema := new(qdata.FieldSchema)
-			schema.EntityType = qdata.EntityType(entityType)
-			schema.FieldType = qdata.FieldType(fieldType)
-			schema.ValueType = qdata.ValueType(valueType)
+			schema := new(qdata.FieldSchema).Init(qdata.EntityType(entityType), qdata.FieldType(fieldType), qdata.ValueType(valueType))
 
 			if err != nil {
 				qlog.Error("Failed to get entity and schema info: %v", err)
@@ -551,36 +548,21 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			}
 
 			if req.WriterId == nil {
-				wr := ""
+				wr := new(qdata.EntityId).FromString("")
 
 				if me.clientId == nil && qapp.GetName() != "" {
-					clients := qquery.New(&qdata.LimitedStore{
-						PostgresStoreInteractor: me,
-						me.
-							NotificationPublisher: me.notificationPublisher,
-						PostgresStoreInteractor: me,
-					}).Select().
-						From("Client").
-						Where(qdata.FTName).Equals(qapp.GetName()).
-						Execute(ctx)
+					iterator := me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", qapp.GetName())
 
-					if len(clients) == 0 {
-						qlog.Error("Failed to get client id")
-					} else {
-						if len(clients) > 1 {
-							qlog.Warn("Multiple clients found: %v", clients)
-						}
-
-						clientId := clients[0].GetId()
-						me.clientId = &clientId
+					for iterator.Next(ctx) {
+						me.clientId = &iterator.Get().EntityId
 					}
 				}
 
 				if me.clientId != nil {
-					wr = *me.clientId
+					*wr = *me.clientId
 				}
 
-				req.WriterId = new(qdata.EntityId).FromString(wr)
+				req.WriterId = wr
 			}
 
 			if authorizer, ok := ctx.Value(qdata.FieldAuthorizerKey).(qdata.FieldAuthorizer); ok {
@@ -831,7 +813,7 @@ func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) *qdata.Sn
 						ss.Entities = append(ss.Entities, entity)
 
 						// Add fields for this entity
-						for fieldType, _ := range schema.Fields {
+						for fieldType := range schema.Fields {
 							req := entity.Field(fieldType).AsReadRequest()
 							me.Read(ctx, req)
 							if req.Success {
@@ -1157,4 +1139,64 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 
 func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
 	return me.publisherSig
+}
+
+func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
+	// Parse the query
+	parsedQuery, err := qdata.ParseQuery(fmt.Sprintf(sql, args...))
+	if err != nil {
+		qlog.Error("Failed to parse query: %v", err)
+		return &qdata.PageResult[*qdata.Entity]{
+			Items:    []*qdata.Entity{},
+			HasMore:  false,
+			NextPage: nil,
+		}
+	}
+
+	// Create SQLite builder
+	builder, err := qdata.NewSQLiteBuilder(me)
+	if err != nil {
+		qlog.Error("Failed to create SQLite builder: %v", err)
+		return &qdata.PageResult[*qdata.Entity]{
+			Items:    []*qdata.Entity{},
+			HasMore:  false,
+			NextPage: nil,
+		}
+	}
+
+	return &qdata.PageResult[*qdata.Entity]{
+		Items:   []*qdata.Entity{},
+		HasMore: true,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
+			// Build SQLite table with data
+			entityType := qdata.EntityType(parsedQuery.Table.EntityType)
+			if err := builder.BuildTable(ctx, entityType, parsedQuery); err != nil {
+				return nil, fmt.Errorf("failed to build SQLite table: %v", err)
+			}
+
+			// Execute query against SQLite
+			rows, err := builder.ExecuteQuery(ctx, parsedQuery)
+			if err != nil {
+				return nil, fmt.Errorf("failed to execute query: %v", err)
+			}
+
+			// Convert results to entities
+			var entities []*qdata.Entity
+			schemaCache := make(map[qdata.EntityType]*qdata.EntitySchema)
+			for rows.Next() {
+				entity, err := builder.RowToEntity(ctx, rows, parsedQuery, schemaCache)
+				if err != nil {
+					qlog.Error("Failed to convert row to entity: %v", err)
+					continue
+				}
+				entities = append(entities, entity)
+			}
+
+			return &qdata.PageResult[*qdata.Entity]{
+				Items:    entities,
+				HasMore:  false, // SQLite handles pagination internally
+				NextPage: nil,
+			}, nil
+		},
+	}
 }
