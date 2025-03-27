@@ -4,23 +4,22 @@ import (
 	"context"
 
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qdata/qbinding"
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
 type fieldAuthorizer struct {
-	accessorId string
+	accessorId qdata.EntityId
 	store      qdata.Store
 }
 
-func NewFieldAuthorizer(accessorId string, store qdata.Store) qdata.FieldAuthorizer {
+func NewFieldAuthorizer(accessorId qdata.EntityId, store qdata.Store) qdata.FieldAuthorizer {
 	return &fieldAuthorizer{
 		accessorId: accessorId,
 		store:      store,
 	}
 }
 
-func (me *fieldAuthorizer) AccessorId() string {
+func (me *fieldAuthorizer) AccessorId() qdata.EntityId {
 	return me.accessorId
 }
 
@@ -54,11 +53,17 @@ func (me *fieldAuthorizer) IsAuthorized(ctx context.Context, entityId qdata.Enti
 		return true
 	}
 
-	accessor := qbinding.NewEntity(ctx, me.store, me.accessorId)
-	actualPermissions := accessor.GetField("Permissions").GetEntityList().GetEntities()
+	accessor := me.store.GetEntity(ctx, me.accessorId)
 
-	// Also get total permissions which include those from roles
-	totalPermissions := accessor.GetField("TotalPermissions").GetEntityList().GetEntities()
+	// read the necessary fields
+	me.store.Read(ctx,
+		accessor.Field("Permissions").AsReadRequest(),
+		accessor.Field("TotalPermissions").AsReadRequest(),
+	)
+
+	actualPermissions := accessor.Field("Permissions").Value.GetEntityList()
+	// Also get total permissions which include those from other roles that are not currently active
+	totalPermissions := accessor.Field("TotalPermissions").Value.GetEntityList()
 	if len(totalPermissions) > 0 {
 		actualPermissions = append(actualPermissions, totalPermissions...)
 	}

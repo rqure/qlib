@@ -124,7 +124,7 @@ type FieldAuthorizerKeyType string
 const FieldAuthorizerKey FieldAuthorizerKeyType = "Authorizer"
 
 type FieldAuthorizer interface {
-	AccessorId() string
+	AccessorId() EntityId
 	IsAuthorized(ctx context.Context, entityId EntityId, fieldType FieldType, forWrite bool) bool
 }
 
