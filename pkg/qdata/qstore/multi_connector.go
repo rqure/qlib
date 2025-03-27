@@ -10,7 +10,7 @@ import (
 )
 
 type multiConnectorImpl struct {
-	connectors []qdata.Connector
+	connectors []qdata.StoreConnector
 	connMu     sync.RWMutex
 
 	// Connection state tracking
@@ -22,19 +22,19 @@ type multiConnectorImpl struct {
 }
 
 type MultiConnector interface {
-	qdata.Connector
-	AddConnector(connector qdata.Connector)
+	qdata.StoreConnector
+	AddConnector(connector qdata.StoreConnector)
 }
 
 func NewMultiConnector() MultiConnector {
 	return &multiConnectorImpl{
-		connectors:   make([]qdata.Connector, 0),
+		connectors:   make([]qdata.StoreConnector, 0),
 		connected:    qss.New[qss.VoidType](),
 		disconnected: qss.New[error](),
 	}
 }
 
-func (me *multiConnectorImpl) AddConnector(connector qdata.Connector) {
+func (me *multiConnectorImpl) AddConnector(connector qdata.StoreConnector) {
 	me.connMu.Lock()
 	defer me.connMu.Unlock()
 
