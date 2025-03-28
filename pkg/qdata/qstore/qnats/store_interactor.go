@@ -6,21 +6,25 @@ import (
 
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qdata/qentity"
-	"github.com/rqure/qlib/pkg/qdata/qquery"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
+	"github.com/rqure/qlib/pkg/qss"
 )
 
 type NatsStoreInteractor struct {
-	core NatsCore
+	core       NatsCore
+	publishSig qss.Signal[qdata.PublishNotificationArgs]
+	clientId   *qdata.EntityId
 }
 
 func NewStoreInteractor(core NatsCore) qdata.StoreInteractor {
-	return &NatsStoreInteractor{core: core}
+	return &NatsStoreInteractor{
+		core:       core,
+		publishSig: qss.New[qdata.PublishNotificationArgs](),
+	}
 }
 
-func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) string {
+func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) qdata.EntityId {
 	msg := &qprotobufs.ApiConfigCreateEntityRequest{
 		Type:     string(entityType),
 		ParentId: string(parentId),
@@ -41,7 +45,7 @@ func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdat
 		qlog.Error("Failed to create entity: %v", response.Status)
 	}
 
-	return response.Id
+	return *new(qdata.EntityId).FromString(response.Id)
 }
 
 func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId qdata.EntityId) *qdata.Entity {
@@ -223,7 +227,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 						}, nil
 					}
 					// Create new request with updated cursor
-					return me.PrepareQuery(formattedQuery).NextPage(ctx)
+					return me.PrepareQuery(sql, newArgs...).NextPage(ctx)
 				},
 			}, nil
 		},
@@ -291,34 +295,25 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 	for i, r := range requests {
 		writer := r.WriterId
-		if writer == nil || *writer == "" {
-			if me.clientId == nil {
-				clients := qquery.New(&qdata.LimitedStore{
-					NatsStoreInteractor:   me,
-					EntityManager:         me.entityManager,
-					NotificationPublisher: me.notificationPublisher,
-					NatsStoreInteractor:   me.NatsStoreInteractor,
-				}).Select().
-					From("Client").
-					Where("Name").Equals(qapp.GetName()).
-					Execute(ctx)
 
-				if len(clients) == 0 {
-					qlog.Error("Failed to get client id")
-				} else {
-					if len(clients) > 1 {
-						qlog.Warn("Multiple clients found: %v", clients)
-					}
+		if writer == nil || writer.IsEmpty() {
+			wr := new(qdata.EntityId).FromString("")
 
-					clientId := clients[0].GetId()
-					me.clientId = &clientId
+			if me.clientId == nil && qapp.GetName() != "" {
+				iterator := me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", qapp.GetName())
+
+				for iterator.Next(ctx) {
+					me.clientId = &iterator.Get().EntityId
 				}
 			}
 
 			if me.clientId != nil {
-				r.SetWriter(me.clientId)
+				*wr = *me.clientId
 			}
+
+			r.WriterId = wr
 		}
+
 		msg.Requests[i] = r.AsRequestPb()
 	}
 
@@ -378,7 +373,7 @@ func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType q
 		return nil
 	}
 
-	return qentity.FromSchemaPb(response.Schema)
+	return new(qdata.EntitySchema).FromEntitySchemaPb(response.Schema)
 }
 
 func (me *NatsStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) {
@@ -413,6 +408,6 @@ func (me *NatsStoreInteractor) SetFieldSchema(ctx context.Context, entityType qd
 	me.SetEntitySchema(ctx, entitySchema)
 }
 
-func (me *NatsStoreInteractor) PublishNotifications(ctx context.Context, curr *qdata.Request, prev *qdata.Request) {
-
+func (me *NatsStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
+	return me.publishSig
 }

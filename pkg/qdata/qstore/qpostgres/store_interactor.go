@@ -551,7 +551,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				req.WriteTime = new(qdata.WriteTime).FromTime(wt)
 			}
 
-			if req.WriterId == nil {
+			if req.WriterId == nil || req.WriterId.IsEmpty() {
 				wr := new(qdata.EntityId).FromString("")
 
 				if me.clientId == nil && qapp.GetName() != "" {
