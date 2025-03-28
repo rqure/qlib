@@ -1,6 +1,8 @@
 package qdata
 
 import (
+	"fmt"
+
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -22,6 +24,7 @@ func NewChoice(v ...int) *Value {
 		ValueTypeProvider: new(ValueType).As(VTChoice),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
+		StringConverter:   me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		ChoiceProvider:    me,
@@ -61,4 +64,8 @@ func (me *ValueChoice) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueChoice) AsString() string {
+	return fmt.Sprintf("%d", me.Value)
 }

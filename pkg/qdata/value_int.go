@@ -1,6 +1,8 @@
 package qdata
 
 import (
+	"fmt"
+
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -22,6 +24,7 @@ func NewInt(v ...int) *Value {
 		ValueTypeProvider: new(ValueType).As(VTInt),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
+		StringConverter:   me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		IntProvider:       me,
@@ -61,4 +64,8 @@ func (me *ValueInt) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueInt) AsString() string {
+	return fmt.Sprintf("%010d", me.Value)
 }

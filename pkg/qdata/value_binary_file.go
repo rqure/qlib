@@ -10,22 +10,23 @@ import (
 )
 
 type ValueBinaryFile struct {
-	Value string
+	Value []byte
 }
 
 func NewBinaryFile(v ...string) *Value {
 	me := &ValueBinaryFile{
-		Value: "", // Empty path as default
+		Value: []byte{},
 	}
 
 	if len(v) > 0 {
-		me.Value = v[0]
+		me.SetBinaryFile(v[0])
 	}
 
 	return &Value{
 		ValueTypeProvider:  new(ValueType).As(VTBinaryFile),
 		ValueConstructor:   me,
 		AnyPbConverter:     me,
+		StringConverter:    me,
 		RawProvider:        me,
 		RawReceiver:        me,
 		BinaryFileProvider: me,
@@ -34,11 +35,11 @@ func NewBinaryFile(v ...string) *Value {
 }
 
 func (me *ValueBinaryFile) GetBinaryFile() string {
-	return me.Value
+	return FileEncode(me.Value)
 }
 
 func (me *ValueBinaryFile) SetBinaryFile(value string) {
-	me.Value = value
+	me.Value = FileDecode(value)
 }
 
 func (me *ValueBinaryFile) GetRaw() interface{} {
@@ -46,13 +47,16 @@ func (me *ValueBinaryFile) GetRaw() interface{} {
 }
 
 func (me *ValueBinaryFile) SetRaw(value interface{}) {
-	if v, ok := value.(string); ok {
+	switch v := value.(type) {
+	case []byte:
 		me.Value = v
+	case string:
+		me.Value = FileDecode(v)
 	}
 }
 
 func (me *ValueBinaryFile) Clone() *Value {
-	return NewBinaryFile(me.Value)
+	return NewBinaryFile(me.GetBinaryFile())
 }
 
 func FileEncode(content []byte) string {
@@ -78,7 +82,7 @@ func FileDecode(encoded string) []byte {
 
 func (me *ValueBinaryFile) AsAnyPb() *anypb.Any {
 	a, err := anypb.New(&qprotobufs.BinaryFile{
-		Raw: me.Value,
+		Raw: me.GetBinaryFile(),
 	})
 
 	if err != nil {
@@ -86,4 +90,8 @@ func (me *ValueBinaryFile) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueBinaryFile) AsString() string {
+	return me.GetBinaryFile()
 }

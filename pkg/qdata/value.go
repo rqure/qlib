@@ -96,9 +96,14 @@ type AnyPbConverter interface {
 	AsAnyPb() *anypb.Any
 }
 
+type StringConverter interface {
+	AsString() string
+}
+
 type Value struct {
 	ValueConstructor
 	AnyPbConverter
+	StringConverter
 	ValueTypeProvider
 
 	RawProvider

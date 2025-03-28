@@ -22,6 +22,7 @@ func NewString(v ...string) *Value {
 		ValueTypeProvider: new(ValueType).As(VTString),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
+		StringConverter:   me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		StringProvider:    me,
@@ -61,4 +62,8 @@ func (me *ValueString) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueString) AsString() string {
+	return me.Value
 }

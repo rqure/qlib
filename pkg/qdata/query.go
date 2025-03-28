@@ -35,6 +35,23 @@ type ParsedQuery struct {
 	OriginalSQL string
 }
 
+type TypeHintMap map[FieldType]ValueType
+type TypeHintOpts func(TypeHintMap)
+
+func TypeHint(ft FieldType, vt ValueType) TypeHintOpts {
+	return func(m TypeHintMap) {
+		m[ft] = vt
+	}
+}
+
+func (me TypeHintMap) ApplyOpts(opts ...TypeHintOpts) TypeHintMap {
+	for _, opt := range opts {
+		opt(me)
+	}
+
+	return me
+}
+
 func ParseQuery(sql string) (*ParsedQuery, error) {
 	stmt, err := sqlparser.Parse(sql)
 	if err != nil {
@@ -110,7 +127,7 @@ type SQLiteBuilder struct {
 	db          *sql.DB
 	store       StoreInteractor
 	entityCache map[EntityId]*Entity // Cache entities by ID
-
+	typeHints   TypeHintMap
 }
 
 func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
@@ -123,6 +140,7 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 		db:          db,
 		store:       store,
 		entityCache: make(map[EntityId]*Entity),
+		typeHints:   make(TypeHintMap),
 	}, nil
 }
 
@@ -147,16 +165,25 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 	for _, field := range query.Fields {
 		var colType string
 		if field.FieldType.IsIndirection() {
-
+			if vt, ok := me.typeHints[field.FieldType]; ok {
+				colType = getSQLiteType(vt)
+			} else {
+				colType = "TEXT"
+			}
 		} else {
-			schema := me.store.GetFieldSchema(ctx, entityType, field.FieldType)
-			colType = getSQLiteType(schema.ValueType)
+			if vt, ok := me.typeHints[field.FieldType]; ok {
+				colType = getSQLiteType(vt)
+			} else {
+				schema := me.store.GetFieldSchema(ctx, entityType, field.FieldType)
+				colType = getSQLiteType(schema.ValueType)
+				me.typeHints[field.FieldType] = schema.ValueType
+			}
 		}
 		if colType != "" {
-			columns = append(columns, fmt.Sprintf("%s %s", field.FieldType, colType))
+			columns = append(columns, fmt.Sprintf("%s %s", field.ColumnName(), colType))
 			// Add metadata columns if needed
-			columns = append(columns, fmt.Sprintf("%s_writer_id TEXT", field.FieldType))
-			columns = append(columns, fmt.Sprintf("%s_write_time DATETIME", field.FieldType))
+			columns = append(columns, fmt.Sprintf("%s_writer_id TEXT", field.ColumnName()))
+			columns = append(columns, fmt.Sprintf("%s_write_time DATETIME", field.ColumnName()))
 		}
 	}
 
@@ -381,7 +408,9 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 }
 
 // QueryWithPagination executes the query with pagination and returns a PageResult
-func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (*PageResult[*Entity], error) {
+func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[*Entity], error) {
+	sb.typeHints.ApplyOpts(opts...)
+
 	// Create the SQLite table with the appropriate schema
 	if err := sb.BuildTable(ctx, entityType, query); err != nil {
 		return nil, fmt.Errorf("failed to build SQLite table: %v", err)
@@ -459,18 +488,14 @@ func (sb *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query 
 
 func getSQLiteType(valueType ValueType) string {
 	switch valueType {
-	case VTInt, VTChoice:
+	case VTInt, VTChoice, VTBool:
 		return "INTEGER"
 	case VTFloat:
 		return "REAL"
-	case VTString, VTBinaryFile, VTEntityReference:
+	case VTString, VTBinaryFile, VTEntityReference, VTEntityList:
 		return "TEXT"
-	case VTBool:
-		return "INTEGER"
 	case VTTimestamp:
 		return "DATETIME"
-	case VTEntityList:
-		return "TEXT"
 	default:
 		return ""
 	}
@@ -489,13 +514,13 @@ func convertValueForSQLite(value *Value) interface{} {
 	case value.IsBinaryFile():
 		return value.GetBinaryFile()
 	case value.IsEntityReference():
-		return string(value.GetEntityReference())
+		return value.AsString()
 	case value.IsTimestamp():
 		return value.GetTimestamp()
 	case value.IsChoice():
 		return value.GetChoice()
 	case value.IsEntityList():
-		return strings.Join(CastEntityIdSliceToStringSlice(value.GetEntityList()), ",")
+		return value.AsString()
 	default:
 		return nil
 	}

@@ -22,6 +22,7 @@ func NewBool(v ...bool) *Value {
 		ValueTypeProvider: new(ValueType).As(VTBool),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
+		StringConverter:   me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		BoolProvider:      me,
@@ -61,4 +62,11 @@ func (me *ValueBool) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueBool) AsString() string {
+	if me.Value {
+		return "true"
+	}
+	return "false"
 }

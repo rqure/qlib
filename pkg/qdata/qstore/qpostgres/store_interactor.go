@@ -1146,14 +1146,17 @@ func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.Publi
 }
 
 func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
-	// Extract page options if provided
 	pageOpts := []qdata.PageOpts{}
+	typeHintOpts := []qdata.TypeHintOpts{}
 	otherArgs := []interface{}{}
 
 	for _, arg := range args {
-		if opt, ok := arg.(qdata.PageOpts); ok {
-			pageOpts = append(pageOpts, opt)
-		} else {
+		switch arg := arg.(type) {
+		case qdata.PageOpts:
+			pageOpts = append(pageOpts, arg)
+		case qdata.TypeHintOpts:
+			typeHintOpts = append(typeHintOpts, arg)
+		default:
 			otherArgs = append(otherArgs, arg)
 		}
 	}
@@ -1190,7 +1193,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 		HasMore: true,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			// Use the improved pagination query method that properly handles all field types
-			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId)
+			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
 		},
 	}
 }

@@ -25,6 +25,7 @@ func NewTimestamp(v ...time.Time) *Value {
 		ValueTypeProvider: new(ValueType).As(VTTimestamp),
 		ValueConstructor:  me,
 		AnyPbConverter:    me,
+		StringConverter:   me,
 		RawProvider:       me,
 		RawReceiver:       me,
 		TimestampProvider: me,
@@ -65,4 +66,8 @@ func (me *ValueTimestamp) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueTimestamp) AsString() string {
+	return me.Value.Format(time.RFC3339)
 }

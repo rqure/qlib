@@ -22,6 +22,7 @@ func NewEntityReference(v ...EntityId) *Value {
 		ValueTypeProvider:       new(ValueType).As(VTEntityReference),
 		ValueConstructor:        me,
 		AnyPbConverter:          me,
+		StringConverter:         me,
 		RawProvider:             me,
 		RawReceiver:             me,
 		EntityReferenceProvider: me,
@@ -64,4 +65,8 @@ func (me *ValueEntityReference) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueEntityReference) AsString() string {
+	return me.Value.AsString()
 }

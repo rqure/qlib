@@ -226,10 +226,16 @@ message ApiRuntimeEntityExistsResponse {
     bool exists = 1;
 }
 
+message TypeHint {
+    string fieldType = 1;
+    string valueType = 2;
+}
+
 message ApiRuntimeQueryRequest {
     string query = 1;
     int64 page_size = 2;
     int64 cursor = 3;
+    repeated TypeHint type_hints = 4;
 }
 
 message ApiRuntimeQueryResponse {
@@ -241,6 +247,7 @@ message ApiRuntimeQueryResponse {
 message DatabaseEntity {
     string id = 1;
     string type = 2;
+    repeated DatabaseField fields = 3;
 }
 
 message DatabaseField {

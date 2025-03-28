@@ -24,6 +24,7 @@ func NewEntityList(v ...[]EntityId) *Value {
 		ValueTypeProvider:  new(ValueType).As(VTEntityList),
 		ValueConstructor:   me,
 		AnyPbConverter:     me,
+		StringConverter:    me,
 		RawProvider:        me,
 		RawReceiver:        me,
 		EntityListProvider: me,
@@ -74,4 +75,8 @@ func (me *ValueEntityList) AsAnyPb() *anypb.Any {
 	}
 
 	return a
+}
+
+func (me *ValueEntityList) AsString() string {
+	return strings.Join(CastEntityIdSliceToStringSlice(me.Value), ",")
 }
