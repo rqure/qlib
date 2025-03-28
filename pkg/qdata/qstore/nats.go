@@ -1,43 +1,62 @@
 package qstore
 
-import "github.com/rqure/qlib/pkg/qdata/qstore/qnats"
+import (
+	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qdata/qstore/qnats"
+)
 
-func CommunicateOverNats(address string) ConfigFn {
-	return func(store *Store) {
+func CommunicateOverNats(address string) qdata.StoreOpts {
+	return func(store *qdata.Store) {
 		core := qnats.NewCore(qnats.NatsConfig{Address: address})
-		core.SetAuthProvider(store.AuthProvider)
 
-		store.MultiConnector.AddConnector(qnats.NewConnector(core))
-		store.ModifiableSchemaManager = qnats.NewSchemaManager(core)
-		store.ModifiableEntityManager = qnats.NewEntityManager(core)
-		store.ModifiableFieldOperator = qnats.NewFieldOperator(core)
-		store.ModifiableSnapshotManager = qnats.NewSnapshotManager(core)
+		if store.StoreConnector == nil {
+			store.StoreConnector = NewMultiConnector()
+		}
 
-		store.ModifiableNotificationConsumer = qnats.NewNotificationConsumer(core)
-		store.ModifiableNotificationPublisher = qnats.NewNotificationPublisher(core)
+		if connector, ok := store.StoreConnector.(MultiConnector); ok {
+			connector.AddConnector(qnats.NewConnector(core))
+		} else {
+			store.StoreConnector = qnats.NewConnector(core)
+		}
+
+		store.StoreConnector = qnats.NewConnector(core)
+		store.StoreInteractor = qnats.NewStoreInteractor(core)
+		store.StoreNotifier = qnats.NewStoreNotifier(core)
 	}
 }
 
-func PersistOverNats(address string) ConfigFn {
-	return func(store *Store) {
+func PersistOverNats(address string) qdata.StoreOpts {
+	return func(store *qdata.Store) {
 		core := qnats.NewCore(qnats.NatsConfig{Address: address})
-		core.SetAuthProvider(store.AuthProvider)
 
-		store.MultiConnector.AddConnector(qnats.NewConnector(core))
-		store.ModifiableSchemaManager = qnats.NewSchemaManager(core)
-		store.ModifiableEntityManager = qnats.NewEntityManager(core)
-		store.ModifiableFieldOperator = qnats.NewFieldOperator(core)
-		store.ModifiableSnapshotManager = qnats.NewSnapshotManager(core)
+		if store.StoreConnector == nil {
+			store.StoreConnector = NewMultiConnector()
+		}
+
+		if connector, ok := store.StoreConnector.(MultiConnector); ok {
+			connector.AddConnector(qnats.NewConnector(core))
+		} else {
+			store.StoreConnector = qnats.NewConnector(core)
+		}
+
+		store.StoreInteractor = qnats.NewStoreInteractor(core)
 	}
 }
 
-func NotifyOverNats(address string) ConfigFn {
-	return func(store *Store) {
+func NotifyOverNats(address string) qdata.StoreOpts {
+	return func(store *qdata.Store) {
 		core := qnats.NewCore(qnats.NatsConfig{Address: address})
-		core.SetAuthProvider(store.AuthProvider)
 
-		store.MultiConnector.AddConnector(qnats.NewConnector(core))
-		store.ModifiableNotificationConsumer = qnats.NewNotificationConsumer(core)
-		store.ModifiableNotificationPublisher = qnats.NewNotificationPublisher(core)
+		if store.StoreConnector == nil {
+			store.StoreConnector = NewMultiConnector()
+		}
+
+		if connector, ok := store.StoreConnector.(MultiConnector); ok {
+			connector.AddConnector(qnats.NewConnector(core))
+		} else {
+			store.StoreConnector = qnats.NewConnector(core)
+		}
+
+		store.StoreNotifier = qnats.NewStoreNotifier(core)
 	}
 }

@@ -21,7 +21,7 @@ type PostgresStoreInteractor struct {
 	clientId     *qdata.EntityId
 }
 
-func NewPostgresStoreInteractor(core PostgresCore) *PostgresStoreInteractor {
+func NewStoreInteractor(core PostgresCore) *PostgresStoreInteractor {
 	return &PostgresStoreInteractor{
 		core:         core,
 		publisherSig: qss.New[qdata.PublishNotificationArgs](),

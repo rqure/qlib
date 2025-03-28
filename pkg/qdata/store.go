@@ -143,8 +143,22 @@ type AuthProvider interface {
 	AuthClient(ctx context.Context) qauth.Client
 }
 
+type StoreOpts func(*Store)
+
 type Store struct {
 	StoreConnector
 	StoreInteractor
 	StoreNotifier
+}
+
+func (me *Store) Init(opts ...StoreOpts) *Store {
+	return me.ApplyOpts(opts...)
+}
+
+func (me *Store) ApplyOpts(opts ...StoreOpts) *Store {
+	for _, opt := range opts {
+		opt(me)
+	}
+
+	return me
 }

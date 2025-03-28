@@ -9,16 +9,12 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
-type AuthProvider interface {
-	qdata.AuthProvider
-}
-
 type authProvider struct {
 	core   qauth.Core
 	client qauth.Client
 }
 
-func NewAuthProvider() AuthProvider {
+func NewAuthProvider() qdata.AuthProvider {
 	return &authProvider{
 		core: qauth.NewCore(),
 	}
