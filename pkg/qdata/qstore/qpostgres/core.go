@@ -48,6 +48,11 @@ func (me *postgresCore) GetConfig() PostgresConfig {
 }
 
 func (me *postgresCore) WithTx(ctx context.Context, fn func(context.Context, pgx.Tx)) {
+	if me.pool == nil {
+		qlog.Error("Postgres pool is not initialized")
+		return
+	}
+
 	if me.tx == nil {
 		tx, err := me.pool.Begin(ctx)
 		if err != nil {

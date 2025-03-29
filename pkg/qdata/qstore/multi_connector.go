@@ -58,13 +58,15 @@ func (me *multiConnectorImpl) IsConnected() bool {
 }
 
 func (me *multiConnectorImpl) CheckConnection(ctx context.Context) bool {
+	connected := true
+
 	for _, connector := range me.connectors {
 		if !connector.CheckConnection(ctx) {
-			return false
+			connected = false
 		}
 	}
 
-	return true
+	return connected
 }
 
 func (me *multiConnectorImpl) Connected() qss.Signal[qdata.ConnectedArgs] {

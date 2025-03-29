@@ -2,8 +2,6 @@ package qpostgres
 
 import (
 	"context"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,15 +16,7 @@ type PostgresConnector struct {
 	connected    qss.Signal[qdata.ConnectedArgs]
 	disconnected qss.Signal[qdata.DisconnectedArgs]
 
-	healthCheckCtx    context.Context
-	healthCheckCancel context.CancelFunc
-	healthCheckMu     sync.Mutex
-
-	// Use atomic operations for connection state
-	isConnected atomic.Bool
-
-	// Protect connection operations
-	connMu sync.Mutex
+	isConnected bool
 }
 
 func NewConnector(core PostgresCore) qdata.StoreConnector {
@@ -37,126 +27,76 @@ func NewConnector(core PostgresCore) qdata.StoreConnector {
 	}
 }
 
-func (me *PostgresConnector) startHealthCheck() {
-	me.healthCheckMu.Lock()
-	defer me.healthCheckMu.Unlock()
-
-	if me.healthCheckCtx != nil {
+func (me *PostgresConnector) setConnected(ctx context.Context, connected bool, err error) {
+	if connected == me.isConnected {
 		return
 	}
 
-	me.healthCheckCtx, me.healthCheckCancel = context.WithCancel(context.Background())
-	go me.healthCheckWorker(me.healthCheckCtx)
-}
+	me.isConnected = connected
 
-func (me *PostgresConnector) stopHealthCheck() {
-	me.healthCheckMu.Lock()
-	defer me.healthCheckMu.Unlock()
-
-	if me.healthCheckCancel != nil {
-		me.healthCheckCancel()
-		me.healthCheckCtx = nil
-		me.healthCheckCancel = nil
-	}
-}
-
-func (me *PostgresConnector) setConnected(ctx context.Context, connected bool, err error) {
-	wasConnected := me.isConnected.Swap(connected)
-	if wasConnected != connected {
-		if connected {
-			me.connected.Emit(qss.Void)
-		} else {
-			me.disconnected.Emit(err)
-		}
+	if connected {
+		me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+	} else {
+		me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx, Err: err})
 	}
 }
 
 func (me *PostgresConnector) closePool() {
-	me.connMu.Lock()
-	defer me.connMu.Unlock()
-
 	if me.core.GetPool() != nil {
 		me.core.GetPool().Close()
 		me.core.SetPool(nil)
-	}
-	me.setConnected(false, nil)
-}
-
-func (me *PostgresConnector) healthCheckWorker(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			me.connMu.Lock()
-			pool := me.core.GetPool()
-			me.connMu.Unlock()
-
-			if pool != nil {
-				ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-				defer cancel()
-
-				if err := pool.Ping(ctx); err != nil {
-					me.stopHealthCheck()
-					me.closePool()
-					me.setConnected(false, err)
-					return
-				}
-				me.setConnected(true, nil)
-			}
-		}
 	}
 }
 
 func (me *PostgresConnector) Connect(ctx context.Context) {
-	me.connMu.Lock()
-	defer me.connMu.Unlock()
-
-	if me.IsConnected(ctx) {
+	if me.IsConnected() {
 		return
 	}
 
-	if me.core.GetPool() != nil {
-		me.core.GetPool().Close()
-		me.core.SetPool(nil)
-	}
+	me.closePool()
 
 	config, err := pgxpool.ParseConfig(me.core.GetConfig().ConnectionString)
 	if err != nil {
 		qlog.Error("Failed to parse connection string: %v", err)
-		me.setConnected(false, err)
+		me.setConnected(ctx, false, err)
 		return
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		qlog.Error("Failed to create connection pool: %v", err)
-		me.setConnected(false, err)
+		me.setConnected(ctx, false, err)
 		return
 	}
 
 	me.core.SetPool(pool)
-
-	me.startHealthCheck()
 }
 
 func (me *PostgresConnector) Disconnect(ctx context.Context) {
-	me.connMu.Lock()
-	defer me.connMu.Unlock()
-
-	me.stopHealthCheck()
-	if me.core.GetPool() != nil {
-		me.core.GetPool().Close()
-		me.core.SetPool(nil)
-	}
-	me.setConnected(false, nil)
+	me.closePool()
+	me.setConnected(ctx, false, nil)
 }
 
-func (me *PostgresConnector) IsConnected(ctx context.Context) bool {
-	return me.isConnected.Load()
+func (me *PostgresConnector) IsConnected() bool {
+	return me.isConnected
+}
+
+func (me *PostgresConnector) CheckConnection(ctx context.Context) bool {
+	pool := me.core.GetPool()
+
+	if pool != nil {
+		ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+		defer cancel()
+
+		if err := pool.Ping(ctx); err != nil {
+			me.closePool()
+			me.setConnected(ctx, false, err)
+		} else {
+			me.setConnected(ctx, true, nil)
+		}
+	}
+
+	return me.IsConnected()
 }
 
 func (me *PostgresConnector) Connected() qss.Signal[qdata.ConnectedArgs] {
