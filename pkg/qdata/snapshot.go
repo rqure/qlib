@@ -1,5 +1,7 @@
 package qdata
 
+import "github.com/rqure/qlib/pkg/qprotobufs"
+
 type Snapshot struct {
 	Entities []*Entity
 	Fields   []*Field
@@ -40,4 +42,44 @@ func (me *Snapshot) ApplyOpts(opts ...SnapshotOpts) *Snapshot {
 	}
 
 	return me
+}
+
+func (me *Snapshot) FromSnapshotPb(pb *qprotobufs.DatabaseSnapshot) *Snapshot {
+	me.Init()
+
+	for _, entity := range pb.Entities {
+		me.Entities = append(me.Entities, new(Entity).FromEntityPb(entity))
+	}
+
+	for _, field := range pb.Fields {
+		me.Fields = append(me.Fields, new(Field).FromFieldPb(field))
+	}
+
+	for _, schema := range pb.EntitySchemas {
+		me.Schemas = append(me.Schemas, new(EntitySchema).FromEntitySchemaPb(schema))
+	}
+
+	return me
+}
+
+func (me *Snapshot) AsSnapshotPb() *qprotobufs.DatabaseSnapshot {
+	pb := &qprotobufs.DatabaseSnapshot{
+		Entities:      make([]*qprotobufs.DatabaseEntity, len(me.Entities)),
+		Fields:        make([]*qprotobufs.DatabaseField, len(me.Fields)),
+		EntitySchemas: make([]*qprotobufs.DatabaseEntitySchema, len(me.Schemas)),
+	}
+
+	for i, entity := range me.Entities {
+		pb.Entities[i] = entity.AsEntityPb()
+	}
+
+	for i, field := range me.Fields {
+		pb.Fields[i] = field.AsFieldPb()
+	}
+
+	for i, schema := range me.Schemas {
+		pb.EntitySchemas[i] = schema.AsEntitySchemaPb()
+	}
+
+	return pb
 }

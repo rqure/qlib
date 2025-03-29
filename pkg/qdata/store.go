@@ -130,6 +130,10 @@ type StoreInteractor interface {
 
 	Read(context.Context, ...*Request)
 	Write(context.Context, ...*Request)
+
+	InitializeSchema(ctx context.Context)
+	CreateSnapshot(ctx context.Context) *Snapshot
+	RestoreSnapshot(ctx context.Context, ss *Snapshot)
 }
 
 type FieldAuthorizerKeyType string

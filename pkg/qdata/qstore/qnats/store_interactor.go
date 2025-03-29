@@ -412,3 +412,52 @@ func (me *NatsStoreInteractor) SetFieldSchema(ctx context.Context, entityType qd
 func (me *NatsStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
 	return me.publishSig
 }
+
+func (me *NatsStoreInteractor) InitializeSchema(ctx context.Context) {
+	// No-op for NATS
+}
+
+func (me *NatsStoreInteractor) CreateSnapshot(ctx context.Context) *qdata.Snapshot {
+	msg := &qprotobufs.ApiConfigCreateSnapshotRequest{}
+
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+	if err != nil {
+		qlog.Error("Failed to create snapshot: %v", err)
+		return nil
+	}
+
+	var response qprotobufs.ApiConfigCreateSnapshotResponse
+	if err := resp.Payload.UnmarshalTo(&response); err != nil {
+		qlog.Error("Failed to create snapshot: error while unmarshalling response: %v", err)
+		return nil
+	}
+
+	if response.Status != qprotobufs.ApiConfigCreateSnapshotResponse_SUCCESS {
+		qlog.Error("Failed to create snapshot: response returned an unsuccessful status: %v", response.Status)
+		return nil
+	}
+
+	return new(qdata.Snapshot).FromSnapshotPb(response.Snapshot)
+}
+
+func (me *NatsStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) {
+	msg := &qprotobufs.ApiConfigRestoreSnapshotRequest{
+		Snapshot: ss.AsSnapshotPb(),
+	}
+
+	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
+	if err != nil {
+		qlog.Error("Failed to restore snapshot: %v", err)
+		return
+	}
+
+	var response qprotobufs.ApiConfigRestoreSnapshotResponse
+	if err := resp.Payload.UnmarshalTo(&response); err != nil {
+		qlog.Error("Failed to restore snapshot: error while unmarshalling response: %v", err)
+		return
+	}
+
+	if response.Status != qprotobufs.ApiConfigRestoreSnapshotResponse_SUCCESS {
+		qlog.Error("Failed to restore snapshot: response returned an unsuccessful status: %v", response.Status)
+	}
+}

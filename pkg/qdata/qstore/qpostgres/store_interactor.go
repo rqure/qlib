@@ -663,7 +663,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 	})
 }
 
-func (me *PostgresStoreInteractor) InitializeIfRequired(ctx context.Context) {
+func (me *PostgresStoreInteractor) InitializeSchema(ctx context.Context) {
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Check if core tables exist
 		var exists bool

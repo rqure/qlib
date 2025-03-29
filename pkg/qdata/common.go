@@ -132,6 +132,14 @@ func (me *WriteTime) AsTimestampPb() *qprotobufs.Timestamp {
 	}
 }
 
+func (me *WriteTime) AsTimestampPb2() *timestamppb.Timestamp {
+	if me == nil {
+		return nil
+	}
+
+	return timestamppb.New(time.Time(*me))
+}
+
 func (me *WriteTime) FromTime(t time.Time) *WriteTime {
 	if me == nil {
 		return nil
@@ -331,6 +339,13 @@ func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
 	me.EntityType = EntityType(pb.Type)
 
 	return me
+}
+
+func (me *Entity) AsEntityPb() *qprotobufs.DatabaseEntity {
+	return &qprotobufs.DatabaseEntity{
+		Id:   string(me.EntityId),
+		Type: string(me.EntityType),
+	}
 }
 
 func (me *Entity) Field(fieldType FieldType, opts ...FieldOpts) *Field {
@@ -613,6 +628,16 @@ func (me *Field) ApplyOpts(opts ...FieldOpts) *Field {
 	}
 
 	return me
+}
+
+func (me *Field) AsFieldPb() *qprotobufs.DatabaseField {
+	return &qprotobufs.DatabaseField{
+		Id:        string(me.EntityId),
+		Name:      string(me.FieldType),
+		Value:     me.Value.AsAnyPb(),
+		WriteTime: me.WriteTime.AsTimestampPb2(),
+		WriterId:  me.WriterId.AsString(),
+	}
 }
 
 func (me *FieldSchema) Init(entityType EntityType, fieldType FieldType, valueType ValueType, opts ...FieldSchemaOpts) *FieldSchema {
