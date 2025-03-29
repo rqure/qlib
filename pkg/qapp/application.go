@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rqure/qlib/pkg/qauth"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
@@ -16,48 +18,58 @@ type Application interface {
 	Execute()
 }
 
-type HandleKeyType string
-
-const HandleKey HandleKeyType = "handle"
-
-type Handle interface {
-	DoInMainThread(func(context.Context))
-	GetWg() *sync.WaitGroup
-}
-
 type Worker interface {
 	Deinit(context.Context)
 	Init(context.Context)
 	DoWork(context.Context)
 }
 
-type ApplicationImpl struct {
+type application struct {
 	workers []Worker
 	tasks   chan func(context.Context)
 	wg      *sync.WaitGroup
 	ticker  *time.Ticker
+
+	ctxKVs map[any]any
 }
 
-func NewApplication(name string) Application {
-	a := &ApplicationImpl{
+type ApplicationOpts func(map[any]any)
+
+func NewApplication(name string, opts ...ApplicationOpts) Application {
+	a := &application{
 		tasks:  make(chan func(context.Context), 1000),
 		wg:     &sync.WaitGroup{},
-		ticker: time.NewTicker(GetTickRate()),
+		ctxKVs: make(map[any]any),
 	}
 
-	SetName(name)
+	a.ctxKVs[qcontext.KeyAppName] = name
+	a.ctxKVs[qcontext.KeyAppTickRate] = 100 * time.Millisecond
+	a.ctxKVs[qcontext.KeyAppHandle] = a
+	a.ctxKVs[qcontext.KeyClientProvider] = qauth.NewClientProvider()
+
+	a.ApplyOpts(opts...)
+
+	a.ticker = time.NewTicker(a.ctxKVs[qcontext.KeyAppTickRate].(time.Duration))
 
 	return a
 }
 
-func (a *ApplicationImpl) AddWorker(w Worker) {
+func (a *application) ApplyOpts(opts ...ApplicationOpts) Application {
+	for _, opt := range opts {
+		opt(a.ctxKVs)
+	}
+
+	return a
+}
+
+func (a *application) AddWorker(w Worker) {
 	a.workers = append(a.workers, w)
 }
 
-func (a *ApplicationImpl) Init() {
+func (a *application) Init() {
 	qlog.Info("Initializing workers")
 
-	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), HandleKey, a), 10*time.Second)
+	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), a.ctxKVs), 10*time.Second)
 	defer cancel()
 
 	for _, w := range a.workers {
@@ -69,10 +81,10 @@ func (a *ApplicationImpl) Init() {
 	}
 }
 
-func (a *ApplicationImpl) Deinit() {
+func (a *application) Deinit() {
 	qlog.Info("Deinitializing workers")
 
-	ctx, cancel := context.WithTimeout(context.WithValue(context.Background(), HandleKey, a), 10*time.Second)
+	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), a.ctxKVs), 10*time.Second)
 	defer cancel()
 
 	a.ticker.Stop()
@@ -95,13 +107,21 @@ func (a *ApplicationImpl) Deinit() {
 	}
 }
 
-func (a *ApplicationImpl) Execute() {
+func makeContextWithKV(ctx context.Context, kv map[any]any) context.Context {
+	for k, v := range kv {
+		ctx = context.WithValue(ctx, k, v)
+	}
+
+	return ctx
+}
+
+func (a *application) Execute() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
 	defer close(interrupt)
 
-	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), HandleKey, a))
+	ctx, cancel := context.WithCancel(makeContextWithKV(context.Background(), a.ctxKVs))
 	defer cancel()
 
 	go func() {
@@ -131,14 +151,10 @@ func (a *ApplicationImpl) Execute() {
 	}
 }
 
-func (a *ApplicationImpl) DoInMainThread(t func(context.Context)) {
+func (a *application) DoInMainThread(t func(context.Context)) {
 	go func() { a.tasks <- t }()
 }
 
-func (a *ApplicationImpl) GetWg() *sync.WaitGroup {
+func (a *application) GetWg() *sync.WaitGroup {
 	return a.wg
-}
-
-func GetHandle(ctx context.Context) Handle {
-	return ctx.Value(HandleKey).(Handle)
 }

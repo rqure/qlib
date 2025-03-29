@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/qapp"
+	"github.com/rqure/qlib/pkg/qauth"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qnotify"
-	"github.com/rqure/qlib/pkg/qdata/qquery"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
@@ -48,7 +49,7 @@ type storeWorker struct {
 	sessionRefreshTimer    *time.Ticker
 	connectionAttemptTimer *time.Ticker
 
-	handle qapp.Handle
+	handle qcontext.Handle
 }
 
 func NewStore(store qdata.Store) Store {
@@ -81,7 +82,7 @@ func (me *storeWorker) SchemaUpdated() qss.Signal[context.Context] {
 }
 
 func (me *storeWorker) Init(ctx context.Context) {
-	me.handle = qapp.GetHandle(ctx)
+	me.handle = qcontext.GetHandle(ctx)
 	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
 	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
 
@@ -121,7 +122,8 @@ func (me *storeWorker) tryConnect(ctx context.Context) {
 }
 
 func (me *storeWorker) tryRefreshSession(ctx context.Context) {
-	client := me.store.AuthClient(ctx)
+	clientProvider := qcontext.GetClientProvider[qauth.Client](ctx)
+	client := clientProvider.Client(ctx)
 
 	if client == nil {
 		me.setAuthReadiness(ctx, false, "Failed to get auth client")
@@ -172,14 +174,14 @@ func (me *storeWorker) IsConnected() bool {
 }
 
 func (me *storeWorker) onLogLevelChanged(ctx context.Context, n qdata.Notification) {
-	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
+	level := qlog.Level(n.GetCurrent().Value.GetInt())
 	qlog.SetLevel(level)
 
 	qlog.Info("Log level changed to [%s]", level.String())
 }
 
 func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notification) {
-	level := qlog.Level(n.GetCurrent().GetValue().GetInt())
+	level := qlog.Level(n.GetCurrent().Value.GetInt())
 	qlog.SetLibLevel(level)
 
 	qlog.Info("QLib log level changed to [%s]", level.String())
@@ -203,39 +205,41 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 			ctx,
 			qnotify.NewConfig().
 				SetEntityType("Root").
-				SetFieldName("SchemaUpdateTrigger"),
+				SetFieldType("SchemaUpdateTrigger"),
 			qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
 				me.schemaUpdated.Emit(ctx)
 			})),
 	)
 
-	clients := qquery.New(me.store).
-		Select("LogLevel", "QLibLogLevel").
-		From("Client").
-		Where("Name").Equals(qapp.GetName()).
-		Execute(ctx)
+	appName := qcontext.GetAppName(ctx)
+	clientIterator := me.store.PrepareQuery(`
+		SELECT LogLevel, QLibLogLevel
+		FROM Client
+		WHERE Name = %q`,
+		appName)
 
-	for _, client := range clients {
-		logLevel := client.GetField("LogLevel").GetChoice().Index() + 1
+	for clientIterator.Next(ctx) {
+		client := clientIterator.Get()
+		logLevel := client.Field("LogLevel").Value.GetChoice() + 1
 		qlog.SetLevel(qlog.Level(logLevel))
 
 		me.notificationTokens = append(me.notificationTokens, me.store.Notify(
 			ctx,
 			qnotify.NewConfig().
-				SetEntityId(client.GetId()).
-				SetFieldName("LogLevel").
+				SetEntityId(client.EntityId).
+				SetFieldType("LogLevel").
 				SetNotifyOnChange(true),
 			qnotify.NewCallback(me.onLogLevelChanged),
 		))
 
-		qlibLogLevel := client.GetField("QLibLogLevel").GetChoice().Index() + 1
+		qlibLogLevel := client.Field("QLibLogLevel").Value.GetChoice() + 1
 		qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
 		me.notificationTokens = append(me.notificationTokens, me.store.Notify(
 			ctx,
 			qnotify.NewConfig().
-				SetEntityId(client.GetId()).
-				SetFieldName("QLibLogLevel").
+				SetEntityId(client.EntityId).
+				SetFieldType("QLibLogLevel").
 				SetNotifyOnChange(true),
 			qnotify.NewCallback(me.onQLibLogLevelChanged),
 		))

@@ -3,17 +3,30 @@ package qdata
 import (
 	"context"
 
-	"github.com/rqure/qlib/pkg/qauth"
 	"github.com/rqure/qlib/pkg/qss"
 )
+
+type ConnectedArgs struct {
+	Ctx context.Context
+}
+
+type DisconnectedArgs struct {
+	Ctx context.Context
+	Err error
+}
 
 type StoreConnector interface {
 	Connect(context.Context)
 	Disconnect(context.Context)
-	IsConnected(context.Context) bool
+	IsConnected() bool
 
-	Connected() qss.Signal[qss.VoidType]
-	Disconnected() qss.Signal[error]
+	// Checks if the connection is alive
+	// This may cause the IsConnected() state to change
+	// and emit the Connected/Disconnected signal
+	CheckConnection(context.Context) bool
+
+	Connected() qss.Signal[ConnectedArgs]
+	Disconnected() qss.Signal[DisconnectedArgs]
 }
 
 type PublishNotificationArgs struct {
@@ -132,15 +145,10 @@ type StoreNotifier interface {
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) NotificationToken
 	Unnotify(ctx context.Context, subscriptionId string)
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
-	Consumed() qss.Signal[func(context.Context)]
 }
 
 type IndirectionResolver interface {
 	Resolve(context.Context, EntityId, FieldType) (EntityId, FieldType)
-}
-
-type AuthProvider interface {
-	AuthClient(ctx context.Context) qauth.Client
 }
 
 type StoreOpts func(*Store)

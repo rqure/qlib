@@ -15,8 +15,8 @@ import (
 type PostgresConnector struct {
 	core PostgresCore
 
-	connected    qss.Signal[qss.VoidType]
-	disconnected qss.Signal[error]
+	connected    qss.Signal[qdata.ConnectedArgs]
+	disconnected qss.Signal[qdata.DisconnectedArgs]
 
 	healthCheckCtx    context.Context
 	healthCheckCancel context.CancelFunc
@@ -32,8 +32,8 @@ type PostgresConnector struct {
 func NewConnector(core PostgresCore) qdata.StoreConnector {
 	return &PostgresConnector{
 		core:         core,
-		connected:    qss.New[qss.VoidType](),
-		disconnected: qss.New[error](),
+		connected:    qss.New[qdata.ConnectedArgs](),
+		disconnected: qss.New[qdata.DisconnectedArgs](),
 	}
 }
 
@@ -60,7 +60,7 @@ func (me *PostgresConnector) stopHealthCheck() {
 	}
 }
 
-func (me *PostgresConnector) setConnected(connected bool, err error) {
+func (me *PostgresConnector) setConnected(ctx context.Context, connected bool, err error) {
 	wasConnected := me.isConnected.Swap(connected)
 	if wasConnected != connected {
 		if connected {
@@ -159,10 +159,10 @@ func (me *PostgresConnector) IsConnected(ctx context.Context) bool {
 	return me.isConnected.Load()
 }
 
-func (me *PostgresConnector) Connected() qss.Signal[qss.VoidType] {
+func (me *PostgresConnector) Connected() qss.Signal[qdata.ConnectedArgs] {
 	return me.connected
 }
 
-func (me *PostgresConnector) Disconnected() qss.Signal[error] {
+func (me *PostgresConnector) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
 	return me.disconnected
 }

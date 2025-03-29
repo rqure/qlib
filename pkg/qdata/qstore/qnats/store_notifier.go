@@ -3,25 +3,23 @@ package qnats
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/rqure/qlib/pkg/qapp"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qnotify"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
-	"github.com/rqure/qlib/pkg/qss"
 	"google.golang.org/protobuf/proto"
 )
 
 type NatsStoreNotifier struct {
 	core            NatsCore
-	mu              sync.RWMutex
+	handle          qcontext.Handle
+	appName         string
 	callbacks       map[string][]qdata.NotificationCallback
 	keepAlive       *time.Ticker
-	consumed        qss.Signal[func(context.Context)]
 	cancelKeepAlive context.CancelFunc
 }
 
@@ -30,7 +28,6 @@ func NewStoreNotifier(core NatsCore) qdata.StoreNotifier {
 		core:      core,
 		callbacks: map[string][]qdata.NotificationCallback{},
 		keepAlive: time.NewTicker(30 * time.Second),
-		consumed:  qss.New[func(context.Context)](),
 	}
 
 	// Subscribe to connection events
@@ -40,14 +37,17 @@ func NewStoreNotifier(core NatsCore) qdata.StoreNotifier {
 	return consumer
 }
 
-func (me *NatsStoreNotifier) onConnected(qss.VoidType) {
+func (me *NatsStoreNotifier) onConnected(args qdata.ConnectedArgs) {
+	me.appName = qcontext.GetAppName(args.Ctx)
+	me.handle = qcontext.GetHandle(args.Ctx)
+
 	// Subscribe to non-distributed notifications (all instances receive these)
-	groupSubject := me.core.GetKeyGenerator().GetNotificationGroupSubject(qapp.GetName())
+	groupSubject := me.core.GetKeyGenerator().GetNotificationGroupSubject(me.appName)
 	me.core.Subscribe(groupSubject, me.handleNotification)
 
 	// Subscribe to distributed notifications (only one instance receives each notification)
-	distributedSubject := me.core.GetKeyGenerator().GetDistributedNotificationGroupSubject(qapp.GetName())
-	me.core.QueueSubscribe(distributedSubject, me.handleNotification)
+	distributedSubject := me.core.GetKeyGenerator().GetDistributedNotificationGroupSubject(me.appName)
+	me.core.QueueSubscribe(distributedSubject, me.appName, me.handleNotification)
 
 	// Start keepAliveTask
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,7 +55,7 @@ func (me *NatsStoreNotifier) onConnected(qss.VoidType) {
 	go me.keepAliveTask(ctx)
 }
 
-func (me *NatsStoreNotifier) onDisconnected(err error) {
+func (me *NatsStoreNotifier) onDisconnected(args qdata.DisconnectedArgs) {
 	// Stop keepAliveTask
 	if me.cancelKeepAlive != nil {
 		me.cancelKeepAlive()
@@ -77,7 +77,15 @@ func (me *NatsStoreNotifier) handleNotification(msg *nats.Msg) {
 	}
 
 	notif := qnotify.FromPb(&notifPb)
-	me.consumed.Emit(me.generateInvokeCallbacksFn(notif))
+	me.handle.DoInMainThread(func(ctx context.Context) {
+		callbacks, ok := me.callbacks[notif.GetToken()]
+
+		if ok {
+			for _, cb := range callbacks {
+				cb.Fn(ctx, notif)
+			}
+		}
+	})
 }
 
 func (me *NatsStoreNotifier) keepAliveTask(ctx context.Context) {
@@ -86,19 +94,19 @@ func (me *NatsStoreNotifier) keepAliveTask(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-me.keepAlive.C:
-			me.mu.RLock()
-			// Resend all registered notifications to keep them alive
-			for token := range me.callbacks {
-				me.sendNotify(ctx, qnotify.FromToken(token))
-			}
-			me.mu.RUnlock()
+			me.handle.DoInMainThread(func(ctx context.Context) {
+				for token := range me.callbacks {
+					me.sendNotify(ctx, qnotify.FromToken(token))
+				}
+			})
 		}
 	}
 }
 
 func (me *NatsStoreNotifier) sendNotify(ctx context.Context, config qdata.NotificationConfig) error {
 	if config.GetServiceId() == "" {
-		config.SetServiceId(qapp.GetName())
+		appName := qcontext.GetAppName(ctx)
+		config.SetServiceId(appName)
 	}
 
 	msg := &qprotobufs.ApiRuntimeRegisterNotificationRequest{
@@ -122,26 +130,25 @@ func (me *NatsStoreNotifier) sendNotify(ctx context.Context, config qdata.Notifi
 	return nil
 }
 
+// Note: Callers are expected to call this method from the main thread
 func (me *NatsStoreNotifier) Notify(ctx context.Context, config qdata.NotificationConfig, cb qdata.NotificationCallback) qdata.NotificationToken {
 	tokenId := config.GetToken()
 	var err error
 
-	me.mu.Lock()
 	if me.callbacks[tokenId] == nil {
 		err = me.sendNotify(ctx, config)
 	}
 
 	if err == nil {
 		me.callbacks[tokenId] = append(me.callbacks[tokenId], cb)
-		me.mu.Unlock()
 		return qnotify.NewToken(tokenId, me, cb)
 	}
-	me.mu.Unlock()
 
 	qlog.Error("notification registration failed: %v", err)
 	return qnotify.NewToken("", me, nil)
 }
 
+// Note: Callers are expected to call this method from the main thread
 func (me *NatsStoreNotifier) Unnotify(ctx context.Context, token string) {
 	msg := &qprotobufs.ApiRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
@@ -151,15 +158,12 @@ func (me *NatsStoreNotifier) Unnotify(ctx context.Context, token string) {
 	if err != nil {
 		qlog.Error("Failed to unregister notification: %v", err)
 	}
-	me.mu.Lock()
 	delete(me.callbacks, token)
-	me.mu.Unlock()
 }
 
+// Note: Callers are expected to call this method from the main thread
 func (me *NatsStoreNotifier) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) {
-	me.mu.Lock()
 	if me.callbacks[token] == nil {
-		me.mu.Unlock()
 		return
 	}
 
@@ -171,31 +175,9 @@ func (me *NatsStoreNotifier) UnnotifyCallback(ctx context.Context, token string,
 	}
 
 	if len(callbacks) == 0 {
-		me.mu.Unlock()
 		me.Unnotify(ctx, token)
 		return
 	}
 
 	me.callbacks[token] = callbacks
-	me.mu.Unlock()
-}
-
-func (me *NatsStoreNotifier) Consumed() qss.Signal[func(context.Context)] {
-	return me.consumed
-}
-
-func (me *NatsStoreNotifier) generateInvokeCallbacksFn(notif qdata.Notification) func(context.Context) {
-	return func(ctx context.Context) {
-		callbacksCopy := []qdata.NotificationCallback{}
-		me.mu.RLock()
-		callbacks, ok := me.callbacks[notif.GetToken()]
-		if ok {
-			callbacksCopy = append(callbacksCopy, callbacks...)
-		}
-		me.mu.RUnlock()
-
-		for _, cb := range callbacksCopy {
-			cb.Fn(ctx, notif)
-		}
-	}
 }

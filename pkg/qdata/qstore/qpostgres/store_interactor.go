@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/rqure/qlib/pkg/qapp"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
@@ -554,8 +554,9 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			if req.WriterId == nil || req.WriterId.IsEmpty() {
 				wr := new(qdata.EntityId).FromString("")
 
-				if me.clientId == nil && qapp.GetName() != "" {
-					iterator := me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", qapp.GetName())
+				appName := qcontext.GetAppName(ctx)
+				if me.clientId == nil && appName != "" {
+					iterator := me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", appName)
 
 					for iterator.Next(ctx) {
 						me.clientId = &iterator.Get().EntityId

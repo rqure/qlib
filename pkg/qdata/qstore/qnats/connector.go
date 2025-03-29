@@ -10,15 +10,15 @@ import (
 type NatsConnector struct {
 	core NatsCore
 
-	connected    qss.Signal[qss.VoidType]
-	disconnected qss.Signal[error]
+	connected    qss.Signal[qdata.ConnectedArgs]
+	disconnected qss.Signal[qdata.DisconnectedArgs]
 }
 
 func NewConnector(core NatsCore) qdata.StoreConnector {
 	connector := &NatsConnector{
 		core:         core,
-		connected:    qss.New[qss.VoidType](),
-		disconnected: qss.New[error](),
+		connected:    qss.New[qdata.ConnectedArgs](),
+		disconnected: qss.New[qdata.DisconnectedArgs](),
 	}
 
 	core.Connected().Connect(connector.onConnected)
@@ -27,34 +27,38 @@ func NewConnector(core NatsCore) qdata.StoreConnector {
 	return connector
 }
 
-func (c *NatsConnector) Connect(ctx context.Context) {
-	if c.IsConnected(ctx) {
+func (me *NatsConnector) Connect(ctx context.Context) {
+	if me.IsConnected() {
 		return
 	}
 
-	c.core.Connect(ctx)
+	me.core.Connect(ctx)
 }
 
-func (c *NatsConnector) Disconnect(ctx context.Context) {
-	c.core.Disconnect(ctx)
+func (me *NatsConnector) Disconnect(ctx context.Context) {
+	me.core.Disconnect(ctx)
 }
 
-func (c *NatsConnector) IsConnected(ctx context.Context) bool {
-	return c.core.IsConnected(ctx)
+func (me *NatsConnector) IsConnected() bool {
+	return me.core.IsConnected()
 }
 
-func (c *NatsConnector) onConnected(qss.VoidType) {
-	c.connected.Emit(qss.Void)
+func (me *NatsConnector) CheckConnection(ctx context.Context) bool {
+	return me.core.CheckConnection(ctx)
 }
 
-func (c *NatsConnector) onDisconnected(err error) {
-	c.disconnected.Emit(err)
+func (me *NatsConnector) onConnected(args qdata.ConnectedArgs) {
+	me.connected.Emit(args)
 }
 
-func (c *NatsConnector) Connected() qss.Signal[qss.VoidType] {
-	return c.connected
+func (me *NatsConnector) onDisconnected(args qdata.DisconnectedArgs) {
+	me.disconnected.Emit(args)
 }
 
-func (c *NatsConnector) Disconnected() qss.Signal[error] {
-	return c.disconnected
+func (me *NatsConnector) Connected() qss.Signal[qdata.ConnectedArgs] {
+	return me.connected
+}
+
+func (me *NatsConnector) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return me.disconnected
 }

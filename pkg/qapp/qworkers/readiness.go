@@ -71,7 +71,7 @@ func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 
 type SchemaValidityCriteria interface {
 	ReadinessCriteria
-	RegisterEntityFields(entityType string, fields ...string) SchemaValidityCriteria
+	RegisterEntityFields(entityType qdata.EntityType, fields ...qdata.FieldType) SchemaValidityCriteria
 }
 
 type schemaValidityCriteria struct {
@@ -83,7 +83,7 @@ func (me *schemaValidityCriteria) IsReady() bool {
 	return me.isValid
 }
 
-func (me *schemaValidityCriteria) RegisterEntityFields(entityType string, fields ...string) SchemaValidityCriteria {
+func (me *schemaValidityCriteria) RegisterEntityFields(entityType qdata.EntityType, fields ...qdata.FieldType) SchemaValidityCriteria {
 	me.validator.RegisterEntityFields(entityType, fields...)
 	return me
 }

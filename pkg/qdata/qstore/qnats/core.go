@@ -3,10 +3,10 @@ package qnats
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	natsgo "github.com/nats-io/nats.go" // Changed import name to avoid conflict
-	"github.com/rqure/qlib/pkg/qapp"
+	"github.com/rqure/qlib/pkg/qauth"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
@@ -22,20 +22,22 @@ type NatsConfig struct {
 type NatsCore interface {
 	Connect(ctx context.Context)
 	Disconnect(ctx context.Context)
-	IsConnected(ctx context.Context) bool
+	IsConnected() bool
+	CheckConnection(ctx context.Context) bool
+
+	BeforeConnected() qss.Signal[qdata.ConnectedArgs]
+	Connected() qss.Signal[qdata.ConnectedArgs]
+	Disconnected() qss.Signal[qdata.DisconnectedArgs]
+
 	Publish(subject string, msg proto.Message) error
 	Request(ctx context.Context, subject string, msg proto.Message) (*qprotobufs.ApiMessage, error)
+
+	QueueSubscribe(subject, queue string, handler natsgo.MsgHandler)
 	Subscribe(subject string, handler natsgo.MsgHandler)
+
 	SetConfig(config NatsConfig)
 	GetConfig() NatsConfig
 	GetKeyGenerator() NatsKeyGenerator
-	QueueSubscribe(subject string, handler natsgo.MsgHandler)
-
-	SetAuthProvider(qdata.AuthProvider)
-
-	Connected() qss.Signal[qss.VoidType]
-	Disconnected() qss.Signal[error]
-	BeforeConnected() qss.Signal[qss.VoidType]
 }
 
 type natsCore struct {
@@ -43,81 +45,73 @@ type natsCore struct {
 	conn   *natsgo.Conn
 	subs   []*natsgo.Subscription
 	kg     NatsKeyGenerator
-	mu     sync.RWMutex
 
-	ap qdata.AuthProvider
+	isConnected bool
 
-	beforeConnected qss.Signal[qss.VoidType]
-	connected       qss.Signal[qss.VoidType]
-	disconnected    qss.Signal[error]
+	beforeConnected qss.Signal[qdata.ConnectedArgs]
+	connected       qss.Signal[qdata.ConnectedArgs]
+	disconnected    qss.Signal[qdata.DisconnectedArgs]
 }
 
 func NewCore(config NatsConfig) NatsCore {
 	return &natsCore{
 		config:          config,
 		kg:              NewKeyGenerator(),
-		connected:       qss.New[qss.VoidType](),
-		disconnected:    qss.New[error](),
-		beforeConnected: qss.New[qss.VoidType](),
+		connected:       qss.New[qdata.ConnectedArgs](),
+		disconnected:    qss.New[qdata.DisconnectedArgs](),
+		beforeConnected: qss.New[qdata.ConnectedArgs](),
 	}
 }
 
-func (me *natsCore) BeforeConnected() qss.Signal[qss.VoidType] {
+func (me *natsCore) BeforeConnected() qss.Signal[qdata.ConnectedArgs] {
 	return me.beforeConnected
 }
 
-func (c *natsCore) SetAuthProvider(sp qdata.AuthProvider) {
-	c.ap = sp
-}
-
-func (c *natsCore) Connect(ctx context.Context) {
-	c.Disconnect(ctx)
+func (me *natsCore) Connect(ctx context.Context) {
+	me.Disconnect(ctx)
 
 	opts := []natsgo.Option{
-		natsgo.MaxReconnects(-1),
+		natsgo.MaxReconnects(0),
 		natsgo.ConnectHandler(func(nc *natsgo.Conn) {
-			c.beforeConnected.Emit(qss.Void)
-			c.connected.Emit(qss.Void)
+			me.onConnected(ctx)
 		}),
 		natsgo.ReconnectHandler(func(nc *natsgo.Conn) {
-			c.cleanupSubscriptions()
-			c.beforeConnected.Emit(qss.Void)
-			c.connected.Emit(qss.Void)
+			me.onConnected(ctx)
 		}),
 		natsgo.DisconnectErrHandler(func(nc *natsgo.Conn, err error) {
-			c.disconnected.Emit(err)
+			me.onDisconnected(ctx, err)
 		}),
 	}
 
-	nc, err := natsgo.Connect(c.config.Address, opts...)
+	nc, err := natsgo.Connect(me.config.Address, opts...)
 	if err != nil {
 		qlog.Error("Failed to connect to NATS: %v", err)
 		return
 	}
 
-	c.mu.Lock()
-	c.conn = nc
-	c.mu.Unlock()
+	me.conn = nc
 }
 
-func (c *natsCore) Disconnect(ctx context.Context) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.conn != nil {
-		c.conn.Drain() // Drain allows in-flight messages to complete
-		c.conn.Close()
-		c.conn = nil
+func (me *natsCore) Disconnect(ctx context.Context) {
+	if me.conn != nil {
+		me.cleanupSubscriptions()
+		me.conn.Drain() // Drain allows in-flight messages to complete
+		me.conn.Close()
+		me.conn = nil
 	}
+
+	me.isConnected = false
 }
 
-func (c *natsCore) IsConnected(ctx context.Context) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.conn != nil && c.conn.IsConnected()
+func (me *natsCore) IsConnected() bool {
+	return me.isConnected
 }
 
-func (c *natsCore) Publish(subject string, msg proto.Message) error {
+func (me *natsCore) CheckConnection(ctx context.Context) bool {
+	return me.IsConnected()
+}
+
+func (me *natsCore) Publish(subject string, msg proto.Message) error {
 	apiMsg := &qprotobufs.ApiMessage{}
 	apiMsg.Header = &qprotobufs.ApiHeader{}
 	apiMsg.Payload, _ = anypb.New(msg)
@@ -127,14 +121,11 @@ func (c *natsCore) Publish(subject string, msg proto.Message) error {
 		return fmt.Errorf("failed to marshal message: %v", err)
 	}
 
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if c.conn == nil {
+	if me.conn == nil {
 		return fmt.Errorf("not connected")
 	}
 
-	return c.conn.Publish(subject, data)
+	return me.conn.Publish(subject, data)
 }
 
 func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Message) (*qprotobufs.ApiMessage, error) {
@@ -142,8 +133,9 @@ func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Messag
 	apiMsg.Header = &qprotobufs.ApiHeader{}
 	apiMsg.Payload, _ = anypb.New(msg)
 
-	if c.ap != nil {
-		client := c.ap.AuthClient(ctx)
+	clientProvider := qcontext.GetClientProvider[qauth.Client](ctx)
+	if clientProvider != nil {
+		client := clientProvider.Client(ctx)
 		if client != nil {
 			session := client.GetSession(ctx)
 			apiMsg.Header.AccessToken = session.AccessToken()
@@ -154,9 +146,6 @@ func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Messag
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal message: %v", err)
 	}
-
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 
 	if c.conn == nil {
 		return nil, fmt.Errorf("not connected")
@@ -176,9 +165,6 @@ func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Messag
 }
 
 func (c *natsCore) Subscribe(subject string, handler natsgo.MsgHandler) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.conn == nil {
 		qlog.Error("Not connected")
 		return
@@ -193,16 +179,13 @@ func (c *natsCore) Subscribe(subject string, handler natsgo.MsgHandler) {
 	c.subs = append(c.subs, sub)
 }
 
-func (c *natsCore) QueueSubscribe(subject string, handler natsgo.MsgHandler) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+func (c *natsCore) QueueSubscribe(subject, queue string, handler natsgo.MsgHandler) {
 	if c.conn == nil {
 		qlog.Error("Not connected")
 		return
 	}
 
-	sub, err := c.conn.QueueSubscribe(subject, qapp.GetName(), handler)
+	sub, err := c.conn.QueueSubscribe(subject, queue, handler)
 	if err != nil {
 		qlog.Error("Failed to queue subscribe: %v", err)
 		return
@@ -223,20 +206,55 @@ func (c *natsCore) GetKeyGenerator() NatsKeyGenerator {
 	return c.kg
 }
 
-func (c *natsCore) Connected() qss.Signal[qss.VoidType] {
+func (c *natsCore) Connected() qss.Signal[qdata.ConnectedArgs] {
 	return c.connected
 }
 
-func (c *natsCore) Disconnected() qss.Signal[error] {
+func (c *natsCore) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
 	return c.disconnected
 }
 
 func (c *natsCore) cleanupSubscriptions() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	for _, sub := range c.subs {
 		sub.Unsubscribe()
 	}
 	c.subs = nil
+}
+
+func (c *natsCore) onConnected(ctx context.Context) {
+	handle := qcontext.GetHandle(ctx)
+
+	handle.DoInMainThread(func(ctx context.Context) {
+		if c.isConnected {
+			return
+		}
+
+		c.isConnected = true
+
+		c.beforeConnected.Emit(qdata.ConnectedArgs{
+			Ctx: ctx,
+		})
+
+		c.connected.Emit(qdata.ConnectedArgs{
+			Ctx: ctx,
+		})
+	})
+
+}
+
+func (c *natsCore) onDisconnected(ctx context.Context, err error) {
+	handle := qcontext.GetHandle(ctx)
+
+	handle.DoInMainThread(func(ctx context.Context) {
+		if !c.isConnected {
+			return
+		}
+
+		c.Disconnect(ctx)
+
+		c.disconnected.Emit(qdata.DisconnectedArgs{
+			Ctx: ctx,
+			Err: err,
+		})
+	})
 }
