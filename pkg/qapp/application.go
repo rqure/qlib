@@ -37,7 +37,7 @@ type ApplicationOpts func(map[any]any)
 
 func NewApplication(name string, opts ...ApplicationOpts) Application {
 	a := &application{
-		tasks:  make(chan func(context.Context), 1000),
+		tasks:  make(chan func(context.Context), 10000),
 		wg:     &sync.WaitGroup{},
 		ctxKVs: make(map[any]any),
 	}
