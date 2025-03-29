@@ -134,12 +134,10 @@ func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Messag
 	apiMsg.Payload, _ = anypb.New(msg)
 
 	clientProvider := qcontext.GetClientProvider[qauth.Client](ctx)
-	if clientProvider != nil {
-		client := clientProvider.Client(ctx)
-		if client != nil {
-			session := client.GetSession(ctx)
-			apiMsg.Header.AccessToken = session.AccessToken()
-		}
+	client := clientProvider.Client(ctx)
+	if client != nil {
+		session := client.GetSession(ctx)
+		apiMsg.Header.AccessToken = session.AccessToken()
 	}
 
 	data, err := proto.Marshal(apiMsg)
