@@ -47,6 +47,7 @@ type storeWorker struct {
 	notificationTokens []qdata.NotificationToken
 
 	sessionRefreshTimer    *time.Ticker
+	connectionCheckTimer   *time.Ticker
 	connectionAttemptTimer *time.Ticker
 
 	handle qcontext.Handle
@@ -85,11 +86,10 @@ func (me *storeWorker) Init(ctx context.Context) {
 	me.handle = qcontext.GetHandle(ctx)
 	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
 	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
+	me.connectionCheckTimer = time.NewTicker(1 * time.Second)
 
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
-
-	me.store.Consumed().Connect(me.onConsumed)
 
 	me.tryRefreshSession(ctx)
 	me.tryConnect(ctx)
@@ -107,7 +107,13 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 	default:
 	}
 
-	if !me.isStoreConnected {
+	if me.isStoreConnected {
+		select {
+		case <-me.connectionCheckTimer.C:
+			me.store.CheckConnection(ctx)
+		default:
+		}
+	} else {
 		select {
 		case <-me.connectionAttemptTimer.C:
 			me.tryConnect(ctx)
@@ -148,7 +154,7 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 	}
 }
 
-func (me *storeWorker) onConnected(qss.VoidType) {
+func (me *storeWorker) onConnected(args qdata.ConnectedArgs) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isStoreConnected = true
 
@@ -159,11 +165,11 @@ func (me *storeWorker) onConnected(qss.VoidType) {
 	})
 }
 
-func (me *storeWorker) onDisconnected(err error) {
+func (me *storeWorker) onDisconnected(args qdata.DisconnectedArgs) {
 	me.handle.DoInMainThread(func(ctx context.Context) {
 		me.isStoreConnected = false
 
-		qlog.Info("Connection status changed to [DISCONNECTED] with reason: %v", err)
+		qlog.Info("Connection status changed to [DISCONNECTED] with reason: %v", args.Err)
 
 		me.disconnected.Emit(ctx)
 	})
@@ -185,12 +191,6 @@ func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notifi
 	qlog.SetLibLevel(level)
 
 	qlog.Info("QLib log level changed to [%s]", level.String())
-}
-
-func (me *storeWorker) onConsumed(invokeCallbacksFn func(context.Context)) {
-	me.handle.DoInMainThread(func(ctx context.Context) {
-		invokeCallbacksFn(ctx)
-	})
 }
 
 func (me *storeWorker) OnReady(ctx context.Context) {
