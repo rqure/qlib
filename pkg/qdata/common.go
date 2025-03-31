@@ -150,6 +150,16 @@ func (me *WriteTime) FromTime(t time.Time) *WriteTime {
 	return me
 }
 
+func (me *WriteTime) FromUnixNanos(t int64) *WriteTime {
+	if me == nil {
+		return nil
+	}
+
+	*me = WriteTime(time.Unix(0, t))
+
+	return me
+}
+
 func (me *WriteTime) AsTime() time.Time {
 	if me == nil {
 		return time.Unix(0, 0)

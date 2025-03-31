@@ -19,16 +19,70 @@ type PostgresStoreInteractor struct {
 	core         PostgresCore
 	publisherSig qss.Signal[qdata.PublishNotificationArgs]
 	clientId     *qdata.EntityId
+
+	// Cache support
+	cache        Cache
+	cacheTTL     time.Duration
+	keyBuilder   *CacheKeyBuilder
+	cacheEnabled bool
 }
 
-func NewStoreInteractor(core PostgresCore) *PostgresStoreInteractor {
+// NewStoreInteractor creates a new store interactor with optional cache support
+func NewStoreInteractor(core PostgresCore, cache Cache, cacheTTL time.Duration) *PostgresStoreInteractor {
+	cacheEnabled := cache != nil
+	keyBuilder := NewCacheKeyBuilder("qdata")
+
+	if cacheEnabled {
+		qlog.Info("PostgreSQL cache enabled with TTL: %v", cacheTTL)
+	}
+
 	return &PostgresStoreInteractor{
 		core:         core,
 		publisherSig: qss.New[qdata.PublishNotificationArgs](),
+		cache:        cache,
+		cacheTTL:     cacheTTL,
+		keyBuilder:   keyBuilder,
+		cacheEnabled: cacheEnabled,
+	}
+}
+
+// getFromCache attempts to get a value from cache
+func (me *PostgresStoreInteractor) getFromCache(ctx context.Context, key string) ([]byte, bool) {
+	if !me.cacheEnabled {
+		return nil, false
+	}
+	return me.cache.Get(ctx, key)
+}
+
+// setInCache stores a value in cache with the configured TTL
+func (me *PostgresStoreInteractor) setInCache(ctx context.Context, key string, value []byte) {
+	if !me.cacheEnabled {
+		return
+	}
+	if err := me.cache.Set(ctx, key, value, me.cacheTTL); err != nil {
+		qlog.Debug("Failed to cache value for key %s: %v", key, err)
+	}
+}
+
+// invalidateFromCache removes a value from cache
+func (me *PostgresStoreInteractor) invalidateFromCache(ctx context.Context, key string) {
+	if !me.cacheEnabled {
+		return
+	}
+	if err := me.cache.Delete(ctx, key); err != nil {
+		qlog.Debug("Failed to invalidate cache for key %s: %v", key, err)
 	}
 }
 
 func (me *PostgresStoreInteractor) GetEntity(ctx context.Context, entityId qdata.EntityId) *qdata.Entity {
+	// Try cache first
+	cacheKey := me.keyBuilder.ForEntity(entityId)
+	if cachedData, found := me.getFromCache(ctx, cacheKey); found {
+		if entity, err := DeserializeEntity(cachedData); err == nil {
+			return entity
+		}
+	}
+
 	var result *qdata.Entity
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -53,6 +107,13 @@ func (me *PostgresStoreInteractor) GetEntity(ctx context.Context, entityId qdata
 			EntityType: qdata.EntityType(entityType),
 		}
 	})
+
+	// Cache the result if found
+	if result != nil {
+		if data, err := SerializeEntity(result); err == nil {
+			me.setInCache(ctx, cacheKey, data)
+		}
+	}
 
 	return result
 }
@@ -110,10 +171,18 @@ func (me *PostgresStoreInteractor) CreateEntity(ctx context.Context, entityType 
 			}
 		}
 	})
+
+	// Invalidate any parent's cache entry if needed
+	if parentId != "" {
+		me.invalidateFromCache(ctx, me.keyBuilder.ForEntity(parentId))
+		me.invalidateFromCache(ctx, me.keyBuilder.ForField(parentId, qdata.FTChildren))
+	}
+
 	return entityId
 }
 
 func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityId] {
+	// We don't cache paginated results since they're already optimized by the database
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	return &qdata.PageResult[qdata.EntityId]{
@@ -229,9 +298,41 @@ func (me *PostgresStoreInteractor) DeleteEntity(ctx context.Context, entityId qd
 	// Collect all entities to delete in the correct order (children before parents)
 	entitiesToDelete := me.collectDeletionOrderIterative(ctx, entityId)
 
+	// Before deleting, invalidate cache for all entities
+	for _, id := range entitiesToDelete {
+		me.invalidateEntityFromCache(ctx, id)
+	}
+
 	// Delete entities in the correct order (children first)
 	for _, id := range entitiesToDelete {
 		me.deleteEntityWithoutChildren(ctx, id)
+	}
+}
+
+// invalidateEntityFromCache invalidates all cache entries for an entity
+func (me *PostgresStoreInteractor) invalidateEntityFromCache(ctx context.Context, entityId qdata.EntityId) {
+	if !me.cacheEnabled {
+		return
+	}
+
+	// Invalidate entity itself
+	me.invalidateFromCache(ctx, me.keyBuilder.ForEntity(entityId))
+
+	// Get the entity to access its type
+	entity := me.GetEntity(ctx, entityId)
+	if entity == nil {
+		return
+	}
+
+	// Get schema to learn about fields
+	schema := me.GetEntitySchema(ctx, entity.EntityType)
+	if schema == nil {
+		return
+	}
+
+	// Invalidate all fields
+	for fieldType := range schema.Fields {
+		me.invalidateFromCache(ctx, me.keyBuilder.ForField(entityId, fieldType))
 	}
 }
 
@@ -403,6 +504,13 @@ func (me *PostgresStoreInteractor) deleteEntityWithoutChildren(ctx context.Conte
 }
 
 func (me *PostgresStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) bool {
+	// Try cache first for faster existence check
+	if me.cacheEnabled {
+		if _, found := me.getFromCache(ctx, me.keyBuilder.ForEntity(entityId)); found {
+			return true
+		}
+	}
+
 	exists := false
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -429,6 +537,19 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 			if indirectField == "" || indirectEntity == "" {
 				qlog.Error("Failed to resolve indirection for: %s->%s", req.EntityId, req.FieldType)
 				continue
+			}
+
+			// Check if field data is in cache
+			cacheKey := me.keyBuilder.ForField(indirectEntity, indirectField)
+			if cachedData, found := me.getFromCache(ctx, cacheKey); found {
+				entityId, fieldType, value, writeTime, writerId, err := DeserializeFieldData(cachedData)
+				if err == nil && entityId == indirectEntity && fieldType == indirectField {
+					req.Value.FromValue(value)
+					req.WriteTime.FromTime(writeTime.AsTime())
+					req.WriterId.FromString(writerId.AsString())
+					req.Success = true
+					continue
+				}
 			}
 
 			entity := me.GetEntity(ctx, indirectEntity)
@@ -469,7 +590,6 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				if !errors.Is(err, pgx.ErrNoRows) {
 					qlog.Error("Failed to read field: %v", err)
 				}
-
 				continue
 			}
 
@@ -483,6 +603,14 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 			req.WriteTime.FromTime(writeTime)
 			req.WriterId.FromString(writer)
 			req.Success = true
+
+			// Cache the field data
+			if me.cacheEnabled {
+				fieldData, err := SerializeFieldData(indirectEntity, indirectField, value, *req.WriteTime, *req.WriterId)
+				if err == nil {
+					me.setInCache(ctx, cacheKey, fieldData)
+				}
+			}
 		}
 	})
 }
@@ -600,6 +728,9 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 					if err != nil {
 						qlog.Error("Failed to delete old reverse entity reference: %v", err)
 					}
+
+					// Invalidate the referenced entity's cache as well
+					me.invalidateEntityFromCache(ctx, oldRef)
 				}
 			}
 
@@ -635,6 +766,9 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 					if err != nil {
 						qlog.Error("Failed to insert reverse entity reference: %v", err)
 					}
+
+					// Invalidate the referenced entity's cache as well
+					me.invalidateEntityFromCache(ctx, newRef)
 				}
 			}
 
@@ -649,6 +783,14 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 			if err != nil {
 				qlog.Error("Failed to write field: %v", err)
 				continue
+			}
+
+			// Invalidate the field's cache
+			me.invalidateFromCache(ctx, me.keyBuilder.ForField(indirectEntity, indirectField))
+
+			// If this field update affects entity references, invalidate relevant entity caches
+			if req.Value.IsEntityReference() || req.Value.IsEntityList() {
+				me.invalidateEntityFromCache(ctx, indirectEntity)
 			}
 
 			// Handle notifications
@@ -700,6 +842,13 @@ func (me *PostgresStoreInteractor) InitializeSchema(ctx context.Context) {
 }
 
 func (me *PostgresStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) {
+	// If we're restoring, clear any cache first
+	if me.cacheEnabled {
+		if err := me.cache.Flush(ctx); err != nil {
+			qlog.Warn("Failed to clear cache before snapshot restore: %v", err)
+		}
+	}
+
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// First drop indexes explicitly
 		_, err := tx.Exec(ctx, `
@@ -853,6 +1002,14 @@ func (me *PostgresStoreInteractor) initializeDatabase(ctx context.Context) error
 }
 
 func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) *qdata.FieldSchema {
+	// Try cache first
+	cacheKey := me.keyBuilder.ForFieldSchema(entityType, fieldType)
+	if cachedData, found := me.getFromCache(ctx, cacheKey); found {
+		if schema, err := DeserializeFieldSchema(cachedData); err == nil {
+			return schema
+		}
+	}
+
 	schemaPb := &qprotobufs.DatabaseFieldSchema{}
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		err := tx.QueryRow(ctx, `
@@ -889,6 +1046,13 @@ func (me *PostgresStoreInteractor) GetFieldSchema(ctx context.Context, entityTyp
 		schema.Choices = options
 	}
 
+	// Cache the schema
+	if me.cacheEnabled && schema != nil {
+		if schemaData, err := SerializeFieldSchema(schema); err == nil {
+			me.setInCache(ctx, cacheKey, schemaData)
+		}
+	}
+
 	return schema
 }
 
@@ -903,9 +1067,21 @@ func (me *PostgresStoreInteractor) SetFieldSchema(ctx context.Context, entityTyp
 	entitySchema.Fields[fieldType] = schema
 
 	me.SetEntitySchema(ctx, entitySchema)
+
+	// Invalidate schema caches
+	me.invalidateFromCache(ctx, me.keyBuilder.ForEntitySchema(entityType))
+	me.invalidateFromCache(ctx, me.keyBuilder.ForFieldSchema(entityType, fieldType))
 }
 
 func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) bool {
+	// Try cache first for faster existence check
+	cacheKey := me.keyBuilder.ForFieldSchema(entityType, fieldType)
+	if me.cacheEnabled {
+		if _, found := me.getFromCache(ctx, cacheKey); found {
+			return true
+		}
+	}
+
 	exists := false
 
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -924,6 +1100,14 @@ func (me *PostgresStoreInteractor) FieldExists(ctx context.Context, entityType q
 }
 
 func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requestedSchema *qdata.EntitySchema) {
+	// Invalidate schema caches before updating
+	if me.cacheEnabled {
+		me.invalidateFromCache(ctx, me.keyBuilder.ForEntitySchema(requestedSchema.EntityType))
+		for fieldType := range requestedSchema.Fields {
+			me.invalidateFromCache(ctx, me.keyBuilder.ForFieldSchema(requestedSchema.EntityType, fieldType))
+		}
+	}
+
 	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 		// Get existing schema for comparison
 		oldSchema := me.GetEntitySchema(ctx, requestedSchema.EntityType)
@@ -1063,6 +1247,14 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 }
 
 func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) *qdata.EntitySchema {
+	// Try cache first
+	// cacheKey := me.keyBuilder.ForEntitySchema(entityType)
+	// if _, found := me.getFromCache(ctx, cacheKey); found {
+	// For entity schemas, we don't have a direct deserialization function
+	// since it's a more complex object. Instead, we'll rely on
+	// individual field schema caching for performance.
+	// }
+
 	schema := &qdata.EntitySchema{}
 
 	type FieldRow struct {
@@ -1125,7 +1317,7 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 					SELECT options
 					FROM ChoiceOptions
 					WHERE entity_type = $1 AND field_type = $2
-				`, string(entityType), fr.FieldType).Scan(&options)
+					`, string(entityType), fr.FieldType).Scan(&options)
 				if err != nil {
 					if !errors.Is(err, pgx.ErrNoRows) {
 						qlog.Error("Failed to get choice options: %v", err)
