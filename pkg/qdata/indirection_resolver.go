@@ -6,6 +6,10 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
+type IndirectionResolver interface {
+	Resolve(context.Context, EntityId, FieldType) (EntityId, FieldType)
+}
+
 type indirectionResolver struct {
 	store StoreInteractor
 }

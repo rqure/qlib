@@ -311,6 +311,23 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 	}
 }
 
+func (me *Request) FromRequestPb(pb *qprotobufs.DatabaseRequest) *Request {
+	me.EntityId = EntityId(pb.Id)
+	me.FieldType = FieldType(pb.Field)
+
+	me.Value = new(Value).FromAnyPb(pb.Value)
+
+	if pb.WriteTime != nil {
+		me.WriteTime = new(WriteTime).FromTime(pb.WriteTime.Raw.AsTime())
+	}
+
+	if pb.WriterId != nil {
+		me.WriterId = new(EntityId).FromString(pb.WriterId.Raw)
+	}
+
+	return me
+}
+
 func (me *EntitySchema) AsEntitySchemaPb() *qprotobufs.DatabaseEntitySchema {
 	fields := make([]*qprotobufs.DatabaseFieldSchema, 0, len(me.Fields))
 	for _, f := range me.Fields {

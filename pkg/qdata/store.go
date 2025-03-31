@@ -151,10 +151,6 @@ type StoreNotifier interface {
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
 }
 
-type IndirectionResolver interface {
-	Resolve(context.Context, EntityId, FieldType) (EntityId, FieldType)
-}
-
 type StoreOpts func(*Store)
 
 type Store struct {
