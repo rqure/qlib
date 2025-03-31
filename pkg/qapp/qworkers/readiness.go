@@ -96,7 +96,7 @@ func (me *schemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
 	}
 }
 
-func NewSchemaValidityCriteria(storeWorker Store, store qdata.Store) SchemaValidityCriteria {
+func NewSchemaValidityCriteria(storeWorker Store, store *qdata.Store) SchemaValidityCriteria {
 	c := &schemaValidityCriteria{
 		isValid:   false,
 		validator: qdata.NewEntityFieldValidator(store),

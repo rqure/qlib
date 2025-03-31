@@ -40,7 +40,7 @@ type storeWorker struct {
 	authReady    qss.Signal[context.Context]
 	authNotReady qss.Signal[context.Context]
 
-	store            qdata.Store
+	store            *qdata.Store
 	isStoreConnected bool
 	isAuthReady      bool
 
@@ -53,7 +53,7 @@ type storeWorker struct {
 	handle qcontext.Handle
 }
 
-func NewStore(store qdata.Store) Store {
+func NewStore(store *qdata.Store) Store {
 	return &storeWorker{
 		connected:     qss.New[context.Context](),
 		disconnected:  qss.New[context.Context](),

@@ -9,10 +9,10 @@ import (
 
 type fieldAuthorizer struct {
 	accessorId qdata.EntityId
-	store      qdata.Store
+	store      *qdata.Store
 }
 
-func NewFieldAuthorizer(accessorId qdata.EntityId, store qdata.Store) qdata.FieldAuthorizer {
+func NewFieldAuthorizer(accessorId qdata.EntityId, store *qdata.Store) qdata.FieldAuthorizer {
 	return &fieldAuthorizer{
 		accessorId: accessorId,
 		store:      store,

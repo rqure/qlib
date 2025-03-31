@@ -16,11 +16,11 @@ type EntityFieldValidator interface {
 }
 
 type entityFieldValidatorImpl struct {
-	store    Store
+	store    *Store
 	entities map[EntityType][]FieldType
 }
 
-func NewEntityFieldValidator(store Store) EntityFieldValidator {
+func NewEntityFieldValidator(store *Store) EntityFieldValidator {
 	return &entityFieldValidatorImpl{
 		store: store,
 		entities: map[EntityType][]FieldType{
