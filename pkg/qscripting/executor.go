@@ -8,7 +8,7 @@ import (
 )
 
 type Executor interface {
-	Execute(ctx context.Context, args map[string]ObjectConverterFn) error
+	Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]interface{}, error)
 }
 
 type executor struct {
@@ -27,30 +27,36 @@ func (me *executor) Init(src string) {
 	me.compiled = nil
 }
 
-func (me *executor) Execute(ctx context.Context, args map[string]ObjectConverterFn) error {
-	args["CTX"] = Context(ctx)
+func (me *executor) Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]interface{}, error) {
+	in["CTX"] = Context(ctx)
+	in["OUT"] = Output()
 
 	if me.compiled == nil {
 		script := tengo.NewScript([]byte(me.src))
 		script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
 
-		for name, converter := range args {
+		for name, converter := range in {
 			script.Add(name, converter())
 		}
 
 		compiled, err := script.Compile()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		me.compiled = compiled
 	}
 
-	for name, converter := range args {
+	for name, converter := range in {
 		if err := me.compiled.Set(name, converter()); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return me.compiled.RunContext(ctx)
+	err := me.compiled.RunContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return me.compiled.Get("OUT").Map(), nil
 }

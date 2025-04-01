@@ -825,6 +825,12 @@ func createRequestFromMap(requestMap *tengo.Map) (*qdata.Request, error) {
 	return req, nil
 }
 
+func Output() ObjectConverterFn {
+	return func() tengo.Object {
+		return &tengo.Map{}
+	}
+}
+
 // Context creates a Tengo object representing the context
 func Context(ctx context.Context) ObjectConverterFn {
 	return func() tengo.Object {
