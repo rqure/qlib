@@ -24,4 +24,8 @@ const (
 	FTQLibLogLevel            FieldType = "QLibLogLevel"
 	FTLastEventTime           FieldType = "LastEventTime"
 	FTLogout                  FieldType = "Logout"
+
+	FTSchemaChanged FieldType = "SchemaChanged"
+	FTEntityCreated FieldType = "EntityCreated"
+	FTEntityDeleted FieldType = "EntityDeleted"
 )

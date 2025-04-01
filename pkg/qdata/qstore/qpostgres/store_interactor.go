@@ -1272,7 +1272,7 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 		FROM EntitySchema
 		WHERE entity_type = $1
 	`,
-		[]any{string(entityType)},
+		[]any{entityType.AsString()},
 		0, // use default batch size
 		func(rows pgx.Rows, cursorId *int64) (FieldRow, error) {
 			var fr FieldRow
@@ -1317,7 +1317,7 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 					SELECT options
 					FROM ChoiceOptions
 					WHERE entity_type = $1 AND field_type = $2
-					`, string(entityType), fr.FieldType).Scan(&options)
+					`, entityType.AsString(), fr.FieldType).Scan(&options)
 				if err != nil {
 					if !errors.Is(err, pgx.ErrNoRows) {
 						qlog.Error("Failed to get choice options: %v", err)

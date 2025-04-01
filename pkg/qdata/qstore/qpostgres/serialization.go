@@ -42,8 +42,8 @@ type SerializableFieldSchema struct {
 // SerializeEntity converts an Entity to a byte array
 func SerializeEntity(entity *qdata.Entity) ([]byte, error) {
 	se := SerializableEntity{
-		ID:   string(entity.EntityId),
-		Type: string(entity.EntityType),
+		ID:   entity.EntityId.AsString(),
+		Type: entity.EntityType.AsString(),
 	}
 	return json.Marshal(se)
 }
@@ -65,18 +65,18 @@ func DeserializeEntity(data []byte) (*qdata.Entity, error) {
 func SerializeFieldSchema(schema *qdata.FieldSchema) ([]byte, error) {
 	readPerms := make([]string, len(schema.ReadPermissions))
 	for i, p := range schema.ReadPermissions {
-		readPerms[i] = string(p)
+		readPerms[i] = p.AsString()
 	}
 
 	writePerms := make([]string, len(schema.WritePermissions))
 	for i, p := range schema.WritePermissions {
-		writePerms[i] = string(p)
+		writePerms[i] = p.AsString()
 	}
 
 	sfs := SerializableFieldSchema{
-		EntityType:       string(schema.EntityType),
-		FieldType:        string(schema.FieldType),
-		ValueType:        string(schema.ValueType),
+		EntityType:       schema.EntityType.AsString(),
+		FieldType:        schema.FieldType.AsString(),
+		ValueType:        schema.ValueType.AsString(),
 		Rank:             schema.Rank,
 		ReadPermissions:  readPerms,
 		WritePermissions: writePerms,
@@ -117,14 +117,14 @@ func DeserializeFieldSchema(data []byte) (*qdata.FieldSchema, error) {
 // SerializeFieldData serializes field data for caching
 func SerializeFieldData(entityId qdata.EntityId, fieldType qdata.FieldType, value *qdata.Value, writeTime qdata.WriteTime, writerId qdata.EntityId) ([]byte, error) {
 	sfd := SerializableFieldData{
-		EntityID:  string(entityId),
-		FieldType: string(fieldType),
+		EntityID:  entityId.AsString(),
+		FieldType: fieldType.AsString(),
 		Value: SerializableValue{
 			Raw:       value.GetRaw(),
-			ValueType: string(value.Type()),
+			ValueType: value.AsString(),
 		},
 		WriteTime: writeTime.AsTime().UnixNano(),
-		WriterID:  string(writerId),
+		WriterID:  writerId.AsString(),
 	}
 
 	return json.Marshal(sfd)

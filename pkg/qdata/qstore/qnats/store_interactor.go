@@ -26,8 +26,8 @@ func NewStoreInteractor(core NatsCore) qdata.StoreInteractor {
 
 func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) qdata.EntityId {
 	msg := &qprotobufs.ApiConfigCreateEntityRequest{
-		Type:     string(entityType),
-		ParentId: string(parentId),
+		Type:     entityType.AsString(),
+		ParentId: parentId.AsString(),
 		Name:     name,
 	}
 
@@ -50,7 +50,7 @@ func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdat
 
 func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId qdata.EntityId) *qdata.Entity {
 	msg := &qprotobufs.ApiConfigGetEntityRequest{
-		Id: string(entityId),
+		Id: entityId.AsString(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -72,7 +72,7 @@ func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId qdata.Ent
 
 func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) {
 	msg := &qprotobufs.ApiConfigDeleteEntityRequest{
-		Id: string(entityId),
+		Id: entityId.AsString(),
 	}
 
 	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
@@ -236,7 +236,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 
 func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) bool {
 	msg := &qprotobufs.ApiRuntimeEntityExistsRequest{
-		EntityId: string(entityId),
+		EntityId: entityId.AsString(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -338,8 +338,8 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) bool {
 	msg := &qprotobufs.ApiRuntimeFieldExistsRequest{
-		FieldName:  string(fieldType),
-		EntityType: string(entityType),
+		EntityType: entityType.AsString(),
+		FieldName:  fieldType.AsString(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
@@ -357,7 +357,7 @@ func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata
 
 func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) *qdata.EntitySchema {
 	msg := &qprotobufs.ApiConfigGetEntitySchemaRequest{
-		Type: string(entityType),
+		Type: entityType.AsString(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)

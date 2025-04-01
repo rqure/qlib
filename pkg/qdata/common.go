@@ -17,6 +17,18 @@ type FieldType string
 
 type WriteTime time.Time
 
+func (me EntityType) AsString() string {
+	return string(me)
+}
+
+func (me EntityId) AsString() string {
+	return string(me)
+}
+
+func (me FieldType) AsString() string {
+	return string(me)
+}
+
 func CastSlice[I any, O any](i []I, convert func(I) O) []O {
 	o := make([]O, 0, len(i))
 	for _, v := range i {
@@ -50,20 +62,8 @@ func CastToInterfaceSlice[T any](i []T) []interface{} {
 	})
 }
 
-func (me *EntityType) AsString() string {
-	return string(*me)
-}
-
 func (me *EntityId) GetEntityType() EntityType {
 	return EntityType(strings.Split(me.AsString(), "$")[0])
-}
-
-func (me *EntityId) AsString() string {
-	return string(*me)
-}
-
-func (me *FieldType) AsString() string {
-	return string(*me)
 }
 
 func (me *FieldType) FromString(s string) *FieldType {
