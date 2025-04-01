@@ -349,10 +349,41 @@ func parseTimeString(ts string) (time.Time, error) {
 // Context creates a Tengo object representing the context
 func Context(ctx context.Context) ObjectConverterFn {
 	return func() tengo.Object {
-		return &tengo.UserObject{
-			Value: ctx,
+		return &tengo.ImmutableMap{
+			Value: map[string]tengo.Object{
+				"_ctx": &Any{Value: ctx},
+			},
 		}
 	}
+}
+
+// Helper function to extract context from the first argument
+func extractContext(args []tengo.Object) (context.Context, error) {
+	if len(args) == 0 {
+		return nil, tengo.ErrWrongNumArguments
+	}
+
+	ctxMap, ok := args[0].(*tengo.Map)
+	if !ok {
+		return nil, fmt.Errorf("expected context map, got %s", args[0].TypeName())
+	}
+
+	ctxObj := ctxMap.Value["_ctx"]
+	if ctxObj == nil {
+		return nil, errors.New("context not found in map")
+	}
+
+	anyObj, ok := ctxObj.(*Any)
+	if !ok {
+		return nil, fmt.Errorf("expected Any object, got %s", ctxObj.TypeName())
+	}
+
+	ctx, ok := anyObj.Value.(context.Context)
+	if !ok {
+		return nil, fmt.Errorf("expected context.Context, got %T", anyObj.Value)
+	}
+
+	return ctx, nil
 }
 
 func Store(s qdata.StoreInteractor) ObjectConverterFn {
@@ -366,9 +397,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						eType, err := toEntityType(args[1])
@@ -386,7 +417,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						entityId := s.CreateEntity(ctx.Value.(context.Context), eType, parentId, name)
+						entityId := s.CreateEntity(ctx, eType, parentId, name)
 						return &tengo.String{Value: string(entityId)}, nil
 					},
 				},
@@ -397,9 +428,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityId, err := toEntityId(args[1])
@@ -407,7 +438,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						entity := s.GetEntity(ctx.Value.(context.Context), entityId)
+						entity := s.GetEntity(ctx, entityId)
 						return entityToTengo(entity), nil
 					},
 				},
@@ -418,9 +449,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityId, err := toEntityId(args[1])
@@ -428,7 +459,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						s.DeleteEntity(ctx.Value.(context.Context), entityId)
+						s.DeleteEntity(ctx, entityId)
 						return tengo.TrueValue, nil
 					},
 				},
@@ -439,9 +470,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityType, err := toEntityType(args[1])
@@ -453,7 +484,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 
 						entities := make([]tengo.Object, 0)
 
-						for result.Next(ctx.Value.(context.Context)) {
+						for result.Next(ctx) {
 							entityId := result.Get()
 							entities = append(entities, &tengo.String{Value: string(entityId)})
 						}
@@ -468,16 +499,16 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						result := s.GetEntityTypes()
 
 						entityTypes := make([]tengo.Object, 0)
 
-						for result.Next(ctx.Value.(context.Context)) {
+						for result.Next(ctx) {
 							entityType := result.Get()
 							entityTypes = append(entityTypes, &tengo.String{Value: string(entityType)})
 						}
@@ -492,9 +523,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityId, err := toEntityId(args[1])
@@ -502,7 +533,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						exists := s.EntityExists(ctx.Value.(context.Context), entityId)
+						exists := s.EntityExists(ctx, entityId)
 						if exists {
 							return tengo.TrueValue, nil
 						}
@@ -516,9 +547,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityType, err := toEntityType(args[1])
@@ -531,7 +562,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						exists := s.FieldExists(ctx.Value.(context.Context), entityType, fieldType)
+						exists := s.FieldExists(ctx, entityType, fieldType)
 						if exists {
 							return tengo.TrueValue, nil
 						}
@@ -545,9 +576,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityType, err := toEntityType(args[1])
@@ -555,7 +586,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						schema := s.GetEntitySchema(ctx.Value.(context.Context), entityType)
+						schema := s.GetEntitySchema(ctx, entityType)
 						return entitySchemaToTengo(schema), nil
 					},
 				},
@@ -566,9 +597,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						entityType, err := toEntityType(args[1])
@@ -581,7 +612,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						schema := s.GetFieldSchema(ctx.Value.(context.Context), entityType, fieldType)
+						schema := s.GetFieldSchema(ctx, entityType, fieldType)
 						return fieldSchemaToTengo(schema), nil
 					},
 				},
@@ -592,9 +623,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						requests := make([]*qdata.Request, 0, len(args)-1)
@@ -613,7 +644,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							requests = append(requests, req)
 						}
 
-						s.Read(ctx.Value.(context.Context), requests...)
+						s.Read(ctx, requests...)
 
 						// Return array of success status
 						results := make([]tengo.Object, len(requests))
@@ -635,9 +666,9 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
 						requests := make([]*qdata.Request, 0, len(args)-1)
@@ -656,7 +687,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							requests = append(requests, req)
 						}
 
-						s.Write(ctx.Value.(context.Context), requests...)
+						s.Write(ctx, requests...)
 
 						// Return array of success status
 						results := make([]tengo.Object, len(requests))
@@ -678,12 +709,28 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, ok := args[0].(*tengo.UserObject)
-						if !ok {
-							return nil, fmt.Errorf("expected context, got %T", args[0])
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
 						}
 
-						s.InitializeSchema(ctx.Value.(context.Context))
+						s.InitializeSchema(ctx)
+						return tengo.TrueValue, nil
+					},
+				},
+				"createSnapshot": &tengo.UserFunction{
+					Name: "createSnapshot",
+					Value: func(args ...tengo.Object) (tengo.Object, error) {
+						if len(args) != 1 {
+							return nil, tengo.ErrWrongNumArguments
+						}
+
+						ctx, err := extractContext(args[:1])
+						if err != nil {
+							return nil, err
+						}
+
+						s.CreateSnapshot(ctx)
 						return tengo.TrueValue, nil
 					},
 				},
