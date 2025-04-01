@@ -8,11 +8,12 @@ import (
 )
 
 type Executor interface {
-	Execute(ctx context.Context, args map[string]ObjectConverterFn) (interface{}, error)
+	Execute(ctx context.Context, args map[string]ObjectConverterFn) error
 }
 
 type executor struct {
-	src string
+	src      string
+	compiled *tengo.Compiled
 }
 
 func NewExecutor(src string) Executor {
@@ -21,15 +22,26 @@ func NewExecutor(src string) Executor {
 	}
 }
 
-func (me *executor) Execute(ctx context.Context, args map[string]ObjectConverterFn) (interface{}, error) {
-	script := tengo.NewScript([]byte(me.src))
-	script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
+func (me *executor) Execute(ctx context.Context, args map[string]ObjectConverterFn) error {
+	if me.compiled == nil {
+		script := tengo.NewScript([]byte(me.src))
+		script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
 
-	args["CTX"] = Context(ctx)
+		args["CTX"] = Context(ctx)
 
-	for name, converter := range args {
-		script.Add(name, converter())
+		for name, converter := range args {
+			script.Add(name, converter())
+		}
+
+		compiled, err := script.Compile()
+		if err != nil {
+			return err
+		}
+
+		me.compiled = compiled
 	}
 
-	return script.Run()
+	me.compiled.Set("CTX", Context(ctx))
+
+	return me.compiled.RunContext(ctx)
 }
