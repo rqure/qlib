@@ -18,6 +18,7 @@ const (
 	FTLogout                  FieldType = "Logout"
 	FTName                    FieldType = "Name"
 	FTParent                  FieldType = "Parent"
+	FTPolicy                  FieldType = "Policy"
 	FTQLibLogLevel            FieldType = "QLibLogLevel"
 	FTRoles                   FieldType = "Roles"
 	FTSchemaChanged           FieldType = "SchemaChanged"
