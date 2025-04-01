@@ -825,12 +825,6 @@ func createRequestFromMap(requestMap *tengo.Map) (*qdata.Request, error) {
 	return req, nil
 }
 
-func Output() ObjectConverterFn {
-	return func() tengo.Object {
-		return &tengo.Map{}
-	}
-}
-
 // Context creates a Tengo object representing the context
 func Context(ctx context.Context) ObjectConverterFn {
 	return func() tengo.Object {
@@ -855,6 +849,36 @@ func extractContext(args []tengo.Object) (context.Context, error) {
 	}
 
 	return ctx, nil
+}
+
+func Entity(entity *qdata.Entity) ObjectConverterFn {
+	return func() tengo.Object {
+		return entityToTengo(entity)
+	}
+}
+
+func Field(field *qdata.Field) ObjectConverterFn {
+	return func() tengo.Object {
+		return fieldToTengo(field)
+	}
+}
+
+func Value(value *qdata.Value) ObjectConverterFn {
+	return func() tengo.Object {
+		return valueToTengo(value)
+	}
+}
+
+func EntitySchema(schema *qdata.EntitySchema) ObjectConverterFn {
+	return func() tengo.Object {
+		return entitySchemaToTengo(schema)
+	}
+}
+
+func FieldSchema(schema *qdata.FieldSchema) ObjectConverterFn {
+	return func() tengo.Object {
+		return fieldSchemaToTengo(schema)
+	}
 }
 
 func Store(s qdata.StoreInteractor) ObjectConverterFn {

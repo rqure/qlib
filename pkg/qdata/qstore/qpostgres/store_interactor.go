@@ -570,9 +570,9 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				continue
 			}
 
-			if authorizer, ok := ctx.Value(qdata.FieldAuthorizerKey).(qdata.FieldAuthorizer); ok {
-				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField, false) {
-					qlog.Error("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.EntityId, req.FieldType)
+			if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
+				if !authorizer.CanRead(ctx, new(qdata.Field).Init(indirectEntity, indirectField)) {
+					qlog.Warn("%s is not authorized to read from field: %s->%s", authorizer.AccessorId(), req.EntityId, req.FieldType)
 					continue
 				}
 			}
@@ -698,8 +698,8 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				req.WriterId = wr
 			}
 
-			if authorizer, ok := ctx.Value(qdata.FieldAuthorizerKey).(qdata.FieldAuthorizer); ok {
-				if authorizer != nil && !authorizer.IsAuthorized(ctx, indirectEntity, indirectField, true) {
+			if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
+				if !authorizer.CanWrite(ctx, new(qdata.Field).Init(indirectEntity, indirectField)) {
 					qlog.Error("%s is not authorized to write to field: %s->%s", authorizer.AccessorId(), req.EntityId, req.FieldType)
 					continue
 				}

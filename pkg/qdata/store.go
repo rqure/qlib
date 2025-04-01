@@ -143,15 +143,6 @@ type StoreInteractor interface {
 	RestoreSnapshot(ctx context.Context, ss *Snapshot)
 }
 
-type FieldAuthorizerKeyType string
-
-const FieldAuthorizerKey FieldAuthorizerKeyType = "Authorizer"
-
-type FieldAuthorizer interface {
-	AccessorId() EntityId
-	IsAuthorized(ctx context.Context, entityId EntityId, fieldType FieldType, forWrite bool) bool
-}
-
 type StoreNotifier interface {
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) NotificationToken
 	Unnotify(ctx context.Context, subscriptionId string)

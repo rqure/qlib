@@ -22,14 +22,8 @@ func NewExecutor(src string) Executor {
 	}
 }
 
-func (me *executor) Init(src string) {
-	me.src = src
-	me.compiled = nil
-}
-
 func (me *executor) Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]interface{}, error) {
 	in["CTX"] = Context(ctx)
-	in["OUT"] = Output()
 
 	if me.compiled == nil {
 		script := tengo.NewScript([]byte(me.src))
@@ -58,5 +52,10 @@ func (me *executor) Execute(ctx context.Context, in map[string]ObjectConverterFn
 		return nil, err
 	}
 
-	return me.compiled.Get("OUT").Map(), nil
+	out := make(map[string]interface{})
+	for _, v := range me.compiled.GetAll() {
+		out[v.Name()] = v.Value()
+	}
+
+	return out, nil
 }

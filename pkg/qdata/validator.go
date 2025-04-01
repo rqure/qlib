@@ -28,9 +28,9 @@ func NewEntityFieldValidator(store *Store) EntityFieldValidator {
 			ETFolder:               {FTName, FTDescription, FTParent, FTChildren},
 			ETPermission:           {FTName, FTDescription, FTParent, FTChildren},
 			ETAreaOfResponsibility: {FTName, FTDescription, FTParent, FTChildren},
-			ETRole:                 {FTName, FTDescription, FTParent, FTChildren, FTPermissions, FTAreasOfResponsibilities},
-			ETUser:                 {FTName, FTDescription, FTParent, FTChildren, FTRoles, FTSelectedRole, FTPermissions, FTTotalPermissions, FTAreasOfResponsibilities, FTSelectedAORs, FTSourceOfTruth, FTKeycloakId, FTEmail, FTFirstName, FTLastName, FTIsEmailVerified, FTIsEnabled, FTJSON},
-			ETClient:               {FTName, FTDescription, FTParent, FTChildren, FTLogLevel, FTQLibLogLevel, FTPermissions},
+			ETRole:                 {FTName, FTDescription, FTParent, FTChildren, FTAreasOfResponsibilities},
+			ETUser:                 {FTName, FTDescription, FTParent, FTChildren, FTRoles, FTAreasOfResponsibilities, FTSourceOfTruth, FTKeycloakId, FTEmail, FTFirstName, FTLastName, FTIsEmailVerified, FTIsEnabled, FTJSON},
+			ETClient:               {FTName, FTDescription, FTParent, FTChildren, FTLogLevel, FTQLibLogLevel},
 			ETSessionController:    {FTName, FTDescription, FTParent, FTChildren, FTLastEventTime, FTLogout},
 		},
 	}

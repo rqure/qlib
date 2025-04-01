@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/rqure/qlib/pkg/qauthorization"
 )
 
 type CtxType string
@@ -12,6 +14,7 @@ const KeyAppName CtxType = "app_name"
 const KeyAppTickRate CtxType = "app_tick_rate"
 const KeyAppHandle CtxType = "app_handle"
 const KeyClientProvider CtxType = "client_provider"
+const KeyAuthorizer CtxType = "authorizer"
 
 type ClientProvider[T any] interface {
 	Client(ctx context.Context) T
@@ -36,4 +39,9 @@ func GetAppName(ctx context.Context) string {
 
 func GetTickRate(ctx context.Context) time.Duration {
 	return ctx.Value(KeyAppTickRate).(time.Duration)
+}
+
+func GetAuthorizer(ctx context.Context) (qauthorization.Authorizer, bool) {
+	a, ok := ctx.Value(KeyAuthorizer).(qauthorization.Authorizer)
+	return a, ok
 }
