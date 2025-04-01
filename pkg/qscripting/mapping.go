@@ -191,6 +191,36 @@ func fieldToTengo(field *qdata.Field) tengo.Object {
 					return &tengo.String{Value: field.WriterId.AsString()}, nil
 				},
 			},
+			"asReadRequest": &tengo.UserFunction{
+				Name: "asReadRequest",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					if len(args) != 0 {
+						return nil, tengo.ErrWrongNumArguments
+					}
+
+					readRequest := field.AsReadRequest()
+					return &tengo.Map{
+						Value: map[string]tengo.Object{
+							"_impl": &Any{Value: readRequest},
+						},
+					}, nil
+				},
+			},
+			"asWriteRequest": &tengo.UserFunction{
+				Name: "asWriteRequest",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					if len(args) != 0 {
+						return nil, tengo.ErrWrongNumArguments
+					}
+
+					writeRequest := field.AsWriteRequest()
+					return &tengo.Map{
+						Value: map[string]tengo.Object{
+							"_impl": &Any{Value: writeRequest},
+						},
+					}, nil
+				},
+			},
 		},
 	}
 }
@@ -202,6 +232,7 @@ func valueToTengo(value *qdata.Value) tengo.Object {
 
 	return &tengo.Map{
 		Value: map[string]tengo.Object{
+			"_impl": &Any{Value: value},
 			"type": &tengo.UserFunction{
 				Name: "type",
 				Value: func(args ...tengo.Object) (tengo.Object, error) {
@@ -779,138 +810,25 @@ func fieldSchemaToTengo(schema *qdata.FieldSchema) tengo.Object {
 }
 
 func createRequestFromMap(requestMap *tengo.Map) (*qdata.Request, error) {
-	entityIdObj := requestMap.Value["entityId"]
-	fieldTypeObj := requestMap.Value["fieldType"]
-	valueObj := requestMap.Value["value"]
-
-	if entityIdObj == nil || fieldTypeObj == nil || valueObj == nil {
-		return nil, errors.New("request must contain entityId, fieldType, and value")
-	}
-
-	entityId, err := toEntityId(entityIdObj)
-	if err != nil {
-		return nil, err
-	}
-
-	fieldType, err := toFieldType(fieldTypeObj)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a basic request
-	req := new(qdata.Request).Init(entityId, fieldType)
-
-	// Handle value - it should be a tengo map with type and value fields
-	valueMap, ok := valueObj.(*tengo.Map)
+	impl, ok := requestMap.Value["_impl"]
 	if !ok {
-		return nil, fmt.Errorf("value must be a map, got %s", valueObj.TypeName())
+		return nil, errors.New("missing _impl field")
 	}
-
-	typeObj := valueMap.Value["type"]
-	actualValueObj := valueMap.Value["value"]
-
-	if typeObj == nil || actualValueObj == nil {
-		return nil, errors.New("value map must contain type and value keys")
+	request, ok := impl.(*Any)
+	if !ok {
+		return nil, fmt.Errorf("expected Any object, got %s", impl.TypeName())
 	}
-
-	valueType, err := toString(typeObj)
-	if err != nil {
-		return nil, err
+	req, ok := request.Value.(*qdata.Request)
+	if !ok {
+		return nil, fmt.Errorf("expected Request, got %T", request.Value)
 	}
-
-	switch qdata.ValueType(valueType) {
-	case qdata.VTInt:
-		intVal, err := toInt(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		req.Value.FromInt(intVal)
-
-	case qdata.VTFloat:
-		floatVal, ok := actualValueObj.(*tengo.Float)
-		if !ok {
-			return nil, fmt.Errorf("expected float, got %s", actualValueObj.TypeName())
-		}
-		req.Value.FromFloat(floatVal.Value)
-
-	case qdata.VTString:
-		strVal, err := toString(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		req.Value.FromString(strVal)
-
-	case qdata.VTBool:
-		boolVal, err := toBool(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		req.Value.FromBool(boolVal)
-
-	case qdata.VTBinaryFile:
-		strVal, err := toString(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		req.Value.FromBinaryFile(strVal)
-
-	case qdata.VTEntityReference:
-		strVal, err := toString(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		req.Value.FromEntityReference(qdata.EntityId(strVal))
-
-	case qdata.VTTimestamp:
-		// For timestamp, we'll need to parse the string representation
-		strVal, err := toString(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		t, err := time.Parse(time.RFC3339, strVal)
-		if err != nil {
-			return nil, fmt.Errorf("invalid timestamp format: %v", err)
-		}
-		req.Value.FromTimestamp(t)
-
-	case qdata.VTChoice:
-		intVal, err := toInt(actualValueObj)
-		if err != nil {
-			return nil, err
-		}
-		req.Value.FromChoice(intVal)
-
-	case qdata.VTEntityList:
-		array, ok := actualValueObj.(*tengo.Array)
-		if !ok {
-			return nil, fmt.Errorf("expected array, got %s", actualValueObj.TypeName())
-		}
-
-		entityList := make([]qdata.EntityId, 0, len(array.Value))
-		for _, item := range array.Value {
-			str, err := toString(item)
-			if err != nil {
-				return nil, err
-			}
-			entityList = append(entityList, qdata.EntityId(str))
-		}
-		req.Value.FromEntityList(entityList)
-
-	default:
-		return nil, fmt.Errorf("unsupported value type: %s", valueType)
-	}
-
 	return req, nil
 }
 
 // Context creates a Tengo object representing the context
 func Context(ctx context.Context) ObjectConverterFn {
 	return func() tengo.Object {
-		return &tengo.ImmutableMap{
-			Value: map[string]tengo.Object{
-				"_ctx": &Any{Value: ctx},
-			},
-		}
+		return &Any{Value: ctx}
 	}
 }
 
@@ -920,19 +838,9 @@ func extractContext(args []tengo.Object) (context.Context, error) {
 		return nil, tengo.ErrWrongNumArguments
 	}
 
-	ctxMap, ok := args[0].(*tengo.Map)
+	anyObj, ok := args[0].(*Any)
 	if !ok {
-		return nil, fmt.Errorf("expected context map, got %s", args[0].TypeName())
-	}
-
-	ctxObj := ctxMap.Value["_ctx"]
-	if ctxObj == nil {
-		return nil, errors.New("context not found in map")
-	}
-
-	anyObj, ok := ctxObj.(*Any)
-	if !ok {
-		return nil, fmt.Errorf("expected Any object, got %s", ctxObj.TypeName())
+		return nil, fmt.Errorf("expected Any object, got %s", args[0].TypeName())
 	}
 
 	ctx, ok := anyObj.Value.(context.Context)
@@ -1203,17 +1111,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 
 						s.Read(ctx, requests...)
 
-						// Return array of success status
-						results := make([]tengo.Object, len(requests))
-						for i, req := range requests {
-							if req.Success {
-								results[i] = tengo.TrueValue
-							} else {
-								results[i] = tengo.FalseValue
-							}
-						}
-
-						return &tengo.Array{Value: results}, nil
+						return &tengo.Undefined{}, nil
 					},
 				},
 				"write": &tengo.UserFunction{
@@ -1246,17 +1144,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 
 						s.Write(ctx, requests...)
 
-						// Return array of success status
-						results := make([]tengo.Object, len(requests))
-						for i, req := range requests {
-							if req.Success {
-								results[i] = tengo.TrueValue
-							} else {
-								results[i] = tengo.FalseValue
-							}
-						}
-
-						return &tengo.Array{Value: results}, nil
+						return &tengo.Undefined{}, nil
 					},
 				},
 				"initializeSchema": &tengo.UserFunction{
