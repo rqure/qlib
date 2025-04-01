@@ -1,4 +1,4 @@
-package qauth
+package qauthentication
 
 import (
 	"github.com/Nerzal/gocloak/v13"

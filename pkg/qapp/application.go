@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rqure/qlib/pkg/qauth"
+	"github.com/rqure/qlib/pkg/qauthentication"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qlog"
 )
@@ -45,7 +45,7 @@ func NewApplication(name string, opts ...ApplicationOpts) Application {
 	a.ctxKVs[qcontext.KeyAppName] = name
 	a.ctxKVs[qcontext.KeyAppTickRate] = 100 * time.Millisecond
 	a.ctxKVs[qcontext.KeyAppHandle] = a
-	a.ctxKVs[qcontext.KeyClientProvider] = qauth.NewClientProvider()
+	a.ctxKVs[qcontext.KeyClientProvider] = qauthentication.NewClientProvider()
 
 	a.ApplyOpts(opts...)
 
