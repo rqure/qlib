@@ -186,11 +186,13 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	return &qdata.PageResult[qdata.EntityId]{
-		Items:   []qdata.EntityId{},
-		HasMore: true,
+		Items:    []qdata.EntityId{},
+		HasMore:  false,
+		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			var entities []qdata.EntityId
-			var maxCursorId int64
+			var hasMore bool
+			var nextCursorId int64 = pageConfig.CursorId
 
 			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 				rows, err := tx.Query(ctx, `
@@ -215,22 +217,32 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 						continue
 					}
 					entities = append(entities, qdata.EntityId(id))
-					maxCursorId = cursorId
+					nextCursorId = cursorId // Keep track of the last cursor ID
 				}
 			})
 
-			hasMore := int64(len(entities)) > pageConfig.PageSize
+			// Check if we have more items than requested page size
+			hasMore = int64(len(entities)) > pageConfig.PageSize
 			if hasMore {
 				entities = entities[:pageConfig.PageSize]
 			}
 
-			pageConfig.CursorId = maxCursorId
-
 			return &qdata.PageResult[qdata.EntityId]{
-				Items:   entities,
-				HasMore: hasMore,
+				Items:    entities,
+				HasMore:  hasMore,
+				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-					return me.FindEntities(entityType, pageConfig.IntoOpts()...), nil
+					if !hasMore || len(entities) == 0 {
+						return &qdata.PageResult[qdata.EntityId]{
+							Items:    []qdata.EntityId{},
+							HasMore:  false,
+							CursorId: nextCursorId,
+							NextPage: nil,
+						}, nil
+					}
+					return me.FindEntities(entityType,
+						qdata.POPageSize(pageConfig.PageSize),
+						qdata.POCursorId(nextCursorId)).NextPage(ctx)
 				},
 			}, nil
 		},
@@ -240,14 +252,14 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityType] {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
-	var lastCursorId int64 = 0
-
 	return &qdata.PageResult[qdata.EntityType]{
-		Items:   []qdata.EntityType{},
-		HasMore: true,
+		Items:    []qdata.EntityType{},
+		HasMore:  false,
+		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 			var types []qdata.EntityType
-			var maxCursorId int64
+			var hasMore bool
+			var nextCursorId int64 = pageConfig.CursorId
 
 			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 				rows, err := tx.Query(ctx, `
@@ -255,8 +267,8 @@ func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *q
 					FROM EntitySchema
 					WHERE cursor_id > $1
 					ORDER BY entity_type, cursor_id
-					LIMIT $2;
-                `, lastCursorId, pageConfig.PageSize+1)
+					LIMIT $2
+                `, pageConfig.CursorId, pageConfig.PageSize+1)
 
 				if err != nil {
 					qlog.Error("Failed to get entity types: %v", err)
@@ -272,22 +284,32 @@ func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *q
 						continue
 					}
 					types = append(types, qdata.EntityType(entityType))
-					maxCursorId = cursorId
+					nextCursorId = cursorId // Keep track of the last cursor ID
 				}
 			})
 
-			hasMore := int64(len(types)) > pageConfig.PageSize
+			// Check if we have more items than requested page size
+			hasMore = int64(len(types)) > pageConfig.PageSize
 			if hasMore {
 				types = types[:pageConfig.PageSize]
 			}
 
-			pageConfig.CursorId = maxCursorId
-
 			return &qdata.PageResult[qdata.EntityType]{
-				Items:   types,
-				HasMore: hasMore,
+				Items:    types,
+				HasMore:  hasMore,
+				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					return me.GetEntityTypes(pageConfig.IntoOpts()...), nil
+					if !hasMore || len(types) == 0 {
+						return &qdata.PageResult[qdata.EntityType]{
+							Items:    []qdata.EntityType{},
+							HasMore:  false,
+							CursorId: nextCursorId,
+							NextPage: nil,
+						}, nil
+					}
+					return me.GetEntityTypes(
+						qdata.POPageSize(pageConfig.PageSize),
+						qdata.POCursorId(nextCursorId)).NextPage(ctx)
 				},
 			}, nil
 		},

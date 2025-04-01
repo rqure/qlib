@@ -419,9 +419,10 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	// Load data in batches until we have enough for this page
 	var hasMore bool
 	var err error
+	var nextCursorId int64 = cursorId
 
 	// First batch load with the updated method that handles field loading properly
-	cursorId, hasMore, err = sb.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
+	nextCursorId, hasMore, err = sb.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate table: %v", err)
 	}
@@ -435,7 +436,6 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 
 	// Convert results to entities, using our cache
 	var entities []*Entity
-
 	for rows.Next() {
 		entity, err := sb.RowToEntity(ctx, rows, query)
 		if err != nil {
@@ -446,10 +446,19 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 
 	// Create PageResult with next page function
 	return &PageResult[*Entity]{
-		Items:   entities,
-		HasMore: hasMore,
+		Items:    entities,
+		HasMore:  hasMore,
+		CursorId: nextCursorId,
 		NextPage: func(ctx context.Context) (*PageResult[*Entity], error) {
-			return sb.QueryWithPagination(ctx, entityType, query, pageSize, cursorId)
+			if !hasMore || len(entities) == 0 {
+				return &PageResult[*Entity]{
+					Items:    []*Entity{},
+					HasMore:  false,
+					CursorId: nextCursorId,
+					NextPage: nil,
+				}, nil
+			}
+			return sb.QueryWithPagination(ctx, entityType, query, pageSize, nextCursorId, opts...)
 		},
 	}, nil
 }

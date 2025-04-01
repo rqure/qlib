@@ -85,8 +85,9 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	return &qdata.PageResult[qdata.EntityId]{
-		Items:   []qdata.EntityId{},
-		HasMore: true,
+		Items:    []qdata.EntityId{},
+		HasMore:  false, // Initialize as false until we know there's more
+		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			msg := &qprotobufs.ApiRuntimeFindEntitiesRequest{
 				EntityType: entityType.AsString(),
@@ -109,13 +110,24 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 				entities = append(entities, qdata.EntityId(id))
 			}
 
-			pageConfig.CursorId = response.NextCursor
+			// Update the cursor for the next page
+			nextCursor := response.NextCursor
 
 			return &qdata.PageResult[qdata.EntityId]{
-				Items:   entities,
-				HasMore: response.HasMore,
+				Items:    entities,
+				HasMore:  response.HasMore,
+				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-					return me.FindEntities(entityType, pageOpts...), nil
+					// Use the updated cursor for the next page request
+					if !response.HasMore || len(entities) == 0 {
+						return &qdata.PageResult[qdata.EntityId]{
+							Items:    []qdata.EntityId{},
+							HasMore:  false,
+							CursorId: nextCursor,
+							NextPage: nil,
+						}, nil
+					}
+					return me.FindEntities(entityType, qdata.POPageSize(pageConfig.PageSize), qdata.POCursorId(nextCursor)).NextPage(ctx)
 				},
 			}, nil
 		},
@@ -126,8 +138,9 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	return &qdata.PageResult[qdata.EntityType]{
-		Items:   []qdata.EntityType{},
-		HasMore: true,
+		Items:    []qdata.EntityType{},
+		HasMore:  false, // Initialize as false until we know there's more
+		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 			msg := &qprotobufs.ApiRuntimeGetEntityTypesRequest{
 				PageSize: pageConfig.PageSize,
@@ -149,13 +162,24 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 				types = append(types, qdata.EntityType(t))
 			}
 
-			pageConfig.CursorId = response.NextCursor
+			// Update the cursor for the next page
+			nextCursor := response.NextCursor
 
 			return &qdata.PageResult[qdata.EntityType]{
-				Items:   types,
-				HasMore: response.HasMore,
+				Items:    types,
+				HasMore:  response.HasMore,
+				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					return me.GetEntityTypes(pageConfig.IntoOpts()...), nil
+					// Use the updated cursor for the next page request
+					if !response.HasMore || len(types) == 0 {
+						return &qdata.PageResult[qdata.EntityType]{
+							Items:    []qdata.EntityType{},
+							HasMore:  false,
+							CursorId: nextCursor,
+							NextPage: nil,
+						}, nil
+					}
+					return me.GetEntityTypes(qdata.POPageSize(pageConfig.PageSize), qdata.POCursorId(nextCursor)).NextPage(ctx)
 				},
 			}, nil
 		},
@@ -179,8 +203,9 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	return &qdata.PageResult[*qdata.Entity]{
-		Items:   []*qdata.Entity{},
-		HasMore: true,
+		Items:    []*qdata.Entity{},
+		HasMore:  false, // Initialize as false until we know there's more
+		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			// Create a query request message
 			msg := &qprotobufs.ApiRuntimeQueryRequest{
@@ -209,25 +234,26 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 			}
 
 			// Store cursor for next page
-			pageConfig.CursorId = response.NextCursor
-
-			newArgs := []interface{}{}
-			newArgs = append(newArgs, interfaceArgs...)
-			newArgs = append(newArgs, qdata.CastToInterfaceSlice(pageConfig.IntoOpts())...)
+			nextCursor := response.NextCursor
 
 			return &qdata.PageResult[*qdata.Entity]{
-				Items:   entities,
-				HasMore: response.HasMore,
+				Items:    entities,
+				HasMore:  response.HasMore,
+				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
-					if !response.HasMore {
+					if !response.HasMore || len(entities) == 0 {
 						return &qdata.PageResult[*qdata.Entity]{
 							Items:    []*qdata.Entity{},
 							HasMore:  false,
+							CursorId: nextCursor,
 							NextPage: nil,
 						}, nil
 					}
 					// Create new request with updated cursor
-					return me.PrepareQuery(sql, newArgs...).NextPage(ctx)
+					return me.PrepareQuery(sql, append(
+						interfaceArgs,
+						qdata.POPageSize(pageConfig.PageSize),
+						qdata.POCursorId(nextCursor))...).NextPage(ctx)
 				},
 			}, nil
 		},

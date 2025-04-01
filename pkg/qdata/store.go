@@ -79,6 +79,7 @@ func POCursorId(cursorId int64) PageOpts {
 type PageResult[T any] struct {
 	Items    []T
 	HasMore  bool
+	CursorId int64 // Tracks the cursor ID for the next page
 	NextPage func(ctx context.Context) (*PageResult[T], error)
 }
 
@@ -92,6 +93,11 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 
 	nextResult, err := p.NextPage(ctx)
 	if err != nil {
+		return false
+	}
+
+	if nextResult == nil || len(nextResult.Items) == 0 {
+		p.HasMore = false
 		return false
 	}
 
