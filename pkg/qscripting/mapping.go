@@ -1243,8 +1243,10 @@ func pageResultToTengo[T any](result *qdata.PageResult[T], converter func(T) ten
 							return nil, err
 						}
 
+						*result = *nextResult
+
 						// Create a new page result for the next page
-						return pageResultToTengo(nextResult, converter), nil
+						return pageResultToTengo(result, converter), nil
 					}
 
 					// Return empty result if no more items
