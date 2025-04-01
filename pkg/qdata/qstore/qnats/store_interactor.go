@@ -84,6 +84,11 @@ func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.
 func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityId] {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
+
 	return &qdata.PageResult[qdata.EntityId]{
 		Items:    []qdata.EntityId{},
 		HasMore:  false, // Initialize as false until we know there's more
@@ -115,7 +120,7 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 
 			return &qdata.PageResult[qdata.EntityId]{
 				Items:    entities,
-				HasMore:  response.HasMore,
+				HasMore:  response.HasMore && len(entities) > 0, // Only has more if we got results
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 					// Use the updated cursor for the next page request
@@ -127,7 +132,9 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 							NextPage: nil,
 						}, nil
 					}
-					return me.FindEntities(entityType, qdata.POPageSize(pageConfig.PageSize), qdata.POCursorId(nextCursor)).NextPage(ctx)
+					return me.FindEntities(entityType,
+						qdata.POPageSize(pageConfig.PageSize),
+						qdata.POCursorId(nextCursor)).NextPage(ctx)
 				},
 			}, nil
 		},
@@ -136,6 +143,11 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 
 func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityType] {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
 
 	return &qdata.PageResult[qdata.EntityType]{
 		Items:    []qdata.EntityType{},
@@ -167,7 +179,7 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 
 			return &qdata.PageResult[qdata.EntityType]{
 				Items:    types,
-				HasMore:  response.HasMore,
+				HasMore:  response.HasMore && len(types) > 0, // Only has more if we got results
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 					// Use the updated cursor for the next page request
@@ -179,7 +191,9 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 							NextPage: nil,
 						}, nil
 					}
-					return me.GetEntityTypes(qdata.POPageSize(pageConfig.PageSize), qdata.POCursorId(nextCursor)).NextPage(ctx)
+					return me.GetEntityTypes(
+						qdata.POPageSize(pageConfig.PageSize),
+						qdata.POCursorId(nextCursor)).NextPage(ctx)
 				},
 			}, nil
 		},
@@ -205,6 +219,11 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 	// Format the query with args
 	formattedQuery := fmt.Sprintf(sql, otherArgs...)
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
 
 	// Convert type hints to protobuf format
 	typeHints := []*qprotobufs.TypeHint{}
@@ -257,7 +276,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 
 			return &qdata.PageResult[*qdata.Entity]{
 				Items:    entities,
-				HasMore:  response.HasMore,
+				HasMore:  response.HasMore && len(entities) > 0, // Only has more if we got results
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 					if !response.HasMore || len(entities) == 0 {

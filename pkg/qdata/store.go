@@ -84,23 +84,29 @@ type PageResult[T any] struct {
 }
 
 func (p *PageResult[T]) Next(ctx context.Context) bool {
+	// If we still have items in the current page, return true
 	if len(p.Items) > 0 {
 		return true
 	}
-	if !p.HasMore {
+
+	// If there are no more items to fetch, return false
+	if !p.HasMore || p.NextPage == nil {
 		return false
 	}
 
+	// Try to fetch the next page
 	nextResult, err := p.NextPage(ctx)
 	if err != nil {
 		return false
 	}
 
+	// If next page is nil or empty, we're done
 	if nextResult == nil || len(nextResult.Items) == 0 {
 		p.HasMore = false
 		return false
 	}
 
+	// Update this result with the next page
 	*p = *nextResult
 	return len(p.Items) > 0
 }

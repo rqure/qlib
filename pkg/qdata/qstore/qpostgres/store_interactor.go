@@ -185,6 +185,11 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 	// We don't cache paginated results since they're already optimized by the database
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
+
 	return &qdata.PageResult[qdata.EntityId]{
 		Items:    []qdata.EntityId{},
 		HasMore:  false,
@@ -229,7 +234,7 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 
 			return &qdata.PageResult[qdata.EntityId]{
 				Items:    entities,
-				HasMore:  hasMore,
+				HasMore:  hasMore && len(entities) > 0, // Only has more if we got results
 				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 					if !hasMore || len(entities) == 0 {
@@ -251,6 +256,11 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 
 func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityType] {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
 
 	return &qdata.PageResult[qdata.EntityType]{
 		Items:    []qdata.EntityType{},
@@ -296,7 +306,7 @@ func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *q
 
 			return &qdata.PageResult[qdata.EntityType]{
 				Items:    types,
-				HasMore:  hasMore,
+				HasMore:  hasMore && len(types) > 0, // Only has more if we got results
 				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 					if !hasMore || len(types) == 0 {
@@ -1379,6 +1389,11 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 	// Apply page options or use defaults
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
+
 	// Parse the query
 	parsedQuery, err := qdata.ParseQuery(fmt.Sprintf(sql, otherArgs...))
 	if err != nil {
@@ -1404,8 +1419,9 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 	entityType := qdata.EntityType(parsedQuery.Table.EntityType)
 
 	return &qdata.PageResult[*qdata.Entity]{
-		Items:   []*qdata.Entity{},
-		HasMore: true,
+		Items:    []*qdata.Entity{},
+		HasMore:  false,
+		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			// Use the improved pagination query method that properly handles all field types
 			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)

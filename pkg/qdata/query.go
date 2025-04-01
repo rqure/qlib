@@ -416,8 +416,14 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		return nil, fmt.Errorf("failed to build SQLite table: %v", err)
 	}
 
+	// Set a reasonable default for page size if it's not positive
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+
 	// Load data in batches until we have enough for this page
-	nextCursorId, hasMore, err := sb.PopulateTableBatch(ctx, entityType, query, pageSize+1, cursorId) // Get one extra to check if there are more
+	// Get one extra to check if there are more
+	nextCursorId, hasMore, err := sb.PopulateTableBatch(ctx, entityType, query, pageSize+1, cursorId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate table: %v", err)
 	}
@@ -442,7 +448,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	// Create PageResult with next page function
 	return &PageResult[*Entity]{
 		Items:    entities,
-		HasMore:  hasMore,
+		HasMore:  hasMore && len(entities) > 0, // Only has more if we got results and there are more
 		CursorId: nextCursorId,
 		NextPage: func(ctx context.Context) (*PageResult[*Entity], error) {
 			if !hasMore || len(entities) == 0 {
