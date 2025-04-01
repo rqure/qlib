@@ -22,6 +22,11 @@ func NewExecutor(src string) Executor {
 	}
 }
 
+func (me *executor) Init(src string) {
+	me.src = src
+	me.compiled = nil
+}
+
 func (me *executor) Execute(ctx context.Context, args map[string]ObjectConverterFn) error {
 	if me.compiled == nil {
 		script := tengo.NewScript([]byte(me.src))
