@@ -931,54 +931,72 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 				"findEntities": &tengo.UserFunction{
 					Name: "findEntities",
 					Value: func(args ...tengo.Object) (tengo.Object, error) {
-						if len(args) != 2 {
+						if len(args) < 1 {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, err := extractContext(args[:1])
+						entityType, err := toEntityType(args[0])
 						if err != nil {
 							return nil, err
 						}
 
-						entityType, err := toEntityType(args[1])
-						if err != nil {
-							return nil, err
+						// Optional pagination parameters
+						var pageOpts []qdata.PageOpts
+						if len(args) > 1 {
+							pageSize, err := toInt(args[1])
+							if err != nil {
+								return nil, err
+							}
+							pageOpts = append(pageOpts, qdata.POPageSize(int64(pageSize)))
 						}
 
-						result := s.FindEntities(entityType)
-
-						entities := make([]tengo.Object, 0)
-
-						for result.Next(ctx) {
-							entityId := result.Get()
-							entities = append(entities, &tengo.String{Value: string(entityId)})
+						if len(args) > 2 {
+							cursorId, err := toInt(args[2])
+							if err != nil {
+								return nil, err
+							}
+							pageOpts = append(pageOpts, qdata.POCursorId(int64(cursorId)))
 						}
 
-						return &tengo.Array{Value: entities}, nil
+						result := s.FindEntities(entityType, pageOpts...)
+
+						// Create a PageResult object for Tengo
+						return pageResultToTengo(result, func(item qdata.EntityId) tengo.Object {
+							return &tengo.String{Value: item.AsString()}
+						}), nil
 					},
 				},
 				"getEntityTypes": &tengo.UserFunction{
 					Name: "getEntityTypes",
 					Value: func(args ...tengo.Object) (tengo.Object, error) {
-						if len(args) != 1 {
+						if len(args) != 0 {
 							return nil, tengo.ErrWrongNumArguments
 						}
 
-						ctx, err := extractContext(args[:1])
-						if err != nil {
-							return nil, err
+						// Optional pagination parameters
+						var pageOpts []qdata.PageOpts
+						if len(args) > 1 {
+							pageSize, err := toInt(args[1])
+							if err != nil {
+								return nil, err
+							}
+							pageOpts = append(pageOpts, qdata.POPageSize(int64(pageSize)))
 						}
 
-						result := s.GetEntityTypes()
-
-						entityTypes := make([]tengo.Object, 0)
-
-						for result.Next(ctx) {
-							entityType := result.Get()
-							entityTypes = append(entityTypes, &tengo.String{Value: string(entityType)})
+						if len(args) > 2 {
+							cursorId, err := toInt(args[2])
+							if err != nil {
+								return nil, err
+							}
+							pageOpts = append(pageOpts, qdata.POCursorId(int64(cursorId)))
 						}
 
-						return &tengo.Array{Value: entityTypes}, nil
+						result := s.GetEntityTypes(pageOpts...)
+
+						// Create a PageResult object for Tengo
+						return pageResultToTengo(result, func(item qdata.EntityType) tengo.Object {
+							return &tengo.String{Value: item.AsString()}
+						}), nil
 					},
 				},
 				"entityExists": &tengo.UserFunction{
@@ -1147,10 +1165,145 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 						return &tengo.Undefined{}, nil
 					},
 				},
+				"prepareQuery": &tengo.UserFunction{
+					Name: "prepareQuery",
+					Value: func(args ...tengo.Object) (tengo.Object, error) {
+						if len(args) < 1 {
+							return nil, tengo.ErrWrongNumArguments
+						}
+
+						sqlQuery, err := toString(args[0])
+						if err != nil {
+							return nil, err
+						}
+
+						// Handle variadic arguments for query parameters
+						queryArgs := make([]interface{}, 0, len(args)-1)
+						for i := 2; i < len(args); i++ {
+							arg := args[i]
+
+							switch obj := arg.(type) {
+							case *tengo.Int:
+								queryArgs = append(queryArgs, obj.Value)
+							case *tengo.Float:
+								queryArgs = append(queryArgs, obj.Value)
+							case *tengo.String:
+								queryArgs = append(queryArgs, obj.Value)
+							case *tengo.Bool:
+								queryArgs = append(queryArgs, !obj.IsFalsy())
+							default:
+								return nil, fmt.Errorf("unsupported argument type: %s", arg.TypeName())
+							}
+						}
+
+						result := s.PrepareQuery(sqlQuery, queryArgs...)
+
+						// Create a PageResult object for Tengo that returns entities
+						return pageResultToTengo(result, func(item *qdata.Entity) tengo.Object {
+							return entityToTengo(item)
+						}), nil
+					},
+				},
 			},
 		}
 
 		return storeMap
+	}
+}
+
+// pageResultToTengo converts a PageResult to a Tengo object with pagination functions
+// The converter function should convert the item type T to a tengo.Object
+func pageResultToTengo[T any](result *qdata.PageResult[T], converter func(T) tengo.Object) tengo.Object {
+	// Convert the current items to tengo objects
+	items := make([]tengo.Object, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, converter(item))
+	}
+
+	// Create the page result object
+	return &tengo.Map{
+		Value: map[string]tengo.Object{
+			"items":   &tengo.Array{Value: items},
+			"hasMore": tengoBool(result.HasMore),
+			"next": &tengo.UserFunction{
+				Name: "next",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					if len(args) != 1 {
+						return nil, tengo.ErrWrongNumArguments
+					}
+
+					ctx, err := extractContext(args[:1])
+					if err != nil {
+						return nil, err
+					}
+
+					if result.HasMore {
+						nextResult, err := result.NextPage(ctx)
+						if err != nil {
+							return nil, err
+						}
+
+						// Create a new page result for the next page
+						return pageResultToTengo(nextResult, converter), nil
+					}
+
+					// Return empty result if no more items
+					return &tengo.Map{
+						Value: map[string]tengo.Object{
+							"items":   &tengo.Array{Value: []tengo.Object{}},
+							"hasMore": tengoBool(false),
+						},
+					}, nil
+				},
+			},
+			"forEach": &tengo.UserFunction{
+				Name: "forEach",
+				Value: func(args ...tengo.Object) (tengo.Object, error) {
+					if len(args) != 2 {
+						return nil, tengo.ErrWrongNumArguments
+					}
+
+					ctx, err := extractContext(args[:1])
+					if err != nil {
+						return nil, err
+					}
+
+					callbackFn, ok := args[1].(*tengo.UserFunction)
+					if !ok {
+						return nil, fmt.Errorf("expected function, got %s", args[1].TypeName())
+					}
+
+					// Process current items in this page
+					for _, item := range items {
+						_, err := callbackFn.Value(item)
+						if err != nil {
+							return nil, err
+						}
+					}
+
+					// Process subsequent pages if available
+					currentResult := result
+					for currentResult.HasMore {
+						nextResult, err := currentResult.NextPage(ctx)
+						if err != nil {
+							return nil, err
+						}
+
+						currentResult = nextResult
+
+						// Process items in the next page
+						for _, item := range currentResult.Items {
+							_, err := callbackFn.Value(converter(item))
+							if err != nil {
+								return nil, err
+							}
+						}
+					}
+
+					return tengo.UndefinedValue, nil
+				},
+			},
+		},
 	}
 }
 
