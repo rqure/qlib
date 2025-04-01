@@ -187,31 +187,50 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 }
 
 func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
-	// Format the query with args
-	interfaceArgs := []interface{}{}
 	pageOpts := []qdata.PageOpts{}
+	typeHintOpts := []qdata.TypeHintOpts{}
+	otherArgs := []interface{}{}
+
 	for _, arg := range args {
-		switch a := arg.(type) {
+		switch arg := arg.(type) {
 		case qdata.PageOpts:
-			pageOpts = append(pageOpts, a)
+			pageOpts = append(pageOpts, arg)
+		case qdata.TypeHintOpts:
+			typeHintOpts = append(typeHintOpts, arg)
 		default:
-			interfaceArgs = append(interfaceArgs, arg)
+			otherArgs = append(otherArgs, arg)
 		}
 	}
 
-	formattedQuery := fmt.Sprintf(sql, interfaceArgs...)
+	// Format the query with args
+	formattedQuery := fmt.Sprintf(sql, otherArgs...)
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
+	// Convert type hints to protobuf format
+	typeHints := []*qprotobufs.TypeHint{}
+	typeHintMap := make(qdata.TypeHintMap)
+	for _, opt := range typeHintOpts {
+		opt(typeHintMap)
+	}
+
+	for fieldType, valueType := range typeHintMap {
+		typeHints = append(typeHints, &qprotobufs.TypeHint{
+			FieldType: fieldType.AsString(),
+			ValueType: valueType.AsString(),
+		})
+	}
 
 	return &qdata.PageResult[*qdata.Entity]{
 		Items:    []*qdata.Entity{},
-		HasMore:  false, // Initialize as false until we know there's more
+		HasMore:  false,
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			// Create a query request message
 			msg := &qprotobufs.ApiRuntimeQueryRequest{
-				Query:    formattedQuery,
-				PageSize: pageConfig.PageSize,
-				Cursor:   pageConfig.CursorId,
+				Query:     formattedQuery,
+				PageSize:  pageConfig.PageSize,
+				Cursor:    pageConfig.CursorId,
+				TypeHints: typeHints,
 			}
 
 			// Send the query to the server
@@ -250,10 +269,14 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 						}, nil
 					}
 					// Create new request with updated cursor
-					return me.PrepareQuery(sql, append(
-						interfaceArgs,
+					newArgs := append(otherArgs,
 						qdata.POPageSize(pageConfig.PageSize),
-						qdata.POCursorId(nextCursor))...).NextPage(ctx)
+						qdata.POCursorId(nextCursor))
+					// Also pass along the type hints
+					for _, typeHintOpt := range typeHintOpts {
+						newArgs = append(newArgs, typeHintOpt)
+					}
+					return me.PrepareQuery(sql, newArgs...).NextPage(ctx)
 				},
 			}, nil
 		},

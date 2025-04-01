@@ -233,11 +233,9 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	defer stmt.Close()
 
 	// Process all entities in this batch
-	count := 0
-	entityIds := make([]EntityId, 0, pageSize)
+	entityIds := make([]EntityId, 0, len(pageResult.Items))
 
 	for _, entityId := range pageResult.Items {
-		count++
 		entityIds = append(entityIds, entityId)
 
 		// Insert the entity ID first
@@ -253,9 +251,8 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 		}
 	}
 
-	// For PostgreSQL-based stores, the pageConfig.CursorId is updated in the NextPage function
-	// We can safely pass back the cursorId we were given since the store has tracked the next cursor internally
-	return cursorId, pageResult.HasMore, nil
+	// Return the next cursor ID and whether there are more results
+	return pageResult.CursorId, pageResult.HasMore, nil
 }
 
 // loadQueryFieldsBulk loads only the fields specified in the query, handling indirection and metadata
@@ -409,7 +406,10 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 
 // QueryWithPagination executes the query with pagination and returns a PageResult
 func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[*Entity], error) {
-	sb.typeHints.ApplyOpts(opts...)
+	// Apply type hints
+	for _, opt := range opts {
+		opt(sb.typeHints)
+	}
 
 	// Create the SQLite table with the appropriate schema
 	if err := sb.BuildTable(ctx, entityType, query); err != nil {
@@ -417,12 +417,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 
 	// Load data in batches until we have enough for this page
-	var hasMore bool
-	var err error
-	var nextCursorId int64 = cursorId
-
-	// First batch load with the updated method that handles field loading properly
-	nextCursorId, hasMore, err = sb.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
+	nextCursorId, hasMore, err := sb.PopulateTableBatch(ctx, entityType, query, pageSize+1, cursorId) // Get one extra to check if there are more
 	if err != nil {
 		return nil, fmt.Errorf("failed to populate table: %v", err)
 	}
