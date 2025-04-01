@@ -28,11 +28,11 @@ func (me *executor) Init(src string) {
 }
 
 func (me *executor) Execute(ctx context.Context, args map[string]ObjectConverterFn) error {
+	args["CTX"] = Context(ctx)
+
 	if me.compiled == nil {
 		script := tengo.NewScript([]byte(me.src))
 		script.SetImports(stdlib.GetModuleMap(stdlib.AllModuleNames()...))
-
-		args["CTX"] = Context(ctx)
 
 		for name, converter := range args {
 			script.Add(name, converter())
@@ -46,7 +46,11 @@ func (me *executor) Execute(ctx context.Context, args map[string]ObjectConverter
 		me.compiled = compiled
 	}
 
-	me.compiled.Set("CTX", Context(ctx))
+	for name, converter := range args {
+		if err := me.compiled.Set(name, converter()); err != nil {
+			return err
+		}
+	}
 
 	return me.compiled.RunContext(ctx)
 }
