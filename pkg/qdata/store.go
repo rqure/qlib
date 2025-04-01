@@ -109,6 +109,13 @@ func (p *PageResult[T]) Get() T {
 	return item
 }
 
+func (p *PageResult[T]) ForEach(ctx context.Context, fn func(ctx context.Context, item T)) {
+	for p.Next(ctx) {
+		item := p.Get()
+		fn(ctx, item)
+	}
+}
+
 type StoreInteractor interface {
 	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) EntityId
 	GetEntity(context.Context, EntityId) *Entity
