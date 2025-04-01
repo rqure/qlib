@@ -1147,38 +1147,6 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 						return &tengo.Undefined{}, nil
 					},
 				},
-				"initializeSchema": &tengo.UserFunction{
-					Name: "initializeSchema",
-					Value: func(args ...tengo.Object) (tengo.Object, error) {
-						if len(args) != 1 {
-							return nil, tengo.ErrWrongNumArguments
-						}
-
-						ctx, err := extractContext(args[:1])
-						if err != nil {
-							return nil, err
-						}
-
-						s.InitializeSchema(ctx)
-						return tengo.TrueValue, nil
-					},
-				},
-				"createSnapshot": &tengo.UserFunction{
-					Name: "createSnapshot",
-					Value: func(args ...tengo.Object) (tengo.Object, error) {
-						if len(args) != 1 {
-							return nil, tengo.ErrWrongNumArguments
-						}
-
-						ctx, err := extractContext(args[:1])
-						if err != nil {
-							return nil, err
-						}
-
-						s.CreateSnapshot(ctx)
-						return tengo.TrueValue, nil
-					},
-				},
 			},
 		}
 
