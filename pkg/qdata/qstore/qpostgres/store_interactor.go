@@ -102,10 +102,7 @@ func (me *PostgresStoreInteractor) GetEntity(ctx context.Context, entityId qdata
 			return
 		}
 
-		result = &qdata.Entity{
-			EntityId:   entityId,
-			EntityType: qdata.EntityType(entityType),
-		}
+		result = new(qdata.Entity).Init(qdata.EntityId(entityId))
 	})
 
 	// Cache the result if found
@@ -1287,7 +1284,7 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 	// individual field schema caching for performance.
 	// }
 
-	schema := &qdata.EntitySchema{}
+	schema := new(qdata.EntitySchema).Init(entityType)
 
 	type FieldRow struct {
 		FieldType        string
@@ -1332,14 +1329,13 @@ func (me *PostgresStoreInteractor) GetEntitySchema(ctx context.Context, entityTy
 			writePermissions = append(writePermissions, qdata.EntityId(id))
 		}
 
-		fieldSchema := &qdata.FieldSchema{
-			EntityType:       entityType,
-			FieldType:        qdata.FieldType(fr.FieldType),
-			ValueType:        qdata.ValueType(fr.ValueType),
-			Rank:             fr.Rank,
-			ReadPermissions:  readPermissions,
-			WritePermissions: writePermissions,
-		}
+		fieldSchema := new(qdata.FieldSchema).Init(
+			entityType,
+			qdata.FieldType(fr.FieldType),
+			qdata.ValueType(fr.ValueType),
+			qdata.FSORank(fr.Rank),
+			qdata.FSOReadPermissions(readPermissions),
+			qdata.FSOWritePermissions(writePermissions))
 
 		// If it's a choice field, get the options
 		if fieldSchema.ValueType == qdata.VTChoice {

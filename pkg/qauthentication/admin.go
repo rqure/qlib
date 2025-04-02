@@ -434,7 +434,7 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, r
 
 func (me *admin) Session(ctx context.Context) Session {
 	if me.authenticate(ctx) != nil {
-		qlog.Error("Failed to authenticate admin")
+		qlog.Warn("Failed to authenticate admin")
 		return NewSession(me.core, nil, "", "", "")
 	}
 

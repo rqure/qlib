@@ -581,7 +581,7 @@ func FSOChoices(choices ...string) FieldSchemaOpts {
 	}
 }
 
-func FSOFieldRank(rank int) FieldSchemaOpts {
+func FSORank(rank int) FieldSchemaOpts {
 	return func(f *FieldSchema) {
 		f.Rank = rank
 	}

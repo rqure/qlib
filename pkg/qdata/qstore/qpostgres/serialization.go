@@ -55,10 +55,9 @@ func DeserializeEntity(data []byte) (*qdata.Entity, error) {
 		return nil, err
 	}
 
-	return &qdata.Entity{
-		EntityId:   qdata.EntityId(se.ID),
-		EntityType: qdata.EntityType(se.Type),
-	}, nil
+	return new(qdata.Entity).Init(
+		qdata.EntityId(se.ID),
+		qdata.EOEntityType(qdata.EntityType(se.Type))), nil
 }
 
 // SerializeFieldSchema converts a FieldSchema to a byte array
@@ -103,15 +102,15 @@ func DeserializeFieldSchema(data []byte) (*qdata.FieldSchema, error) {
 		writePerms[i] = qdata.EntityId(p)
 	}
 
-	return &qdata.FieldSchema{
-		EntityType:       qdata.EntityType(sfs.EntityType),
-		FieldType:        qdata.FieldType(sfs.FieldType),
-		ValueType:        qdata.ValueType(sfs.ValueType),
-		Rank:             sfs.Rank,
-		ReadPermissions:  readPerms,
-		WritePermissions: writePerms,
-		Choices:          sfs.Choices,
-	}, nil
+	return new(qdata.FieldSchema).Init(
+		qdata.EntityType(sfs.EntityType),
+		qdata.FieldType(sfs.FieldType),
+		qdata.ValueType(sfs.ValueType),
+		qdata.FSORank(sfs.Rank),
+		qdata.FSOReadPermissions(readPerms),
+		qdata.FSOWritePermissions(writePerms),
+		qdata.FSOChoices(sfs.Choices...),
+	), nil
 }
 
 // SerializeFieldData serializes field data for caching
