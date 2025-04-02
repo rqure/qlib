@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -162,7 +163,12 @@ type SQLiteBuilder struct {
 	store       StoreInteractor
 	entityCache map[EntityId]*Entity // Cache entities by ID
 	typeHints   TypeHintMap
+	tableName   string // Unique table name for this builder
+	closed      bool   // Track if the builder has been closed
 }
+
+// Static counter for generating unique table names
+var tableCounter int64 = 0
 
 func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	qlog.Trace("NewSQLiteBuilder: Creating new SQLite builder")
@@ -172,16 +178,52 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 		return nil, err
 	}
 
-	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database")
+	// Generate a unique table name using atomic counter
+	uniqueID := atomic.AddInt64(&tableCounter, 1)
+	tableName := fmt.Sprintf("entities_%d", uniqueID)
+
+	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database with table name: %s", tableName)
 	return &SQLiteBuilder{
 		db:          db,
 		store:       store,
 		entityCache: make(map[EntityId]*Entity),
 		typeHints:   make(TypeHintMap),
+		tableName:   tableName,
 	}, nil
 }
 
-// GetEntityFromCache retrieves an entity from cache or loads it from the store
+// Close releases resources used by the SQLiteBuilder
+func (me *SQLiteBuilder) Close() error {
+	if me.closed {
+		return nil
+	}
+
+	qlog.Trace("SQLiteBuilder.Close: Cleaning up resources")
+
+	// Drop the table if it exists
+	if me.tableName != "" {
+		_, err := me.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
+		if err != nil {
+			qlog.Trace("SQLiteBuilder.Close: Failed to drop table %s: %v", me.tableName, err)
+		} else {
+			qlog.Trace("SQLiteBuilder.Close: Dropped table %s", me.tableName)
+		}
+	}
+
+	// Close the database connection
+	err := me.db.Close()
+	if err != nil {
+		qlog.Trace("SQLiteBuilder.Close: Error closing database: %v", err)
+		return err
+	}
+
+	// Clear the cache and mark as closed
+	me.entityCache = nil
+	me.closed = true
+	qlog.Trace("SQLiteBuilder.Close: Resources cleaned up successfully")
+	return nil
+}
+
 func (me *SQLiteBuilder) GetEntityFromCache(ctx context.Context, entityId EntityId) *Entity {
 	qlog.Trace("GetEntityFromCache: Looking up entity: %s", entityId)
 
@@ -202,7 +244,15 @@ func (me *SQLiteBuilder) GetEntityFromCache(ctx context.Context, entityId Entity
 }
 
 func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
-	qlog.Trace("Building SQLite table for entity type: %s", entityType)
+	qlog.Trace("Building SQLite table for entity type: %s with name: %s", entityType, me.tableName)
+
+	// Drop the table if it exists
+	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
+	if err != nil {
+		qlog.Trace("BuildTable: Failed to drop existing table: %v", err)
+		return fmt.Errorf("failed to drop existing table: %v", err)
+	}
+
 	// Create table with all necessary columns
 	columns := make([]string, 0)
 	columns = append(columns, "id TEXT PRIMARY KEY")
@@ -232,7 +282,7 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 		}
 	}
 
-	createSQL := fmt.Sprintf("CREATE TABLE entities (%s)", strings.Join(columns, ", "))
+	createSQL := fmt.Sprintf("CREATE TABLE %s (%s)", me.tableName, strings.Join(columns, ", "))
 	qlog.Trace("Creating table with SQL: %s", createSQL)
 	if _, err := me.db.ExecContext(ctx, createSQL); err != nil {
 		return fmt.Errorf("failed to create table: %v", err)
@@ -242,7 +292,6 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 	return nil
 }
 
-// PopulateTableBatch loads entity data in batches and populates the SQLite table
 func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (int64, error) {
 	qlog.Trace("Populating table batch for entity type: %s, pageSize: %d, cursorId: %d", entityType, pageSize, cursorId)
 
@@ -271,7 +320,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	}()
 
 	// Prepare the insert statement once
-	stmt, err := tx.PrepareContext(ctx, "INSERT OR IGNORE INTO entities (id) VALUES (?)")
+	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s (id) VALUES (?)", me.tableName))
 	if err != nil {
 		return cursorId, fmt.Errorf("failed to prepare statement: %v", err)
 	}
@@ -301,7 +350,6 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	return pageResult.CursorId, nil
 }
 
-// loadQueryFieldsBulk loads only the fields specified in the query, handling indirection and metadata
 func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []EntityId, query *ParsedQuery) error {
 	qlog.Trace("loadQueryFieldsBulk: Loading fields for %d entities", len(entityIds))
 	if len(entityIds) == 0 {
@@ -397,21 +445,21 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 					qlog.Trace("loadQueryFieldsBulk: Updating WriterId metadata for entity %s, field %s",
 						entityId, queryField.FieldType.AsString())
 					_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                        UPDATE entities SET %s_writer_id = ? WHERE id = ?
-                    `, queryField.ColumnName()), req.WriterId.AsString(), entityId)
+                        UPDATE %s SET %s_writer_id = ? WHERE id = ?
+                    `, me.tableName, queryField.ColumnName()), req.WriterId.AsString(), entityId)
 				case "WriteTime":
 					qlog.Trace("loadQueryFieldsBulk: Updating WriteTime metadata for entity %s, field %s",
 						entityId, queryField.FieldType.AsString())
 					_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                        UPDATE entities SET %s_write_time = ? WHERE id = ?
-                    `, queryField.ColumnName()), req.WriteTime.AsTime(), entityId)
+                        UPDATE %s SET %s_write_time = ? WHERE id = ?
+                    `, me.tableName, queryField.ColumnName()), req.WriteTime.AsTime(), entityId)
 				case "EntityType":
 					// EntityType is derived from the entity itself
 					if entity, exists := me.entityCache[entityId]; exists {
 						qlog.Trace("loadQueryFieldsBulk: Updating EntityType metadata for entity %s", entityId)
 						_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                            UPDATE entities SET %s = ? WHERE id = ?
-                        `, queryField.ColumnName()), entity.EntityType, entityId)
+                            UPDATE %s SET %s = ? WHERE id = ?
+                        `, me.tableName, queryField.ColumnName()), entity.EntityType, entityId)
 					}
 				}
 			} else {
@@ -419,8 +467,8 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 				qlog.Trace("loadQueryFieldsBulk: Updating value for entity %s, field %s",
 					entityId, queryField.FieldType.AsString())
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                    UPDATE entities SET %s = ?, %s_writer_id = ?, %s_write_time = ? WHERE id = ?
-                `, queryField.ColumnName(), queryField.ColumnName(), queryField.ColumnName()),
+                    UPDATE %s SET %s = ?, %s_writer_id = ?, %s_write_time = ? WHERE id = ?
+                `, me.tableName, queryField.ColumnName(), queryField.ColumnName(), queryField.ColumnName()),
 					convertValueForSQLite(req.Value),
 					req.WriterId.AsString(),
 					req.WriteTime.AsTime(),
@@ -446,7 +494,6 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	return nil
 }
 
-// ExecuteQuery now supports pagination and handles all field types properly
 func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, limit int64, offset int64) (*sql.Rows, error) {
 	qlog.Trace("ExecuteQuery: Building query with limit %d, offset %d", limit, offset)
 
@@ -469,7 +516,7 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 				selectFields[i] = fmt.Sprintf("%s_write_time as %s", field.ColumnName(), alias)
 				qlog.Trace("ExecuteQuery: Added WriteTime metadata select: %s", selectFields[i])
 			case "EntityType":
-				selectFields[i] = "(SELECT type FROM Entities WHERE id = entities.id) as " + alias
+				selectFields[i] = "(SELECT type FROM Entities WHERE id = " + sb.tableName + ".id) as " + alias
 				qlog.Trace("ExecuteQuery: Added EntityType metadata select: %s", selectFields[i])
 			}
 		} else {
@@ -479,7 +526,7 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	}
 
 	// Build the complete query
-	sqlQuery := fmt.Sprintf("SELECT id, %s FROM entities", strings.Join(selectFields, ", "))
+	sqlQuery := fmt.Sprintf("SELECT id, %s FROM %s", strings.Join(selectFields, ", "), sb.tableName)
 
 	if query.Where != nil {
 		whereClause := sqlparser.String(query.Where)
@@ -520,7 +567,6 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	return rows, nil
 }
 
-// QueryWithPagination executes the query with pagination and returns a PageResult
 func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[*Entity], error) {
 	qlog.Trace("QueryWithPagination: Starting for entity type %s, pageSize %d, cursorId %d",
 		entityType, pageSize, cursorId)
@@ -585,6 +631,9 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		nextCursorId = -1
 	}
 
+	// Create a reference to this builder to close it later
+	builderRef := sb
+
 	// Create PageResult with next page function
 	result := &PageResult[*Entity]{
 		Items:    entities,
@@ -592,6 +641,13 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		NextPage: func(ctx context.Context) (*PageResult[*Entity], error) {
 			if nextCursorId < 0 {
 				qlog.Trace("NextPage: No more results to fetch")
+
+				// Clean up resources when we reach the end
+				if builderRef != nil {
+					_ = builderRef.Close()
+					builderRef = nil
+				}
+
 				return &PageResult[*Entity]{
 					Items:    []*Entity{},
 					CursorId: -1,
@@ -607,7 +663,6 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	return result, nil
 }
 
-// RowToEntity now uses the entity and schema caches
 func (sb *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query *ParsedQuery) (*Entity, error) {
 	// Get column names from the query
 	columns, err := rows.Columns()
