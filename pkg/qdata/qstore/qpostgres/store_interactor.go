@@ -1367,6 +1367,7 @@ func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.Publi
 }
 
 func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
+	qlog.Trace("PrepareQuery called with SQL: %s, args: %v", sql, args)
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
 	otherArgs := []interface{}{}
@@ -1400,6 +1401,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 			NextPage: nil,
 		}
 	}
+	qlog.Trace("Successfully parsed query. Table: %s, Fields: %+v", parsedQuery.Table.EntityType, parsedQuery.Fields)
 
 	// Create SQLite builder
 	builder, err := qdata.NewSQLiteBuilder(me)
@@ -1411,8 +1413,10 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 			NextPage: nil,
 		}
 	}
+	qlog.Trace("Created SQLite builder successfully")
 
 	entityType := qdata.EntityType(parsedQuery.Table.EntityType)
+	qlog.Trace("Query is for entity type: %s", entityType)
 
 	return &qdata.PageResult[*qdata.Entity]{
 		Items:    []*qdata.Entity{},
