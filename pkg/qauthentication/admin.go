@@ -71,7 +71,7 @@ func NewAdmin(core Core, opts ...AdminOption) Admin {
 
 	defaultOpts := []AdminOption{
 		MasterRealm(getEnvOrDefault("Q_KEYCLOAK_MASTER_REALM", "master")),
-		Realm(getEnvOrDefault("Q_KEYCLOAK_REALM", "qcore-realm")),
+		Realm(getEnvOrDefault("Q_KEYCLOAK_REALM", "qos")),
 		Username(getEnvOrDefault("Q_KEYCLOAK_ADMIN_USER", "admin")),
 		Password(getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin")),
 		ClientID(getEnvOrDefault("Q_KEYCLOAK_ADMIN_CLIENT_ID", "admin-qcore")),
@@ -329,13 +329,28 @@ func (me *admin) authenticate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	_, claims, err := me.core.GetClient().DecodeAccessToken(ctx, token.AccessToken, me.config.masterRealm)
+	if err != nil {
+		return err
+	}
+
+	if sid, ok := (*claims)["sid"].(string); ok {
+		defer func() {
+			err := me.core.GetClient().LogoutUserSession(ctx, token.AccessToken, me.config.masterRealm, sid)
+			if err != nil {
+				qlog.Warn("Failed to logout user session: %v", err)
+			}
+		}()
+	} else {
+		qlog.Warn("No session id found in token claims")
+	}
 
 	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken, me.config.masterRealm)
 	if err != nil {
 		return err
 	}
 
-	me.session = NewSession(me.core, token, me.config.clientID, client.GetSecret(), me.config.masterRealm)
+	me.session = client.GetSession(ctx)
 	return nil
 }
 

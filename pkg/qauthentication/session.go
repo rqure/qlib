@@ -66,13 +66,23 @@ func (me *session) Revoke(ctx context.Context) error {
 		return fmt.Errorf("no token to revoke")
 	}
 
-	return me.core.GetClient().Logout(
-		ctx,
-		me.clientID,
-		me.clientSecret,
-		me.realm,
-		me.token.RefreshToken,
-	)
+	_, claims, err := me.core.GetClient().DecodeAccessToken(ctx, me.token.AccessToken, me.realm)
+	if err != nil {
+		return err
+	}
+
+	sid, ok := (*claims)["sid"].(string)
+	if !ok {
+		return fmt.Errorf("no session id found in token claims")
+	}
+
+	err = me.core.GetClient().LogoutUserSession(ctx, me.token.AccessToken, me.realm, sid)
+	if err != nil {
+		return err
+	}
+
+	me.token = nil
+	return nil
 }
 
 func (me *session) AccessToken() string {
