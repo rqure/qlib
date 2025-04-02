@@ -1390,7 +1390,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 		qlog.Error("Failed to parse query: %v", err)
 		return &qdata.PageResult[*qdata.Entity]{
 			Items:    []*qdata.Entity{},
-			HasMore:  false,
+			CursorId: -1,
 			NextPage: nil,
 		}
 	}
@@ -1402,7 +1402,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 		qlog.Error("Failed to create SQLite builder: %v", err)
 		return &qdata.PageResult[*qdata.Entity]{
 			Items:    []*qdata.Entity{},
-			HasMore:  false,
+			CursorId: -1,
 			NextPage: nil,
 		}
 	}
@@ -1411,7 +1411,6 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 
 	return &qdata.PageResult[*qdata.Entity]{
 		Items:    []*qdata.Entity{},
-		HasMore:  false,
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)

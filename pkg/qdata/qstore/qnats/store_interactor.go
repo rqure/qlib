@@ -175,26 +175,12 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 				types = append(types, qdata.EntityType(t))
 			}
 
-			// Set cursor based on server response
 			nextCursor := response.NextCursor
-
-			// If the server indicates no more results via hasMore=false, set cursor to -1
-			// We maintain this for backward compatibility with existing protobuf APIs
-			if len(types) == 0 || !response.HasMore {
-				nextCursor = -1
-			}
 
 			return &qdata.PageResult[qdata.EntityType]{
 				Items:    types,
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					if nextCursor < 0 {
-						return &qdata.PageResult[qdata.EntityType]{
-							Items:    []qdata.EntityType{},
-							CursorId: -1,
-							NextPage: nil,
-						}, nil
-					}
 					return me.GetEntityTypes(
 						qdata.POPageSize(pageConfig.PageSize),
 						qdata.POCursorId(nextCursor)).NextPage(ctx)
