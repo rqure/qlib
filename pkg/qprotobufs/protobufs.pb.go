@@ -1979,7 +1979,6 @@ func (x *ApiRuntimeFindEntitiesRequest) GetCursor() int64 {
 type ApiRuntimeFindEntitiesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entities      []string               `protobuf:"bytes,1,rep,name=entities,proto3" json:"entities,omitempty"`
-	HasMore       bool                   `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	NextCursor    int64                  `protobuf:"varint,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2020,13 +2019,6 @@ func (x *ApiRuntimeFindEntitiesResponse) GetEntities() []string {
 		return x.Entities
 	}
 	return nil
-}
-
-func (x *ApiRuntimeFindEntitiesResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
 }
 
 func (x *ApiRuntimeFindEntitiesResponse) GetNextCursor() int64 {
@@ -2091,7 +2083,6 @@ func (x *ApiRuntimeGetEntityTypesRequest) GetCursor() int64 {
 type ApiRuntimeGetEntityTypesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntityTypes   []string               `protobuf:"bytes,1,rep,name=entity_types,json=entityTypes,proto3" json:"entity_types,omitempty"`
-	HasMore       bool                   `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	NextCursor    int64                  `protobuf:"varint,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2132,13 +2123,6 @@ func (x *ApiRuntimeGetEntityTypesResponse) GetEntityTypes() []string {
 		return x.EntityTypes
 	}
 	return nil
-}
-
-func (x *ApiRuntimeGetEntityTypesResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
 }
 
 func (x *ApiRuntimeGetEntityTypesResponse) GetNextCursor() int64 {
@@ -2455,7 +2439,6 @@ func (x *ApiRuntimeQueryRequest) GetTypeHints() []*TypeHint {
 type ApiRuntimeQueryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entities      []*DatabaseEntity      `protobuf:"bytes,1,rep,name=entities,proto3" json:"entities,omitempty"`
-	HasMore       bool                   `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	NextCursor    int64                  `protobuf:"varint,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2496,13 +2479,6 @@ func (x *ApiRuntimeQueryResponse) GetEntities() []*DatabaseEntity {
 		return x.Entities
 	}
 	return nil
-}
-
-func (x *ApiRuntimeQueryResponse) GetHasMore() bool {
-	if x != nil {
-		return x.HasMore
-	}
-	return false
 }
 
 func (x *ApiRuntimeQueryResponse) GetNextCursor() int64 {
@@ -3692,18 +3668,16 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\ventity_type\x18\x01 \x01(\tR\n" +
 	"entityType\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x03R\bpageSize\x12\x16\n" +
-	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\"x\n" +
+	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\"]\n" +
 	"\x1eApiRuntimeFindEntitiesResponse\x12\x1a\n" +
-	"\bentities\x18\x01 \x03(\tR\bentities\x12\x19\n" +
-	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12\x1f\n" +
+	"\bentities\x18\x01 \x03(\tR\bentities\x12\x1f\n" +
 	"\vnext_cursor\x18\x03 \x01(\x03R\n" +
 	"nextCursor\"V\n" +
 	"\x1fApiRuntimeGetEntityTypesRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x03R\bpageSize\x12\x16\n" +
-	"\x06cursor\x18\x02 \x01(\x03R\x06cursor\"\x81\x01\n" +
+	"\x06cursor\x18\x02 \x01(\x03R\x06cursor\"f\n" +
 	" ApiRuntimeGetEntityTypesResponse\x12!\n" +
-	"\fentity_types\x18\x01 \x03(\tR\ventityTypes\x12\x19\n" +
-	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12\x1f\n" +
+	"\fentity_types\x18\x01 \x03(\tR\ventityTypes\x12\x1f\n" +
 	"\vnext_cursor\x18\x03 \x01(\x03R\n" +
 	"nextCursor\"\\\n" +
 	"\x1cApiRuntimeFieldExistsRequest\x12\x1c\n" +
@@ -3725,10 +3699,9 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\tpage_size\x18\x02 \x01(\x03R\bpageSize\x12\x16\n" +
 	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\x123\n" +
 	"\n" +
-	"type_hints\x18\x04 \x03(\v2\x14.qprotobufs.TypeHintR\ttypeHints\"\x8d\x01\n" +
+	"type_hints\x18\x04 \x03(\v2\x14.qprotobufs.TypeHintR\ttypeHints\"r\n" +
 	"\x17ApiRuntimeQueryResponse\x126\n" +
-	"\bentities\x18\x01 \x03(\v2\x1a.qprotobufs.DatabaseEntityR\bentities\x12\x19\n" +
-	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12\x1f\n" +
+	"\bentities\x18\x01 \x03(\v2\x1a.qprotobufs.DatabaseEntityR\bentities\x12\x1f\n" +
 	"\vnext_cursor\x18\x03 \x01(\x03R\n" +
 	"nextCursor\"g\n" +
 	"\x0eDatabaseEntity\x12\x0e\n" +
