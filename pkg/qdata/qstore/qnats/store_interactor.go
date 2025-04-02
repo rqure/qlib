@@ -114,14 +114,7 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 				entities = append(entities, qdata.EntityId(id))
 			}
 
-			// Set cursor based on server response
 			nextCursor := response.NextCursor
-
-			// If the server indicates no more results via hasMore=false, set cursor to -1
-			// We maintain this for backward compatibility with existing protobuf APIs
-			if len(entities) == 0 || !response.HasMore {
-				nextCursor = -1
-			}
 
 			return &qdata.PageResult[qdata.EntityId]{
 				Items:    entities,
@@ -260,14 +253,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 				entities = append(entities, entity)
 			}
 
-			// Set cursor based on server response
 			nextCursor := response.NextCursor
-
-			// If the server indicates no more results via hasMore=false, set cursor to -1
-			// We maintain this for backward compatibility with existing protobuf APIs
-			if len(entities) == 0 || !response.HasMore {
-				nextCursor = -1
-			}
 
 			return &qdata.PageResult[*qdata.Entity]{
 				Items:    entities,
