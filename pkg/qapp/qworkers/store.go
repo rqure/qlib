@@ -107,23 +107,23 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 	default:
 	}
 
-	if me.isStoreConnected {
-		select {
-		case <-me.connectionCheckTimer.C:
-			me.store.CheckConnection(ctx)
-		default:
-		}
-	} else {
-		select {
-		case <-me.connectionAttemptTimer.C:
+	select {
+	case <-me.connectionAttemptTimer.C:
+		if !me.isStoreConnected {
 			me.tryConnect(ctx)
-		default:
 		}
+	default:
 	}
+
+	select {
+	case <-me.connectionCheckTimer.C:
+		me.store.CheckConnection(ctx)
+	default:
+	}
+
 }
 
 func (me *storeWorker) tryConnect(ctx context.Context) {
-	qlog.Info("Trying to connect to the store...")
 	me.store.Connect(ctx)
 }
 
