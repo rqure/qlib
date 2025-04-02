@@ -78,8 +78,7 @@ func POCursorId(cursorId int64) PageOpts {
 
 type PageResult[T any] struct {
 	Items    []T
-	HasMore  bool
-	CursorId int64 // Tracks the cursor ID for the next page
+	CursorId int64 // Tracks the cursor ID for the next page. Negative means no more results.
 	NextPage func(ctx context.Context) (*PageResult[T], error)
 }
 
@@ -89,26 +88,29 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 		return true
 	}
 
-	// If there are no more items to fetch, return false
-	if !p.HasMore || p.NextPage == nil {
+	// If there's no next page function or cursor is negative, we're done
+	if p.NextPage == nil || p.CursorId < 0 {
 		return false
 	}
 
 	// Try to fetch the next page
 	nextResult, err := p.NextPage(ctx)
-	if err != nil {
+	if err != nil || nextResult == nil {
+		p.CursorId = -1  // Mark as done
+		p.NextPage = nil // Clear the function to prevent future calls
 		return false
 	}
 
-	// If next page is nil or empty, we're done
-	if nextResult == nil || len(nextResult.Items) == 0 {
-		p.HasMore = false
+	// If next page is empty or has negative cursor, we're done
+	if len(nextResult.Items) == 0 || nextResult.CursorId < 0 {
+		p.CursorId = -1
+		p.NextPage = nil // Clear the function to prevent future calls
 		return false
 	}
 
 	// Update this result with the next page
 	*p = *nextResult
-	return len(p.Items) > 0
+	return true
 }
 
 func (p *PageResult[T]) Get() T {
@@ -121,10 +123,12 @@ func (p *PageResult[T]) Get() T {
 	return item
 }
 
-func (p *PageResult[T]) ForEach(ctx context.Context, fn func(ctx context.Context, item T)) {
+func (p *PageResult[T]) ForEach(ctx context.Context, fn func(item T) bool) {
 	for p.Next(ctx) {
 		item := p.Get()
-		fn(ctx, item)
+		if !fn(item) {
+			break
+		}
 	}
 }
 

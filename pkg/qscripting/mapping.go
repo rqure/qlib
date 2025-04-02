@@ -1253,8 +1253,7 @@ func pageResultToTengo[T any](result *qdata.PageResult[T], converter func(T) ten
 	// Create the page result object
 	return &tengo.Map{
 		Value: map[string]tengo.Object{
-			"items":   &tengo.Array{Value: items},
-			"hasMore": tengoBool(result.HasMore),
+			"items": &tengo.Array{Value: items},
 			"next": &tengo.UserFunction{
 				Name: "next",
 				Value: func(args ...tengo.Object) (tengo.Object, error) {
@@ -1267,25 +1266,7 @@ func pageResultToTengo[T any](result *qdata.PageResult[T], converter func(T) ten
 						return nil, err
 					}
 
-					if result.HasMore {
-						nextResult, err := result.NextPage(ctx)
-						if err != nil {
-							return nil, err
-						}
-
-						*result = *nextResult
-
-						// Create a new page result for the next page
-						return pageResultToTengo(result, converter), nil
-					}
-
-					// Return empty result if no more items
-					return &tengo.Map{
-						Value: map[string]tengo.Object{
-							"items":   &tengo.Array{Value: []tengo.Object{}},
-							"hasMore": tengoBool(false),
-						},
-					}, nil
+					return tengoBool(result.Next(ctx)), nil
 				},
 			},
 			"forEach": &tengo.UserFunction{
@@ -1305,32 +1286,10 @@ func pageResultToTengo[T any](result *qdata.PageResult[T], converter func(T) ten
 						return nil, fmt.Errorf("expected function, got %s", args[1].TypeName())
 					}
 
-					// Process current items in this page
-					for _, item := range items {
-						_, err := callbackFn.Value(item)
-						if err != nil {
-							return nil, err
-						}
-					}
-
-					// Process subsequent pages if available
-					currentResult := result
-					for currentResult.HasMore {
-						nextResult, err := currentResult.NextPage(ctx)
-						if err != nil {
-							return nil, err
-						}
-
-						currentResult = nextResult
-
-						// Process items in the next page
-						for _, item := range currentResult.Items {
-							_, err := callbackFn.Value(converter(item))
-							if err != nil {
-								return nil, err
-							}
-						}
-					}
+					result.ForEach(ctx, func(item T) bool {
+						_, err := callbackFn.Value(converter(item))
+						return err == nil
+					})
 
 					return tengo.UndefinedValue, nil
 				},

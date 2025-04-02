@@ -91,7 +91,6 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 
 	return &qdata.PageResult[qdata.EntityId]{
 		Items:    []qdata.EntityId{},
-		HasMore:  false, // Initialize as false until we know there's more
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			msg := &qprotobufs.ApiRuntimeFindEntitiesRequest{
@@ -115,20 +114,23 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 				entities = append(entities, qdata.EntityId(id))
 			}
 
-			// Update the cursor for the next page
+			// Set cursor based on server response
 			nextCursor := response.NextCursor
+
+			// If the server indicates no more results via hasMore=false, set cursor to -1
+			// We maintain this for backward compatibility with existing protobuf APIs
+			if len(entities) == 0 || !response.HasMore {
+				nextCursor = -1
+			}
 
 			return &qdata.PageResult[qdata.EntityId]{
 				Items:    entities,
-				HasMore:  response.HasMore && len(entities) > 0, // Only has more if we got results
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-					// Use the updated cursor for the next page request
-					if !response.HasMore || len(entities) == 0 {
+					if nextCursor < 0 {
 						return &qdata.PageResult[qdata.EntityId]{
 							Items:    []qdata.EntityId{},
-							HasMore:  false,
-							CursorId: nextCursor,
+							CursorId: -1,
 							NextPage: nil,
 						}, nil
 					}
@@ -151,7 +153,6 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 
 	return &qdata.PageResult[qdata.EntityType]{
 		Items:    []qdata.EntityType{},
-		HasMore:  false, // Initialize as false until we know there's more
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 			msg := &qprotobufs.ApiRuntimeGetEntityTypesRequest{
@@ -174,20 +175,23 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 				types = append(types, qdata.EntityType(t))
 			}
 
-			// Update the cursor for the next page
+			// Set cursor based on server response
 			nextCursor := response.NextCursor
+
+			// If the server indicates no more results via hasMore=false, set cursor to -1
+			// We maintain this for backward compatibility with existing protobuf APIs
+			if len(types) == 0 || !response.HasMore {
+				nextCursor = -1
+			}
 
 			return &qdata.PageResult[qdata.EntityType]{
 				Items:    types,
-				HasMore:  response.HasMore && len(types) > 0, // Only has more if we got results
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					// Use the updated cursor for the next page request
-					if !response.HasMore || len(types) == 0 {
+					if nextCursor < 0 {
 						return &qdata.PageResult[qdata.EntityType]{
 							Items:    []qdata.EntityType{},
-							HasMore:  false,
-							CursorId: nextCursor,
+							CursorId: -1,
 							NextPage: nil,
 						}, nil
 					}
@@ -241,7 +245,6 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 
 	return &qdata.PageResult[*qdata.Entity]{
 		Items:    []*qdata.Entity{},
-		HasMore:  false,
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			// Create a query request message
@@ -271,19 +274,23 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qd
 				entities = append(entities, entity)
 			}
 
-			// Store cursor for next page
+			// Set cursor based on server response
 			nextCursor := response.NextCursor
+
+			// If the server indicates no more results via hasMore=false, set cursor to -1
+			// We maintain this for backward compatibility with existing protobuf APIs
+			if len(entities) == 0 || !response.HasMore {
+				nextCursor = -1
+			}
 
 			return &qdata.PageResult[*qdata.Entity]{
 				Items:    entities,
-				HasMore:  response.HasMore && len(entities) > 0, // Only has more if we got results
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
-					if !response.HasMore || len(entities) == 0 {
+					if nextCursor < 0 {
 						return &qdata.PageResult[*qdata.Entity]{
 							Items:    []*qdata.Entity{},
-							HasMore:  false,
-							CursorId: nextCursor,
+							CursorId: -1,
 							NextPage: nil,
 						}, nil
 					}

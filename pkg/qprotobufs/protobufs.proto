@@ -194,7 +194,6 @@ message ApiRuntimeFindEntitiesRequest {
 
 message ApiRuntimeFindEntitiesResponse {
     repeated string entities = 1;
-    bool has_more = 2;
     int64 next_cursor = 3;
 }
 
@@ -205,7 +204,6 @@ message ApiRuntimeGetEntityTypesRequest {
 
 message ApiRuntimeGetEntityTypesResponse {
     repeated string entity_types = 1;
-    bool has_more = 2;
     int64 next_cursor = 3;
 }
 
@@ -240,7 +238,6 @@ message ApiRuntimeQueryRequest {
 
 message ApiRuntimeQueryResponse {
     repeated DatabaseEntity entities = 1;
-    bool has_more = 2;
     int64 next_cursor = 3;
 }
 

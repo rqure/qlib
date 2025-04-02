@@ -243,7 +243,7 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 }
 
 // PopulateTableBatch loads entity data in batches and populates the SQLite table
-func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (int64, bool, error) {
+func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (int64, error) {
 	qlog.Trace("Populating table batch for entity type: %s, pageSize: %d, cursorId: %d", entityType, pageSize, cursorId)
 
 	// Get entities in batches
@@ -253,14 +253,14 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	pageResult, err := entityIterator.NextPage(ctx)
 	if err != nil {
 		qlog.Error("Failed to get entities: %v", err)
-		return cursorId, false, fmt.Errorf("failed to get entities: %v", err)
+		return cursorId, fmt.Errorf("failed to get entities: %v", err)
 	}
 	qlog.Trace("Got page result with %d entities", len(pageResult.Items))
 
 	// Begin a transaction for batch inserts
 	tx, err := me.db.BeginTx(ctx, nil)
 	if err != nil {
-		return cursorId, false, fmt.Errorf("failed to begin transaction: %v", err)
+		return cursorId, fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer func() {
 		if err != nil {
@@ -273,7 +273,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	// Prepare the insert statement once
 	stmt, err := tx.PrepareContext(ctx, "INSERT OR IGNORE INTO entities (id) VALUES (?)")
 	if err != nil {
-		return cursorId, false, fmt.Errorf("failed to prepare statement: %v", err)
+		return cursorId, fmt.Errorf("failed to prepare statement: %v", err)
 	}
 	defer stmt.Close()
 
@@ -285,7 +285,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 
 		// Insert the entity ID first
 		if _, err := stmt.ExecContext(ctx, entityId); err != nil {
-			return cursorId, false, fmt.Errorf("failed to insert entity: %v", err)
+			return cursorId, fmt.Errorf("failed to insert entity: %v", err)
 		}
 	}
 
@@ -293,12 +293,12 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	// Now load field data in bulk for all entities in this batch
 	if len(entityIds) > 0 {
 		if err := me.loadQueryFieldsBulk(ctx, entityIds, query); err != nil {
-			return cursorId, false, err
+			return cursorId, err
 		}
 	}
 
-	// Return the next cursor ID and whether there are more results
-	return pageResult.CursorId, pageResult.HasMore, nil
+	// Return the next cursor ID
+	return pageResult.CursorId, nil
 }
 
 // loadQueryFieldsBulk loads only the fields specified in the query, handling indirection and metadata
@@ -537,14 +537,14 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 
 	// Load data in batches until we have enough for this page
-	nextCursorId, hasMore, err := sb.PopulateTableBatch(ctx, entityType, query, pageSize+1, cursorId)
+	nextCursorId, err := sb.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
 	if err != nil {
 		qlog.Trace("QueryWithPagination: Failed to populate table: %v", err)
 		return nil, fmt.Errorf("failed to populate table: %v", err)
 	}
-	qlog.Trace("QueryWithPagination: Table populated. nextCursorId: %d, hasMore: %v", nextCursorId, hasMore)
+	qlog.Trace("QueryWithPagination: Table populated. nextCursorId: %d", nextCursorId)
 
-	// Execute query with pagination parameters
+	// Execute query with exact pagination parameters (no need for extra items)
 	rows, err := sb.ExecuteQuery(ctx, query, pageSize, 0)
 	if err != nil {
 		qlog.Trace("QueryWithPagination: Failed to execute query: %v", err)
@@ -568,20 +568,25 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		entities = append(entities, entity)
 		entityCount++
 	}
-	qlog.Trace("QueryWithPagination: Processed %d entities with %d errors", entityCount, errorCount)
+
+	qlog.Trace("QueryWithPagination: Processed %d entities with %d errors",
+		entityCount, errorCount)
+
+	// If we got fewer results than requested, we're at the end
+	if len(entities) < int(pageSize) {
+		nextCursorId = -1
+	}
 
 	// Create PageResult with next page function
 	result := &PageResult[*Entity]{
 		Items:    entities,
-		HasMore:  hasMore && len(entities) > 0, // Only has more if we got results and there are more
 		CursorId: nextCursorId,
 		NextPage: func(ctx context.Context) (*PageResult[*Entity], error) {
-			if !hasMore || len(entities) == 0 {
+			if nextCursorId < 0 {
 				qlog.Trace("NextPage: No more results to fetch")
 				return &PageResult[*Entity]{
 					Items:    []*Entity{},
-					HasMore:  false,
-					CursorId: nextCursorId,
+					CursorId: -1,
 					NextPage: nil,
 				}, nil
 			}
@@ -590,8 +595,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		},
 	}
 
-	qlog.Trace("QueryWithPagination: Returning result with %d items, hasMore: %v",
-		len(result.Items), result.HasMore)
+	qlog.Trace("QueryWithPagination: Returning result with %d items", len(result.Items))
 	return result, nil
 }
 

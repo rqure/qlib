@@ -189,21 +189,20 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 
 	return &qdata.PageResult[qdata.EntityId]{
 		Items:    []qdata.EntityId{},
-		HasMore:  false,
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			var entities []qdata.EntityId
-			var hasMore bool
 			var nextCursorId int64 = pageConfig.CursorId
 
 			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
+				// Request exact page size
 				rows, err := tx.Query(ctx, `
                     SELECT id, cursor_id 
                     FROM Entities 
                     WHERE type = $1 AND cursor_id > $2 
                     ORDER BY cursor_id 
                     LIMIT $3
-                `, entityType.AsString(), pageConfig.CursorId, pageConfig.PageSize+1)
+                `, entityType.AsString(), pageConfig.CursorId, pageConfig.PageSize)
 
 				if err != nil {
 					qlog.Error("Failed to find entities: %v", err)
@@ -221,24 +220,21 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 					entities = append(entities, qdata.EntityId(id))
 					nextCursorId = cursorId // Keep track of the last cursor ID
 				}
-			})
 
-			// Check if we have more items than requested page size
-			hasMore = int64(len(entities)) > pageConfig.PageSize
-			if hasMore {
-				entities = entities[:pageConfig.PageSize]
-			}
+				// If we got fewer items than requested, we're at the end
+				if len(entities) < int(pageConfig.PageSize) {
+					nextCursorId = -1
+				}
+			})
 
 			return &qdata.PageResult[qdata.EntityId]{
 				Items:    entities,
-				HasMore:  hasMore && len(entities) > 0, // Only has more if we got results
 				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-					if !hasMore || len(entities) == 0 {
+					if nextCursorId < 0 {
 						return &qdata.PageResult[qdata.EntityId]{
 							Items:    []qdata.EntityId{},
-							HasMore:  false,
-							CursorId: nextCursorId,
+							CursorId: -1,
 							NextPage: nil,
 						}, nil
 					}
@@ -261,11 +257,9 @@ func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *q
 
 	return &qdata.PageResult[qdata.EntityType]{
 		Items:    []qdata.EntityType{},
-		HasMore:  false,
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 			var types []qdata.EntityType
-			var hasMore bool
 			var nextCursorId int64 = pageConfig.CursorId
 
 			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
@@ -275,7 +269,7 @@ func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *q
 					WHERE cursor_id > $1
 					ORDER BY entity_type, cursor_id
 					LIMIT $2
-                `, pageConfig.CursorId, pageConfig.PageSize+1)
+                `, pageConfig.CursorId, pageConfig.PageSize)
 
 				if err != nil {
 					qlog.Error("Failed to get entity types: %v", err)
@@ -293,24 +287,21 @@ func (me *PostgresStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *q
 					types = append(types, qdata.EntityType(entityType))
 					nextCursorId = cursorId // Keep track of the last cursor ID
 				}
-			})
 
-			// Check if we have more items than requested page size
-			hasMore = int64(len(types)) > pageConfig.PageSize
-			if hasMore {
-				types = types[:pageConfig.PageSize]
-			}
+				// If we got fewer items than requested, we're at the end
+				if len(types) < int(pageConfig.PageSize) {
+					nextCursorId = -1
+				}
+			})
 
 			return &qdata.PageResult[qdata.EntityType]{
 				Items:    types,
-				HasMore:  hasMore && len(types) > 0, // Only has more if we got results
 				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					if !hasMore || len(types) == 0 {
+					if nextCursorId < 0 {
 						return &qdata.PageResult[qdata.EntityType]{
 							Items:    []qdata.EntityType{},
-							HasMore:  false,
-							CursorId: nextCursorId,
+							CursorId: -1,
 							NextPage: nil,
 						}, nil
 					}
@@ -1423,7 +1414,6 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 		HasMore:  false,
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
-			// Use the improved pagination query method that properly handles all field types
 			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
 		},
 	}
