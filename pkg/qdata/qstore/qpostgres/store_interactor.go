@@ -1415,5 +1415,6 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
 			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
 		},
+		Cleanup: builder.Close,
 	}
 }

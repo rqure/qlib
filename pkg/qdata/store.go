@@ -80,6 +80,7 @@ type PageResult[T any] struct {
 	Items    []T
 	CursorId int64 // Tracks the cursor ID for the next page. Negative means no more results.
 	NextPage func(ctx context.Context) (*PageResult[T], error)
+	Cleanup  func() error // Optional cleanup function to be called when the page is done
 }
 
 func (p *PageResult[T]) Next(ctx context.Context) bool {
@@ -130,6 +131,14 @@ func (p *PageResult[T]) ForEach(ctx context.Context, fn func(item T) bool) {
 			break
 		}
 	}
+}
+
+func (p *PageResult[T]) Close() error {
+	if p.Cleanup != nil {
+		return p.Cleanup()
+	}
+
+	return nil
 }
 
 type StoreInteractor interface {
