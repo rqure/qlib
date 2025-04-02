@@ -483,18 +483,20 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 
 	if query.Where != nil {
 		whereClause := sqlparser.String(query.Where)
-		// Fix the WHERE clause - remove the "WHERE" keyword from the parsed WHERE clause
+		// Fix the WHERE clause - remove the "WHERE" keyword and any leading/trailing whitespace
 		whereClause = strings.TrimPrefix(whereClause, "where ")
 		whereClause = strings.TrimPrefix(whereClause, "WHERE ")
+		whereClause = strings.TrimSpace(whereClause)
 		sqlQuery += " WHERE " + whereClause
 		qlog.Trace("ExecuteQuery: Added WHERE clause: %s", whereClause)
 	}
 
 	if len(query.OrderBy) > 0 {
 		orderBy := sqlparser.String(query.OrderBy)
-		// Fix the ORDER BY clause - remove the "ORDER BY" keywords from the parsed ORDER BY clause
+		// Fix the ORDER BY clause - remove the "ORDER BY" keywords and any leading/trailing whitespace
 		orderBy = strings.TrimPrefix(orderBy, "order by ")
 		orderBy = strings.TrimPrefix(orderBy, "ORDER BY ")
+		orderBy = strings.TrimSpace(orderBy)
 		sqlQuery += " ORDER BY " + orderBy
 		qlog.Trace("ExecuteQuery: Added ORDER BY clause: %s", orderBy)
 	} else {
