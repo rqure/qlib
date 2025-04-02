@@ -1392,7 +1392,9 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 	}
 
 	// Parse the query
-	parsedQuery, err := qdata.ParseQuery(fmt.Sprintf(sql, otherArgs...))
+	fmtQuery := fmt.Sprintf(sql, otherArgs...)
+	qlog.Trace("Formatted query: %s", fmtQuery)
+	parsedQuery, err := qdata.ParseQuery(fmtQuery)
 	if err != nil {
 		qlog.Error("Failed to parse query: %v", err)
 		return &qdata.PageResult[*qdata.Entity]{
@@ -1401,7 +1403,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 			NextPage: nil,
 		}
 	}
-	qlog.Trace("Successfully parsed query. Table: %s, Fields: %+v", parsedQuery.Table.EntityType, parsedQuery.Fields)
+	qlog.Trace("Successfully parsed query. EntityType: %s, Fields: %+v", parsedQuery.Table.EntityType, parsedQuery.Fields)
 
 	// Create SQLite builder
 	builder, err := qdata.NewSQLiteBuilder(me)
@@ -1413,10 +1415,8 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 			NextPage: nil,
 		}
 	}
-	qlog.Trace("Created SQLite builder successfully")
 
 	entityType := qdata.EntityType(parsedQuery.Table.EntityType)
-	qlog.Trace("Query is for entity type: %s", entityType)
 
 	return &qdata.PageResult[*qdata.Entity]{
 		Items:    []*qdata.Entity{},
