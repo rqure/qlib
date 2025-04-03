@@ -3,6 +3,7 @@ package qdata
 import (
 	"fmt"
 
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -48,8 +49,26 @@ func (me *ValueChoice) SetRaw(value interface{}) {
 	switch v := value.(type) {
 	case int:
 		me.Value = v
+	case int8:
+		me.Value = int(v)
+	case int16:
+		me.Value = int(v)
+	case int32:
+		me.Value = int(v)
+	case int64:
+		me.Value = int(v)
+	case uint:
+		me.Value = int(v)
+	case uint8:
+		me.Value = int(v)
+	case uint16:
+		me.Value = int(v)
+	case uint32:
+		me.Value = int(v)
+	case uint64:
+		me.Value = int(v)
 	default:
-		fmt.Printf("Invalid type for SetRaw: %T\n", v)
+		qlog.Error("Invalid type for SetRaw: %T\n", v)
 	}
 }
 
