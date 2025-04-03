@@ -132,6 +132,7 @@ type Value struct {
 func (me *Value) FromValue(o *Value) {
 	me.ValueConstructor = o.ValueConstructor
 	me.AnyPbConverter = o.AnyPbConverter
+	me.StringConverter = o.StringConverter
 	me.ValueTypeProvider = o.ValueTypeProvider
 	me.RawProvider = o.RawProvider
 	me.IntProvider = o.IntProvider

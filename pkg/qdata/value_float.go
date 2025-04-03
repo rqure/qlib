@@ -93,5 +93,5 @@ func (me *ValueFloat) AsAnyPb() *anypb.Any {
 }
 
 func (me *ValueFloat) AsString() string {
-	return fmt.Sprintf("%010.5f", me.Value)
+	return fmt.Sprintf("%f", me.Value)
 }

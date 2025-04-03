@@ -89,5 +89,5 @@ func (me *ValueInt) AsAnyPb() *anypb.Any {
 }
 
 func (me *ValueInt) AsString() string {
-	return fmt.Sprintf("%010d", me.Value)
+	return fmt.Sprintf("%d", me.Value)
 }
