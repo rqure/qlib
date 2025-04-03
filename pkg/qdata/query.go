@@ -246,7 +246,7 @@ func (me *SQLiteBuilder) GetEntityFromCache(ctx context.Context, entityId Entity
 func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
 	qlog.Trace("Building SQLite table for entity type: %s with name: %s", entityType, me.tableName)
 
-	// Drop the table if it exists
+	// Drop the table if it exists - using ExecContext directly on the db connection
 	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
 	if err != nil {
 		qlog.Trace("BuildTable: Failed to drop existing table: %v", err)
@@ -284,8 +284,25 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 
 	createSQL := fmt.Sprintf("CREATE TABLE %s (%s)", me.tableName, strings.Join(columns, ", "))
 	qlog.Trace("Creating table with SQL: %s", createSQL)
-	if _, err := me.db.ExecContext(ctx, createSQL); err != nil {
+
+	// Execute directly on the db connection
+	_, err = me.db.ExecContext(ctx, createSQL)
+	if err != nil {
+		qlog.Trace("BuildTable: Failed to create table: %v", err)
 		return fmt.Errorf("failed to create table: %v", err)
+	}
+
+	// Verify the table was created by running a simple query
+	var count int
+	err = me.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='%s'", me.tableName)).Scan(&count)
+	if err != nil {
+		qlog.Trace("BuildTable: Failed to verify table creation: %v", err)
+		return fmt.Errorf("failed to verify table creation: %v", err)
+	}
+
+	if count != 1 {
+		qlog.Trace("BuildTable: Table was not created successfully")
+		return fmt.Errorf("table was not created successfully")
 	}
 
 	qlog.Trace("Table created successfully")
@@ -294,6 +311,19 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 
 func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (int64, error) {
 	qlog.Trace("Populating table batch for entity type: %s, pageSize: %d, cursorId: %d", entityType, pageSize, cursorId)
+
+	// Verify the table exists before proceeding
+	var count int
+	err := me.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='%s'", me.tableName)).Scan(&count)
+	if err != nil {
+		qlog.Error("PopulateTableBatch: Failed to verify table existence: %v", err)
+		return cursorId, fmt.Errorf("failed to verify table existence: %v", err)
+	}
+
+	if count != 1 {
+		qlog.Error("PopulateTableBatch: Table %s does not exist", me.tableName)
+		return cursorId, fmt.Errorf("table %s does not exist", me.tableName)
+	}
 
 	// Get entities in batches
 	pageOpts := []PageOpts{POPageSize(pageSize), POCursorId(cursorId)}
@@ -322,6 +352,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	// Prepare the insert statement once
 	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s (id) VALUES (?)", me.tableName))
 	if err != nil {
+		qlog.Error("PopulateTableBatch: Failed to prepare statement: %v", err)
 		return cursorId, fmt.Errorf("failed to prepare statement: %v", err)
 	}
 	defer stmt.Close()
@@ -334,8 +365,15 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 
 		// Insert the entity ID first
 		if _, err := stmt.ExecContext(ctx, entityId); err != nil {
+			qlog.Error("PopulateTableBatch: Failed to insert entity %s: %v", entityId, err)
 			return cursorId, fmt.Errorf("failed to insert entity: %v", err)
 		}
+	}
+
+	// Commit this transaction to ensure IDs are saved
+	if err = tx.Commit(); err != nil {
+		qlog.Error("PopulateTableBatch: Failed to commit entity IDs: %v", err)
+		return cursorId, fmt.Errorf("failed to commit entity IDs: %v", err)
 	}
 
 	qlog.Trace("Batch insert complete, loading field data for %d entities", len(entityIds))
@@ -355,6 +393,19 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	if len(entityIds) == 0 {
 		qlog.Trace("loadQueryFieldsBulk: No entities to load")
 		return nil
+	}
+
+	// Verify the table exists before proceeding
+	var count int
+	err := me.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='%s'", me.tableName)).Scan(&count)
+	if err != nil {
+		qlog.Error("loadQueryFieldsBulk: Failed to verify table existence: %v", err)
+		return fmt.Errorf("failed to verify table existence: %v", err)
+	}
+
+	if count != 1 {
+		qlog.Error("loadQueryFieldsBulk: Table %s does not exist", me.tableName)
+		return fmt.Errorf("table %s does not exist", me.tableName)
 	}
 
 	// Create a set of entities for which we need to get data
@@ -393,12 +444,13 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	me.store.Read(ctx, allRequests...)
 	qlog.Trace("loadQueryFieldsBulk: Completed batch read operation")
 
-	// Process successful reads and update SQLite
+	// Begin a new transaction for database updates
 	tx, err := me.db.BeginTx(ctx, nil)
 	if err != nil {
-		qlog.Trace("loadQueryFieldsBulk: Failed to begin transaction: %v", err)
+		qlog.Error("loadQueryFieldsBulk: Failed to begin transaction: %v", err)
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
+
 	defer func() {
 		if err != nil {
 			qlog.Trace("loadQueryFieldsBulk: Rolling back transaction due to error")
