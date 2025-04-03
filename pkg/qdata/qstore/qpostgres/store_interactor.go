@@ -597,7 +597,7 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 				}
 			}
 
-			var fieldValue interface{}
+			fieldValue := schema.ValueType.NewValue().GetRaw()
 			var writeTime time.Time
 			var writer string
 			err := tx.QueryRow(ctx, fmt.Sprintf(`
