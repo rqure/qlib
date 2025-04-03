@@ -53,6 +53,18 @@ func (me *ValueEntityList) SetRaw(value interface{}) {
 		me.Value = CastStringSliceToEntityIdSlice(v)
 	case string:
 		me.Value = CastStringSliceToEntityIdSlice(strings.Split(v, ","))
+	case []interface{}:
+		me.Value = make([]EntityId, len(v))
+		for i, item := range v {
+			switch item := item.(type) {
+			case string:
+				me.Value[i] = EntityId(item)
+			case EntityId:
+				me.Value[i] = item
+			default:
+				qlog.Error("Invalid type for SetRaw subitem: %T", item)
+			}
+		}
 	default:
 		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
