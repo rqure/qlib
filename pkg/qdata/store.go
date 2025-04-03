@@ -111,7 +111,7 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 
 	// Update this result with the next page
 	*p = *nextResult
-	return true
+	return len(p.Items) > 0 // Check if we actually got items after replacing
 }
 
 func (p *PageResult[T]) Get() T {
@@ -125,6 +125,8 @@ func (p *PageResult[T]) Get() T {
 }
 
 func (p *PageResult[T]) ForEach(ctx context.Context, fn func(item T) bool) {
+	defer p.Close()
+
 	for p.Next(ctx) {
 		item := p.Get()
 		if !fn(item) {

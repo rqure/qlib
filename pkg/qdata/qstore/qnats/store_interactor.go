@@ -90,7 +90,7 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 	}
 
 	return &qdata.PageResult[qdata.EntityId]{
-		Items:    []qdata.EntityId{},
+		Items:    []qdata.EntityId{}, // Start with empty items
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			msg := &qprotobufs.ApiRuntimeFindEntitiesRequest{
@@ -101,11 +101,13 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 
 			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 			if err != nil {
+				qlog.Error("Failed to find entities: %v", err)
 				return nil, err
 			}
 
 			var response qprotobufs.ApiRuntimeFindEntitiesResponse
 			if err := resp.Payload.UnmarshalTo(&response); err != nil {
+				qlog.Error("Failed to unmarshal FindEntities response: %v", err)
 				return nil, err
 			}
 
@@ -115,6 +117,8 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 			}
 
 			nextCursor := response.NextCursor
+
+			qlog.Trace("Found %d entities of type %s, nextCursor: %d", len(entities), entityType, nextCursor)
 
 			return &qdata.PageResult[qdata.EntityId]{
 				Items:    entities,
