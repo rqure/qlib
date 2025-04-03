@@ -84,7 +84,7 @@ type PageResult[T any] struct {
 }
 
 func (p *PageResult[T]) Next(ctx context.Context) bool {
-	// If we still have items in the current page, return true
+	// Return true if we still have items in the current page
 	if len(p.Items) > 0 {
 		return true
 	}
@@ -97,21 +97,19 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 	// Try to fetch the next page
 	nextResult, err := p.NextPage(ctx)
 	if err != nil || nextResult == nil {
-		p.CursorId = -1  // Mark as done
-		p.NextPage = nil // Clear the function to prevent future calls
-		return false
-	}
-
-	// If next page is empty or has negative cursor, we're done
-	if len(nextResult.Items) == 0 || nextResult.CursorId < 0 {
 		p.CursorId = -1
-		p.NextPage = nil // Clear the function to prevent future calls
+		p.NextPage = nil
 		return false
 	}
 
-	// Update this result with the next page
-	*p = *nextResult
-	return len(p.Items) > 0 // Check if we actually got items after replacing
+	// Update our state with the next page's data
+	p.Items = nextResult.Items
+	p.CursorId = nextResult.CursorId
+	p.NextPage = nextResult.NextPage
+	p.Cleanup = nextResult.Cleanup
+
+	// Return true if we have items in the new page
+	return len(p.Items) > 0
 }
 
 func (p *PageResult[T]) Get() T {
