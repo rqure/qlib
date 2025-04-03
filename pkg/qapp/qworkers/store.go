@@ -212,38 +212,38 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	)
 
 	appName := qcontext.GetAppName(ctx)
-	clientIterator := me.store.PrepareQuery(`
+	me.store.
+		PrepareQuery(`
 		SELECT LogLevel, QLibLogLevel
 		FROM Client
 		WHERE Name = %q`,
-		appName)
+			appName).
+		ForEach(ctx, func(client *qdata.Entity) bool {
+			logLevel := client.Field("LogLevel").Value.GetChoice() + 1
+			qlog.SetLevel(qlog.Level(logLevel))
 
-	for clientIterator.Next(ctx) {
-		client := clientIterator.Get()
-		logLevel := client.Field("LogLevel").Value.GetChoice() + 1
-		qlog.SetLevel(qlog.Level(logLevel))
+			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+				ctx,
+				qnotify.NewConfig().
+					SetEntityId(client.EntityId).
+					SetFieldType("LogLevel").
+					SetNotifyOnChange(true),
+				qnotify.NewCallback(me.onLogLevelChanged),
+			))
 
-		me.notificationTokens = append(me.notificationTokens, me.store.Notify(
-			ctx,
-			qnotify.NewConfig().
-				SetEntityId(client.EntityId).
-				SetFieldType("LogLevel").
-				SetNotifyOnChange(true),
-			qnotify.NewCallback(me.onLogLevelChanged),
-		))
+			qlibLogLevel := client.Field("QLibLogLevel").Value.GetChoice() + 1
+			qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
-		qlibLogLevel := client.Field("QLibLogLevel").Value.GetChoice() + 1
-		qlog.SetLibLevel(qlog.Level(qlibLogLevel))
-
-		me.notificationTokens = append(me.notificationTokens, me.store.Notify(
-			ctx,
-			qnotify.NewConfig().
-				SetEntityId(client.EntityId).
-				SetFieldType("QLibLogLevel").
-				SetNotifyOnChange(true),
-			qnotify.NewCallback(me.onQLibLogLevelChanged),
-		))
-	}
+			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+				ctx,
+				qnotify.NewConfig().
+					SetEntityId(client.EntityId).
+					SetFieldType("QLibLogLevel").
+					SetNotifyOnChange(true),
+				qnotify.NewCallback(me.onQLibLogLevelChanged),
+			))
+			return true
+		})
 }
 
 func (me *storeWorker) OnNotReady(ctx context.Context) {

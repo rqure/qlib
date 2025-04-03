@@ -711,6 +711,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 			qlog.Trace("NextPage: Fetching next page with cursorId: %d", nextCursorId)
 			return sb.QueryWithPagination(ctx, entityType, query, pageSize, nextCursorId, opts...)
 		},
+		Cleanup: sb.Close,
 	}
 
 	qlog.Trace("QueryWithPagination: Returning result with %d items", len(result.Items))

@@ -704,11 +704,11 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 
 				appName := qcontext.GetAppName(ctx)
 				if me.clientId == nil && appName != "" {
-					iterator := me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", appName)
-
-					for iterator.Next(ctx) {
-						me.clientId = &iterator.Get().EntityId
-					}
+					me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", appName).
+						ForEach(ctx, func(client *qdata.Entity) bool {
+							me.clientId = &client.EntityId
+							return false
+						})
 				}
 
 				if me.clientId != nil {
@@ -967,37 +967,38 @@ func (me *PostgresStoreInteractor) CreateSnapshot(ctx context.Context) *qdata.Sn
 	ss := new(qdata.Snapshot).Init()
 
 	// Get all entity types and their schemas
-	entityTypesIterator := me.GetEntityTypes()
+	me.GetEntityTypes().ForEach(ctx, func(entityType qdata.EntityType) bool {
+		// Add schema
+		schema := me.GetEntitySchema(ctx, entityType)
+		if schema == nil {
+			qlog.Warn("Failed to get schema for entity type %s", entityType)
+			return true
+		}
 
-	me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
-		for entityTypesIterator.Next(ctx) {
-			entityType := entityTypesIterator.Get()
+		ss.Schemas = append(ss.Schemas, schema)
 
-			// Add schema
-			schema := me.GetEntitySchema(ctx, entityType)
-			if schema != nil {
-				ss.Schemas = append(ss.Schemas, schema)
+		// Add entitiesIterator of this type and their fields
+		me.FindEntities(entityType).ForEach(ctx, func(entityId qdata.EntityId) bool {
+			entity := me.GetEntity(ctx, entityId)
+			if entity == nil {
+				qlog.Warn("Failed to get entity %s", entityId)
+				return true
+			}
 
-				// Add entitiesIterator of this type and their fields
-				entitiesIterator := me.FindEntities(entityType)
-				for entitiesIterator.Next(ctx) {
-					entityId := entitiesIterator.Get()
-					entity := me.GetEntity(ctx, entityId)
-					if entity != nil {
-						ss.Entities = append(ss.Entities, entity)
+			ss.Entities = append(ss.Entities, entity)
 
-						// Add fields for this entity
-						for fieldType := range schema.Fields {
-							req := entity.Field(fieldType).AsReadRequest()
-							me.Read(ctx, req)
-							if req.Success {
-								ss.Fields = append(ss.Fields, entity.Field(fieldType))
-							}
-						}
-					}
+			// Add fields for this entity
+			for fieldType := range schema.Fields {
+				req := entity.Field(fieldType).AsReadRequest()
+				me.Read(ctx, req)
+				if req.Success {
+					ss.Fields = append(ss.Fields, entity.Field(fieldType))
 				}
 			}
-		}
+
+			return true
+		})
+		return true
 	})
 
 	return ss
@@ -1236,10 +1237,7 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 			}
 
 			// Update existing entitiesIterator
-			entitiesIterator := me.FindEntities(requestedSchema.EntityType)
-			for entitiesIterator.Next(ctx) {
-				entityId := entitiesIterator.Get()
-
+			me.FindEntities(requestedSchema.EntityType).ForEach(ctx, func(entityId qdata.EntityId) bool {
 				// Remove deleted fields
 				for _, fieldType := range removedFields {
 					tableName := getTableNameForType(oldSchema.Fields[fieldType].ValueType)
@@ -1261,7 +1259,9 @@ func (me *PostgresStoreInteractor) SetEntitySchema(ctx context.Context, requeste
 					req := new(qdata.Request).Init(entityId, fieldType)
 					me.Write(ctx, req)
 				}
-			}
+
+				return true
+			})
 		}
 	})
 }
