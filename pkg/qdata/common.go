@@ -292,13 +292,13 @@ func (me *Request) AsField() *Field {
 func (me *Field) AsReadRequest(opts ...RequestOpts) *Request {
 	// Typically for read requests, we want to give a direct reference to the value, write time and writer id
 	// so it can be properly updated
-	return new(Request).Init(me.EntityId, me.FieldType, ROValue(me.Value), ROWriteTimePtr(&me.WriteTime), ROWriterIdPtr(&me.WriterId)).ApplyOpts(opts...)
+	return new(Request).Init(me.EntityId, me.FieldType, ROValuePtr(me.Value), ROWriteTimePtr(&me.WriteTime), ROWriterIdPtr(&me.WriterId)).ApplyOpts(opts...)
 }
 
 func (me *Field) AsWriteRequest(opts ...RequestOpts) *Request {
 	// Typically for write requests, we want to give a direct reference to the write time and writer id
 	// We are giving a direct reference to the value for performance reasons such as large binary data
-	return new(Request).Init(me.EntityId, me.FieldType, ROValue(me.Value)).ApplyOpts(opts...)
+	return new(Request).Init(me.EntityId, me.FieldType, ROValuePtr(me.Value)).ApplyOpts(opts...)
 }
 
 func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
@@ -443,6 +443,12 @@ func ROWriterIdPtr(id *EntityId) RequestOpts {
 func ROValue(v *Value) RequestOpts {
 	return func(r *Request) {
 		r.Value.FromValue(v)
+	}
+}
+
+func ROValuePtr(v *Value) RequestOpts {
+	return func(r *Request) {
+		r.Value = v
 	}
 }
 
