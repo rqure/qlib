@@ -3,6 +3,7 @@ package qdata
 import (
 	"strings"
 
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -52,6 +53,8 @@ func (me *ValueEntityList) SetRaw(value interface{}) {
 		me.Value = CastStringSliceToEntityIdSlice(v)
 	case string:
 		me.Value = CastStringSliceToEntityIdSlice(strings.Split(v, ","))
+	default:
+		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
 }
 

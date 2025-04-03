@@ -3,6 +3,7 @@ package qdata
 import (
 	"fmt"
 
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -45,8 +46,33 @@ func (me *ValueFloat) GetRaw() interface{} {
 }
 
 func (me *ValueFloat) SetRaw(value interface{}) {
-	if v, ok := value.(float64); ok {
+	switch v := value.(type) {
+	case float32:
+		me.Value = float64(v)
+	case float64:
 		me.Value = v
+	case int:
+		me.Value = float64(v)
+	case int8:
+		me.Value = float64(v)
+	case int16:
+		me.Value = float64(v)
+	case int32:
+		me.Value = float64(v)
+	case int64:
+		me.Value = float64(v)
+	case uint:
+		me.Value = float64(v)
+	case uint8:
+		me.Value = float64(v)
+	case uint16:
+		me.Value = float64(v)
+	case uint32:
+		me.Value = float64(v)
+	case uint64:
+		me.Value = float64(v)
+	default:
+		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
 }
 

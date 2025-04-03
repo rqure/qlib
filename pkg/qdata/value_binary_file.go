@@ -52,6 +52,8 @@ func (me *ValueBinaryFile) SetRaw(value interface{}) {
 		me.Value = v
 	case string:
 		me.Value = FileDecode(v)
+	default:
+		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
 }
 

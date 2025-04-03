@@ -45,8 +45,11 @@ func (me *ValueChoice) GetRaw() interface{} {
 }
 
 func (me *ValueChoice) SetRaw(value interface{}) {
-	if v, ok := value.(int); ok {
+	switch v := value.(type) {
+	case int:
 		me.Value = v
+	default:
+		fmt.Printf("Invalid type for SetRaw: %T\n", v)
 	}
 }
 

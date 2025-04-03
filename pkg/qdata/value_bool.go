@@ -1,6 +1,7 @@
 package qdata
 
 import (
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -43,8 +44,11 @@ func (me *ValueBool) GetRaw() interface{} {
 }
 
 func (me *ValueBool) SetRaw(value interface{}) {
-	if v, ok := value.(bool); ok {
+	switch v := value.(type) {
+	case bool:
 		me.Value = v
+	default:
+		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
 }
 

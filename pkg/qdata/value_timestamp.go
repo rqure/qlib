@@ -3,6 +3,7 @@ package qdata
 import (
 	"time"
 
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -46,8 +47,16 @@ func (me *ValueTimestamp) GetRaw() interface{} {
 }
 
 func (me *ValueTimestamp) SetRaw(value interface{}) {
-	if v, ok := value.(time.Time); ok {
+	switch v := value.(type) {
+	case time.Time:
 		me.Value = v
+	case string:
+		t, err := time.Parse(time.RFC3339, v)
+		if err == nil {
+			me.Value = t
+		}
+	default:
+		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
 }
 

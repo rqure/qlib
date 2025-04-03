@@ -1,6 +1,7 @@
 package qdata
 
 import (
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -48,6 +49,8 @@ func (me *ValueEntityReference) SetRaw(value interface{}) {
 		me.Value = v
 	case string:
 		me.Value = EntityId(v)
+	default:
+		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
 }
 
