@@ -149,9 +149,9 @@ func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
 	field.FieldType.FromString(colName)
 	qlog.Trace("parseSelectExpr: Regular field with type: %s", field.FieldType.AsString())
 
-	// If no alias is specified, use the field name as alias
+	// If no alias is specified, use the sanitized field name as alias
 	if field.Alias == "" {
-		field.Alias = colName
+		field.Alias = field.ColumnName() // Use ColumnName() which handles -> replacement
 		qlog.Trace("parseSelectExpr: Created default alias from field name: %s", field.Alias)
 	}
 
@@ -554,11 +554,12 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	for i, field := range query.Fields {
 		alias := field.Alias
 		if alias == "" {
-			// Fallback to using column name if no alias is provided
+			// Fallback to using sanitized column name if no alias is provided
 			alias = field.ColumnName()
-			qlog.Trace("ExecuteQuery: Using column name as alias for field %s", field.FieldType.AsString())
+			qlog.Trace("ExecuteQuery: Using sanitized column name as alias for field %s", field.FieldType.AsString())
 		}
 
+		// Use sanitized column names in the SQL query
 		if field.IsMetadata {
 			switch field.MetaType {
 			case "WriterId":
@@ -568,7 +569,7 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 				selectFields[i] = fmt.Sprintf("%s_write_time as %s", field.ColumnName(), alias)
 				qlog.Trace("ExecuteQuery: Added WriteTime metadata select: %s", selectFields[i])
 			case "EntityType":
-				selectFields[i] = "(SELECT type FROM Entities WHERE id = " + sb.tableName + ".id) as " + alias
+				selectFields[i] = fmt.Sprintf("(SELECT type FROM Entities WHERE id = %s.id) as %s", sb.tableName, alias)
 				qlog.Trace("ExecuteQuery: Added EntityType metadata select: %s", selectFields[i])
 			}
 		} else {
