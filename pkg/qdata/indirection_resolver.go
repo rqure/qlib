@@ -15,7 +15,9 @@ type indirectionResolver struct {
 }
 
 func NewIndirectionResolver(store StoreInteractor) IndirectionResolver {
-	return &indirectionResolver{}
+	return &indirectionResolver{
+		store: store,
+	}
 }
 
 // Examples or indirections
