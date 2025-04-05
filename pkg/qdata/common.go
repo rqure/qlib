@@ -17,6 +17,8 @@ type FieldType string
 
 type WriteTime time.Time
 
+const IndirectionDelimiter = "->"
+
 func (me EntityType) AsString() string {
 	return string(me)
 }
@@ -94,7 +96,7 @@ func (me *EntityId) IsEmpty() bool {
 	return *me == ""
 }
 
-func (me *FieldType) IsListIndex() bool {
+func (me FieldType) IsListIndex() bool {
 	if _, err := strconv.Atoi(me.AsString()); err == nil {
 		return true
 	}
@@ -102,17 +104,17 @@ func (me *FieldType) IsListIndex() bool {
 	return false
 }
 
-func (me *FieldType) AsListIndex() int {
+func (me FieldType) AsListIndex() int {
 	i, _ := strconv.Atoi(me.AsString())
 	return i
 }
 
-func (me *FieldType) IsIndirection() bool {
-	return strings.Contains(me.AsString(), "->")
+func (me FieldType) IsIndirection() bool {
+	return strings.Contains(me.AsString(), IndirectionDelimiter)
 }
 
-func (me *FieldType) AsIndirectionArray() []FieldType {
-	fields := strings.Split(me.AsString(), "->")
+func (me FieldType) AsIndirectionArray() []FieldType {
+	fields := strings.Split(me.AsString(), IndirectionDelimiter)
 	result := make([]FieldType, 0, len(fields))
 
 	for _, f := range fields {
