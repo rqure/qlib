@@ -550,7 +550,7 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	return nil
 }
 
-func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, limit int64, offset int64) (*sql.Rows, error) {
+func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, limit int64, offset int64) (*sql.Rows, error) {
 	qlog.Trace("ExecuteQuery: Building query with limit %d, offset %d", limit, offset)
 
 	// Build the SELECT clause
@@ -573,7 +573,7 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 				selectFields[i] = fmt.Sprintf("%s_write_time as %s", field.ColumnName, alias)
 				qlog.Trace("ExecuteQuery: Added WriteTime metadata select: %s", selectFields[i])
 			case "EntityType":
-				selectFields[i] = fmt.Sprintf("(SELECT type FROM Entities WHERE id = %s.id) as %s", sb.tableName, alias)
+				selectFields[i] = fmt.Sprintf("(SELECT type FROM Entities WHERE id = %s.id) as %s", me.tableName, alias)
 				qlog.Trace("ExecuteQuery: Added EntityType metadata select: %s", selectFields[i])
 			}
 		} else {
@@ -583,7 +583,7 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	}
 
 	// Build the complete query
-	sqlQuery := fmt.Sprintf("SELECT id, %s FROM %s", strings.Join(selectFields, ", "), sb.tableName)
+	sqlQuery := fmt.Sprintf("SELECT id, %s FROM %s", strings.Join(selectFields, ", "), me.tableName)
 
 	if query.Where != nil {
 		whereClause := sqlparser.String(query.Where)
@@ -616,7 +616,7 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	qlog.Trace("ExecuteQuery: Final query: %s", sqlQuery)
 
 	// Execute the query
-	rows, err := sb.db.QueryContext(ctx, sqlQuery)
+	rows, err := me.db.QueryContext(ctx, sqlQuery)
 	if err != nil {
 		qlog.Error("ExecuteQuery: SQLite query failed: %v", err)
 		return nil, err
@@ -626,18 +626,18 @@ func (sb *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	return rows, nil
 }
 
-func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[*Entity], error) {
+func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[*Entity], error) {
 	qlog.Trace("QueryWithPagination: Starting for entity type %s, pageSize %d, cursorId %d",
 		entityType, pageSize, cursorId)
 
 	// Apply type hints
 	for _, opt := range opts {
-		opt(sb.typeHints)
+		opt(me.typeHints)
 	}
-	qlog.Trace("QueryWithPagination: Applied %d type hints", len(sb.typeHints))
+	qlog.Trace("QueryWithPagination: Applied %d type hints", len(me.typeHints))
 
 	// Create the SQLite table with the appropriate schema
-	if err := sb.BuildTable(ctx, entityType, query); err != nil {
+	if err := me.BuildTable(ctx, entityType, query); err != nil {
 		qlog.Trace("QueryWithPagination: Failed to build SQLite table: %v", err)
 		return nil, fmt.Errorf("failed to build SQLite table: %v", err)
 	}
@@ -650,7 +650,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 
 	// Load data in batches until we have enough for this page
-	nextCursorId, err := sb.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
+	nextCursorId, err := me.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
 	if err != nil {
 		qlog.Trace("QueryWithPagination: Failed to populate table: %v", err)
 		return nil, fmt.Errorf("failed to populate table: %v", err)
@@ -658,7 +658,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	qlog.Trace("QueryWithPagination: Table populated. nextCursorId: %d", nextCursorId)
 
 	// Execute query with exact pagination parameters (no need for extra items)
-	rows, err := sb.ExecuteQuery(ctx, query, pageSize, 0)
+	rows, err := me.ExecuteQuery(ctx, query, pageSize, 0)
 	if err != nil {
 		qlog.Trace("QueryWithPagination: Failed to execute query: %v", err)
 		return nil, fmt.Errorf("failed to execute query: %v", err)
@@ -672,7 +672,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	errorCount := 0
 
 	for rows.Next() {
-		entity, err := sb.RowToEntity(ctx, rows, query)
+		entity, err := me.RowToEntity(ctx, rows, query)
 		if err != nil {
 			qlog.Error("QueryWithPagination: Failed to convert row to entity: %v", err)
 			errorCount++
@@ -691,7 +691,7 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 
 	// Create a reference to this builder to close it later
-	builderRef := sb
+	builderRef := me
 
 	// Create PageResult with next page function
 	result := &PageResult[*Entity]{
@@ -714,16 +714,16 @@ func (sb *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 				}, nil
 			}
 			qlog.Trace("NextPage: Fetching next page with cursorId: %d", nextCursorId)
-			return sb.QueryWithPagination(ctx, entityType, query, pageSize, nextCursorId, opts...)
+			return me.QueryWithPagination(ctx, entityType, query, pageSize, nextCursorId, opts...)
 		},
-		Cleanup: sb.Close,
+		Cleanup: me.Close,
 	}
 
 	qlog.Trace("QueryWithPagination: Returning result with %d items", len(result.Items))
 	return result, nil
 }
 
-func (sb *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query *ParsedQuery) (*Entity, error) {
+func (me *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query *ParsedQuery) (*Entity, error) {
 	// Get column names from the query
 	columns, err := rows.Columns()
 	if err != nil {
@@ -750,7 +750,7 @@ func (sb *SQLiteBuilder) RowToEntity(ctx context.Context, rows *sql.Rows, query 
 	qlog.Trace("RowToEntity: Processing entity with ID: %s", entityId)
 
 	// Check if entity is in cache first
-	entity := sb.GetEntityFromCache(ctx, entityId)
+	entity := me.GetEntityFromCache(ctx, entityId)
 	if entity == nil {
 		qlog.Trace("RowToEntity: Entity not found in cache: %s", entityId)
 		return nil, fmt.Errorf("entity not found in cache: %s", entityId)
