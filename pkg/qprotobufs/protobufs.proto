@@ -229,6 +229,15 @@ message TypeHint {
     string valueType = 2;
 }
 
+message QueryColumn {
+    string key = 1;
+    google.protobuf.Any value = 2; 
+}
+
+message QueryRow {
+    repeated QueryColumn column = 1;
+}
+
 message ApiRuntimeQueryRequest {
     string query = 1;
     int64 page_size = 2;
@@ -237,8 +246,8 @@ message ApiRuntimeQueryRequest {
 }
 
 message ApiRuntimeQueryResponse {
-    repeated DatabaseEntity entities = 1;
-    int64 next_cursor = 3;
+    repeated QueryRow rows = 1;
+    int64 next_cursor = 2;
 }
 
 message DatabaseEntity {
