@@ -917,9 +917,8 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 			continue
 		}
 
-		columnName := columns[i]
 		// Trim square brackets from column name if present
-		columnName = strings.Trim(columnName, "[]")
+		columnName := strings.Trim(columns[i], "[]")
 		vt, ok := me.typeHints[columnName]
 		if !ok {
 			vt = VTString // Default to string if no type hint is provided
