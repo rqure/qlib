@@ -846,7 +846,7 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 
 		vt, ok := me.typeHints[columnName]
 		if !ok {
-			continue
+			vt = VTString // Default to string if no type hint is provided
 		}
 
 		queryRow[columnName] = vt.NewValue(value)
