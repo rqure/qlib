@@ -61,7 +61,7 @@ type QueryRow map[string]*Value
 
 func (me QueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
 	row := &qprotobufs.QueryRow{
-		Columns: make([]*qprotobufs.QueryColumn{}),
+		Columns: []*qprotobufs.QueryColumn{},
 	}
 
 	for k, v := range me {
