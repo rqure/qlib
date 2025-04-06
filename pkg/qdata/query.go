@@ -368,10 +368,17 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	}
 
 	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database")
+
+	typeHints := make(TypeHintMap)
+	typeHints["$EntityId"] = VTEntityReference
+	typeHints["$EntityType"] = VTString
+	typeHints["$WriterId"] = VTEntityReference
+	typeHints["$WriteTime"] = VTTimestamp
+
 	return &SQLiteBuilder{
 		db:        db,
 		store:     store,
-		typeHints: make(TypeHintMap),
+		typeHints: typeHints,
 	}, nil
 }
 
