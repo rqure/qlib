@@ -675,19 +675,19 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 
 		if query.Where != nil {
 			whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-				sqlparser.String(query.Where), "where"), "WHERE"))
+				strings.TrimSpace(sqlparser.String(query.Where)), "where"), "WHERE"))
 			sqlQuery += " WHERE " + whereClause
 		}
 
 		if len(query.GroupBy) > 0 {
 			groupBy := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-				sqlparser.String(query.GroupBy), "group by"), "GROUP BY"))
+				strings.TrimSpace(sqlparser.String(query.GroupBy)), "group by"), "GROUP BY"))
 			sqlQuery += " GROUP BY " + groupBy
 		}
 
 		if query.Having != nil {
 			havingClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-				sqlparser.String(query.Having), "having"), "HAVING"))
+				strings.TrimSpace(sqlparser.String(query.Having)), "having"), "HAVING"))
 			sqlQuery += " HAVING " + havingClause
 		}
 
