@@ -117,7 +117,7 @@ func (me TypeHintMap) ApplyOpts(opts ...TypeHintOpts) TypeHintMap {
 	return me
 }
 
-func ParseQuery(sql string) (*ParsedQuery, error) {
+func ParseQuery(sql string, store StoreInteractor) (*ParsedQuery, error) {
 	qlog.Trace("ParseQuery: Parsing SQL: %s", sql)
 	stmt, err := sqlparser.Parse(sql)
 	if err != nil {
@@ -141,23 +141,41 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 		Having:      selectStmt.Having,
 	}
 
-	// Parse tables
-	tableLookup := make(map[string]QueryTable) // map[alias]QueryTable
-
-	// Process tables and JOIN conditions in a single pass
+	// Parse tables first since we need them for wildcard expansion
+	tableLookup := make(map[string]QueryTable)
 	for _, tableExpr := range selectStmt.From {
 		processTableExpr(tableExpr, tableLookup, parsed.Tables)
 	}
 
-	// Parse fields from SELECT clause
+	// Parse fields from SELECT clause with wildcard support
 	for _, expr := range selectStmt.SelectExprs {
-		fields := extractFieldsFromExpr(expr, tableLookup, true)
-		for _, field := range fields {
-			// Use FinalName() as the key for the map
-			finalName := field.FinalName()
-			if _, exists := parsed.Columns[finalName]; !exists {
-				parsed.Columns[finalName] = field
-				qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
+		if starExpr, ok := expr.(*sqlparser.StarExpr); ok {
+			// Handle * or table.*
+			qualifier := starExpr.TableName.Name.String()
+			if qualifier == "" {
+				// SELECT * - expand for all tables
+				for _, table := range parsed.Tables {
+					if err := expandWildcard(table, parsed.Columns, store); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				// SELECT table.* - expand for specific table
+				if table, exists := tableLookup[qualifier]; exists {
+					if err := expandWildcard(table, parsed.Columns, store); err != nil {
+						return nil, err
+					}
+				}
+			}
+		} else {
+			// Handle regular field expressions
+			fields := extractFieldsFromExpr(expr, tableLookup, true)
+			for _, field := range fields {
+				finalName := field.FinalName()
+				if _, exists := parsed.Columns[finalName]; !exists {
+					parsed.Columns[finalName] = field
+					qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
+				}
 			}
 		}
 	}
@@ -212,6 +230,46 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	qlog.Trace("ParseQuery: Successfully parsed query with %d fields", len(parsed.Columns))
 	return parsed, nil
+}
+
+// expandWildcard adds all fields from the entity schema to the columns map
+func expandWildcard(table QueryTable, columns map[string]QueryColumn, store StoreInteractor) error {
+	schema := store.GetEntitySchema(context.Background(), table.EntityType())
+	if schema == nil {
+		return fmt.Errorf("no schema found for entity type: %s", table.EntityType())
+	}
+
+	for fieldName := range schema.Fields {
+		// Create a QueryColumn for each field
+		field := QueryColumn{
+			ColumnName: string(fieldName),
+			Table:      table,
+			IsSelected: true,
+		}
+
+		// Use FinalName as the key to avoid duplicates
+		finalName := field.FinalName()
+		if _, exists := columns[finalName]; !exists {
+			columns[finalName] = field
+			qlog.Trace("expandWildcard: Added field %s from table %s", fieldName, table.TableName)
+		}
+	}
+
+	// Always include system columns
+	systemColumns := []string{"$EntityId", "$EntityType"}
+	for _, sysCol := range systemColumns {
+		field := QueryColumn{
+			ColumnName: sysCol,
+			Table:      table,
+			IsSelected: true,
+		}
+		finalName := field.FinalName()
+		if _, exists := columns[finalName]; !exists {
+			columns[finalName] = field
+		}
+	}
+
+	return nil
 }
 
 // Expanded helper function to process both tables and JOIN conditions

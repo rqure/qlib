@@ -1386,7 +1386,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.
 	// Parse the query
 	fmtQuery := fmt.Sprintf(sql, otherArgs...)
 	qlog.Trace("Formatted query: %s", fmtQuery)
-	parsedQuery, err := qdata.ParseQuery(fmtQuery)
+	parsedQuery, err := qdata.ParseQuery(fmtQuery, me)
 	if err != nil {
 		qlog.Error("Failed to parse query: %v", err)
 		return &qdata.PageResult[qdata.QueryRow]{
