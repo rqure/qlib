@@ -12,17 +12,21 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-const IndirectionColumnDelimiter = "_via_"
-
 type QueryField struct {
-	OriginalExpr string
-	ColumnName   string
-	FuncName     string // WriterId, WriteTime, EntityType
-	Alias        string
+	ColumnName string
+	Alias      string
+}
+
+func (me *QueryField) FinalName() string {
+	if me.Alias != "" {
+		return me.Alias
+	}
+
+	return me.ColumnName
 }
 
 func (me *QueryField) FieldType() FieldType {
-	return FieldType(strings.ReplaceAll(me.ColumnName, IndirectionColumnDelimiter, IndirectionDelimiter))
+	return FieldType(me.ColumnName)
 }
 
 type QueryTable struct {
@@ -39,14 +43,14 @@ type ParsedQuery struct {
 	OriginalSQL string
 }
 
-type QueryRow map[string]interface{}
+type QueryRow map[string]*Value
 
-type TypeHintMap map[FieldType]ValueType
+type TypeHintMap map[string]ValueType
 type TypeHintOpts func(TypeHintMap)
 
-func TypeHint(ft FieldType, vt ValueType) TypeHintOpts {
+func TypeHint(columnName string, vt ValueType) TypeHintOpts {
 	return func(m TypeHintMap) {
-		m[ft] = vt
+		m[columnName] = vt
 	}
 }
 
@@ -60,8 +64,7 @@ func (me TypeHintMap) ApplyOpts(opts ...TypeHintOpts) TypeHintMap {
 
 func ParseQuery(sql string) (*ParsedQuery, error) {
 	qlog.Trace("ParseQuery: Parsing SQL: %s", sql)
-	sanitizedSql := strings.ReplaceAll(sql, IndirectionDelimiter, IndirectionColumnDelimiter)
-	stmt, err := sqlparser.Parse(sanitizedSql)
+	stmt, err := sqlparser.Parse(sql)
 	if err != nil {
 		qlog.Trace("ParseQuery: Failed to parse SQL: %v", err)
 		return nil, fmt.Errorf("failed to parse SQL: %v", err)
@@ -123,26 +126,10 @@ func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
 
 	field := QueryField{}
 
-	field.OriginalExpr = sqlparser.String(aliasedExpr.Expr)
-
 	// Handle alias
 	if !aliasedExpr.As.IsEmpty() {
 		field.Alias = aliasedExpr.As.String()
 		qlog.Trace("parseSelectExpr: Found explicit alias: %s", field.Alias)
-	}
-
-	// Check for metadata fields: WriterId(field), WriteTime(field), EntityType(field)
-	if funcExpr, ok := aliasedExpr.Expr.(*sqlparser.FuncExpr); ok {
-		field.FuncName = sqlparser.String(funcExpr.Name)
-		qlog.Trace("parseSelectExpr: Detected metadata field of type: %s",
-			field.FuncName)
-
-		if len(funcExpr.Exprs) > 0 {
-			field.ColumnName = sqlparser.String(funcExpr.Exprs[0])
-			qlog.Trace("parseSelectExpr: Metadata field references: %s", field.FieldType())
-		}
-
-		return field, nil
 	}
 
 	// For regular fields
@@ -226,31 +213,39 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 
 	// Create table with all necessary columns
 	columns := make([]string, 0)
-	columns = append(columns, "id TEXT PRIMARY KEY")
+	columns = append(columns, "[$id] TEXT PRIMARY KEY")
 
 	for _, field := range query.Fields {
 		var colType string
+
+		finalName := field.FinalName()
 		ft := field.FieldType()
+
 		if ft.IsIndirection() {
-			if vt, ok := me.typeHints[ft]; ok {
+			if vt, ok := me.typeHints[finalName]; ok {
 				colType = getSQLiteType(vt)
 			} else {
 				colType = "TEXT"
 			}
 		} else {
-			if vt, ok := me.typeHints[ft]; ok {
+			if vt, ok := me.typeHints[finalName]; ok {
 				colType = getSQLiteType(vt)
 			} else {
 				schema := me.store.GetFieldSchema(ctx, entityType, ft)
-				colType = getSQLiteType(schema.ValueType)
-				me.typeHints[ft] = schema.ValueType
+
+				if schema != nil {
+					colType = getSQLiteType(schema.ValueType)
+					me.typeHints[finalName] = schema.ValueType
+				}
 			}
 		}
+
 		if colType != "" {
-			columns = append(columns, fmt.Sprintf("%s %s", field.ColumnName, colType))
+			columns = append(columns, fmt.Sprintf("[%s] %s", field.ColumnName, colType))
+
 			// Add metadata columns if needed
-			columns = append(columns, fmt.Sprintf("%s_writer_id TEXT", field.ColumnName))
-			columns = append(columns, fmt.Sprintf("%s_write_time DATETIME", field.ColumnName))
+			columns = append(columns, fmt.Sprintf("[%s$WriterId] TEXT", field.ColumnName))
+			columns = append(columns, fmt.Sprintf("[%s$WriteTime] DATETIME", field.ColumnName))
 		}
 	}
 
@@ -322,7 +317,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	}()
 
 	// Prepare the insert statement once
-	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s (id) VALUES (?)", me.tableName))
+	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$id]) VALUES (?)", me.tableName))
 	if err != nil {
 		qlog.Error("PopulateTableBatch: Failed to prepare statement: %v", err)
 		return cursorId, fmt.Errorf("failed to prepare statement: %v", err)
@@ -446,42 +441,16 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 			continue
 		}
 
-		// Handle the field based on its type
-		if queryField.FuncName != "" {
-			// Get the metadata for this field
-			switch queryField.FuncName {
-			case "WriterId":
-				qlog.Trace("loadQueryFieldsBulk: Updating WriterId metadata for entity %s, field %s",
-					entityId, queryField.FieldType())
-				_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                        UPDATE %s SET %s_writer_id = ? WHERE id = ?
-                    `, me.tableName, queryField.ColumnName), req.WriterId.AsString(), entityId)
-			case "WriteTime":
-				qlog.Trace("loadQueryFieldsBulk: Updating WriteTime metadata for entity %s, field %s",
-					entityId, queryField.FieldType())
-				_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                        UPDATE %s SET %s_write_time = ? WHERE id = ?
-                    `, me.tableName, queryField.ColumnName), req.WriteTime.AsTime(), entityId)
-			case "EntityType":
-				// EntityType is derived from the entity itself
-				qlog.Trace("loadQueryFieldsBulk: Updating EntityType metadata for entity %s", entityId)
-				_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                            UPDATE %s SET %s = ? WHERE id = ?
-                        `, me.tableName, queryField.ColumnName), entityId.GetEntityType(), entityId)
-			}
-		} else {
-			// Direct field value
-			qlog.Trace("loadQueryFieldsBulk: Updating value for entity %s, field %s",
-				entityId, queryField.FieldType())
-			_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                    UPDATE %s SET %s = ?, %s_writer_id = ?, %s_write_time = ? WHERE id = ?
+		// Direct field value
+		qlog.Trace("loadQueryFieldsBulk: Updating value for entity %s, field %s",
+			entityId, queryField.FieldType())
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+                    UPDATE %s SET %s = ?, [%s$WriterId] = ?, [%s$WriteTime] = ? WHERE [$id] = ?
                 `, me.tableName, queryField.ColumnName, queryField.ColumnName, queryField.ColumnName),
-				convertValueForSQLite(req.Value),
-				req.WriterId.AsString(),
-				req.WriteTime.AsTime(),
-				entityId)
-		}
-
+			convertValueForSQLite(req.Value),
+			req.WriterId.AsString(),
+			req.WriteTime.AsTime(),
+			entityId)
 		if err != nil {
 			qlog.Trace("loadQueryFieldsBulk: SQL error updating entity %s, field %s: %v",
 				entityId, queryField.FieldType(), err)
@@ -506,39 +475,10 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	// Build the SELECT clause
 	selectFields := make([]string, len(query.Fields))
 	for i, field := range query.Fields {
-		alias := field.Alias
+		finalName := field.FinalName()
 
-		// Use sanitized column names in the SQL query
-		if field.FuncName != "" {
-			switch field.FuncName {
-			case "WriterId":
-				if alias == "" {
-					alias = fmt.Sprintf("%s_writer_id", field.ColumnName)
-				}
+		selectFields[i] = fmt.Sprintf("%s as %s", field.ColumnName, finalName)
 
-				selectFields[i] = fmt.Sprintf("%s_writer_id as %s", field.ColumnName, alias)
-			case "WriteTime":
-				if alias == "" {
-					alias = fmt.Sprintf("%s_write_time", field.ColumnName)
-				}
-
-				selectFields[i] = fmt.Sprintf("%s_write_time as %s", field.ColumnName, alias)
-			case "EntityType":
-				// TODO: I don't think this is right...
-				if alias == "" {
-					alias = fmt.Sprintf("%s_entity_type", field.ColumnName)
-				}
-
-				selectFields[i] = fmt.Sprintf("(SELECT type FROM Entities WHERE id = %s.id) as %s", me.tableName, alias)
-			}
-		} else {
-			if alias == "" {
-				// Use the original column name if no alias was specified
-				alias = field.ColumnName
-			}
-
-			selectFields[i] = fmt.Sprintf("%s as %s", field.ColumnName, alias)
-		}
 		qlog.Trace("ExecuteQuery: Added field select: %s", selectFields[i])
 	}
 
@@ -567,7 +507,7 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 		qlog.Trace("ExecuteQuery: Added ORDER BY clause: %s", orderBy)
 	} else {
 		// Default ordering by ID if none specified
-		sqlQuery += " ORDER BY id"
+		sqlQuery += " ORDER BY [$id]"
 		qlog.Trace("ExecuteQuery: Using default ORDER BY id")
 	}
 
@@ -709,16 +649,15 @@ func (me *SQLiteBuilder) RowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 
 		// Find the corresponding query field for this column
 		field := query.Fields[i]
-		key := field.Alias
-		if key == "" {
-			key = field.ColumnName
+		key := field.FinalName()
 
-			if field.FuncName != "" {
-				key = field.OriginalExpr
-			}
+		vt, ok := me.typeHints[key]
+		if !ok {
+			qlog.Trace("RowToQueryRow: No type hint for column [%s]", key)
+			continue
 		}
 
-		queryRow[key] = value
+		queryRow[key] = vt.NewValue(value)
 	}
 
 	return queryRow, nil
@@ -753,15 +692,11 @@ func convertValueForSQLite(value *Value) interface{} {
 	case value.IsFloat():
 		result = value.GetFloat()
 	case value.IsString():
-		// We might have accidentially updated a string that has '->' with the column delimiter
-		// so we need to replace it back to the original value
-		result = strings.ReplaceAll(value.GetString(), IndirectionColumnDelimiter, IndirectionDelimiter)
+		result = value.GetString()
 	case value.IsBool():
 		result = value.GetBool()
 	case value.IsBinaryFile():
-		// We might have accidentially updated a string that has '->' with the column delimiter
-		// so we need to replace it back to the original value
-		result = strings.ReplaceAll(value.GetBinaryFile(), IndirectionColumnDelimiter, IndirectionDelimiter)
+		result = value.GetBinaryFile()
 	case value.IsEntityReference():
 		result = value.AsString()
 	case value.IsTimestamp():
