@@ -48,13 +48,13 @@ func (me *QueryTable) EntityType() EntityType {
 }
 
 type ParsedQuery struct {
-	Columns     []QueryColumn
-	Tables      []QueryTable
+	Columns     map[string]QueryColumn // Changed from slice to map keyed by FinalName
+	Tables      map[string]QueryTable  // Changed from slice to map keyed by FinalName
 	OriginalSQL string
-	Where       *sqlparser.Where  // Add Where clause from parsed SQL
-	OrderBy     sqlparser.OrderBy // Add OrderBy clause from parsed SQL
-	GroupBy     sqlparser.GroupBy // Add GroupBy clause from parsed SQL
-	Having      *sqlparser.Where  // Add Having clause from parsed SQL
+	Where       *sqlparser.Where
+	OrderBy     sqlparser.OrderBy
+	GroupBy     sqlparser.GroupBy
+	Having      *sqlparser.Where
 }
 
 type QueryRow map[string]*Value
@@ -91,33 +91,31 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	}
 
 	parsed := &ParsedQuery{
-		Columns:     make([]QueryColumn, 0),
-		Tables:      make([]QueryTable, 0),
+		Columns:     make(map[string]QueryColumn),
+		Tables:      make(map[string]QueryTable),
 		OriginalSQL: sql,
-		Where:       selectStmt.Where,   // Store Where clause
-		OrderBy:     selectStmt.OrderBy, // Store OrderBy clause
-		GroupBy:     selectStmt.GroupBy, // Store GroupBy clause
-		Having:      selectStmt.Having,  // Store Having clause
+		Where:       selectStmt.Where,
+		OrderBy:     selectStmt.OrderBy,
+		GroupBy:     selectStmt.GroupBy,
+		Having:      selectStmt.Having,
 	}
 
 	// Parse tables
 	tableLookup := make(map[string]QueryTable) // map[alias]QueryTable
 
-	// Track unique fields to avoid duplicates
-	seenFields := make(map[string]bool)
-
 	// Process tables and JOIN conditions in a single pass
 	for _, tableExpr := range selectStmt.From {
-		processTableExpr(tableExpr, tableLookup, &parsed.Tables, seenFields, &parsed.Columns)
+		processTableExpr(tableExpr, tableLookup, parsed.Tables)
 	}
 
 	// Parse fields from SELECT clause
 	for _, expr := range selectStmt.SelectExprs {
 		fields := extractFieldsFromExpr(expr, tableLookup, true)
 		for _, field := range fields {
-			if !seenFields[field.FinalName()] {
-				parsed.Columns = append(parsed.Columns, field)
-				seenFields[field.FinalName()] = true
+			// Use FinalName() as the key for the map
+			finalName := field.FinalName()
+			if _, exists := parsed.Columns[finalName]; !exists {
+				parsed.Columns[finalName] = field
 				qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
 			}
 		}
@@ -127,9 +125,9 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	if selectStmt.Where != nil {
 		fields := extractFieldsFromWhere(selectStmt.Where, tableLookup)
 		for _, field := range fields {
-			if !seenFields[field.FinalName()] {
-				parsed.Columns = append(parsed.Columns, field)
-				seenFields[field.FinalName()] = true
+			finalName := field.FinalName()
+			if _, exists := parsed.Columns[finalName]; !exists {
+				parsed.Columns[finalName] = field
 				qlog.Trace("ParseQuery: Parsed WHERE field: %s", field.FieldType())
 			}
 		}
@@ -139,9 +137,9 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	for _, groupBy := range selectStmt.GroupBy {
 		fields := extractFieldsFromExpr(groupBy, tableLookup, false)
 		for _, field := range fields {
-			if !seenFields[field.FinalName()] {
-				parsed.Columns = append(parsed.Columns, field)
-				seenFields[field.FinalName()] = true
+			finalName := field.FinalName()
+			if _, exists := parsed.Columns[finalName]; !exists {
+				parsed.Columns[finalName] = field
 				qlog.Trace("ParseQuery: Parsed GROUP BY field: %s", field.FieldType())
 			}
 		}
@@ -151,9 +149,9 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	if selectStmt.Having != nil {
 		fields := extractFieldsFromWhere(selectStmt.Having, tableLookup)
 		for _, field := range fields {
-			if !seenFields[field.FinalName()] {
-				parsed.Columns = append(parsed.Columns, field)
-				seenFields[field.FinalName()] = true
+			finalName := field.FinalName()
+			if _, exists := parsed.Columns[finalName]; !exists {
+				parsed.Columns[finalName] = field
 				qlog.Trace("ParseQuery: Parsed HAVING field: %s", field.FieldType())
 			}
 		}
@@ -163,9 +161,9 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	for _, orderBy := range selectStmt.OrderBy {
 		fields := extractFieldsFromExpr(orderBy.Expr, tableLookup, false)
 		for _, field := range fields {
-			if !seenFields[field.FinalName()] {
-				parsed.Columns = append(parsed.Columns, field)
-				seenFields[field.FinalName()] = true
+			finalName := field.FinalName()
+			if _, exists := parsed.Columns[finalName]; !exists {
+				parsed.Columns[finalName] = field
 				qlog.Trace("ParseQuery: Parsed ORDER BY field: %s", field.FieldType())
 			}
 		}
@@ -176,8 +174,7 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 }
 
 // Expanded helper function to process both tables and JOIN conditions
-func processTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTable, tables *[]QueryTable,
-	seenFields map[string]bool, columns *[]QueryColumn) {
+func processTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTable, tables map[string]QueryTable) {
 	switch node := expr.(type) {
 	case *sqlparser.AliasedTableExpr:
 		tableName := sqlparser.String(node.Expr)
@@ -191,30 +188,18 @@ func processTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTabl
 			Alias:     alias,
 		}
 		tableLookup[alias] = queryTable
-		*tables = append(*tables, queryTable)
+		tables[queryTable.FinalName()] = queryTable
 		qlog.Trace("processTableExpr: Parsed table: %s with alias: %s", entityType, alias)
 
 	case *sqlparser.JoinTableExpr:
 		// Process both tables in the join
-		processTableExpr(node.LeftExpr, tableLookup, tables, seenFields, columns)
-		processTableExpr(node.RightExpr, tableLookup, tables, seenFields, columns)
+		processTableExpr(node.LeftExpr, tableLookup, tables)
+		processTableExpr(node.RightExpr, tableLookup, tables)
 		qlog.Trace("processTableExpr: Processed JOIN expression")
-
-		// Extract fields from JOIN condition in the same pass
-		if node.Condition.On != nil {
-			fields := extractFieldsFromBoolExpr(node.Condition.On, tableLookup)
-			for _, field := range fields {
-				if !seenFields[field.FinalName()] {
-					*columns = append(*columns, field)
-					seenFields[field.FinalName()] = true
-					qlog.Trace("processTableExpr: Parsed JOIN ON field: %s", field.FieldType())
-				}
-			}
-		}
 
 	case *sqlparser.ParenTableExpr:
 		for _, tableExpr := range node.Exprs {
-			processTableExpr(tableExpr, tableLookup, tables, seenFields, columns)
+			processTableExpr(tableExpr, tableLookup, tables)
 		}
 		qlog.Trace("processTableExpr: Processed parenthesized table expression")
 	}
@@ -443,6 +428,8 @@ func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, 
 	columns = append(columns, "[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT")
 	columns = append(columns, "[$EntityId] TEXT")
 	columns = append(columns, "[$EntityType] TEXT")
+
+	// Iterate through the columns map instead of slice
 	for _, field := range query.Columns {
 		var colType string
 
@@ -559,6 +546,7 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	// Determine all the fields we need to fetch
 	for _, entityId := range entityIds {
 		entity := new(Entity).Init(entityId)
+		// Iterate over columns map
 		for _, field := range query.Columns {
 			ft := field.FieldType()
 			qlog.Trace("loadQueryFieldsBulk: Adding read request for entity %s, field %s",
@@ -603,11 +591,12 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 
 		fieldType := req.FieldType
 
-		// Find the corresponding field in the query
+		// Find the corresponding field in the query by field type
 		var queryField *QueryColumn
-		for i := range query.Columns {
-			if query.Columns[i].FieldType() == fieldType {
-				queryField = &query.Columns[i]
+		for _, field := range query.Columns {
+			if field.FieldType() == fieldType {
+				queryFieldCopy := field // Create a copy to avoid modifying the original in the map
+				queryField = &queryFieldCopy
 				break
 			}
 		}
@@ -649,11 +638,11 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	qlog.Trace("ExecuteQuery: Building query with limit %d, offset %d", limit, offset)
 
 	// Build the SELECT clause
-	selectFields := make([]string, len(query.Columns))
-	for i, field := range query.Columns {
+	selectFields := make([]string, 0, len(query.Columns))
+	for _, field := range query.Columns {
 		finalName := field.FinalName()
-		selectFields[i] = fmt.Sprintf("%s as %s", field.ColumnName, finalName)
-		qlog.Trace("ExecuteQuery: Added field select: %s", selectFields[i])
+		selectFields = append(selectFields, fmt.Sprintf("%s as %s", field.ColumnName, finalName))
+		qlog.Trace("ExecuteQuery: Added field select: %s as %s", field.ColumnName, finalName)
 	}
 
 	// Build the complete query
@@ -844,9 +833,17 @@ func (me *SQLiteBuilder) RowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 			continue
 		}
 
-		// Find the corresponding query field for this column
-		field := query.Columns[i]
-		key := field.FinalName()
+		// Get the column name from the rows metadata
+		columnName := columns[i]
+
+		// Find the matching QueryColumn
+		key := columnName
+		for _, field := range query.Columns {
+			if field.FinalName() == columnName {
+				key = field.FinalName()
+				break
+			}
+		}
 
 		vt, ok := me.typeHints[key]
 		if !ok {
