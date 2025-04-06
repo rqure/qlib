@@ -214,11 +214,12 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	appName := qcontext.GetAppName(ctx)
 	me.store.
 		PrepareQuery(`
-		SELECT LogLevel, QLibLogLevel
+		SELECT $EntityId, LogLevel, QLibLogLevel
 		FROM Client
 		WHERE Name = %q`,
 			appName).
-		ForEach(ctx, func(client *qdata.Entity) bool {
+		ForEach(ctx, func(row qdata.QueryRow) bool {
+			client := row.AsEntity()
 			logLevel := client.Field("LogLevel").Value.GetChoice() + 1
 			qlog.SetLevel(qlog.Level(logLevel))
 
