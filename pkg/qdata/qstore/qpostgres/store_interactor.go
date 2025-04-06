@@ -705,8 +705,9 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				appName := qcontext.GetAppName(ctx)
 				if me.clientId == nil && appName != "" {
 					me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", appName).
-						ForEach(ctx, func(client *qdata.Entity) bool {
-							me.clientId = &client.EntityId
+						ForEach(ctx, func(client qdata.QueryRow) bool {
+							entityId := client["$EntityId"].GetEntityReference()
+							me.clientId = &entityId
 							return false
 						})
 				}
@@ -1357,7 +1358,7 @@ func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.Publi
 	return me.publisherSig
 }
 
-func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[*qdata.Entity] {
+func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[qdata.QueryRow] {
 	qlog.Trace("PrepareQuery called with SQL: %s, args: %v", sql, args)
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
@@ -1388,32 +1389,30 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.
 	parsedQuery, err := qdata.ParseQuery(fmtQuery)
 	if err != nil {
 		qlog.Error("Failed to parse query: %v", err)
-		return &qdata.PageResult[*qdata.Entity]{
-			Items:    []*qdata.Entity{},
+		return &qdata.PageResult[qdata.QueryRow]{
+			Items:    []qdata.QueryRow{},
 			CursorId: -1,
 			NextPage: nil,
 		}
 	}
-	qlog.Trace("Successfully parsed query. EntityType: %s, Fields: %+v", parsedQuery.Table.EntityType, parsedQuery.Columns)
+	qlog.Trace("Successfully parsed query. EntityTypes: %+v, Fields: %+v", parsedQuery.Tables, parsedQuery.Columns)
 
 	// Create SQLite builder
 	builder, err := qdata.NewSQLiteBuilder(me)
 	if err != nil {
 		qlog.Error("Failed to create SQLite builder: %v", err)
-		return &qdata.PageResult[*qdata.Entity]{
-			Items:    []*qdata.Entity{},
+		return &qdata.PageResult[qdata.QueryRow]{
+			Items:    []qdata.QueryRow{},
 			CursorId: -1,
 			NextPage: nil,
 		}
 	}
 
-	entityType := qdata.EntityType(parsedQuery.Table.EntityType)
-
-	return &qdata.PageResult[*qdata.Entity]{
-		Items:    []*qdata.Entity{},
+	return &qdata.PageResult[qdata.QueryRow]{
+		Items:    []qdata.QueryRow{},
 		CursorId: pageConfig.CursorId,
-		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
-			return builder.QueryWithPagination(ctx, entityType, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
+			return builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
 		},
 		Cleanup: builder.Close,
 	}

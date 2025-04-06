@@ -756,9 +756,9 @@ func getEntityTypesFromQuery(query *ParsedQuery) []EntityType {
 	return result
 }
 
-func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
-	qlog.Trace("QueryWithPagination: Starting for entity type %s, pageSize %d, cursorId %d",
-		entityType, pageSize, cursorId)
+func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
+	qlog.Trace("QueryWithPagination: Starting for pageSize %d, cursorId %d",
+		pageSize, cursorId)
 
 	// Apply type hints
 	for _, opt := range opts {
@@ -838,7 +838,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 				}, nil
 			}
 			qlog.Trace("NextPage: Fetching next page with cursorId: %d", lastCursorId)
-			return me.QueryWithPagination(ctx, entityType, query, pageSize, lastCursorId, opts...)
+			return me.QueryWithPagination(ctx, query, pageSize, lastCursorId, opts...)
 		},
 		Cleanup: me.Close,
 	}
