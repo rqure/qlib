@@ -683,30 +683,6 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		}
 	}
 
-	// Add ORDER BY to final results if specified in the query
-	if len(query.OrderBy) > 0 {
-		orderBy := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-			sqlparser.String(query.OrderBy), "order by"), "ORDER BY"))
-
-		// Create a temporary ordered table
-		_, err = me.db.ExecContext(ctx, fmt.Sprintf(
-			"CREATE TABLE temp_ordered AS SELECT * FROM final_results ORDER BY %s", orderBy))
-		if err != nil {
-			return fmt.Errorf("failed to create ordered temporary table: %v", err)
-		}
-
-		// Replace final_results with the ordered version
-		_, err = me.db.ExecContext(ctx, "DROP TABLE final_results")
-		if err != nil {
-			return fmt.Errorf("failed to drop final_results for ordering: %v", err)
-		}
-
-		_, err = me.db.ExecContext(ctx, "ALTER TABLE temp_ordered RENAME TO final_results")
-		if err != nil {
-			return fmt.Errorf("failed to rename ordered table: %v", err)
-		}
-	}
-
 	return nil
 }
 
