@@ -91,28 +91,13 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	// Parse tables
 	tableLookup := make(map[string]QueryTable) // map[alias]QueryTable
-	for _, tableExpr := range selectStmt.From {
-		extractTablesFromTableExpr(tableExpr, tableLookup, &parsed.Tables)
-	}
 
 	// Track unique fields to avoid duplicates
 	seenFields := make(map[string]bool)
 
-	// Now process JOIN conditions after seenFields is initialized
+	// Process tables and JOIN conditions in a single pass
 	for _, tableExpr := range selectStmt.From {
-		if joinExpr, ok := tableExpr.(*sqlparser.JoinTableExpr); ok {
-			// Extract fields from JOIN condition
-			if joinExpr.Condition.On != nil {
-				fields := extractFieldsFromBoolExpr(joinExpr.Condition.On, tableLookup)
-				for _, field := range fields {
-					if !seenFields[field.FinalName()] {
-						parsed.Columns = append(parsed.Columns, field)
-						seenFields[field.FinalName()] = true
-						qlog.Trace("ParseQuery: Parsed JOIN ON field: %s", field.FieldType())
-					}
-				}
-			}
-		}
+		processTableExpr(tableExpr, tableLookup, &parsed.Tables, seenFields, &parsed.Columns)
 	}
 
 	// Parse fields from SELECT clause
@@ -177,6 +162,51 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	qlog.Trace("ParseQuery: Successfully parsed query with %d fields", len(parsed.Columns))
 	return parsed, nil
+}
+
+// Expanded helper function to process both tables and JOIN conditions
+func processTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTable, tables *[]QueryTable,
+	seenFields map[string]bool, columns *[]QueryColumn) {
+	switch node := expr.(type) {
+	case *sqlparser.AliasedTableExpr:
+		tableName := sqlparser.String(node.Expr)
+		entityType := strings.Trim(tableName, "`")
+		alias := node.As.String()
+		if alias == "" {
+			alias = entityType
+		}
+		queryTable := QueryTable{
+			EntityType: entityType,
+			Alias:      alias,
+		}
+		tableLookup[alias] = queryTable
+		*tables = append(*tables, queryTable)
+		qlog.Trace("processTableExpr: Parsed table: %s with alias: %s", entityType, alias)
+
+	case *sqlparser.JoinTableExpr:
+		// Process both tables in the join
+		processTableExpr(node.LeftExpr, tableLookup, tables, seenFields, columns)
+		processTableExpr(node.RightExpr, tableLookup, tables, seenFields, columns)
+		qlog.Trace("processTableExpr: Processed JOIN expression")
+
+		// Extract fields from JOIN condition in the same pass
+		if node.Condition.On != nil {
+			fields := extractFieldsFromBoolExpr(node.Condition.On, tableLookup)
+			for _, field := range fields {
+				if !seenFields[field.FinalName()] {
+					*columns = append(*columns, field)
+					seenFields[field.FinalName()] = true
+					qlog.Trace("processTableExpr: Parsed JOIN ON field: %s", field.FieldType())
+				}
+			}
+		}
+
+	case *sqlparser.ParenTableExpr:
+		for _, tableExpr := range node.Exprs {
+			processTableExpr(tableExpr, tableLookup, tables, seenFields, columns)
+		}
+		qlog.Trace("processTableExpr: Processed parenthesized table expression")
+	}
 }
 
 func extractFieldsFromExpr(expr sqlparser.SQLNode, tableLookup map[string]QueryTable, isSelect bool) []QueryColumn {
@@ -325,36 +355,6 @@ func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]Query
 	}
 
 	return fields
-}
-
-func extractTablesFromTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTable, tables *[]QueryTable) {
-	switch node := expr.(type) {
-	case *sqlparser.AliasedTableExpr:
-		tableName := sqlparser.String(node.Expr)
-		entityType := strings.Trim(tableName, "`")
-		alias := node.As.String()
-		if alias == "" {
-			alias = entityType
-		}
-		queryTable := QueryTable{
-			EntityType: entityType,
-			Alias:      alias,
-		}
-		tableLookup[alias] = queryTable
-		*tables = append(*tables, queryTable)
-		qlog.Trace("extractTablesFromTableExpr: Parsed table: %s with alias: %s", entityType, alias)
-
-	case *sqlparser.JoinTableExpr:
-		extractTablesFromTableExpr(node.LeftExpr, tableLookup, tables)
-		extractTablesFromTableExpr(node.RightExpr, tableLookup, tables)
-		qlog.Trace("extractTablesFromTableExpr: Processed JOIN expression")
-
-	case *sqlparser.ParenTableExpr:
-		for _, tableExpr := range node.Exprs {
-			extractTablesFromTableExpr(tableExpr, tableLookup, tables)
-		}
-		qlog.Trace("extractTablesFromTableExpr: Processed parenthesized table expression")
-	}
 }
 
 type SQLiteBuilder struct {
