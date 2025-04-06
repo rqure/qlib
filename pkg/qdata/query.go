@@ -80,6 +80,26 @@ func (me QueryRow) FromQueryRowPb(row *qprotobufs.QueryRow) {
 	}
 }
 
+func (me QueryRow) AsEntity() *Entity {
+	entity := new(Entity).Init(me["$EntityId"].GetEntityReference())
+
+	for k, v := range me {
+		if k == "$EntityId" || k == "$EntityType" || k == "$CursorId" {
+			continue
+		}
+
+		if strings.Contains(k, "$WriterId") {
+			entity.Field(FieldType(k)).WriterId = v.GetEntityReference()
+		} else if strings.Contains(k, "$WriteTime") {
+			entity.Field(FieldType(k)).WriteTime.FromTime(v.GetTimestamp())
+		} else {
+			entity.Field(FieldType(k)).Value.FromValue(v)
+		}
+	}
+
+	return entity
+}
+
 type TypeHintMap map[string]ValueType
 type TypeHintOpts func(TypeHintMap)
 
