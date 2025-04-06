@@ -152,7 +152,7 @@ var tableCounter int64 = 0
 
 func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	qlog.Trace("NewSQLiteBuilder: Creating new SQLite builder")
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite3", "")
 	if err != nil {
 		qlog.Trace("NewSQLiteBuilder: Failed to open in-memory SQLite database: %v", err)
 		return nil, err
@@ -213,8 +213,9 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 
 	// Create table with all necessary columns
 	columns := make([]string, 0)
-	columns = append(columns, "[$id] TEXT PRIMARY KEY")
-	columns = append(columns, "[$type] TEXT")
+	columns = append(columns, "[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT")
+	columns = append(columns, "[$EntityId] TEXT")
+	columns = append(columns, "[$EntityType] TEXT")
 
 	for _, field := range query.Fields {
 		var colType string
@@ -260,100 +261,67 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 		return fmt.Errorf("failed to create table: %v", err)
 	}
 
-	// Verify the table was created by running a simple query
-	var count int
-	err = me.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='%s'", me.tableName)).Scan(&count)
-	if err != nil {
-		qlog.Trace("BuildTable: Failed to verify table creation: %v", err)
-		return fmt.Errorf("failed to verify table creation: %v", err)
-	}
+	qlog.Trace("BuildTable: Successfully created table %s", me.tableName)
 
-	if count != 1 {
-		qlog.Trace("BuildTable: Table was not created successfully")
-		return fmt.Errorf("table was not created successfully")
-	}
-
-	qlog.Trace("Table created successfully")
 	return nil
 }
 
-func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64) (int64, error) {
-	qlog.Trace("Populating table batch for entity type: %s, pageSize: %d, cursorId: %d", entityType, pageSize, cursorId)
-
-	// Verify the table exists before proceeding
-	var count int
-	err := me.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='%s'", me.tableName)).Scan(&count)
-	if err != nil {
-		qlog.Error("PopulateTableBatch: Failed to verify table existence: %v", err)
-		return cursorId, fmt.Errorf("failed to verify table existence: %v", err)
-	}
-
-	if count != 1 {
-		qlog.Error("PopulateTableBatch: Table %s does not exist", me.tableName)
-		return cursorId, fmt.Errorf("table %s does not exist", me.tableName)
-	}
-
-	// Get entities in batches
-	pageOpts := []PageOpts{POPageSize(pageSize), POCursorId(cursorId)}
-	entityIterator := me.store.FindEntities(entityType, pageOpts...)
-
-	pageResult, err := entityIterator.NextPage(ctx)
-	if err != nil {
-		qlog.Error("Failed to get entities: %v", err)
-		return cursorId, fmt.Errorf("failed to get entities: %v", err)
-	}
-	qlog.Trace("Got page result with %d entities", len(pageResult.Items))
+func (me *SQLiteBuilder) PopulateTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+	qlog.Trace("Populating table '%s' for entity type: %s", entityType)
 
 	// Begin a transaction for batch inserts
-	tx, err := me.db.BeginTx(ctx, nil)
-	if err != nil {
-		return cursorId, fmt.Errorf("failed to begin transaction: %v", err)
+	tx, parentErr := me.db.BeginTx(ctx, nil)
+	if parentErr != nil {
+		return fmt.Errorf("failed to begin transaction: %v", parentErr)
 	}
 	defer func() {
-		if err != nil {
+		if parentErr != nil {
 			tx.Rollback()
 		} else {
 			tx.Commit()
 		}
 	}()
 
-	// Prepare the insert statement once
-	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$id], [$type]) VALUES (?)", me.tableName))
+	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$EntityId], [$EntityType]) VALUES (?)", me.tableName))
 	if err != nil {
-		qlog.Error("PopulateTableBatch: Failed to prepare statement: %v", err)
-		return cursorId, fmt.Errorf("failed to prepare statement: %v", err)
+		qlog.Warn("PopulateTable: Failed to prepare statement: %v", err)
+		parentErr = fmt.Errorf("failed to prepare statement: %v", err)
+		return parentErr
 	}
 	defer stmt.Close()
 
-	// Process all entities in this batch
-	entityIds := make([]EntityId, 0, len(pageResult.Items))
-	for _, entityId := range pageResult.Items {
+	entityIds := make([]EntityId, 0)
+	me.store.FindEntities(entityType).ForEach(ctx, func(entityId EntityId) bool {
 		entityIds = append(entityIds, entityId)
 		qlog.Trace("Processing entity: %s", entityId)
 
 		// Insert the entity ID first
 		if _, err := stmt.ExecContext(ctx, entityId, entityType); err != nil {
-			qlog.Error("PopulateTableBatch: Failed to insert entity %s: %v", entityId, err)
-			return cursorId, fmt.Errorf("failed to insert entity: %v", err)
+			qlog.Warn("PopulateTable: Failed to insert entity %s: %v", entityId, err)
+			parentErr = fmt.Errorf("failed to insert entity %s: %v", entityId, err)
+			return false
 		}
-	}
+
+		return true
+	})
 
 	// Commit this transaction to ensure IDs are saved
 	if err = tx.Commit(); err != nil {
-		qlog.Error("PopulateTableBatch: Failed to commit entity IDs: %v", err)
-		return cursorId, fmt.Errorf("failed to commit entity IDs: %v", err)
+		qlog.Warn("PopulateTable: Failed to commit entity IDs: %v", err)
+		parentErr = fmt.Errorf("failed to commit entity IDs: %v", err)
+		return parentErr
 	}
 
 	qlog.Trace("Batch insert complete, loading field data for %d entities", len(entityIds))
 	// Now load field data in bulk for all entities in this batch
 	if len(entityIds) > 0 {
 		if err := me.loadQueryFieldsBulk(ctx, entityIds, query); err != nil {
-			return cursorId, err
+			parentErr = fmt.Errorf("failed to load query fields: %v", err)
+			return parentErr
 		}
 	}
 
-	// Return the next cursor ID
-	return pageResult.CursorId, nil
+	return parentErr
 }
 
 func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []EntityId, query *ParsedQuery) error {
@@ -361,19 +329,6 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	if len(entityIds) == 0 {
 		qlog.Trace("loadQueryFieldsBulk: No entities to load")
 		return nil
-	}
-
-	// Verify the table exists before proceeding
-	var count int
-	err := me.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='%s'", me.tableName)).Scan(&count)
-	if err != nil {
-		qlog.Error("loadQueryFieldsBulk: Failed to verify table existence: %v", err)
-		return fmt.Errorf("failed to verify table existence: %v", err)
-	}
-
-	if count != 1 {
-		qlog.Error("loadQueryFieldsBulk: Table %s does not exist", me.tableName)
-		return fmt.Errorf("table %s does not exist", me.tableName)
 	}
 
 	// Create a set of entities for which we need to get data
@@ -446,7 +401,7 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 		qlog.Trace("loadQueryFieldsBulk: Updating value for entity %s, field %s",
 			entityId, queryField.FieldType())
 		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                    UPDATE %s SET %s = ?, [%s$WriterId] = ?, [%s$WriteTime] = ? WHERE [$id] = ?
+                    UPDATE %s SET %s = ?, [%s$WriterId] = ?, [%s$WriteTime] = ? WHERE [$EntityId] = ?
                 `, me.tableName, queryField.ColumnName, queryField.ColumnName, queryField.ColumnName),
 			convertValueForSQLite(req.Value),
 			req.WriterId.AsString(),
@@ -508,7 +463,7 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 		qlog.Trace("ExecuteQuery: Added ORDER BY clause: %s", orderBy)
 	} else {
 		// Default ordering by ID if none specified
-		sqlQuery += " ORDER BY [$id]"
+		sqlQuery += " ORDER BY [$EntityId]"
 		qlog.Trace("ExecuteQuery: Using default ORDER BY id")
 	}
 
@@ -551,12 +506,12 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 
 	// Load data in batches until we have enough for this page
-	nextCursorId, err := me.PopulateTableBatch(ctx, entityType, query, pageSize, cursorId)
+	err := me.PopulateTable(ctx, entityType, query)
 	if err != nil {
 		qlog.Trace("QueryWithPagination: Failed to populate table: %v", err)
 		return nil, fmt.Errorf("failed to populate table: %v", err)
 	}
-	qlog.Trace("QueryWithPagination: Table populated. nextCursorId: %d", nextCursorId)
+	qlog.Trace("QueryWithPagination: Table populated.")
 
 	// Execute query with exact pagination parameters
 	rows, err := me.ExecuteQuery(ctx, query, pageSize, 0)
