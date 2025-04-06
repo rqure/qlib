@@ -12,12 +12,12 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-type QueryField struct {
+type QueryColumn struct {
 	ColumnName string
 	Alias      string
 }
 
-func (me *QueryField) FinalName() string {
+func (me *QueryColumn) FinalName() string {
 	if me.Alias != "" {
 		return me.Alias
 	}
@@ -25,7 +25,7 @@ func (me *QueryField) FinalName() string {
 	return me.ColumnName
 }
 
-func (me *QueryField) FieldType() FieldType {
+func (me *QueryColumn) FieldType() FieldType {
 	return FieldType(me.ColumnName)
 }
 
@@ -35,7 +35,7 @@ type QueryTable struct {
 }
 
 type ParsedQuery struct {
-	Fields      []QueryField
+	Fields      []QueryColumn
 	Tables      []QueryTable
 	Where       *sqlparser.Where
 	OrderBy     sqlparser.OrderBy
@@ -77,7 +77,7 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	}
 
 	parsed := &ParsedQuery{
-		Fields:      make([]QueryField, 0),
+		Fields:      make([]QueryColumn, 0),
 		Tables:      make([]QueryTable, 0),
 		Where:       selectStmt.Where,
 		OrderBy:     selectStmt.OrderBy,
@@ -147,8 +147,8 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	return parsed, nil
 }
 
-func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) []QueryField {
-	var fields []QueryField
+func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) []QueryColumn {
+	var fields []QueryColumn
 
 	switch node := expr.(type) {
 	case *sqlparser.AliasedExpr:
@@ -178,7 +178,7 @@ func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) 
 	return fields
 }
 
-func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryField {
+func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryColumn {
 	switch node := expr.(type) {
 	case *sqlparser.ColName:
 		qualifier := node.Qualifier.String()
@@ -187,14 +187,14 @@ func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryField 
 		// If there's a table qualifier, use it to construct the field name
 		if qualifier != "" {
 			if entityType, ok := tableRefs[qualifier]; ok {
-				return &QueryField{
+				return &QueryColumn{
 					ColumnName: columnName,
 				}
 			}
 		} else {
 			// If no qualifier and only one table, use the column name directly
 			if len(tableRefs) == 1 {
-				return &QueryField{
+				return &QueryColumn{
 					ColumnName: columnName,
 				}
 			}
@@ -203,15 +203,15 @@ func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryField 
 	return nil
 }
 
-func extractFieldsFromWhere(where *sqlparser.Where, tableRefs map[string]string) []QueryField {
+func extractFieldsFromWhere(where *sqlparser.Where, tableRefs map[string]string) []QueryColumn {
 	if where == nil {
 		return nil
 	}
 	return extractFieldsFromBoolExpr(where.Expr, tableRefs)
 }
 
-func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableRefs map[string]string) []QueryField {
-	var fields []QueryField
+func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableRefs map[string]string) []QueryColumn {
+	var fields []QueryColumn
 
 	switch node := expr.(type) {
 	case *sqlparser.ComparisonExpr:
@@ -473,7 +473,7 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 		fieldType := req.FieldType
 
 		// Find the corresponding field in the query
-		var queryField *QueryField
+		var queryField *QueryColumn
 		for i := range query.Fields {
 			if query.Fields[i].FieldType() == fieldType {
 				queryField = &query.Fields[i]
