@@ -556,7 +556,7 @@ func (x DatabaseRequest_WriteOptEnum) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DatabaseRequest_WriteOptEnum.Descriptor instead.
 func (DatabaseRequest_WriteOptEnum) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{45, 0}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{47, 0}
 }
 
 type LogMessage_LogLevelEnum int32
@@ -617,7 +617,7 @@ func (x LogMessage_LogLevelEnum) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogMessage_LogLevelEnum.Descriptor instead.
 func (LogMessage_LogLevelEnum) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{56, 0}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{58, 0}
 }
 
 type ApiHeader struct {
@@ -2368,6 +2368,102 @@ func (x *TypeHint) GetValueType() string {
 	return ""
 }
 
+type QueryColumn struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         *anypb.Any             `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryColumn) Reset() {
+	*x = QueryColumn{}
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryColumn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryColumn) ProtoMessage() {}
+
+func (x *QueryColumn) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryColumn.ProtoReflect.Descriptor instead.
+func (*QueryColumn) Descriptor() ([]byte, []int) {
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *QueryColumn) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *QueryColumn) GetValue() *anypb.Any {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type QueryRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Column        []*QueryColumn         `protobuf:"bytes,1,rep,name=column,proto3" json:"column,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryRow) Reset() {
+	*x = QueryRow{}
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRow) ProtoMessage() {}
+
+func (x *QueryRow) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRow.ProtoReflect.Descriptor instead.
+func (*QueryRow) Descriptor() ([]byte, []int) {
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *QueryRow) GetColumn() []*QueryColumn {
+	if x != nil {
+		return x.Column
+	}
+	return nil
+}
+
 type ApiRuntimeQueryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
@@ -2380,7 +2476,7 @@ type ApiRuntimeQueryRequest struct {
 
 func (x *ApiRuntimeQueryRequest) Reset() {
 	*x = ApiRuntimeQueryRequest{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[37]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2392,7 +2488,7 @@ func (x *ApiRuntimeQueryRequest) String() string {
 func (*ApiRuntimeQueryRequest) ProtoMessage() {}
 
 func (x *ApiRuntimeQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[37]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2405,7 +2501,7 @@ func (x *ApiRuntimeQueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApiRuntimeQueryRequest.ProtoReflect.Descriptor instead.
 func (*ApiRuntimeQueryRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{37}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ApiRuntimeQueryRequest) GetQuery() string {
@@ -2438,15 +2534,15 @@ func (x *ApiRuntimeQueryRequest) GetTypeHints() []*TypeHint {
 
 type ApiRuntimeQueryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Entities      []*DatabaseEntity      `protobuf:"bytes,1,rep,name=entities,proto3" json:"entities,omitempty"`
-	NextCursor    int64                  `protobuf:"varint,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	Rows          []*QueryRow            `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
+	NextCursor    int64                  `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApiRuntimeQueryResponse) Reset() {
 	*x = ApiRuntimeQueryResponse{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[38]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2458,7 +2554,7 @@ func (x *ApiRuntimeQueryResponse) String() string {
 func (*ApiRuntimeQueryResponse) ProtoMessage() {}
 
 func (x *ApiRuntimeQueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[38]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2471,12 +2567,12 @@ func (x *ApiRuntimeQueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApiRuntimeQueryResponse.ProtoReflect.Descriptor instead.
 func (*ApiRuntimeQueryResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{38}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{40}
 }
 
-func (x *ApiRuntimeQueryResponse) GetEntities() []*DatabaseEntity {
+func (x *ApiRuntimeQueryResponse) GetRows() []*QueryRow {
 	if x != nil {
-		return x.Entities
+		return x.Rows
 	}
 	return nil
 }
@@ -2499,7 +2595,7 @@ type DatabaseEntity struct {
 
 func (x *DatabaseEntity) Reset() {
 	*x = DatabaseEntity{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[39]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2511,7 +2607,7 @@ func (x *DatabaseEntity) String() string {
 func (*DatabaseEntity) ProtoMessage() {}
 
 func (x *DatabaseEntity) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[39]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2524,7 +2620,7 @@ func (x *DatabaseEntity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseEntity.ProtoReflect.Descriptor instead.
 func (*DatabaseEntity) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{39}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DatabaseEntity) GetId() string {
@@ -2561,7 +2657,7 @@ type DatabaseField struct {
 
 func (x *DatabaseField) Reset() {
 	*x = DatabaseField{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[40]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2573,7 +2669,7 @@ func (x *DatabaseField) String() string {
 func (*DatabaseField) ProtoMessage() {}
 
 func (x *DatabaseField) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[40]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2586,7 +2682,7 @@ func (x *DatabaseField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseField.ProtoReflect.Descriptor instead.
 func (*DatabaseField) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{40}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *DatabaseField) GetId() string {
@@ -2639,7 +2735,7 @@ type DatabaseNotificationConfig struct {
 
 func (x *DatabaseNotificationConfig) Reset() {
 	*x = DatabaseNotificationConfig{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[41]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2651,7 +2747,7 @@ func (x *DatabaseNotificationConfig) String() string {
 func (*DatabaseNotificationConfig) ProtoMessage() {}
 
 func (x *DatabaseNotificationConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[41]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2664,7 +2760,7 @@ func (x *DatabaseNotificationConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseNotificationConfig.ProtoReflect.Descriptor instead.
 func (*DatabaseNotificationConfig) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{41}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *DatabaseNotificationConfig) GetId() string {
@@ -2729,7 +2825,7 @@ type DatabaseNotification struct {
 
 func (x *DatabaseNotification) Reset() {
 	*x = DatabaseNotification{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[42]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2741,7 +2837,7 @@ func (x *DatabaseNotification) String() string {
 func (*DatabaseNotification) ProtoMessage() {}
 
 func (x *DatabaseNotification) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[42]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2754,7 +2850,7 @@ func (x *DatabaseNotification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseNotification.ProtoReflect.Descriptor instead.
 func (*DatabaseNotification) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{42}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *DatabaseNotification) GetToken() string {
@@ -2802,7 +2898,7 @@ type DatabaseEntitySchema struct {
 
 func (x *DatabaseEntitySchema) Reset() {
 	*x = DatabaseEntitySchema{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[43]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2814,7 +2910,7 @@ func (x *DatabaseEntitySchema) String() string {
 func (*DatabaseEntitySchema) ProtoMessage() {}
 
 func (x *DatabaseEntitySchema) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[43]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2827,7 +2923,7 @@ func (x *DatabaseEntitySchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseEntitySchema.ProtoReflect.Descriptor instead.
 func (*DatabaseEntitySchema) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{43}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *DatabaseEntitySchema) GetName() string {
@@ -2858,7 +2954,7 @@ type DatabaseFieldSchema struct {
 
 func (x *DatabaseFieldSchema) Reset() {
 	*x = DatabaseFieldSchema{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[44]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2870,7 +2966,7 @@ func (x *DatabaseFieldSchema) String() string {
 func (*DatabaseFieldSchema) ProtoMessage() {}
 
 func (x *DatabaseFieldSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[44]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2883,7 +2979,7 @@ func (x *DatabaseFieldSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseFieldSchema.ProtoReflect.Descriptor instead.
 func (*DatabaseFieldSchema) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{44}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *DatabaseFieldSchema) GetName() string {
@@ -2943,7 +3039,7 @@ type DatabaseRequest struct {
 
 func (x *DatabaseRequest) Reset() {
 	*x = DatabaseRequest{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[45]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2955,7 +3051,7 @@ func (x *DatabaseRequest) String() string {
 func (*DatabaseRequest) ProtoMessage() {}
 
 func (x *DatabaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[45]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2968,7 +3064,7 @@ func (x *DatabaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseRequest.ProtoReflect.Descriptor instead.
 func (*DatabaseRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{45}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *DatabaseRequest) GetId() string {
@@ -3031,7 +3127,7 @@ type DatabaseSnapshot struct {
 
 func (x *DatabaseSnapshot) Reset() {
 	*x = DatabaseSnapshot{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[46]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3043,7 +3139,7 @@ func (x *DatabaseSnapshot) String() string {
 func (*DatabaseSnapshot) ProtoMessage() {}
 
 func (x *DatabaseSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[46]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3056,7 +3152,7 @@ func (x *DatabaseSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseSnapshot.ProtoReflect.Descriptor instead.
 func (*DatabaseSnapshot) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{46}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *DatabaseSnapshot) GetEntities() []*DatabaseEntity {
@@ -3089,7 +3185,7 @@ type Int struct {
 
 func (x *Int) Reset() {
 	*x = Int{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[47]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3101,7 +3197,7 @@ func (x *Int) String() string {
 func (*Int) ProtoMessage() {}
 
 func (x *Int) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[47]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3114,7 +3210,7 @@ func (x *Int) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Int.ProtoReflect.Descriptor instead.
 func (*Int) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{47}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *Int) GetRaw() int64 {
@@ -3133,7 +3229,7 @@ type String struct {
 
 func (x *String) Reset() {
 	*x = String{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[48]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3145,7 +3241,7 @@ func (x *String) String() string {
 func (*String) ProtoMessage() {}
 
 func (x *String) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[48]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3158,7 +3254,7 @@ func (x *String) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use String.ProtoReflect.Descriptor instead.
 func (*String) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{48}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *String) GetRaw() string {
@@ -3177,7 +3273,7 @@ type Timestamp struct {
 
 func (x *Timestamp) Reset() {
 	*x = Timestamp{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[49]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3189,7 +3285,7 @@ func (x *Timestamp) String() string {
 func (*Timestamp) ProtoMessage() {}
 
 func (x *Timestamp) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[49]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3202,7 +3298,7 @@ func (x *Timestamp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Timestamp.ProtoReflect.Descriptor instead.
 func (*Timestamp) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{49}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *Timestamp) GetRaw() *timestamppb.Timestamp {
@@ -3221,7 +3317,7 @@ type Float struct {
 
 func (x *Float) Reset() {
 	*x = Float{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[50]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3233,7 +3329,7 @@ func (x *Float) String() string {
 func (*Float) ProtoMessage() {}
 
 func (x *Float) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[50]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3246,7 +3342,7 @@ func (x *Float) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Float.ProtoReflect.Descriptor instead.
 func (*Float) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{50}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *Float) GetRaw() float64 {
@@ -3265,7 +3361,7 @@ type Bool struct {
 
 func (x *Bool) Reset() {
 	*x = Bool{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[51]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3277,7 +3373,7 @@ func (x *Bool) String() string {
 func (*Bool) ProtoMessage() {}
 
 func (x *Bool) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[51]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3290,7 +3386,7 @@ func (x *Bool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bool.ProtoReflect.Descriptor instead.
 func (*Bool) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{51}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *Bool) GetRaw() bool {
@@ -3309,7 +3405,7 @@ type EntityReference struct {
 
 func (x *EntityReference) Reset() {
 	*x = EntityReference{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[52]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3321,7 +3417,7 @@ func (x *EntityReference) String() string {
 func (*EntityReference) ProtoMessage() {}
 
 func (x *EntityReference) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[52]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3334,7 +3430,7 @@ func (x *EntityReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EntityReference.ProtoReflect.Descriptor instead.
 func (*EntityReference) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{52}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *EntityReference) GetRaw() string {
@@ -3353,7 +3449,7 @@ type BinaryFile struct {
 
 func (x *BinaryFile) Reset() {
 	*x = BinaryFile{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[53]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3365,7 +3461,7 @@ func (x *BinaryFile) String() string {
 func (*BinaryFile) ProtoMessage() {}
 
 func (x *BinaryFile) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[53]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3378,7 +3474,7 @@ func (x *BinaryFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BinaryFile.ProtoReflect.Descriptor instead.
 func (*BinaryFile) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{53}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *BinaryFile) GetRaw() string {
@@ -3397,7 +3493,7 @@ type Choice struct {
 
 func (x *Choice) Reset() {
 	*x = Choice{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[54]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3409,7 +3505,7 @@ func (x *Choice) String() string {
 func (*Choice) ProtoMessage() {}
 
 func (x *Choice) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[54]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3422,7 +3518,7 @@ func (x *Choice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Choice.ProtoReflect.Descriptor instead.
 func (*Choice) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{54}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *Choice) GetRaw() int64 {
@@ -3441,7 +3537,7 @@ type EntityList struct {
 
 func (x *EntityList) Reset() {
 	*x = EntityList{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[55]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3453,7 +3549,7 @@ func (x *EntityList) String() string {
 func (*EntityList) ProtoMessage() {}
 
 func (x *EntityList) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[55]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3466,7 +3562,7 @@ func (x *EntityList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EntityList.ProtoReflect.Descriptor instead.
 func (*EntityList) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{55}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *EntityList) GetRaw() []string {
@@ -3488,7 +3584,7 @@ type LogMessage struct {
 
 func (x *LogMessage) Reset() {
 	*x = LogMessage{}
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[56]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3500,7 +3596,7 @@ func (x *LogMessage) String() string {
 func (*LogMessage) ProtoMessage() {}
 
 func (x *LogMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[56]
+	mi := &file_pkg_qprotobufs_protobufs_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3513,7 +3609,7 @@ func (x *LogMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogMessage.ProtoReflect.Descriptor instead.
 func (*LogMessage) Descriptor() ([]byte, []int) {
-	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{56}
+	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *LogMessage) GetApplication() string {
@@ -3693,16 +3789,21 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\x06exists\x18\x01 \x01(\bR\x06exists\"F\n" +
 	"\bTypeHint\x12\x1c\n" +
 	"\tfieldType\x18\x01 \x01(\tR\tfieldType\x12\x1c\n" +
-	"\tvalueType\x18\x02 \x01(\tR\tvalueType\"\x98\x01\n" +
+	"\tvalueType\x18\x02 \x01(\tR\tvalueType\"K\n" +
+	"\vQueryColumn\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value\";\n" +
+	"\bQueryRow\x12/\n" +
+	"\x06column\x18\x01 \x03(\v2\x17.qprotobufs.QueryColumnR\x06column\"\x98\x01\n" +
 	"\x16ApiRuntimeQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x03R\bpageSize\x12\x16\n" +
 	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\x123\n" +
 	"\n" +
-	"type_hints\x18\x04 \x03(\v2\x14.qprotobufs.TypeHintR\ttypeHints\"r\n" +
-	"\x17ApiRuntimeQueryResponse\x126\n" +
-	"\bentities\x18\x01 \x03(\v2\x1a.qprotobufs.DatabaseEntityR\bentities\x12\x1f\n" +
-	"\vnext_cursor\x18\x03 \x01(\x03R\n" +
+	"type_hints\x18\x04 \x03(\v2\x14.qprotobufs.TypeHintR\ttypeHints\"d\n" +
+	"\x17ApiRuntimeQueryResponse\x12(\n" +
+	"\x04rows\x18\x01 \x03(\v2\x14.qprotobufs.QueryRowR\x04rows\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\x03R\n" +
 	"nextCursor\"g\n" +
 	"\x0eDatabaseEntity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -3802,7 +3903,7 @@ func file_pkg_qprotobufs_protobufs_proto_rawDescGZIP() []byte {
 }
 
 var file_pkg_qprotobufs_protobufs_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_pkg_qprotobufs_protobufs_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
+var file_pkg_qprotobufs_protobufs_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
 var file_pkg_qprotobufs_protobufs_proto_goTypes = []any{
 	(ApiConfigCreateEntityResponse_StatusEnum)(0),            // 0: qprotobufs.ApiConfigCreateEntityResponse.StatusEnum
 	(ApiConfigDeleteEntityResponse_StatusEnum)(0),            // 1: qprotobufs.ApiConfigDeleteEntityResponse.StatusEnum
@@ -3853,76 +3954,80 @@ var file_pkg_qprotobufs_protobufs_proto_goTypes = []any{
 	(*ApiRuntimeEntityExistsRequest)(nil),                    // 46: qprotobufs.ApiRuntimeEntityExistsRequest
 	(*ApiRuntimeEntityExistsResponse)(nil),                   // 47: qprotobufs.ApiRuntimeEntityExistsResponse
 	(*TypeHint)(nil),                                         // 48: qprotobufs.TypeHint
-	(*ApiRuntimeQueryRequest)(nil),                           // 49: qprotobufs.ApiRuntimeQueryRequest
-	(*ApiRuntimeQueryResponse)(nil),                          // 50: qprotobufs.ApiRuntimeQueryResponse
-	(*DatabaseEntity)(nil),                                   // 51: qprotobufs.DatabaseEntity
-	(*DatabaseField)(nil),                                    // 52: qprotobufs.DatabaseField
-	(*DatabaseNotificationConfig)(nil),                       // 53: qprotobufs.DatabaseNotificationConfig
-	(*DatabaseNotification)(nil),                             // 54: qprotobufs.DatabaseNotification
-	(*DatabaseEntitySchema)(nil),                             // 55: qprotobufs.DatabaseEntitySchema
-	(*DatabaseFieldSchema)(nil),                              // 56: qprotobufs.DatabaseFieldSchema
-	(*DatabaseRequest)(nil),                                  // 57: qprotobufs.DatabaseRequest
-	(*DatabaseSnapshot)(nil),                                 // 58: qprotobufs.DatabaseSnapshot
-	(*Int)(nil),                                              // 59: qprotobufs.Int
-	(*String)(nil),                                           // 60: qprotobufs.String
-	(*Timestamp)(nil),                                        // 61: qprotobufs.Timestamp
-	(*Float)(nil),                                            // 62: qprotobufs.Float
-	(*Bool)(nil),                                             // 63: qprotobufs.Bool
-	(*EntityReference)(nil),                                  // 64: qprotobufs.EntityReference
-	(*BinaryFile)(nil),                                       // 65: qprotobufs.BinaryFile
-	(*Choice)(nil),                                           // 66: qprotobufs.Choice
-	(*EntityList)(nil),                                       // 67: qprotobufs.EntityList
-	(*LogMessage)(nil),                                       // 68: qprotobufs.LogMessage
-	(*timestamppb.Timestamp)(nil),                            // 69: google.protobuf.Timestamp
-	(*anypb.Any)(nil),                                        // 70: google.protobuf.Any
+	(*QueryColumn)(nil),                                      // 49: qprotobufs.QueryColumn
+	(*QueryRow)(nil),                                         // 50: qprotobufs.QueryRow
+	(*ApiRuntimeQueryRequest)(nil),                           // 51: qprotobufs.ApiRuntimeQueryRequest
+	(*ApiRuntimeQueryResponse)(nil),                          // 52: qprotobufs.ApiRuntimeQueryResponse
+	(*DatabaseEntity)(nil),                                   // 53: qprotobufs.DatabaseEntity
+	(*DatabaseField)(nil),                                    // 54: qprotobufs.DatabaseField
+	(*DatabaseNotificationConfig)(nil),                       // 55: qprotobufs.DatabaseNotificationConfig
+	(*DatabaseNotification)(nil),                             // 56: qprotobufs.DatabaseNotification
+	(*DatabaseEntitySchema)(nil),                             // 57: qprotobufs.DatabaseEntitySchema
+	(*DatabaseFieldSchema)(nil),                              // 58: qprotobufs.DatabaseFieldSchema
+	(*DatabaseRequest)(nil),                                  // 59: qprotobufs.DatabaseRequest
+	(*DatabaseSnapshot)(nil),                                 // 60: qprotobufs.DatabaseSnapshot
+	(*Int)(nil),                                              // 61: qprotobufs.Int
+	(*String)(nil),                                           // 62: qprotobufs.String
+	(*Timestamp)(nil),                                        // 63: qprotobufs.Timestamp
+	(*Float)(nil),                                            // 64: qprotobufs.Float
+	(*Bool)(nil),                                             // 65: qprotobufs.Bool
+	(*EntityReference)(nil),                                  // 66: qprotobufs.EntityReference
+	(*BinaryFile)(nil),                                       // 67: qprotobufs.BinaryFile
+	(*Choice)(nil),                                           // 68: qprotobufs.Choice
+	(*EntityList)(nil),                                       // 69: qprotobufs.EntityList
+	(*LogMessage)(nil),                                       // 70: qprotobufs.LogMessage
+	(*timestamppb.Timestamp)(nil),                            // 71: google.protobuf.Timestamp
+	(*anypb.Any)(nil),                                        // 72: google.protobuf.Any
 }
 var file_pkg_qprotobufs_protobufs_proto_depIdxs = []int32{
-	69, // 0: qprotobufs.ApiHeader.timestamp:type_name -> google.protobuf.Timestamp
+	71, // 0: qprotobufs.ApiHeader.timestamp:type_name -> google.protobuf.Timestamp
 	12, // 1: qprotobufs.ApiMessage.header:type_name -> qprotobufs.ApiHeader
-	70, // 2: qprotobufs.ApiMessage.payload:type_name -> google.protobuf.Any
+	72, // 2: qprotobufs.ApiMessage.payload:type_name -> google.protobuf.Any
 	0,  // 3: qprotobufs.ApiConfigCreateEntityResponse.status:type_name -> qprotobufs.ApiConfigCreateEntityResponse.StatusEnum
 	1,  // 4: qprotobufs.ApiConfigDeleteEntityResponse.status:type_name -> qprotobufs.ApiConfigDeleteEntityResponse.StatusEnum
 	2,  // 5: qprotobufs.ApiConfigGetEntityResponse.status:type_name -> qprotobufs.ApiConfigGetEntityResponse.StatusEnum
-	51, // 6: qprotobufs.ApiConfigGetEntityResponse.entity:type_name -> qprotobufs.DatabaseEntity
+	53, // 6: qprotobufs.ApiConfigGetEntityResponse.entity:type_name -> qprotobufs.DatabaseEntity
 	3,  // 7: qprotobufs.ApiConfigGetFieldSchemaResponse.status:type_name -> qprotobufs.ApiConfigGetFieldSchemaResponse.StatusEnum
-	56, // 8: qprotobufs.ApiConfigGetFieldSchemaResponse.schema:type_name -> qprotobufs.DatabaseFieldSchema
+	58, // 8: qprotobufs.ApiConfigGetFieldSchemaResponse.schema:type_name -> qprotobufs.DatabaseFieldSchema
 	4,  // 9: qprotobufs.ApiConfigGetEntitySchemaResponse.status:type_name -> qprotobufs.ApiConfigGetEntitySchemaResponse.StatusEnum
-	55, // 10: qprotobufs.ApiConfigGetEntitySchemaResponse.schema:type_name -> qprotobufs.DatabaseEntitySchema
-	55, // 11: qprotobufs.ApiConfigSetEntitySchemaRequest.schema:type_name -> qprotobufs.DatabaseEntitySchema
+	57, // 10: qprotobufs.ApiConfigGetEntitySchemaResponse.schema:type_name -> qprotobufs.DatabaseEntitySchema
+	57, // 11: qprotobufs.ApiConfigSetEntitySchemaRequest.schema:type_name -> qprotobufs.DatabaseEntitySchema
 	5,  // 12: qprotobufs.ApiConfigSetEntitySchemaResponse.status:type_name -> qprotobufs.ApiConfigSetEntitySchemaResponse.StatusEnum
 	6,  // 13: qprotobufs.ApiConfigCreateSnapshotResponse.status:type_name -> qprotobufs.ApiConfigCreateSnapshotResponse.StatusEnum
-	58, // 14: qprotobufs.ApiConfigCreateSnapshotResponse.snapshot:type_name -> qprotobufs.DatabaseSnapshot
-	58, // 15: qprotobufs.ApiConfigRestoreSnapshotRequest.snapshot:type_name -> qprotobufs.DatabaseSnapshot
+	60, // 14: qprotobufs.ApiConfigCreateSnapshotResponse.snapshot:type_name -> qprotobufs.DatabaseSnapshot
+	60, // 15: qprotobufs.ApiConfigRestoreSnapshotRequest.snapshot:type_name -> qprotobufs.DatabaseSnapshot
 	7,  // 16: qprotobufs.ApiConfigRestoreSnapshotResponse.status:type_name -> qprotobufs.ApiConfigRestoreSnapshotResponse.StatusEnum
 	8,  // 17: qprotobufs.ApiRuntimeDatabaseRequest.requestType:type_name -> qprotobufs.ApiRuntimeDatabaseRequest.RequestTypeEnum
-	57, // 18: qprotobufs.ApiRuntimeDatabaseRequest.requests:type_name -> qprotobufs.DatabaseRequest
-	57, // 19: qprotobufs.ApiRuntimeDatabaseResponse.response:type_name -> qprotobufs.DatabaseRequest
-	53, // 20: qprotobufs.ApiRuntimeRegisterNotificationRequest.requests:type_name -> qprotobufs.DatabaseNotificationConfig
+	59, // 18: qprotobufs.ApiRuntimeDatabaseRequest.requests:type_name -> qprotobufs.DatabaseRequest
+	59, // 19: qprotobufs.ApiRuntimeDatabaseResponse.response:type_name -> qprotobufs.DatabaseRequest
+	55, // 20: qprotobufs.ApiRuntimeRegisterNotificationRequest.requests:type_name -> qprotobufs.DatabaseNotificationConfig
 	9,  // 21: qprotobufs.ApiRuntimeUnregisterNotificationResponse.status:type_name -> qprotobufs.ApiRuntimeUnregisterNotificationResponse.StatusEnum
-	48, // 22: qprotobufs.ApiRuntimeQueryRequest.type_hints:type_name -> qprotobufs.TypeHint
-	51, // 23: qprotobufs.ApiRuntimeQueryResponse.entities:type_name -> qprotobufs.DatabaseEntity
-	52, // 24: qprotobufs.DatabaseEntity.fields:type_name -> qprotobufs.DatabaseField
-	70, // 25: qprotobufs.DatabaseField.value:type_name -> google.protobuf.Any
-	69, // 26: qprotobufs.DatabaseField.writeTime:type_name -> google.protobuf.Timestamp
-	52, // 27: qprotobufs.DatabaseNotification.current:type_name -> qprotobufs.DatabaseField
-	52, // 28: qprotobufs.DatabaseNotification.previous:type_name -> qprotobufs.DatabaseField
-	52, // 29: qprotobufs.DatabaseNotification.context:type_name -> qprotobufs.DatabaseField
-	56, // 30: qprotobufs.DatabaseEntitySchema.fields:type_name -> qprotobufs.DatabaseFieldSchema
-	70, // 31: qprotobufs.DatabaseRequest.value:type_name -> google.protobuf.Any
-	61, // 32: qprotobufs.DatabaseRequest.writeTime:type_name -> qprotobufs.Timestamp
-	60, // 33: qprotobufs.DatabaseRequest.writerId:type_name -> qprotobufs.String
-	10, // 34: qprotobufs.DatabaseRequest.writeOpt:type_name -> qprotobufs.DatabaseRequest.WriteOptEnum
-	51, // 35: qprotobufs.DatabaseSnapshot.entities:type_name -> qprotobufs.DatabaseEntity
-	52, // 36: qprotobufs.DatabaseSnapshot.fields:type_name -> qprotobufs.DatabaseField
-	55, // 37: qprotobufs.DatabaseSnapshot.entitySchemas:type_name -> qprotobufs.DatabaseEntitySchema
-	69, // 38: qprotobufs.Timestamp.raw:type_name -> google.protobuf.Timestamp
-	11, // 39: qprotobufs.LogMessage.level:type_name -> qprotobufs.LogMessage.LogLevelEnum
-	69, // 40: qprotobufs.LogMessage.timestamp:type_name -> google.protobuf.Timestamp
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	72, // 22: qprotobufs.QueryColumn.value:type_name -> google.protobuf.Any
+	49, // 23: qprotobufs.QueryRow.column:type_name -> qprotobufs.QueryColumn
+	48, // 24: qprotobufs.ApiRuntimeQueryRequest.type_hints:type_name -> qprotobufs.TypeHint
+	50, // 25: qprotobufs.ApiRuntimeQueryResponse.rows:type_name -> qprotobufs.QueryRow
+	54, // 26: qprotobufs.DatabaseEntity.fields:type_name -> qprotobufs.DatabaseField
+	72, // 27: qprotobufs.DatabaseField.value:type_name -> google.protobuf.Any
+	71, // 28: qprotobufs.DatabaseField.writeTime:type_name -> google.protobuf.Timestamp
+	54, // 29: qprotobufs.DatabaseNotification.current:type_name -> qprotobufs.DatabaseField
+	54, // 30: qprotobufs.DatabaseNotification.previous:type_name -> qprotobufs.DatabaseField
+	54, // 31: qprotobufs.DatabaseNotification.context:type_name -> qprotobufs.DatabaseField
+	58, // 32: qprotobufs.DatabaseEntitySchema.fields:type_name -> qprotobufs.DatabaseFieldSchema
+	72, // 33: qprotobufs.DatabaseRequest.value:type_name -> google.protobuf.Any
+	63, // 34: qprotobufs.DatabaseRequest.writeTime:type_name -> qprotobufs.Timestamp
+	62, // 35: qprotobufs.DatabaseRequest.writerId:type_name -> qprotobufs.String
+	10, // 36: qprotobufs.DatabaseRequest.writeOpt:type_name -> qprotobufs.DatabaseRequest.WriteOptEnum
+	53, // 37: qprotobufs.DatabaseSnapshot.entities:type_name -> qprotobufs.DatabaseEntity
+	54, // 38: qprotobufs.DatabaseSnapshot.fields:type_name -> qprotobufs.DatabaseField
+	57, // 39: qprotobufs.DatabaseSnapshot.entitySchemas:type_name -> qprotobufs.DatabaseEntitySchema
+	71, // 40: qprotobufs.Timestamp.raw:type_name -> google.protobuf.Timestamp
+	11, // 41: qprotobufs.LogMessage.level:type_name -> qprotobufs.LogMessage.LogLevelEnum
+	71, // 42: qprotobufs.LogMessage.timestamp:type_name -> google.protobuf.Timestamp
+	43, // [43:43] is the sub-list for method output_type
+	43, // [43:43] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_pkg_qprotobufs_protobufs_proto_init() }
@@ -3936,7 +4041,7 @@ func file_pkg_qprotobufs_protobufs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_qprotobufs_protobufs_proto_rawDesc), len(file_pkg_qprotobufs_protobufs_proto_rawDesc)),
 			NumEnums:      12,
-			NumMessages:   57,
+			NumMessages:   59,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
