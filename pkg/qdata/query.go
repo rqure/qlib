@@ -78,6 +78,7 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	parsed := &ParsedQuery{
 		Fields:      make([]QueryField, 0),
+		Tables:      make([]QueryTable, 0),
 		Where:       selectStmt.Where,
 		OrderBy:     selectStmt.OrderBy,
 		Limit:       selectStmt.Limit,
@@ -85,11 +86,16 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	}
 
 	// Parse tables
+	tableRefs := make(map[string]string) // map[alias]entityType
 	for _, tableExpr := range selectStmt.From {
 		if aliasedTable, ok := tableExpr.(*sqlparser.AliasedTableExpr); ok {
 			tableName := sqlparser.String(aliasedTable.Expr)
 			entityType := strings.Trim(tableName, "`")
 			alias := aliasedTable.As.String()
+			if alias == "" {
+				alias = entityType
+			}
+			tableRefs[alias] = entityType
 			parsed.Tables = append(parsed.Tables, QueryTable{
 				EntityType: entityType,
 				Alias:      alias,
@@ -98,43 +104,128 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 		}
 	}
 
-	// Parse fields
+	// Track unique fields to avoid duplicates
+	seenFields := make(map[string]bool)
+
+	// Parse fields from SELECT clause
 	for _, expr := range selectStmt.SelectExprs {
-		field, err := parseSelectExpr(expr)
-		if err != nil {
-			qlog.Trace("ParseQuery: Failed to parse field expression: %v", err)
-			return nil, err
+		fields := extractFieldsFromExpr(expr, tableRefs)
+		for _, field := range fields {
+			if !seenFields[field.FinalName()] {
+				parsed.Fields = append(parsed.Fields, field)
+				seenFields[field.FinalName()] = true
+				qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
+			}
 		}
-		parsed.Fields = append(parsed.Fields, field)
-		qlog.Trace("ParseQuery: Parsed field: %s, alias: %s", field.FieldType(), field.Alias)
+	}
+
+	// Extract fields from WHERE clause
+	if selectStmt.Where != nil {
+		fields := extractFieldsFromWhere(selectStmt.Where, tableRefs)
+		for _, field := range fields {
+			if !seenFields[field.FinalName()] {
+				parsed.Fields = append(parsed.Fields, field)
+				seenFields[field.FinalName()] = true
+				qlog.Trace("ParseQuery: Parsed WHERE field: %s", field.FieldType())
+			}
+		}
+	}
+
+	// Extract fields from ORDER BY clause
+	for _, orderBy := range selectStmt.OrderBy {
+		fields := extractFieldsFromExpr(orderBy.Expr, tableRefs)
+		for _, field := range fields {
+			if !seenFields[field.FinalName()] {
+				parsed.Fields = append(parsed.Fields, field)
+				seenFields[field.FinalName()] = true
+				qlog.Trace("ParseQuery: Parsed ORDER BY field: %s", field.FieldType())
+			}
+		}
 	}
 
 	qlog.Trace("ParseQuery: Successfully parsed query with %d fields", len(parsed.Fields))
 	return parsed, nil
 }
 
-func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
-	qlog.Trace("parseSelectExpr: Parsing select expression")
+func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) []QueryField {
+	var fields []QueryField
 
-	aliasedExpr, ok := expr.(*sqlparser.AliasedExpr)
-	if !ok {
-		qlog.Trace("parseSelectExpr: Unsupported select expression type")
-		return QueryField{}, fmt.Errorf("unsupported select expression type")
+	switch node := expr.(type) {
+	case *sqlparser.AliasedExpr:
+		field := extractField(node.Expr, tableRefs)
+		if field != nil {
+			if !node.As.IsEmpty() {
+				field.Alias = node.As.String()
+			}
+			fields = append(fields, *field)
+		}
+
+	case *sqlparser.ColName:
+		field := extractField(node, tableRefs)
+		if field != nil {
+			fields = append(fields, *field)
+		}
+
+	case *sqlparser.FuncExpr:
+		// Extract fields from function arguments
+		for _, arg := range node.Exprs {
+			if ae, ok := arg.(*sqlparser.AliasedExpr); ok {
+				fields = append(fields, extractFieldsFromExpr(ae.Expr, tableRefs)...)
+			}
+		}
 	}
 
-	field := QueryField{}
+	return fields
+}
 
-	// Handle alias
-	if !aliasedExpr.As.IsEmpty() {
-		field.Alias = aliasedExpr.As.String()
-		qlog.Trace("parseSelectExpr: Found explicit alias: %s", field.Alias)
+func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryField {
+	switch node := expr.(type) {
+	case *sqlparser.ColName:
+		qualifier := node.Qualifier.String()
+		columnName := node.Name.String()
+
+		// If there's a table qualifier, use it to construct the field name
+		if qualifier != "" {
+			if entityType, ok := tableRefs[qualifier]; ok {
+				return &QueryField{
+					ColumnName: columnName,
+				}
+			}
+		} else {
+			// If no qualifier and only one table, use the column name directly
+			if len(tableRefs) == 1 {
+				return &QueryField{
+					ColumnName: columnName,
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func extractFieldsFromWhere(where *sqlparser.Where, tableRefs map[string]string) []QueryField {
+	if where == nil {
+		return nil
+	}
+	return extractFieldsFromBoolExpr(where.Expr, tableRefs)
+}
+
+func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableRefs map[string]string) []QueryField {
+	var fields []QueryField
+
+	switch node := expr.(type) {
+	case *sqlparser.ComparisonExpr:
+		fields = append(fields, extractFieldsFromExpr(node.Left, tableRefs)...)
+		fields = append(fields, extractFieldsFromExpr(node.Right, tableRefs)...)
+	case *sqlparser.AndExpr:
+		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableRefs)...)
+		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableRefs)...)
+	case *sqlparser.OrExpr:
+		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableRefs)...)
+		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableRefs)...)
 	}
 
-	// For regular fields
-	field.ColumnName = sqlparser.String(aliasedExpr.Expr)
-	qlog.Trace("parseSelectExpr: Regular field with type: %s", field.FieldType())
-
-	return field, nil
+	return fields
 }
 
 type SQLiteBuilder struct {
