@@ -235,7 +235,7 @@ message QueryColumn {
 }
 
 message QueryRow {
-    repeated QueryColumn column = 1;
+    repeated QueryColumn columns = 1;
 }
 
 message ApiRuntimeQueryRequest {

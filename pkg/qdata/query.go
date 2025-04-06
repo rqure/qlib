@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqure/qlib/pkg/qlog"
+	"github.com/rqure/qlib/pkg/qprotobufs"
 	"github.com/xwb1989/sqlparser"
 )
 
@@ -57,6 +58,18 @@ type ParsedQuery struct {
 }
 
 type QueryRow map[string]*Value
+
+func (me QueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
+	row := &qprotobufs.QueryRow{
+		Column: make(map[string]*qprotobufs.Value),
+	}
+
+	for k, v := range me {
+		row.Columns[k] = v.AsValuePb()
+	}
+
+	return row
+}
 
 type TypeHintMap map[string]ValueType
 type TypeHintOpts func(TypeHintMap)
