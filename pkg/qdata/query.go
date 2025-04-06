@@ -42,6 +42,8 @@ type ParsedQuery struct {
 	OriginalSQL string
 	Where       *sqlparser.Where  // Add Where clause from parsed SQL
 	OrderBy     sqlparser.OrderBy // Add OrderBy clause from parsed SQL
+	GroupBy     sqlparser.GroupBy // Add GroupBy clause from parsed SQL
+	Having      *sqlparser.Where  // Add Having clause from parsed SQL
 }
 
 type QueryRow map[string]*Value
@@ -83,6 +85,8 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 		OriginalSQL: sql,
 		Where:       selectStmt.Where,   // Store Where clause
 		OrderBy:     selectStmt.OrderBy, // Store OrderBy clause
+		GroupBy:     selectStmt.GroupBy, // Store GroupBy clause
+		Having:      selectStmt.Having,  // Store Having clause
 	}
 
 	// Parse tables
@@ -128,6 +132,30 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 				parsed.Columns = append(parsed.Columns, field)
 				seenFields[field.FinalName()] = true
 				qlog.Trace("ParseQuery: Parsed WHERE field: %s", field.FieldType())
+			}
+		}
+	}
+
+	// Extract fields from GROUP BY clause
+	for _, groupBy := range selectStmt.GroupBy {
+		fields := extractFieldsFromExpr(groupBy, tableLookup, false)
+		for _, field := range fields {
+			if !seenFields[field.FinalName()] {
+				parsed.Columns = append(parsed.Columns, field)
+				seenFields[field.FinalName()] = true
+				qlog.Trace("ParseQuery: Parsed GROUP BY field: %s", field.FieldType())
+			}
+		}
+	}
+
+	// Extract fields from HAVING clause
+	if selectStmt.Having != nil {
+		fields := extractFieldsFromWhere(selectStmt.Having, tableLookup)
+		for _, field := range fields {
+			if !seenFields[field.FinalName()] {
+				parsed.Columns = append(parsed.Columns, field)
+				seenFields[field.FinalName()] = true
+				qlog.Trace("ParseQuery: Parsed HAVING field: %s", field.FieldType())
 			}
 		}
 	}
@@ -208,7 +236,6 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 					queryTable = qt
 					break
 				}
-
 				return &QueryColumn{
 					ColumnName: columnName,
 					Table:      queryTable,
@@ -217,6 +244,7 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -234,9 +262,11 @@ func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]Query
 	case *sqlparser.ComparisonExpr:
 		fields = append(fields, extractFieldsFromExpr(node.Left, tableLookup, false)...)
 		fields = append(fields, extractFieldsFromExpr(node.Right, tableLookup, false)...)
+
 	case *sqlparser.AndExpr:
 		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableLookup)...)
 		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableLookup)...)
+
 	case *sqlparser.OrExpr:
 		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableLookup)...)
 		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableLookup)...)
@@ -267,7 +297,6 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	// Generate a unique table name using atomic counter
 	uniqueID := atomic.AddInt64(&tableCounter, 1)
 	tableName := fmt.Sprintf("entities_%d", uniqueID)
-
 	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database with table name: %s", tableName)
 	return &SQLiteBuilder{
 		db:        db,
@@ -284,7 +313,6 @@ func (me *SQLiteBuilder) Close() error {
 	}
 
 	qlog.Trace("SQLiteBuilder.Close: Cleaning up resources")
-
 	// Drop the table if it exists
 	if me.tableName != "" {
 		_, err := me.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
@@ -322,13 +350,11 @@ func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, 
 	columns = append(columns, "[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT")
 	columns = append(columns, "[$EntityId] TEXT")
 	columns = append(columns, "[$EntityType] TEXT")
-
 	for _, field := range query.Columns {
 		var colType string
 
 		finalName := field.FinalName()
 		ft := field.FieldType()
-
 		if ft.IsIndirection() {
 			if vt, ok := me.typeHints[finalName]; ok {
 				colType = getSQLiteType(vt)
@@ -340,7 +366,6 @@ func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, 
 				colType = getSQLiteType(vt)
 			} else {
 				schema := me.store.GetFieldSchema(ctx, entityType, ft)
-
 				if schema != nil {
 					colType = getSQLiteType(schema.ValueType)
 					me.typeHints[finalName] = schema.ValueType
@@ -368,7 +393,6 @@ func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, 
 	}
 
 	qlog.Trace("buildTable: Successfully created table %s", me.tableName)
-
 	return nil
 }
 
@@ -388,7 +412,7 @@ func (me *SQLiteBuilder) populateTable(ctx context.Context, entityType EntityTyp
 		}
 	}()
 
-	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$EntityId], [$EntityType]) VALUES (?)", me.tableName))
+	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$EntityId], [$EntityType]) VALUES (?, ?)", me.tableName))
 	if err != nil {
 		qlog.Warn("populateTable: Failed to prepare statement: %v", err)
 		parentErr = fmt.Errorf("failed to prepare statement: %v", err)
@@ -407,7 +431,6 @@ func (me *SQLiteBuilder) populateTable(ctx context.Context, entityType EntityTyp
 			parentErr = fmt.Errorf("failed to insert entity %s: %v", entityId, err)
 			return false
 		}
-
 		return true
 	})
 
@@ -452,7 +475,6 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	}
 
 	qlog.Trace("loadQueryFieldsBulk: Batch reading %d field requests", len(allRequests))
-
 	// Execute all read requests in a batch
 	me.store.Read(ctx, allRequests...)
 	qlog.Trace("loadQueryFieldsBulk: Completed batch read operation")
@@ -463,7 +485,6 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 		qlog.Error("loadQueryFieldsBulk: Failed to begin transaction: %v", err)
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
-
 	defer func() {
 		if err != nil {
 			qlog.Trace("loadQueryFieldsBulk: Rolling back transaction due to error")
@@ -526,8 +547,8 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 		qlog.Trace("loadQueryFieldsBulk: Failed to commit transaction: %v", err)
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
-	qlog.Trace("loadQueryFieldsBulk: Successfully committed all field updates")
 
+	qlog.Trace("loadQueryFieldsBulk: Successfully committed all field updates")
 	return nil
 }
 
@@ -538,9 +559,7 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	selectFields := make([]string, len(query.Columns))
 	for i, field := range query.Columns {
 		finalName := field.FinalName()
-
 		selectFields[i] = fmt.Sprintf("%s as %s", field.ColumnName, finalName)
-
 		qlog.Trace("ExecuteQuery: Added field select: %s", selectFields[i])
 	}
 
@@ -556,6 +575,28 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 		whereClause = strings.TrimSpace(whereClause)
 		sqlQuery += " WHERE " + whereClause
 		qlog.Trace("ExecuteQuery: Added WHERE clause: %s", whereClause)
+	}
+
+	if len(query.GroupBy) > 0 {
+		groupBy := sqlparser.String(query.GroupBy)
+		// Fix the GROUP BY clause - remove the "GROUP BY" keywords and any leading/trailing whitespace
+		groupBy = strings.TrimSpace(groupBy)
+		groupBy = strings.TrimPrefix(groupBy, "group by")
+		groupBy = strings.TrimPrefix(groupBy, "GROUP BY")
+		groupBy = strings.TrimSpace(groupBy)
+		sqlQuery += " GROUP BY " + groupBy
+		qlog.Trace("ExecuteQuery: Added GROUP BY clause: %s", groupBy)
+	}
+
+	if query.Having != nil {
+		havingClause := sqlparser.String(query.Having)
+		// Fix the HAVING clause - remove the "HAVING" keyword and any leading/trailing whitespace
+		havingClause = strings.TrimSpace(havingClause)
+		havingClause = strings.TrimPrefix(havingClause, "having")
+		havingClause = strings.TrimPrefix(havingClause, "HAVING")
+		havingClause = strings.TrimSpace(havingClause)
+		sqlQuery += " HAVING " + havingClause
+		qlog.Trace("ExecuteQuery: Added HAVING clause: %s", havingClause)
 	}
 
 	if len(query.OrderBy) > 0 {
