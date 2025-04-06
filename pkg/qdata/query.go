@@ -359,9 +359,6 @@ type SQLiteBuilder struct {
 	closed    bool // Track if the builder has been closed
 }
 
-// Static counter for generating unique table names
-var tableCounter int64 = 0
-
 func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	qlog.Trace("NewSQLiteBuilder: Creating new SQLite builder")
 	db, err := sql.Open("sqlite3", "")
