@@ -15,10 +15,10 @@ import (
 const IndirectionColumnDelimiter = "_via_"
 
 type QueryField struct {
-	ColumnName string
-	IsMetadata bool
-	MetaType   string // WriterId, WriteTime, EntityType
-	Alias      string
+	OriginalExpr string
+	ColumnName   string
+	FuncName     string // WriterId, WriteTime, EntityType
+	Alias        string
 }
 
 func (me *QueryField) FieldType() FieldType {
@@ -105,7 +105,7 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 			return nil, err
 		}
 		parsed.Fields = append(parsed.Fields, field)
-		qlog.Trace("ParseQuery: Parsed field: %s, alias: %s, isMetadata: %t", field.FieldType(), field.Alias, field.IsMetadata)
+		qlog.Trace("ParseQuery: Parsed field: %s, alias: %s", field.FieldType(), field.Alias)
 	}
 
 	qlog.Trace("ParseQuery: Successfully parsed query with %d fields", len(parsed.Fields))
@@ -123,7 +123,9 @@ func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
 
 	field := QueryField{}
 
-	// Handle alias - use the column name as default alias if not explicitly specified
+	field.OriginalExpr = sqlparser.String(aliasedExpr.Expr)
+
+	// Handle alias
 	if !aliasedExpr.As.IsEmpty() {
 		field.Alias = aliasedExpr.As.String()
 		qlog.Trace("parseSelectExpr: Found explicit alias: %s", field.Alias)
@@ -131,19 +133,13 @@ func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
 
 	// Check for metadata fields: WriterId(field), WriteTime(field), EntityType(field)
 	if funcExpr, ok := aliasedExpr.Expr.(*sqlparser.FuncExpr); ok {
-		field.IsMetadata = true
-		field.MetaType = sqlparser.String(funcExpr.Name)
-		qlog.Trace("parseSelectExpr: Detected metadata field of type: %s", field.MetaType)
+		field.FuncName = sqlparser.String(funcExpr.Name)
+		qlog.Trace("parseSelectExpr: Detected metadata field of type: %s",
+			field.FuncName)
 
 		if len(funcExpr.Exprs) > 0 {
 			field.ColumnName = sqlparser.String(funcExpr.Exprs[0])
 			qlog.Trace("parseSelectExpr: Metadata field references: %s", field.FieldType())
-		}
-
-		// If no alias is specified for a metadata field, create a default one
-		if field.Alias == "" {
-			field.Alias = fmt.Sprintf("%s_%s", field.MetaType, field.ColumnName)
-			qlog.Trace("parseSelectExpr: Created default metadata alias: %s", field.Alias)
 		}
 
 		return field, nil
@@ -152,12 +148,6 @@ func parseSelectExpr(expr sqlparser.SelectExpr) (QueryField, error) {
 	// For regular fields
 	field.ColumnName = sqlparser.String(aliasedExpr.Expr)
 	qlog.Trace("parseSelectExpr: Regular field with type: %s", field.FieldType())
-
-	// If no alias is specified, use the sanitized field name as alias
-	if field.Alias == "" {
-		field.Alias = field.ColumnName
-		qlog.Trace("parseSelectExpr: Created default alias from field name: %s", field.Alias)
-	}
 
 	return field, nil
 }
@@ -457,9 +447,9 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 		}
 
 		// Handle the field based on its type
-		if queryField.IsMetadata {
+		if queryField.FuncName != "" {
 			// Get the metadata for this field
-			switch queryField.MetaType {
+			switch queryField.FuncName {
 			case "WriterId":
 				qlog.Trace("loadQueryFieldsBulk: Updating WriterId metadata for entity %s, field %s",
 					entityId, queryField.FieldType())
@@ -517,28 +507,42 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	selectFields := make([]string, len(query.Fields))
 	for i, field := range query.Fields {
 		alias := field.Alias
-		if alias == "" {
-			// Use the original column name if no alias was specified
-			alias = strings.ReplaceAll(field.ColumnName, IndirectionColumnDelimiter, IndirectionDelimiter)
-		}
 
 		// Use sanitized column names in the SQL query
-		if field.IsMetadata {
-			switch field.MetaType {
+		if field.FuncName != "" {
+			switch field.FuncName {
 			case "WriterId":
+				if alias == "" {
+					alias = fmt.Sprintf("%s_writer_id", field.ColumnName)
+				}
+
 				selectFields[i] = fmt.Sprintf("%s_writer_id as %s", field.ColumnName, alias)
 			case "WriteTime":
+				if alias == "" {
+					alias = fmt.Sprintf("%s_write_time", field.ColumnName)
+				}
+
 				selectFields[i] = fmt.Sprintf("%s_write_time as %s", field.ColumnName, alias)
 			case "EntityType":
+				// TODO: I don't think this is right...
+				if alias == "" {
+					alias = fmt.Sprintf("%s_entity_type", field.ColumnName)
+				}
+
 				selectFields[i] = fmt.Sprintf("(SELECT type FROM Entities WHERE id = %s.id) as %s", me.tableName, alias)
 			}
 		} else {
+			if alias == "" {
+				// Use the original column name if no alias was specified
+				alias = field.ColumnName
+			}
+
 			selectFields[i] = fmt.Sprintf("%s as %s", field.ColumnName, alias)
 		}
 		qlog.Trace("ExecuteQuery: Added field select: %s", selectFields[i])
 	}
 
-	// Build the complete query - note we no longer include 'id' in the SELECT
+	// Build the complete query
 	sqlQuery := fmt.Sprintf("SELECT %s FROM %s", strings.Join(selectFields, ", "), me.tableName)
 
 	if query.Where != nil {
@@ -707,8 +711,11 @@ func (me *SQLiteBuilder) RowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 		field := query.Fields[i]
 		key := field.Alias
 		if key == "" {
-			// If no alias was specified, use the original unsanitized column name
-			key = strings.ReplaceAll(field.ColumnName, IndirectionColumnDelimiter, IndirectionDelimiter)
+			key = field.ColumnName
+
+			if field.FuncName != "" {
+				key = field.OriginalExpr
+			}
 		}
 
 		queryRow[key] = value
