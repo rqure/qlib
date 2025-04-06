@@ -32,8 +32,19 @@ func (me *QueryColumn) FieldType() FieldType {
 }
 
 type QueryTable struct {
-	EntityType string
-	Alias      string
+	TableName string
+	Alias     string
+}
+
+func (me *QueryTable) FinalName() string {
+	if me.Alias != "" {
+		return me.Alias
+	}
+	return me.TableName
+}
+
+func (me *QueryTable) EntityType() EntityType {
+	return EntityType(me.TableName)
 }
 
 type ParsedQuery struct {
@@ -176,8 +187,8 @@ func processTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTabl
 			alias = entityType
 		}
 		queryTable := QueryTable{
-			EntityType: entityType,
-			Alias:      alias,
+			TableName: entityType,
+			Alias:     alias,
 		}
 		tableLookup[alias] = queryTable
 		*tables = append(*tables, queryTable)
