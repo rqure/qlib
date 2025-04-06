@@ -307,13 +307,13 @@ func (me *SQLiteBuilder) Close() error {
 	return nil
 }
 
-func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
 	qlog.Trace("Building SQLite table for entity type: %s with name: %s", entityType, me.tableName)
 
 	// Drop the table if it exists - using ExecContext directly on the db connection
 	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
 	if err != nil {
-		qlog.Trace("BuildTable: Failed to drop existing table: %v", err)
+		qlog.Trace("buildTable: Failed to drop existing table: %v", err)
 		return fmt.Errorf("failed to drop existing table: %v", err)
 	}
 
@@ -363,17 +363,17 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 	// Execute directly on the db connection
 	_, err = me.db.ExecContext(ctx, createSQL)
 	if err != nil {
-		qlog.Trace("BuildTable: Failed to create table: %v", err)
+		qlog.Trace("buildTable: Failed to create table: %v", err)
 		return fmt.Errorf("failed to create table: %v", err)
 	}
 
-	qlog.Trace("BuildTable: Successfully created table %s", me.tableName)
+	qlog.Trace("buildTable: Successfully created table %s", me.tableName)
 
 	return nil
 }
 
-func (me *SQLiteBuilder) PopulateTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
-	qlog.Trace("Populating table '%s' for entity type: %s", entityType)
+func (me *SQLiteBuilder) populateTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+	qlog.Trace("Populating table '%s'", entityType)
 
 	// Begin a transaction for batch inserts
 	tx, parentErr := me.db.BeginTx(ctx, nil)
@@ -390,7 +390,7 @@ func (me *SQLiteBuilder) PopulateTable(ctx context.Context, entityType EntityTyp
 
 	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$EntityId], [$EntityType]) VALUES (?)", me.tableName))
 	if err != nil {
-		qlog.Warn("PopulateTable: Failed to prepare statement: %v", err)
+		qlog.Warn("populateTable: Failed to prepare statement: %v", err)
 		parentErr = fmt.Errorf("failed to prepare statement: %v", err)
 		return parentErr
 	}
@@ -403,7 +403,7 @@ func (me *SQLiteBuilder) PopulateTable(ctx context.Context, entityType EntityTyp
 
 		// Insert the entity ID first
 		if _, err := stmt.ExecContext(ctx, entityId, entityType); err != nil {
-			qlog.Warn("PopulateTable: Failed to insert entity %s: %v", entityId, err)
+			qlog.Warn("populateTable: Failed to insert entity %s: %v", entityId, err)
 			parentErr = fmt.Errorf("failed to insert entity %s: %v", entityId, err)
 			return false
 		}
@@ -413,7 +413,7 @@ func (me *SQLiteBuilder) PopulateTable(ctx context.Context, entityType EntityTyp
 
 	// Commit this transaction to ensure IDs are saved
 	if err = tx.Commit(); err != nil {
-		qlog.Warn("PopulateTable: Failed to commit entity IDs: %v", err)
+		qlog.Warn("populateTable: Failed to commit entity IDs: %v", err)
 		parentErr = fmt.Errorf("failed to commit entity IDs: %v", err)
 		return parentErr
 	}
@@ -599,7 +599,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	qlog.Trace("QueryWithPagination: Applied %d type hints", len(me.typeHints))
 
 	// Create the SQLite table with the appropriate schema
-	if err := me.BuildTable(ctx, entityType, query); err != nil {
+	if err := me.buildTable(ctx, entityType, query); err != nil {
 		qlog.Trace("QueryWithPagination: Failed to build SQLite table: %v", err)
 		return nil, fmt.Errorf("failed to build SQLite table: %v", err)
 	}
@@ -612,7 +612,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	}
 
 	// Load data in batches until we have enough for this page
-	err := me.PopulateTable(ctx, entityType, query)
+	err := me.populateTable(ctx, entityType, query)
 	if err != nil {
 		qlog.Trace("QueryWithPagination: Failed to populate table: %v", err)
 		return nil, fmt.Errorf("failed to populate table: %v", err)
