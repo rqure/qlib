@@ -690,6 +690,18 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		}
 	}
 
+	// Drop the temporary entity tables to free up memory
+	for _, tableName := range entityTables {
+		dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS [%s]", tableName)
+		_, err = me.db.ExecContext(ctx, dropSQL)
+		if err != nil {
+			qlog.Warn("executeQuery: Failed to drop temporary table [%s]: %v", tableName, err)
+			// Continue with other tables instead of failing
+			continue
+		}
+		qlog.Trace("executeQuery: Dropped temporary table [%s]", tableName)
+	}
+
 	return nil
 }
 
