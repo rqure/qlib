@@ -15,6 +15,8 @@ import (
 type QueryColumn struct {
 	ColumnName string
 	Alias      string
+	Table      QueryTable
+	IsSelected bool
 }
 
 func (me *QueryColumn) FinalName() string {
@@ -35,11 +37,8 @@ type QueryTable struct {
 }
 
 type ParsedQuery struct {
-	Fields      []QueryColumn
+	Columns     []QueryColumn
 	Tables      []QueryTable
-	Where       *sqlparser.Where
-	OrderBy     sqlparser.OrderBy
-	Limit       *sqlparser.Limit
 	OriginalSQL string
 }
 
@@ -77,16 +76,13 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	}
 
 	parsed := &ParsedQuery{
-		Fields:      make([]QueryColumn, 0),
+		Columns:     make([]QueryColumn, 0),
 		Tables:      make([]QueryTable, 0),
-		Where:       selectStmt.Where,
-		OrderBy:     selectStmt.OrderBy,
-		Limit:       selectStmt.Limit,
 		OriginalSQL: sql,
 	}
 
 	// Parse tables
-	tableRefs := make(map[string]string) // map[alias]entityType
+	tableLookup := make(map[string]QueryTable) // map[alias]QueryTable
 	for _, tableExpr := range selectStmt.From {
 		if aliasedTable, ok := tableExpr.(*sqlparser.AliasedTableExpr); ok {
 			tableName := sqlparser.String(aliasedTable.Expr)
@@ -95,11 +91,12 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 			if alias == "" {
 				alias = entityType
 			}
-			tableRefs[alias] = entityType
-			parsed.Tables = append(parsed.Tables, QueryTable{
+			queryTable := QueryTable{
 				EntityType: entityType,
 				Alias:      alias,
-			})
+			}
+			tableLookup[alias] = queryTable
+			parsed.Tables = append(parsed.Tables, queryTable)
 			qlog.Trace("ParseQuery: Parsed table: %s with alias: %s", entityType, alias)
 		}
 	}
@@ -109,10 +106,10 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	// Parse fields from SELECT clause
 	for _, expr := range selectStmt.SelectExprs {
-		fields := extractFieldsFromExpr(expr, tableRefs)
+		fields := extractFieldsFromExpr(expr, tableLookup, true)
 		for _, field := range fields {
 			if !seenFields[field.FinalName()] {
-				parsed.Fields = append(parsed.Fields, field)
+				parsed.Columns = append(parsed.Columns, field)
 				seenFields[field.FinalName()] = true
 				qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
 			}
@@ -121,10 +118,10 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	// Extract fields from WHERE clause
 	if selectStmt.Where != nil {
-		fields := extractFieldsFromWhere(selectStmt.Where, tableRefs)
+		fields := extractFieldsFromWhere(selectStmt.Where, tableLookup)
 		for _, field := range fields {
 			if !seenFields[field.FinalName()] {
-				parsed.Fields = append(parsed.Fields, field)
+				parsed.Columns = append(parsed.Columns, field)
 				seenFields[field.FinalName()] = true
 				qlog.Trace("ParseQuery: Parsed WHERE field: %s", field.FieldType())
 			}
@@ -133,36 +130,38 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 
 	// Extract fields from ORDER BY clause
 	for _, orderBy := range selectStmt.OrderBy {
-		fields := extractFieldsFromExpr(orderBy.Expr, tableRefs)
+		fields := extractFieldsFromExpr(orderBy.Expr, tableLookup, false)
 		for _, field := range fields {
 			if !seenFields[field.FinalName()] {
-				parsed.Fields = append(parsed.Fields, field)
+				parsed.Columns = append(parsed.Columns, field)
 				seenFields[field.FinalName()] = true
 				qlog.Trace("ParseQuery: Parsed ORDER BY field: %s", field.FieldType())
 			}
 		}
 	}
 
-	qlog.Trace("ParseQuery: Successfully parsed query with %d fields", len(parsed.Fields))
+	qlog.Trace("ParseQuery: Successfully parsed query with %d fields", len(parsed.Columns))
 	return parsed, nil
 }
 
-func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) []QueryColumn {
+func extractFieldsFromExpr(expr sqlparser.SQLNode, tableLookup map[string]QueryTable, isSelect bool) []QueryColumn {
 	var fields []QueryColumn
 
 	switch node := expr.(type) {
 	case *sqlparser.AliasedExpr:
-		field := extractField(node.Expr, tableRefs)
+		field := extractField(node.Expr, tableLookup)
 		if field != nil {
 			if !node.As.IsEmpty() {
 				field.Alias = node.As.String()
 			}
+			field.IsSelected = isSelect
 			fields = append(fields, *field)
 		}
 
 	case *sqlparser.ColName:
-		field := extractField(node, tableRefs)
+		field := extractField(node, tableLookup)
 		if field != nil {
+			field.IsSelected = isSelect
 			fields = append(fields, *field)
 		}
 
@@ -170,7 +169,7 @@ func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) 
 		// Extract fields from function arguments
 		for _, arg := range node.Exprs {
 			if ae, ok := arg.(*sqlparser.AliasedExpr); ok {
-				fields = append(fields, extractFieldsFromExpr(ae.Expr, tableRefs)...)
+				fields = append(fields, extractFieldsFromExpr(ae.Expr, tableLookup, isSelect)...)
 			}
 		}
 	}
@@ -178,7 +177,7 @@ func extractFieldsFromExpr(expr sqlparser.SQLNode, tableRefs map[string]string) 
 	return fields
 }
 
-func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryColumn {
+func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *QueryColumn {
 	switch node := expr.(type) {
 	case *sqlparser.ColName:
 		qualifier := node.Qualifier.String()
@@ -186,16 +185,27 @@ func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryColumn
 
 		// If there's a table qualifier, use it to construct the field name
 		if qualifier != "" {
-			if entityType, ok := tableRefs[qualifier]; ok {
+			if queryTable, ok := tableLookup[qualifier]; ok {
 				return &QueryColumn{
 					ColumnName: columnName,
+					Table:      queryTable,
+					IsSelected: false, // Will be set by caller if needed
 				}
 			}
 		} else {
 			// If no qualifier and only one table, use the column name directly
-			if len(tableRefs) == 1 {
+			if len(tableLookup) == 1 {
+				// Get the single table
+				var queryTable QueryTable
+				for _, qt := range tableLookup {
+					queryTable = qt
+					break
+				}
+
 				return &QueryColumn{
 					ColumnName: columnName,
+					Table:      queryTable,
+					IsSelected: false, // Will be set by caller if needed
 				}
 			}
 		}
@@ -203,26 +213,26 @@ func extractField(expr sqlparser.Expr, tableRefs map[string]string) *QueryColumn
 	return nil
 }
 
-func extractFieldsFromWhere(where *sqlparser.Where, tableRefs map[string]string) []QueryColumn {
+func extractFieldsFromWhere(where *sqlparser.Where, tableLookup map[string]QueryTable) []QueryColumn {
 	if where == nil {
 		return nil
 	}
-	return extractFieldsFromBoolExpr(where.Expr, tableRefs)
+	return extractFieldsFromBoolExpr(where.Expr, tableLookup)
 }
 
-func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableRefs map[string]string) []QueryColumn {
+func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]QueryTable) []QueryColumn {
 	var fields []QueryColumn
 
 	switch node := expr.(type) {
 	case *sqlparser.ComparisonExpr:
-		fields = append(fields, extractFieldsFromExpr(node.Left, tableRefs)...)
-		fields = append(fields, extractFieldsFromExpr(node.Right, tableRefs)...)
+		fields = append(fields, extractFieldsFromExpr(node.Left, tableLookup, false)...)
+		fields = append(fields, extractFieldsFromExpr(node.Right, tableLookup, false)...)
 	case *sqlparser.AndExpr:
-		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableRefs)...)
-		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableRefs)...)
+		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableLookup)...)
+		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableLookup)...)
 	case *sqlparser.OrExpr:
-		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableRefs)...)
-		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableRefs)...)
+		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableLookup)...)
+		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableLookup)...)
 	}
 
 	return fields
@@ -306,7 +316,7 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 	columns = append(columns, "[$EntityId] TEXT")
 	columns = append(columns, "[$EntityType] TEXT")
 
-	for _, field := range query.Fields {
+	for _, field := range query.Columns {
 		var colType string
 
 		finalName := field.FinalName()
@@ -426,7 +436,7 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 	// Determine all the fields we need to fetch
 	for _, entityId := range entityIds {
 		entity := new(Entity).Init(entityId)
-		for _, field := range query.Fields {
+		for _, field := range query.Columns {
 			ft := field.FieldType()
 			qlog.Trace("loadQueryFieldsBulk: Adding read request for entity %s, field %s",
 				entityId, ft)
@@ -474,9 +484,9 @@ func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []En
 
 		// Find the corresponding field in the query
 		var queryField *QueryColumn
-		for i := range query.Fields {
-			if query.Fields[i].FieldType() == fieldType {
-				queryField = &query.Fields[i]
+		for i := range query.Columns {
+			if query.Columns[i].FieldType() == fieldType {
+				queryField = &query.Columns[i]
 				break
 			}
 		}
@@ -518,8 +528,8 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 	qlog.Trace("ExecuteQuery: Building query with limit %d, offset %d", limit, offset)
 
 	// Build the SELECT clause
-	selectFields := make([]string, len(query.Fields))
-	for i, field := range query.Fields {
+	selectFields := make([]string, len(query.Columns))
+	for i, field := range query.Columns {
 		finalName := field.FinalName()
 
 		selectFields[i] = fmt.Sprintf("%s as %s", field.ColumnName, finalName)
@@ -625,8 +635,9 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	qlog.Trace("QueryWithPagination: Processed %d rows", len(queryRows))
 
 	// If we got fewer results than requested, we're at the end
-	if len(queryRows) < int(pageSize) {
-		nextCursorId = -1
+	var nextCursorId int64 = -1
+	if len(queryRows) == int(pageSize) {
+		nextCursorId = cursorId + pageSize
 	}
 
 	// Create a reference to this builder to close it later
@@ -693,7 +704,7 @@ func (me *SQLiteBuilder) RowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 		}
 
 		// Find the corresponding query field for this column
-		field := query.Fields[i]
+		field := query.Columns[i]
 		key := field.FinalName()
 
 		vt, ok := me.typeHints[key]

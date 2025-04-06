@@ -1394,7 +1394,7 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{})
 			NextPage: nil,
 		}
 	}
-	qlog.Trace("Successfully parsed query. EntityType: %s, Fields: %+v", parsedQuery.Table.EntityType, parsedQuery.Fields)
+	qlog.Trace("Successfully parsed query. EntityType: %s, Fields: %+v", parsedQuery.Table.EntityType, parsedQuery.Columns)
 
 	// Create SQLite builder
 	builder, err := qdata.NewSQLiteBuilder(me)
