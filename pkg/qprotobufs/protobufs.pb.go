@@ -2422,7 +2422,7 @@ func (x *QueryColumn) GetValue() *anypb.Any {
 
 type QueryRow struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Column        []*QueryColumn         `protobuf:"bytes,1,rep,name=column,proto3" json:"column,omitempty"`
+	Columns       []*QueryColumn         `protobuf:"bytes,1,rep,name=columns,proto3" json:"columns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2457,9 +2457,9 @@ func (*QueryRow) Descriptor() ([]byte, []int) {
 	return file_pkg_qprotobufs_protobufs_proto_rawDescGZIP(), []int{38}
 }
 
-func (x *QueryRow) GetColumn() []*QueryColumn {
+func (x *QueryRow) GetColumns() []*QueryColumn {
 	if x != nil {
-		return x.Column
+		return x.Columns
 	}
 	return nil
 }
@@ -3792,9 +3792,9 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\tvalueType\x18\x02 \x01(\tR\tvalueType\"K\n" +
 	"\vQueryColumn\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value\";\n" +
-	"\bQueryRow\x12/\n" +
-	"\x06column\x18\x01 \x03(\v2\x17.qprotobufs.QueryColumnR\x06column\"\x98\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value\"=\n" +
+	"\bQueryRow\x121\n" +
+	"\acolumns\x18\x01 \x03(\v2\x17.qprotobufs.QueryColumnR\acolumns\"\x98\x01\n" +
 	"\x16ApiRuntimeQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x03R\bpageSize\x12\x16\n" +
@@ -4003,7 +4003,7 @@ var file_pkg_qprotobufs_protobufs_proto_depIdxs = []int32{
 	55, // 20: qprotobufs.ApiRuntimeRegisterNotificationRequest.requests:type_name -> qprotobufs.DatabaseNotificationConfig
 	9,  // 21: qprotobufs.ApiRuntimeUnregisterNotificationResponse.status:type_name -> qprotobufs.ApiRuntimeUnregisterNotificationResponse.StatusEnum
 	72, // 22: qprotobufs.QueryColumn.value:type_name -> google.protobuf.Any
-	49, // 23: qprotobufs.QueryRow.column:type_name -> qprotobufs.QueryColumn
+	49, // 23: qprotobufs.QueryRow.columns:type_name -> qprotobufs.QueryColumn
 	48, // 24: qprotobufs.ApiRuntimeQueryRequest.type_hints:type_name -> qprotobufs.TypeHint
 	50, // 25: qprotobufs.ApiRuntimeQueryResponse.rows:type_name -> qprotobufs.QueryRow
 	54, // 26: qprotobufs.DatabaseEntity.fields:type_name -> qprotobufs.DatabaseField
