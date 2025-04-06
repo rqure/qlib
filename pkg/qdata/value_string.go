@@ -39,11 +39,11 @@ func (me *ValueString) SetString(value string) {
 	me.Value = value
 }
 
-func (me *ValueString) GetRaw() interface{} {
+func (me *ValueString) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueString) SetRaw(value interface{}) {
+func (me *ValueString) SetRaw(value any) {
 	switch v := value.(type) {
 	case string:
 		me.Value = v

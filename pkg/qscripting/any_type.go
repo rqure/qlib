@@ -9,7 +9,7 @@ import (
 )
 
 type Any struct {
-	Value interface{}
+	Value any
 }
 
 func (a *Any) TypeName() string {

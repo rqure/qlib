@@ -15,8 +15,8 @@ type SerializableEntity struct {
 
 // SerializableValue wraps Value for serialization
 type SerializableValue struct {
-	Raw       interface{} `json:"raw"`
-	ValueType string      `json:"type"`
+	Raw       any    `json:"raw"`
+	ValueType string `json:"type"`
 }
 
 // SerializableFieldData contains field data for serialization

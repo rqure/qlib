@@ -41,11 +41,11 @@ func (me *ValueFloat) SetFloat(value float64) {
 	me.Value = value
 }
 
-func (me *ValueFloat) GetRaw() interface{} {
+func (me *ValueFloat) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueFloat) SetRaw(value interface{}) {
+func (me *ValueFloat) SetRaw(value any) {
 	switch v := value.(type) {
 	case float32:
 		me.Value = float64(v)

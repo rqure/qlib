@@ -121,7 +121,7 @@ func (me *ValueType) IsEntityList() bool {
 	return *me == VTEntityList
 }
 
-func (me *ValueType) NewValue(args ...interface{}) *Value {
+func (me *ValueType) NewValue(args ...any) *Value {
 	var value *Value
 
 	switch *me {

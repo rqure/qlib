@@ -87,7 +87,7 @@ func getStackTrace() string {
 	return string(buf[:n])
 }
 
-func Log(level qprotobufs.LogMessage_LogLevelEnum, message string, args ...interface{}) {
+func Log(level qprotobufs.LogMessage_LogLevelEnum, message string, args ...any) {
 	callInfo := getCallerInfo(3)
 	calledByQlib := strings.Contains(callInfo, "qlib")
 
@@ -117,27 +117,27 @@ func Log(level qprotobufs.LogMessage_LogLevelEnum, message string, args ...inter
 	fmt.Println(output)
 }
 
-func Trace(message string, args ...interface{}) {
+func Trace(message string, args ...any) {
 	Log(qprotobufs.LogMessage_TRACE, message, args...)
 }
 
-func Debug(message string, args ...interface{}) {
+func Debug(message string, args ...any) {
 	Log(qprotobufs.LogMessage_DEBUG, message, args...)
 }
 
-func Info(message string, args ...interface{}) {
+func Info(message string, args ...any) {
 	Log(qprotobufs.LogMessage_INFO, message, args...)
 }
 
-func Warn(message string, args ...interface{}) {
+func Warn(message string, args ...any) {
 	Log(qprotobufs.LogMessage_WARN, message, args...)
 }
 
-func Error(message string, args ...interface{}) {
+func Error(message string, args ...any) {
 	Log(qprotobufs.LogMessage_ERROR, message, args...)
 }
 
-func Panic(message string, args ...interface{}) {
+func Panic(message string, args ...any) {
 	Log(qprotobufs.LogMessage_PANIC, message, args...)
 	panic(fmt.Sprintf(message, args...))
 }

@@ -1208,7 +1208,7 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 						}
 
 						// Handle variadic arguments for query parameters
-						queryArgs := make([]interface{}, 0, len(args)-1)
+						queryArgs := make([]any, 0, len(args)-1)
 						for i := 2; i < len(args); i++ {
 							arg := args[i]
 

@@ -58,8 +58,8 @@ func CastEntityIdSliceToStringSlice(i []EntityId) []string {
 	})
 }
 
-func CastToInterfaceSlice[T any](i []T) []interface{} {
-	return CastSlice(i, func(t T) interface{} {
+func CastToInterfaceSlice[T any](i []T) []any {
+	return CastSlice(i, func(t T) any {
 		return t
 	})
 }

@@ -146,7 +146,7 @@ type StoreInteractor interface {
 	GetEntity(context.Context, EntityId) *Entity
 	DeleteEntity(context.Context, EntityId)
 
-	PrepareQuery(sql string, args ...interface{}) *PageResult[*QueryRow]
+	PrepareQuery(sql string, args ...any) *PageResult[*QueryRow]
 	FindEntities(entityType EntityType, pageOpts ...PageOpts) *PageResult[EntityId]
 	GetEntityTypes(pageOpts ...PageOpts) *PageResult[EntityType]
 

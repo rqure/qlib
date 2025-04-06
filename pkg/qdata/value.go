@@ -9,11 +9,11 @@ import (
 )
 
 type RawProvider interface {
-	GetRaw() interface{}
+	GetRaw() any
 }
 
 type RawReceiver interface {
-	SetRaw(value interface{})
+	SetRaw(value any)
 }
 
 type IntProvider interface {

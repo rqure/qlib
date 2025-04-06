@@ -39,11 +39,11 @@ func (me *ValueBool) SetBool(value bool) {
 	me.Value = value
 }
 
-func (me *ValueBool) GetRaw() interface{} {
+func (me *ValueBool) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueBool) SetRaw(value interface{}) {
+func (me *ValueBool) SetRaw(value any) {
 	switch v := value.(type) {
 	case bool:
 		me.Value = v

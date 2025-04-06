@@ -42,11 +42,11 @@ func (me *ValueBinaryFile) SetBinaryFile(value string) {
 	me.Value = FileDecode(value)
 }
 
-func (me *ValueBinaryFile) GetRaw() interface{} {
+func (me *ValueBinaryFile) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueBinaryFile) SetRaw(value interface{}) {
+func (me *ValueBinaryFile) SetRaw(value any) {
 	switch v := value.(type) {
 	case []byte:
 		me.Value = v

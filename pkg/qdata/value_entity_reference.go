@@ -39,11 +39,11 @@ func (me *ValueEntityReference) SetEntityReference(value EntityId) {
 	me.Value = value
 }
 
-func (me *ValueEntityReference) GetRaw() interface{} {
+func (me *ValueEntityReference) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueEntityReference) SetRaw(value interface{}) {
+func (me *ValueEntityReference) SetRaw(value any) {
 	switch v := value.(type) {
 	case EntityId:
 		me.Value = v

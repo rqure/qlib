@@ -1357,11 +1357,11 @@ func (me *PostgresStoreInteractor) PublishNotifications() qss.Signal[qdata.Publi
 	return me.publisherSig
 }
 
-func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
+func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[*qdata.Entity] {
 	qlog.Trace("PrepareQuery called with SQL: %s, args: %v", sql, args)
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
-	otherArgs := []interface{}{}
+	otherArgs := []any{}
 
 	for _, arg := range args {
 		switch arg := arg.(type) {

@@ -41,11 +41,11 @@ func (me *ValueEntityList) SetEntityList(value []EntityId) {
 	me.Value = value
 }
 
-func (me *ValueEntityList) GetRaw() interface{} {
+func (me *ValueEntityList) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueEntityList) SetRaw(value interface{}) {
+func (me *ValueEntityList) SetRaw(value any) {
 	switch v := value.(type) {
 	case []EntityId:
 		me.Value = v
@@ -53,7 +53,7 @@ func (me *ValueEntityList) SetRaw(value interface{}) {
 		me.Value = CastStringSliceToEntityIdSlice(v)
 	case string:
 		me.Value = CastStringSliceToEntityIdSlice(strings.Split(v, ","))
-	case []interface{}:
+	case []any:
 		me.Value = make([]EntityId, len(v))
 		for i, item := range v {
 			switch item := item.(type) {

@@ -187,10 +187,10 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 	}
 }
 
-func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...interface{}) *qdata.PageResult[*qdata.Entity] {
+func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[*qdata.Entity] {
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
-	otherArgs := []interface{}{}
+	otherArgs := []any{}
 
 	for _, arg := range args {
 		switch arg := arg.(type) {

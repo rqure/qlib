@@ -8,7 +8,7 @@ import (
 )
 
 type Executor interface {
-	Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]interface{}, error)
+	Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]any, error)
 }
 
 type executor struct {
@@ -22,7 +22,7 @@ func NewExecutor(src string) Executor {
 	}
 }
 
-func (me *executor) Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]interface{}, error) {
+func (me *executor) Execute(ctx context.Context, in map[string]ObjectConverterFn) (map[string]any, error) {
 	in["CTX"] = Context(ctx)
 
 	if me.compiled == nil {
@@ -52,7 +52,7 @@ func (me *executor) Execute(ctx context.Context, in map[string]ObjectConverterFn
 		return nil, err
 	}
 
-	out := make(map[string]interface{})
+	out := make(map[string]any)
 	for _, v := range me.compiled.GetAll() {
 		out[v.Name()] = v.Value()
 	}

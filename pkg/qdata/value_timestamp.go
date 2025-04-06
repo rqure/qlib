@@ -42,11 +42,11 @@ func (me *ValueTimestamp) SetTimestamp(value time.Time) {
 	me.Value = value
 }
 
-func (me *ValueTimestamp) GetRaw() interface{} {
+func (me *ValueTimestamp) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueTimestamp) SetRaw(value interface{}) {
+func (me *ValueTimestamp) SetRaw(value any) {
 	switch v := value.(type) {
 	case time.Time:
 		me.Value = v

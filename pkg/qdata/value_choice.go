@@ -41,11 +41,11 @@ func (me *ValueChoice) SetChoice(value int) {
 	me.Value = value
 }
 
-func (me *ValueChoice) GetRaw() interface{} {
+func (me *ValueChoice) GetRaw() any {
 	return me.Value
 }
 
-func (me *ValueChoice) SetRaw(value interface{}) {
+func (me *ValueChoice) SetRaw(value any) {
 	switch v := value.(type) {
 	case int:
 		me.Value = v
