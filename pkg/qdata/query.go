@@ -61,14 +61,23 @@ type QueryRow map[string]*Value
 
 func (me QueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
 	row := &qprotobufs.QueryRow{
-		Column: make(map[string]*qprotobufs.Value),
+		Columns: make([]*qprotobufs.QueryColumn{}),
 	}
 
 	for k, v := range me {
-		row.Columns[k] = v.AsValuePb()
+		row.Columns = append(row.Columns, &qprotobufs.QueryColumn{
+			Key:   k,
+			Value: v.AsAnyPb(),
+		})
 	}
 
 	return row
+}
+
+func (me QueryRow) FromQueryRowPb(row *qprotobufs.QueryRow) {
+	for _, col := range row.Columns {
+		me[col.Key] = new(Value).FromAnyPb(col.Value)
+	}
 }
 
 type TypeHintMap map[string]ValueType
