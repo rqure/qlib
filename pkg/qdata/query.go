@@ -92,58 +92,7 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 	// Parse tables
 	tableLookup := make(map[string]QueryTable) // map[alias]QueryTable
 	for _, tableExpr := range selectStmt.From {
-		if aliasedTable, ok := tableExpr.(*sqlparser.AliasedTableExpr); ok {
-			tableName := sqlparser.String(aliasedTable.Expr)
-			entityType := strings.Trim(tableName, "`")
-			alias := aliasedTable.As.String()
-			if alias == "" {
-				alias = entityType
-			}
-			queryTable := QueryTable{
-				EntityType: entityType,
-				Alias:      alias,
-			}
-			tableLookup[alias] = queryTable
-			parsed.Tables = append(parsed.Tables, queryTable)
-			qlog.Trace("ParseQuery: Parsed table: %s with alias: %s", entityType, alias)
-		} else if joinExpr, ok := tableExpr.(*sqlparser.JoinTableExpr); ok {
-			// Handle JOIN expressions
-			qlog.Trace("ParseQuery: Processing JOIN expression")
-
-			// Process left table
-			if leftAliased, ok := joinExpr.LeftExpr.(*sqlparser.AliasedTableExpr); ok {
-				tableName := sqlparser.String(leftAliased.Expr)
-				entityType := strings.Trim(tableName, "`")
-				alias := leftAliased.As.String()
-				if alias == "" {
-					alias = entityType
-				}
-				queryTable := QueryTable{
-					EntityType: entityType,
-					Alias:      alias,
-				}
-				tableLookup[alias] = queryTable
-				parsed.Tables = append(parsed.Tables, queryTable)
-				qlog.Trace("ParseQuery: Parsed JOIN left table: %s with alias: %s", entityType, alias)
-			}
-
-			// Process right table
-			if rightAliased, ok := joinExpr.RightExpr.(*sqlparser.AliasedTableExpr); ok {
-				tableName := sqlparser.String(rightAliased.Expr)
-				entityType := strings.Trim(tableName, "`")
-				alias := rightAliased.As.String()
-				if alias == "" {
-					alias = entityType
-				}
-				queryTable := QueryTable{
-					EntityType: entityType,
-					Alias:      alias,
-				}
-				tableLookup[alias] = queryTable
-				parsed.Tables = append(parsed.Tables, queryTable)
-				qlog.Trace("ParseQuery: Parsed JOIN right table: %s with alias: %s", entityType, alias)
-			}
-		}
+		extractTablesFromTableExpr(tableExpr, tableLookup, &parsed.Tables)
 	}
 
 	// Track unique fields to avoid duplicates
@@ -393,15 +342,18 @@ func extractTablesFromTableExpr(expr sqlparser.TableExpr, tableLookup map[string
 		}
 		tableLookup[alias] = queryTable
 		*tables = append(*tables, queryTable)
+		qlog.Trace("extractTablesFromTableExpr: Parsed table: %s with alias: %s", entityType, alias)
 
 	case *sqlparser.JoinTableExpr:
 		extractTablesFromTableExpr(node.LeftExpr, tableLookup, tables)
 		extractTablesFromTableExpr(node.RightExpr, tableLookup, tables)
+		qlog.Trace("extractTablesFromTableExpr: Processed JOIN expression")
 
 	case *sqlparser.ParenTableExpr:
 		for _, tableExpr := range node.Exprs {
 			extractTablesFromTableExpr(tableExpr, tableLookup, tables)
 		}
+		qlog.Trace("extractTablesFromTableExpr: Processed parenthesized table expression")
 	}
 }
 
