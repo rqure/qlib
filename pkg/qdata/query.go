@@ -106,11 +106,65 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 			tableLookup[alias] = queryTable
 			parsed.Tables = append(parsed.Tables, queryTable)
 			qlog.Trace("ParseQuery: Parsed table: %s with alias: %s", entityType, alias)
+		} else if joinExpr, ok := tableExpr.(*sqlparser.JoinTableExpr); ok {
+			// Handle JOIN expressions
+			qlog.Trace("ParseQuery: Processing JOIN expression")
+
+			// Process left table
+			if leftAliased, ok := joinExpr.LeftExpr.(*sqlparser.AliasedTableExpr); ok {
+				tableName := sqlparser.String(leftAliased.Expr)
+				entityType := strings.Trim(tableName, "`")
+				alias := leftAliased.As.String()
+				if alias == "" {
+					alias = entityType
+				}
+				queryTable := QueryTable{
+					EntityType: entityType,
+					Alias:      alias,
+				}
+				tableLookup[alias] = queryTable
+				parsed.Tables = append(parsed.Tables, queryTable)
+				qlog.Trace("ParseQuery: Parsed JOIN left table: %s with alias: %s", entityType, alias)
+			}
+
+			// Process right table
+			if rightAliased, ok := joinExpr.RightExpr.(*sqlparser.AliasedTableExpr); ok {
+				tableName := sqlparser.String(rightAliased.Expr)
+				entityType := strings.Trim(tableName, "`")
+				alias := rightAliased.As.String()
+				if alias == "" {
+					alias = entityType
+				}
+				queryTable := QueryTable{
+					EntityType: entityType,
+					Alias:      alias,
+				}
+				tableLookup[alias] = queryTable
+				parsed.Tables = append(parsed.Tables, queryTable)
+				qlog.Trace("ParseQuery: Parsed JOIN right table: %s with alias: %s", entityType, alias)
+			}
 		}
 	}
 
 	// Track unique fields to avoid duplicates
 	seenFields := make(map[string]bool)
+
+	// Now process JOIN conditions after seenFields is initialized
+	for _, tableExpr := range selectStmt.From {
+		if joinExpr, ok := tableExpr.(*sqlparser.JoinTableExpr); ok {
+			// Extract fields from JOIN condition
+			if joinExpr.Condition.On != nil {
+				fields := extractFieldsFromBoolExpr(joinExpr.Condition.On, tableLookup)
+				for _, field := range fields {
+					if !seenFields[field.FinalName()] {
+						parsed.Columns = append(parsed.Columns, field)
+						seenFields[field.FinalName()] = true
+						qlog.Trace("ParseQuery: Parsed JOIN ON field: %s", field.FieldType())
+					}
+				}
+			}
+		}
+	}
 
 	// Parse fields from SELECT clause
 	for _, expr := range selectStmt.SelectExprs {
@@ -204,6 +258,38 @@ func extractFieldsFromExpr(expr sqlparser.SQLNode, tableLookup map[string]QueryT
 				fields = append(fields, extractFieldsFromExpr(ae.Expr, tableLookup, isSelect)...)
 			}
 		}
+
+	case *sqlparser.Subquery:
+		// Handle subquery expressions
+		qlog.Trace("extractFieldsFromExpr: Processing subquery")
+
+		// Parse the subquery
+		subquery, err := sqlparser.Parse(sqlparser.String(node))
+		if err != nil {
+			qlog.Trace("extractFieldsFromExpr: Failed to parse subquery: %v", err)
+			return fields
+		}
+
+		// Extract fields from the subquery's select list
+		if subSelect, ok := subquery.(*sqlparser.Select); ok {
+			for _, subExpr := range subSelect.SelectExprs {
+				subFields := extractFieldsFromExpr(subExpr, tableLookup, isSelect)
+				fields = append(fields, subFields...)
+			}
+
+			// Extract fields from the subquery's WHERE clause
+			if subSelect.Where != nil {
+				subWhereFields := extractFieldsFromWhere(subSelect.Where, tableLookup)
+				fields = append(fields, subWhereFields...)
+			}
+		}
+
+	case *sqlparser.BinaryExpr:
+		// Extract fields from both sides of binary expressions
+		leftFields := extractFieldsFromExpr(node.Left, tableLookup, isSelect)
+		rightFields := extractFieldsFromExpr(node.Right, tableLookup, isSelect)
+		fields = append(fields, leftFields...)
+		fields = append(fields, rightFields...)
 	}
 
 	return fields
@@ -270,9 +356,53 @@ func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]Query
 	case *sqlparser.OrExpr:
 		fields = append(fields, extractFieldsFromBoolExpr(node.Left, tableLookup)...)
 		fields = append(fields, extractFieldsFromBoolExpr(node.Right, tableLookup)...)
+
+	case *sqlparser.Subquery:
+		// Handle subqueries in boolean expressions
+		subqueryFields := extractFieldsFromExpr(node, tableLookup, false)
+		fields = append(fields, subqueryFields...)
+
+	case *sqlparser.BinaryExpr:
+		// Extract fields from both sides of binary expressions
+		leftFields := extractFieldsFromExpr(node.Left, tableLookup, false)
+		rightFields := extractFieldsFromExpr(node.Right, tableLookup, false)
+		fields = append(fields, leftFields...)
+		fields = append(fields, rightFields...)
+
+	case *sqlparser.ParenExpr:
+		// Unwrap and process parenthesized expressions
+		parenFields := extractFieldsFromBoolExpr(node.Expr, tableLookup)
+		fields = append(fields, parenFields...)
 	}
 
 	return fields
+}
+
+func extractTablesFromTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTable, tables *[]QueryTable) {
+	switch node := expr.(type) {
+	case *sqlparser.AliasedTableExpr:
+		tableName := sqlparser.String(node.Expr)
+		entityType := strings.Trim(tableName, "`")
+		alias := node.As.String()
+		if alias == "" {
+			alias = entityType
+		}
+		queryTable := QueryTable{
+			EntityType: entityType,
+			Alias:      alias,
+		}
+		tableLookup[alias] = queryTable
+		*tables = append(*tables, queryTable)
+
+	case *sqlparser.JoinTableExpr:
+		extractTablesFromTableExpr(node.LeftExpr, tableLookup, tables)
+		extractTablesFromTableExpr(node.RightExpr, tableLookup, tables)
+
+	case *sqlparser.ParenTableExpr:
+		for _, tableExpr := range node.Exprs {
+			extractTablesFromTableExpr(tableExpr, tableLookup, tables)
+		}
+	}
 }
 
 type SQLiteBuilder struct {
@@ -610,7 +740,7 @@ func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, l
 		qlog.Trace("ExecuteQuery: Added ORDER BY clause: %s", orderBy)
 	} else {
 		// Default ordering by ID if none specified
-		sqlQuery += " ORDER BY [$EntityId]"
+		sqlQuery += " ORDER BY [$CursorId]"
 		qlog.Trace("ExecuteQuery: Using default ORDER BY id")
 	}
 
