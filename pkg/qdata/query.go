@@ -609,7 +609,7 @@ func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityTyp
 }
 
 // executeQuery executes the given query against the entity tables and populates the final results table
-func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, entityTables []string) error {
+func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, entityTables []EntityType) error {
 	qlog.Trace("executeQuery: Creating final results table")
 
 	// Drop the final results table if it exists
@@ -777,7 +777,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		}
 
 		// Execute the query and store results
-		if err := me.executeQuery(ctx, query, entityTables); err != nil {
+		if err := me.executeQuery(ctx, query, entityTypes); err != nil {
 			return nil, fmt.Errorf("failed to execute query: %v", err)
 		}
 	}
