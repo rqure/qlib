@@ -40,6 +40,8 @@ type ParsedQuery struct {
 	Columns     []QueryColumn
 	Tables      []QueryTable
 	OriginalSQL string
+	Where       *sqlparser.Where  // Add Where clause from parsed SQL
+	OrderBy     sqlparser.OrderBy // Add OrderBy clause from parsed SQL
 }
 
 type QueryRow map[string]*Value
@@ -79,6 +81,8 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 		Columns:     make([]QueryColumn, 0),
 		Tables:      make([]QueryTable, 0),
 		OriginalSQL: sql,
+		Where:       selectStmt.Where,   // Store Where clause
+		OrderBy:     selectStmt.OrderBy, // Store OrderBy clause
 	}
 
 	// Parse tables
@@ -180,7 +184,10 @@ func extractFieldsFromExpr(expr sqlparser.SQLNode, tableLookup map[string]QueryT
 func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *QueryColumn {
 	switch node := expr.(type) {
 	case *sqlparser.ColName:
-		qualifier := node.Qualifier.String()
+		qualifier := ""
+		if node.Qualifier.Name.String() != "" {
+			qualifier = node.Qualifier.Name.String()
+		}
 		columnName := node.Name.String()
 
 		// If there's a table qualifier, use it to construct the field name
