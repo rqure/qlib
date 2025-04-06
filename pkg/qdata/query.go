@@ -615,9 +615,12 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		return fmt.Errorf("failed to drop final results table: %v", err)
 	}
 
-	// Create the final results table
-	columns := []string{"cursor_id INTEGER PRIMARY KEY AUTOINCREMENT"}
+	// Create the final results table - only include selected fields
+	columns := []string{"[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT"}
 	for _, field := range query.Columns {
+		if !field.IsSelected {
+			continue
+		}
 		finalName := field.FinalName()
 		vt, ok := me.typeHints[finalName]
 		if ok {
@@ -634,19 +637,23 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		return fmt.Errorf("failed to create final results table: %v", err)
 	}
 
-	// Build column names for the insert
+	// Build column names for the insert - only selected fields
 	colNames := make([]string, 0, len(query.Columns))
 	for _, field := range query.Columns {
-		colNames = append(colNames, fmt.Sprintf("[%s]", field.FinalName()))
+		if field.IsSelected {
+			colNames = append(colNames, fmt.Sprintf("[%s]", field.FinalName()))
+		}
 	}
 
 	// For each entity table, select data and insert into final_results
 	for _, tableName := range entityTables {
-		// Build the SELECT clause for the query
+		// Build the SELECT clause for the query - only selected fields
 		selectFields := make([]string, 0, len(query.Columns))
 		for _, field := range query.Columns {
-			finalName := field.FinalName()
-			selectFields = append(selectFields, fmt.Sprintf("[%s] as [%s]", field.ColumnName, finalName))
+			if field.IsSelected {
+				finalName := field.FinalName()
+				selectFields = append(selectFields, fmt.Sprintf("[%s] as [%s]", field.ColumnName, finalName))
+			}
 		}
 
 		// Build the query for this entity table
@@ -688,7 +695,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 
 // getPageFromResults fetches a specific page from the final results table
 func (me *SQLiteBuilder) getPageFromResults(ctx context.Context, pageSize int64, offset int64) (*sql.Rows, error) {
-	query := fmt.Sprintf("SELECT * FROM final_results ORDER BY cursor_id LIMIT %d OFFSET %d",
+	query := fmt.Sprintf("SELECT * FROM final_results ORDER BY [$CursorId] LIMIT %d OFFSET %d",
 		pageSize, offset)
 
 	rows, err := me.db.QueryContext(ctx, query)
@@ -706,11 +713,6 @@ func getEntityTypesFromQuery(query *ParsedQuery) []EntityType {
 	// Extract entity types from table references
 	for _, table := range query.Tables {
 		entityTypes[table.EntityType()] = true
-	}
-
-	// If no tables found, handle as a special case
-	if len(entityTypes) == 0 {
-		return []EntityType{"unknown"}
 	}
 
 	result := make([]EntityType, 0, len(entityTypes))
@@ -739,10 +741,6 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	if cursorId == 0 {
 		// Get all entity types referenced in the query
 		entityTypes := getEntityTypesFromQuery(query)
-		if len(entityTypes) == 1 && entityTypes[0] == "unknown" {
-			// If no tables specified in the query, use the provided entityType
-			entityTypes = []EntityType{entityType}
-		}
 
 		// Build and populate tables for all entity types
 		if err := me.buildAndPopulateTables(ctx, entityTypes, query); err != nil {
@@ -840,9 +838,9 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 			continue
 		}
 
-		// Skip cursor_id column which is just for pagination
+		// Skip [$CursorId] column which is just for pagination
 		columnName := columns[i]
-		if columnName == "cursor_id" {
+		if columnName == "[$CursorId]" {
 			continue
 		}
 
