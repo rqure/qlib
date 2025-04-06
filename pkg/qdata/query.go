@@ -17,6 +17,7 @@ type QueryColumn struct {
 	Alias      string
 	Table      QueryTable
 	IsSelected bool
+	Order      int // Add this field to track selection order
 }
 
 func (me *QueryColumn) FinalName() string {
@@ -57,33 +58,75 @@ type ParsedQuery struct {
 	Having      *sqlparser.Where
 }
 
-type QueryRow map[string]*Value
+type QueryRow interface {
+	Get(column string) *Value
+	Set(column string, value *Value)
+	Columns() []string
+	AsQueryRowPb() *qprotobufs.QueryRow
+	FromQueryRowPb(row *qprotobufs.QueryRow)
+	AsEntity() *Entity
+}
 
-func (me QueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
+type orderedQueryRow struct {
+	data        map[string]*Value
+	columnOrder []string
+}
+
+func NewQueryRow() QueryRow {
+	return &orderedQueryRow{
+		data:        make(map[string]*Value),
+		columnOrder: make([]string, 0),
+	}
+}
+
+func (me *orderedQueryRow) Get(column string) *Value {
+	return me.data[column]
+}
+
+func (me *orderedQueryRow) Set(column string, value *Value) {
+	if _, exists := me.data[column]; !exists {
+		me.columnOrder = append(me.columnOrder, column)
+	}
+	me.data[column] = value
+}
+
+func (me *orderedQueryRow) Columns() []string {
+	return me.columnOrder
+}
+
+func (me *orderedQueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
 	row := &qprotobufs.QueryRow{
 		Columns: []*qprotobufs.QueryColumn{},
 	}
 
-	for k, v := range me {
-		row.Columns = append(row.Columns, &qprotobufs.QueryColumn{
-			Key:   k,
-			Value: v.AsAnyPb(),
-		})
+	// Use columnOrder to maintain order
+	for _, k := range me.columnOrder {
+		if v, ok := me.data[k]; ok {
+			row.Columns = append(row.Columns, &qprotobufs.QueryColumn{
+				Key:   k,
+				Value: v.AsAnyPb(),
+			})
+		}
 	}
 
 	return row
 }
 
-func (me QueryRow) FromQueryRowPb(row *qprotobufs.QueryRow) {
+func (me *orderedQueryRow) FromQueryRowPb(row *qprotobufs.QueryRow) {
+	me.data = make(map[string]*Value)
+	me.columnOrder = make([]string, 0, len(row.Columns))
+
 	for _, col := range row.Columns {
-		me[col.Key] = new(Value).FromAnyPb(col.Value)
+		me.columnOrder = append(me.columnOrder, col.Key)
+		me.data[col.Key] = new(Value).FromAnyPb(col.Value)
 	}
 }
 
-func (me QueryRow) AsEntity() *Entity {
-	entity := new(Entity).Init(me["$EntityId"].GetEntityReference())
+func (me *orderedQueryRow) AsEntity() *Entity {
+	entity := new(Entity).Init(me.data["$EntityId"].GetEntityReference())
 
-	for k, v := range me {
+	for _, k := range me.columnOrder {
+		v := me.data[k]
 		if k == "$EntityId" || k == "$EntityType" || k == "$CursorId" {
 			continue
 		}
@@ -910,7 +953,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, query *ParsedQ
 		// Extract the cursor ID from the last row
 		lastRow := queryRows[len(queryRows)-1]
 		if lastRow != nil {
-			lastCursorId = int64(lastRow["$CursorId"].GetInt())
+			lastCursorId = int64(lastRow.Get("$CursorId").GetInt())
 		}
 	}
 
@@ -966,8 +1009,7 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 		return nil, fmt.Errorf("failed to scan row: %v", err)
 	}
 
-	// Create a map to hold the column values
-	queryRow := make(QueryRow)
+	queryRow := NewQueryRow()
 
 	// Process each column
 	for i, value := range values {
@@ -982,7 +1024,7 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 			vt = VTString // Default to string if no type hint is provided
 		}
 
-		queryRow[columnName] = vt.NewValue(value)
+		queryRow.Set(columnName, vt.NewValue(value))
 	}
 
 	return queryRow, nil

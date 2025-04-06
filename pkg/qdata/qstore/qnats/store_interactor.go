@@ -253,7 +253,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 			// Convert rows from protobuf
 			rows := make([]qdata.QueryRow, 0, len(response.Rows))
 			for _, rowPb := range response.Rows {
-				row := make(qdata.QueryRow)
+				row := qdata.NewQueryRow()
 				row.FromQueryRowPb(rowPb)
 				rows = append(rows, row)
 			}

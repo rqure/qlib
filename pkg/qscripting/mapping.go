@@ -90,7 +90,8 @@ func queryRowToTengo(row qdata.QueryRow) tengo.Object {
 	}
 
 	mapping := make(map[string]tengo.Object)
-	for key, value := range row {
+	for _, key := range row.Columns() {
+		value := row.Get(key)
 		mapping[key] = valueToTengo(value)
 	}
 
