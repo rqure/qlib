@@ -221,7 +221,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 
 	for fieldType, valueType := range typeHintMap {
 		typeHints = append(typeHints, &qprotobufs.TypeHint{
-			FieldType: fieldType.AsString(),
+			FieldType: fieldType,
 			ValueType: valueType.AsString(),
 		})
 	}
@@ -250,22 +250,23 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 				return nil, fmt.Errorf("failed to parse query response: %v", err)
 			}
 
-			// Convert entities from protobuf
-			entities := make([]*qdata.Entity, 0, len(response.Entities))
-			for _, entityPb := range response.Entities {
-				entity := new(qdata.Entity).FromEntityPb(entityPb)
-				entities = append(entities, entity)
+			// Convert rows from protobuf
+			rows := make([]qdata.QueryRow, 0, len(response.Rows))
+			for _, rowPb := range response.Rows {
+				row := make(qdata.QueryRow)
+				row.FromQueryRowPb(rowPb)
+				rows = append(rows, row)
 			}
 
 			nextCursor := response.NextCursor
 
-			return &qdata.PageResult[*qdata.Entity]{
-				Items:    entities,
+			return &qdata.PageResult[qdata.QueryRow]{
+				Items:    rows,
 				CursorId: nextCursor,
-				NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
+				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
 					if nextCursor < 0 {
-						return &qdata.PageResult[*qdata.Entity]{
-							Items:    []*qdata.Entity{},
+						return &qdata.PageResult[qdata.QueryRow]{
+							Items:    []qdata.QueryRow{},
 							CursorId: -1,
 							NextPage: nil,
 						}, nil
