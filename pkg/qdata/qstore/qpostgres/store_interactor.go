@@ -706,7 +706,7 @@ func (me *PostgresStoreInteractor) Write(ctx context.Context, requests ...*qdata
 				if me.clientId == nil && appName != "" {
 					me.PrepareQuery("SELECT [$EntityId] FROM Client WHERE Name = %q", appName).
 						ForEach(ctx, func(client qdata.QueryRow) bool {
-							entityId := client["$EntityId"].GetEntityReference()
+							entityId := client.AsEntity().EntityId
 							me.clientId = &entityId
 							return false
 						})

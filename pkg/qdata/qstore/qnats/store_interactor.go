@@ -187,7 +187,7 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 	}
 }
 
-func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[*qdata.Entity] {
+func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[qdata.QueryRow] {
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
 	otherArgs := []any{}
@@ -226,10 +226,10 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 		})
 	}
 
-	return &qdata.PageResult[*qdata.Entity]{
-		Items:    []*qdata.Entity{},
+	return &qdata.PageResult[qdata.QueryRow]{
+		Items:    []qdata.QueryRow{},
 		CursorId: pageConfig.CursorId,
-		NextPage: func(ctx context.Context) (*qdata.PageResult[*qdata.Entity], error) {
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
 			// Create a query request message
 			msg := &qprotobufs.ApiRuntimeQueryRequest{
 				Query:     formattedQuery,
@@ -353,9 +353,10 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 			appName := qcontext.GetAppName(ctx)
 			if me.clientId == nil && appName != "" {
-				me.PrepareQuery("SELECT Name FROM Client WHERE Name = %q", appName).
-					ForEach(ctx, func(client *qdata.Entity) bool {
-						me.clientId = &client.EntityId
+				me.PrepareQuery("SELECT [$EntityId] FROM Client WHERE Name = %q", appName).
+					ForEach(ctx, func(client qdata.QueryRow) bool {
+						entityId := client.AsEntity().EntityId
+						me.clientId = &entityId
 						return false
 					})
 			}
