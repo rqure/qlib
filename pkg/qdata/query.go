@@ -837,8 +837,8 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 	}
 
 	// Create slices to hold the values
-	values := make([]interface{}, len(columns))
-	valuePtrs := make([]interface{}, len(columns))
+	values := make([]any, len(columns))
+	valuePtrs := make([]any, len(columns))
 	for i := range columns {
 		valuePtrs[i] = &values[i]
 	}
@@ -890,13 +890,13 @@ func getSQLiteType(valueType ValueType) string {
 	return sqlType
 }
 
-func convertValueForSQLite(value *Value) interface{} {
+func convertValueForSQLite(value *Value) any {
 	if value == nil {
 		qlog.Trace("convertValueForSQLite: Received nil value")
 		return nil
 	}
 
-	var result interface{}
+	var result any
 	switch {
 	case value.IsInt():
 		result = value.GetInt()
