@@ -84,6 +84,21 @@ func toFloat(obj tengo.Object) (float64, error) {
 	return 0, fmt.Errorf("expected float, got %s", obj.TypeName())
 }
 
+func queryRowToTengo(row qdata.QueryRow) tengo.Object {
+	if row == nil {
+		return tengo.UndefinedValue
+	}
+
+	mapping := make(map[string]tengo.Object)
+	for key, value := range row {
+		mapping[key] = valueToTengo(value)
+	}
+
+	return &tengo.Map{
+		Value: mapping,
+	}
+}
+
 func entityToTengo(entity *qdata.Entity) tengo.Object {
 	if entity == nil {
 		return tengo.UndefinedValue
@@ -1229,8 +1244,8 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 						result := s.PrepareQuery(sqlQuery, queryArgs...)
 
 						// Create a PageResult object for Tengo that returns entities
-						return pageResultToTengo(result, func(item *qdata.Entity) tengo.Object {
-							return entityToTengo(item)
+						return pageResultToTengo(result, func(item qdata.QueryRow) tengo.Object {
+							return queryRowToTengo(item)
 						}), nil
 					},
 				},
