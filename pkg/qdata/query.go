@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -357,8 +356,7 @@ type SQLiteBuilder struct {
 	db        *sql.DB
 	store     StoreInteractor
 	typeHints TypeHintMap
-	tableName string // Unique table name for this builder
-	closed    bool   // Track if the builder has been closed
+	closed    bool // Track if the builder has been closed
 }
 
 // Static counter for generating unique table names
@@ -372,15 +370,11 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 		return nil, err
 	}
 
-	// Generate a unique table name using atomic counter
-	uniqueID := atomic.AddInt64(&tableCounter, 1)
-	tableName := fmt.Sprintf("entities_%d", uniqueID)
-	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database with table name: %s", tableName)
+	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database")
 	return &SQLiteBuilder{
 		db:        db,
 		store:     store,
 		typeHints: make(TypeHintMap),
-		tableName: tableName,
 	}, nil
 }
 
@@ -391,15 +385,6 @@ func (me *SQLiteBuilder) Close() error {
 	}
 
 	qlog.Trace("SQLiteBuilder.Close: Cleaning up resources")
-	// Drop the table if it exists
-	if me.tableName != "" {
-		_, err := me.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
-		if err != nil {
-			qlog.Trace("SQLiteBuilder.Close: Failed to drop table %s: %v", me.tableName, err)
-		} else {
-			qlog.Trace("SQLiteBuilder.Close: Dropped table %s", me.tableName)
-		}
-	}
 
 	// Close the database connection
 	err := me.db.Close()
@@ -413,23 +398,39 @@ func (me *SQLiteBuilder) Close() error {
 	return nil
 }
 
-func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
-	qlog.Trace("Building SQLite table for entity type: %s with name: %s", entityType, me.tableName)
+// buildAndPopulateTables creates tables for each entity type and populates them with data
+func (me *SQLiteBuilder) buildAndPopulateTables(ctx context.Context, entityTypes []EntityType, query *ParsedQuery) error {
+	qlog.Trace("buildAndPopulateTables: Building tables for %d entity types", len(entityTypes))
 
-	// Drop the table if it exists - using ExecContext directly on the db connection
-	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", me.tableName))
+	for _, entityType := range entityTypes {
+		qlog.Trace("buildAndPopulateTables: Creating table for entity type %s", entityType)
+
+		if err := me.buildTableForEntityType(ctx, entityType, query); err != nil {
+			return fmt.Errorf("failed to build table for %s: %v", entityType, err)
+		}
+
+		if err := me.populateTableForEntityType(ctx, entityType, query); err != nil {
+			return fmt.Errorf("failed to populate table for %s: %v", entityType, err)
+		}
+	}
+
+	return nil
+}
+
+// buildTableForEntityType creates a table for the specified entity type
+func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+	// Drop the table if it exists
+	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS [%s]", entityType))
 	if err != nil {
-		qlog.Trace("buildTable: Failed to drop existing table: %v", err)
 		return fmt.Errorf("failed to drop existing table: %v", err)
 	}
 
 	// Create table with all necessary columns
 	columns := make([]string, 0)
-	columns = append(columns, "[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT")
-	columns = append(columns, "[$EntityId] TEXT")
+	columns = append(columns, "[$EntityId] TEXT PRIMARY KEY")
 	columns = append(columns, "[$EntityType] TEXT")
 
-	// Iterate through the columns map instead of slice
+	// Iterate through the columns map
 	for _, field := range query.Columns {
 		var colType string
 
@@ -462,253 +463,289 @@ func (me *SQLiteBuilder) buildTable(ctx context.Context, entityType EntityType, 
 		}
 	}
 
-	createSQL := fmt.Sprintf("CREATE TABLE %s (%s)", me.tableName, strings.Join(columns, ", "))
+	createSQL := fmt.Sprintf("CREATE TABLE [%s] (%s)", entityType, strings.Join(columns, ", "))
 	qlog.Trace("Creating table with SQL: %s", createSQL)
 
-	// Execute directly on the db connection
 	_, err = me.db.ExecContext(ctx, createSQL)
 	if err != nil {
-		qlog.Trace("buildTable: Failed to create table: %v", err)
 		return fmt.Errorf("failed to create table: %v", err)
 	}
 
-	qlog.Trace("buildTable: Successfully created table %s", me.tableName)
+	qlog.Trace("buildTableForEntityType: Successfully created table [%s]", entityType)
 	return nil
 }
 
-func (me *SQLiteBuilder) populateTable(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
-	qlog.Trace("Populating table '%s'", entityType)
+// populateTableForEntityType populates the table for the specified entity type
+func (me *SQLiteBuilder) populateTableForEntityType(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+	qlog.Trace("populateTableForEntityType: Populating table for entity type %s", entityType)
 
 	// Begin a transaction for batch inserts
-	tx, parentErr := me.db.BeginTx(ctx, nil)
-	if parentErr != nil {
-		return fmt.Errorf("failed to begin transaction: %v", parentErr)
+	tx, err := me.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer func() {
-		if parentErr != nil {
+		if err != nil {
 			tx.Rollback()
-		} else {
-			tx.Commit()
 		}
 	}()
 
-	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$EntityId], [$EntityType]) VALUES (?, ?)", me.tableName))
+	// Prepare the insert statement for entity IDs
+	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf(
+		"INSERT OR IGNORE INTO [%s] ([$EntityId], [$EntityType]) VALUES (?, ?)",
+		entityType))
 	if err != nil {
-		qlog.Warn("populateTable: Failed to prepare statement: %v", err)
-		parentErr = fmt.Errorf("failed to prepare statement: %v", err)
-		return parentErr
+		return fmt.Errorf("failed to prepare statement: %v", err)
 	}
 	defer stmt.Close()
 
+	// Collect entity IDs and insert them
 	entityIds := make([]EntityId, 0)
 	me.store.FindEntities(entityType).ForEach(ctx, func(entityId EntityId) bool {
 		entityIds = append(entityIds, entityId)
-		qlog.Trace("Processing entity: %s", entityId)
 
-		// Insert the entity ID first
+		// Insert the entity ID
 		if _, err := stmt.ExecContext(ctx, entityId, entityType); err != nil {
-			qlog.Warn("populateTable: Failed to insert entity %s: %v", entityId, err)
-			parentErr = fmt.Errorf("failed to insert entity %s: %v", entityId, err)
+			qlog.Warn("populateTableForEntityType: Failed to insert entity %s: %v", entityId, err)
 			return false
 		}
 		return true
 	})
 
-	// Commit this transaction to ensure IDs are saved
+	// Commit transaction to ensure IDs are saved
 	if err = tx.Commit(); err != nil {
-		qlog.Warn("populateTable: Failed to commit entity IDs: %v", err)
-		parentErr = fmt.Errorf("failed to commit entity IDs: %v", err)
-		return parentErr
+		return fmt.Errorf("failed to commit entity IDs: %v", err)
 	}
 
-	qlog.Trace("Batch insert complete, loading field data for %d entities", len(entityIds))
-	// Now load field data in bulk for all entities in this batch
+	qlog.Trace("Inserted %d entity IDs for type %s", len(entityIds), entityType)
+
+	// Now load field data in bulk for all entities
 	if len(entityIds) > 0 {
-		if err := me.loadQueryFieldsBulk(ctx, entityIds, query); err != nil {
-			parentErr = fmt.Errorf("failed to load query fields: %v", err)
-			return parentErr
+		if err := me.loadFieldDataForEntities(ctx, entityType, entityIds, query); err != nil {
+			return fmt.Errorf("failed to load query fields: %v", err)
 		}
 	}
 
-	return parentErr
+	return nil
 }
 
-func (me *SQLiteBuilder) loadQueryFieldsBulk(ctx context.Context, entityIds []EntityId, query *ParsedQuery) error {
-	qlog.Trace("loadQueryFieldsBulk: Loading fields for %d entities", len(entityIds))
+// loadFieldDataForEntities loads all field data for the given entities into their respective table
+func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityType EntityType, entityIds []EntityId, query *ParsedQuery) error {
+	qlog.Trace("loadFieldDataForEntities: Loading fields for %d entities of type %s", len(entityIds), entityType)
 	if len(entityIds) == 0 {
-		qlog.Trace("loadQueryFieldsBulk: No entities to load")
 		return nil
 	}
 
-	// Create a set of entities for which we need to get data
+	// Create read requests for all fields of all entities
 	allRequests := make([]*Request, 0)
 
-	// Determine all the fields we need to fetch
 	for _, entityId := range entityIds {
 		entity := new(Entity).Init(entityId)
 		// Iterate over columns map
 		for _, field := range query.Columns {
 			ft := field.FieldType()
-			qlog.Trace("loadQueryFieldsBulk: Adding read request for entity %s, field %s",
-				entityId, ft)
 			allRequests = append(allRequests, entity.Field(ft).AsReadRequest())
 		}
 	}
 
-	qlog.Trace("loadQueryFieldsBulk: Batch reading %d field requests", len(allRequests))
+	qlog.Trace("loadFieldDataForEntities: Batch reading %d field requests", len(allRequests))
 	// Execute all read requests in a batch
 	me.store.Read(ctx, allRequests...)
-	qlog.Trace("loadQueryFieldsBulk: Completed batch read operation")
 
 	// Begin a new transaction for database updates
 	tx, err := me.db.BeginTx(ctx, nil)
 	if err != nil {
-		qlog.Error("loadQueryFieldsBulk: Failed to begin transaction: %v", err)
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer func() {
 		if err != nil {
-			qlog.Trace("loadQueryFieldsBulk: Rolling back transaction due to error")
 			tx.Rollback()
 		}
 	}()
 
-	// Track statistics
-	successCount := 0
-	failCount := 0
-
 	// Process each entity's fields
 	for _, req := range allRequests {
-		entityId := req.EntityId
-
 		if !req.Success {
-			failCount++
-			qlog.Trace("loadQueryFieldsBulk: Request failed for entity %s, field %s",
-				entityId, req.FieldType.AsString())
 			continue
 		}
-		successCount++
 
 		fieldType := req.FieldType
+		entityId := req.EntityId
 
 		// Find the corresponding field in the query by field type
 		var queryField *QueryColumn
 		for _, field := range query.Columns {
 			if field.FieldType() == fieldType {
-				queryFieldCopy := field // Create a copy to avoid modifying the original in the map
+				queryFieldCopy := field
 				queryField = &queryFieldCopy
 				break
 			}
 		}
 
 		if queryField == nil {
-			qlog.Trace("loadQueryFieldsBulk: No matching query field for %s", fieldType.AsString())
 			continue
 		}
 
-		// Direct field value
-		qlog.Trace("loadQueryFieldsBulk: Updating value for entity %s, field %s",
-			entityId, queryField.FieldType())
+		// Update field value in the appropriate table
 		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-                    UPDATE %s SET %s = ?, [%s$WriterId] = ?, [%s$WriteTime] = ? WHERE [$EntityId] = ?
-                `, me.tableName, queryField.ColumnName, queryField.ColumnName, queryField.ColumnName),
+			UPDATE [%s] SET [%s] = ?, [%s$WriterId] = ?, [%s$WriteTime] = ? WHERE [$EntityId] = ?
+		`, entityType, queryField.ColumnName, queryField.ColumnName, queryField.ColumnName),
 			convertValueForSQLite(req.Value),
 			req.WriterId.AsString(),
 			req.WriteTime.AsTime(),
 			entityId)
 		if err != nil {
-			qlog.Trace("loadQueryFieldsBulk: SQL error updating entity %s, field %s: %v",
-				entityId, queryField.FieldType(), err)
 			return fmt.Errorf("failed to update entity field: %v", err)
 		}
 	}
 
-	qlog.Trace("loadQueryFieldsBulk: Processed field values - success: %d, failed: %d", successCount, failCount)
 	err = tx.Commit()
 	if err != nil {
-		qlog.Trace("loadQueryFieldsBulk: Failed to commit transaction: %v", err)
-		return fmt.Errorf("failed to commit transaction: %v", err)
+		return fmt.Errorf("failed to commit field updates: %v", err)
 	}
 
-	qlog.Trace("loadQueryFieldsBulk: Successfully committed all field updates")
+	qlog.Trace("loadFieldDataForEntities: Successfully updated fields for %s", entityType)
 	return nil
 }
 
-func (me *SQLiteBuilder) ExecuteQuery(ctx context.Context, query *ParsedQuery, limit int64, offset int64) (*sql.Rows, error) {
-	qlog.Trace("ExecuteQuery: Building query with limit %d, offset %d", limit, offset)
+// executeQuery executes the given query against the entity tables and populates the final results table
+func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, entityTables []string) error {
+	qlog.Trace("executeQuery: Creating final results table")
 
-	// Build the SELECT clause
-	selectFields := make([]string, 0, len(query.Columns))
+	// Drop the final results table if it exists
+	_, err := me.db.ExecContext(ctx, "DROP TABLE IF EXISTS final_results")
+	if err != nil {
+		return fmt.Errorf("failed to drop final results table: %v", err)
+	}
+
+	// Create the final results table
+	columns := []string{"cursor_id INTEGER PRIMARY KEY AUTOINCREMENT"}
 	for _, field := range query.Columns {
 		finalName := field.FinalName()
-		selectFields = append(selectFields, fmt.Sprintf("%s as %s", field.ColumnName, finalName))
-		qlog.Trace("ExecuteQuery: Added field select: %s as %s", field.ColumnName, finalName)
+		vt, ok := me.typeHints[finalName]
+		if ok {
+			sqlType := getSQLiteType(vt)
+			columns = append(columns, fmt.Sprintf("[%s] %s", finalName, sqlType))
+		} else {
+			columns = append(columns, fmt.Sprintf("[%s] TEXT", finalName))
+		}
 	}
 
-	// Build the complete query
-	sqlQuery := fmt.Sprintf("SELECT %s FROM %s", strings.Join(selectFields, ", "), me.tableName)
-
-	if query.Where != nil {
-		whereClause := sqlparser.String(query.Where)
-		// Fix the WHERE clause - remove the "WHERE" keyword and any leading/trailing whitespace
-		whereClause = strings.TrimSpace(whereClause)
-		whereClause = strings.TrimPrefix(whereClause, "where")
-		whereClause = strings.TrimPrefix(whereClause, "WHERE")
-		whereClause = strings.TrimSpace(whereClause)
-		sqlQuery += " WHERE " + whereClause
-		qlog.Trace("ExecuteQuery: Added WHERE clause: %s", whereClause)
-	}
-
-	if len(query.GroupBy) > 0 {
-		groupBy := sqlparser.String(query.GroupBy)
-		// Fix the GROUP BY clause - remove the "GROUP BY" keywords and any leading/trailing whitespace
-		groupBy = strings.TrimSpace(groupBy)
-		groupBy = strings.TrimPrefix(groupBy, "group by")
-		groupBy = strings.TrimPrefix(groupBy, "GROUP BY")
-		groupBy = strings.TrimSpace(groupBy)
-		sqlQuery += " GROUP BY " + groupBy
-		qlog.Trace("ExecuteQuery: Added GROUP BY clause: %s", groupBy)
-	}
-
-	if query.Having != nil {
-		havingClause := sqlparser.String(query.Having)
-		// Fix the HAVING clause - remove the "HAVING" keyword and any leading/trailing whitespace
-		havingClause = strings.TrimSpace(havingClause)
-		havingClause = strings.TrimPrefix(havingClause, "having")
-		havingClause = strings.TrimPrefix(havingClause, "HAVING")
-		havingClause = strings.TrimSpace(havingClause)
-		sqlQuery += " HAVING " + havingClause
-		qlog.Trace("ExecuteQuery: Added HAVING clause: %s", havingClause)
-	}
-
-	if len(query.OrderBy) > 0 {
-		orderBy := sqlparser.String(query.OrderBy)
-		// Fix the ORDER BY clause - remove the "ORDER BY" keywords and any leading/trailing whitespace
-		orderBy = strings.TrimSpace(orderBy)
-		orderBy = strings.TrimPrefix(orderBy, "order by")
-		orderBy = strings.TrimPrefix(orderBy, "ORDER BY")
-		orderBy = strings.TrimSpace(orderBy)
-		sqlQuery += " ORDER BY " + orderBy
-		qlog.Trace("ExecuteQuery: Added ORDER BY clause: %s", orderBy)
-	} else {
-		// Default ordering by ID if none specified
-		sqlQuery += " ORDER BY [$CursorId]"
-		qlog.Trace("ExecuteQuery: Using default ORDER BY id")
-	}
-
-	// Apply pagination
-	sqlQuery += fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
-	qlog.Trace("ExecuteQuery: Final query: %s", sqlQuery)
-
-	// Execute the query
-	rows, err := me.db.QueryContext(ctx, sqlQuery)
+	createSQL := fmt.Sprintf("CREATE TABLE final_results (%s)", strings.Join(columns, ", "))
+	_, err = me.db.ExecContext(ctx, createSQL)
 	if err != nil {
-		qlog.Error("ExecuteQuery: SQLite query failed: %v", err)
-		return nil, err
+		return fmt.Errorf("failed to create final results table: %v", err)
 	}
 
-	qlog.Trace("ExecuteQuery: Query executed successfully")
+	// Build column names for the insert
+	colNames := make([]string, 0, len(query.Columns))
+	for _, field := range query.Columns {
+		colNames = append(colNames, fmt.Sprintf("[%s]", field.FinalName()))
+	}
+
+	// For each entity table, select data and insert into final_results
+	for _, tableName := range entityTables {
+		// Build the SELECT clause for the query
+		selectFields := make([]string, 0, len(query.Columns))
+		for _, field := range query.Columns {
+			finalName := field.FinalName()
+			selectFields = append(selectFields, fmt.Sprintf("[%s] as [%s]", field.ColumnName, finalName))
+		}
+
+		// Build the query for this entity table
+		sqlQuery := fmt.Sprintf("SELECT %s FROM [%s]", strings.Join(selectFields, ", "), tableName)
+
+		if query.Where != nil {
+			whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+				sqlparser.String(query.Where), "where"), "WHERE"))
+			sqlQuery += " WHERE " + whereClause
+		}
+
+		if len(query.GroupBy) > 0 {
+			groupBy := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+				sqlparser.String(query.GroupBy), "group by"), "GROUP BY"))
+			sqlQuery += " GROUP BY " + groupBy
+		}
+
+		if query.Having != nil {
+			havingClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+				sqlparser.String(query.Having), "having"), "HAVING"))
+			sqlQuery += " HAVING " + havingClause
+		}
+
+		// Insert into final results table
+		insertSQL := fmt.Sprintf("INSERT INTO final_results (%s) %s",
+			strings.Join(colNames, ", "), sqlQuery)
+		qlog.Trace("executeQuery: Executing query for table [%s]: %s", tableName, insertSQL)
+
+		_, err = me.db.ExecContext(ctx, insertSQL)
+		if err != nil {
+			qlog.Error("executeQuery: Failed to execute query for table [%s]: %v", tableName, err)
+			// Continue with other tables instead of failing completely
+			continue
+		}
+	}
+
+	// Add ORDER BY to final results if specified in the query
+	if len(query.OrderBy) > 0 {
+		orderBy := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+			sqlparser.String(query.OrderBy), "order by"), "ORDER BY"))
+
+		// Create a temporary ordered table
+		_, err = me.db.ExecContext(ctx, fmt.Sprintf(
+			"CREATE TABLE temp_ordered AS SELECT * FROM final_results ORDER BY %s", orderBy))
+		if err != nil {
+			return fmt.Errorf("failed to create ordered temporary table: %v", err)
+		}
+
+		// Replace final_results with the ordered version
+		_, err = me.db.ExecContext(ctx, "DROP TABLE final_results")
+		if err != nil {
+			return fmt.Errorf("failed to drop final_results for ordering: %v", err)
+		}
+
+		_, err = me.db.ExecContext(ctx, "ALTER TABLE temp_ordered RENAME TO final_results")
+		if err != nil {
+			return fmt.Errorf("failed to rename ordered table: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// getPageFromResults fetches a specific page from the final results table
+func (me *SQLiteBuilder) getPageFromResults(ctx context.Context, pageSize int64, offset int64) (*sql.Rows, error) {
+	query := fmt.Sprintf("SELECT * FROM final_results ORDER BY cursor_id LIMIT %d OFFSET %d",
+		pageSize, offset)
+
+	rows, err := me.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get page: %v", err)
+	}
+
 	return rows, nil
+}
+
+// getEntityTypesFromQuery extracts all unique entity types referenced in the query
+func getEntityTypesFromQuery(query *ParsedQuery) []EntityType {
+	entityTypes := make(map[EntityType]bool)
+
+	// Extract entity types from table references
+	for _, table := range query.Tables {
+		entityTypes[table.EntityType()] = true
+	}
+
+	// If no tables found, handle as a special case
+	if len(entityTypes) == 0 {
+		return []EntityType{"unknown"}
+	}
+
+	result := make([]EntityType, 0, len(entityTypes))
+	for entityType := range entityTypes {
+		result = append(result, entityType)
+	}
+
+	return result
 }
 
 func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType EntityType, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
@@ -719,50 +756,49 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	for _, opt := range opts {
 		opt(me.typeHints)
 	}
-	qlog.Trace("QueryWithPagination: Applied %d type hints", len(me.typeHints))
-
-	// Create the SQLite table with the appropriate schema
-	if err := me.buildTable(ctx, entityType, query); err != nil {
-		qlog.Trace("QueryWithPagination: Failed to build SQLite table: %v", err)
-		return nil, fmt.Errorf("failed to build SQLite table: %v", err)
-	}
-	qlog.Trace("QueryWithPagination: Successfully built SQLite table")
 
 	// Set a reasonable default for page size if it's not positive
 	if pageSize <= 0 {
 		pageSize = 100
-		qlog.Trace("QueryWithPagination: Using default page size: %d", pageSize)
 	}
 
-	// Load data in batches until we have enough for this page
-	err := me.populateTable(ctx, entityType, query)
-	if err != nil {
-		qlog.Trace("QueryWithPagination: Failed to populate table: %v", err)
-		return nil, fmt.Errorf("failed to populate table: %v", err)
-	}
-	qlog.Trace("QueryWithPagination: Table populated.")
+	// Only build and populate the tables on the first request (cursorId == 0)
+	if cursorId == 0 {
+		// Get all entity types referenced in the query
+		entityTypes := getEntityTypesFromQuery(query)
+		if len(entityTypes) == 1 && entityTypes[0] == "unknown" {
+			// If no tables specified in the query, use the provided entityType
+			entityTypes = []EntityType{entityType}
+		}
 
-	// Execute query with exact pagination parameters
-	rows, err := me.ExecuteQuery(ctx, query, pageSize, 0)
+		// Build and populate tables for all entity types
+		if err := me.buildAndPopulateTables(ctx, entityTypes, query); err != nil {
+			return nil, fmt.Errorf("failed to build and populate tables: %v", err)
+		}
+
+		// Execute the query and store results
+		if err := me.executeQuery(ctx, query, entityTables); err != nil {
+			return nil, fmt.Errorf("failed to execute query: %v", err)
+		}
+	}
+
+	// Get the requested page from the final results table
+	rows, err := me.getPageFromResults(ctx, pageSize, cursorId)
 	if err != nil {
-		qlog.Trace("QueryWithPagination: Failed to execute query: %v", err)
-		return nil, fmt.Errorf("failed to execute query: %v", err)
+		return nil, fmt.Errorf("failed to get page: %v", err)
 	}
 	defer rows.Close()
-	qlog.Trace("QueryWithPagination: Query executed, processing results")
 
 	// Convert results to QueryRows
 	var queryRows []QueryRow
 	for rows.Next() {
-		row, err := me.RowToQueryRow(rows, query)
+		row, err := me.rowToQueryRow(rows)
 		if err != nil {
 			qlog.Error("QueryWithPagination: Failed to convert row: %v", err)
 			continue
 		}
 		queryRows = append(queryRows, row)
 	}
-
-	qlog.Trace("QueryWithPagination: Processed %d rows", len(queryRows))
 
 	// If we got fewer results than requested, we're at the end
 	var nextCursorId int64 = -1
@@ -799,15 +835,14 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		Cleanup: me.Close,
 	}
 
-	qlog.Trace("QueryWithPagination: Returning result with %d items", len(result.Items))
 	return result, nil
 }
 
-func (me *SQLiteBuilder) RowToQueryRow(rows *sql.Rows, query *ParsedQuery) (QueryRow, error) {
+// rowToQueryRow converts a database row to a QueryRow
+func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 	// Get column names from the rows
 	columns, err := rows.Columns()
 	if err != nil {
-		qlog.Trace("RowToQueryRow: Failed to get column names: %v", err)
 		return nil, fmt.Errorf("failed to get column names: %v", err)
 	}
 
@@ -820,38 +855,30 @@ func (me *SQLiteBuilder) RowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 
 	// Scan the row into the values slice
 	if err := rows.Scan(valuePtrs...); err != nil {
-		qlog.Trace("RowToQueryRow: Failed to scan row: %v", err)
 		return nil, fmt.Errorf("failed to scan row: %v", err)
 	}
 
 	// Create a map to hold the column values
 	queryRow := make(QueryRow)
 
-	// Use the original field names/aliases from the query
+	// Process each column
 	for i, value := range values {
 		if value == nil {
 			continue
 		}
 
-		// Get the column name from the rows metadata
+		// Skip cursor_id column which is just for pagination
 		columnName := columns[i]
-
-		// Find the matching QueryColumn
-		key := columnName
-		for _, field := range query.Columns {
-			if field.FinalName() == columnName {
-				key = field.FinalName()
-				break
-			}
-		}
-
-		vt, ok := me.typeHints[key]
-		if !ok {
-			qlog.Trace("RowToQueryRow: No type hint for column [%s]", key)
+		if columnName == "cursor_id" {
 			continue
 		}
 
-		queryRow[key] = vt.NewValue(value)
+		vt, ok := me.typeHints[columnName]
+		if !ok {
+			continue
+		}
+
+		queryRow[columnName] = vt.NewValue(value)
 	}
 
 	return queryRow, nil
