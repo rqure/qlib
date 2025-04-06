@@ -370,6 +370,7 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	qlog.Trace("NewSQLiteBuilder: Successfully created SQLite in-memory database")
 
 	typeHints := make(TypeHintMap)
+	typeHints["$CursorId"] = VTInt
 	typeHints["$EntityId"] = VTEntityReference
 	typeHints["$EntityType"] = VTString
 	typeHints["$WriterId"] = VTEntityReference
@@ -644,6 +645,12 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		return fmt.Errorf("failed to create final results table: %v", err)
 	}
 
+	// Create an index on the cursor column for efficient WHERE-based pagination
+	_, err = me.db.ExecContext(ctx, "CREATE INDEX idx_cursor ON final_results ([$CursorId])")
+	if err != nil {
+		return fmt.Errorf("failed to create cursor index: %v", err)
+	}
+
 	// Build column names for the insert - only selected fields
 	colNames := make([]string, 0, len(query.Columns))
 	for _, field := range query.Columns {
@@ -713,9 +720,16 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 }
 
 // getPageFromResults fetches a specific page from the final results table
-func (me *SQLiteBuilder) getPageFromResults(ctx context.Context, pageSize int64, offset int64) (*sql.Rows, error) {
-	query := fmt.Sprintf("SELECT * FROM final_results ORDER BY [$CursorId] LIMIT %d OFFSET %d",
-		pageSize, offset)
+func (me *SQLiteBuilder) getPageFromResults(ctx context.Context, pageSize int64, cursorId int64) (*sql.Rows, error) {
+	var query string
+	if cursorId == 0 {
+		// First page - no cursor filtering needed
+		query = fmt.Sprintf("SELECT * FROM final_results ORDER BY [$CursorId] LIMIT %d", pageSize)
+	} else {
+		// Subsequent pages - use WHERE clause for better performance
+		query = fmt.Sprintf("SELECT * FROM final_results WHERE [$CursorId] > %d ORDER BY [$CursorId] LIMIT %d",
+			cursorId, pageSize)
+	}
 
 	rows, err := me.db.QueryContext(ctx, query)
 	if err != nil {
@@ -790,10 +804,14 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 		queryRows = append(queryRows, row)
 	}
 
-	// If we got fewer results than requested, we're at the end
-	var nextCursorId int64 = -1
-	if len(queryRows) == int(pageSize) {
-		nextCursorId = cursorId + pageSize
+	// Get the last cursor ID from the page to use as the next cursor
+	var lastCursorId int64 = -1
+	if len(queryRows) > 0 {
+		// Extract the cursor ID from the last row
+		lastRow := queryRows[len(queryRows)-1]
+		if lastRow != nil {
+			lastCursorId = int64(lastRow["$CursorId"].GetInt())
+		}
 	}
 
 	// Create a reference to this builder to close it later
@@ -802,9 +820,9 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 	// Create PageResult with next page function
 	result := &PageResult[QueryRow]{
 		Items:    queryRows,
-		CursorId: nextCursorId,
+		CursorId: lastCursorId,
 		NextPage: func(ctx context.Context) (*PageResult[QueryRow], error) {
-			if nextCursorId < 0 {
+			if lastCursorId < 0 {
 				qlog.Trace("NextPage: No more results to fetch")
 
 				// Clean up resources when we reach the end
@@ -819,8 +837,8 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, entityType Ent
 					NextPage: nil,
 				}, nil
 			}
-			qlog.Trace("NextPage: Fetching next page with cursorId: %d", nextCursorId)
-			return me.QueryWithPagination(ctx, entityType, query, pageSize, nextCursorId, opts...)
+			qlog.Trace("NextPage: Fetching next page with cursorId: %d", lastCursorId)
+			return me.QueryWithPagination(ctx, entityType, query, pageSize, lastCursorId, opts...)
 		},
 		Cleanup: me.Close,
 	}
@@ -857,12 +875,7 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 			continue
 		}
 
-		// Skip [$CursorId] column which is just for pagination
 		columnName := columns[i]
-		if columnName == "[$CursorId]" {
-			continue
-		}
-
 		vt, ok := me.typeHints[columnName]
 		if !ok {
 			vt = VTString // Default to string if no type hint is provided
