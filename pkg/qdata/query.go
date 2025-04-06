@@ -36,7 +36,7 @@ type QueryTable struct {
 
 type ParsedQuery struct {
 	Fields      []QueryField
-	Table       QueryTable
+	Tables      []QueryTable
 	Where       *sqlparser.Where
 	OrderBy     sqlparser.OrderBy
 	Limit       *sqlparser.Limit
@@ -76,11 +76,6 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 		return nil, fmt.Errorf("only SELECT statements are supported")
 	}
 
-	if len(selectStmt.From) != 1 {
-		qlog.Trace("ParseQuery: Exactly one FROM table must be specified")
-		return nil, fmt.Errorf("exactly one FROM table must be specified")
-	}
-
 	parsed := &ParsedQuery{
 		Fields:      make([]QueryField, 0),
 		Where:       selectStmt.Where,
@@ -89,15 +84,18 @@ func ParseQuery(sql string) (*ParsedQuery, error) {
 		OriginalSQL: sql,
 	}
 
-	// Parse table
-	tableExpr := selectStmt.From[0]
-	if aliasedTable, ok := tableExpr.(*sqlparser.AliasedTableExpr); ok {
-		tableName := sqlparser.String(aliasedTable.Expr)
-		parsed.Table = QueryTable{
-			EntityType: strings.Trim(tableName, "`"),
-			Alias:      aliasedTable.As.String(),
+	// Parse tables
+	for _, tableExpr := range selectStmt.From {
+		if aliasedTable, ok := tableExpr.(*sqlparser.AliasedTableExpr); ok {
+			tableName := sqlparser.String(aliasedTable.Expr)
+			entityType := strings.Trim(tableName, "`")
+			alias := aliasedTable.As.String()
+			parsed.Tables = append(parsed.Tables, QueryTable{
+				EntityType: entityType,
+				Alias:      alias,
+			})
+			qlog.Trace("ParseQuery: Parsed table: %s with alias: %s", entityType, alias)
 		}
-		qlog.Trace("ParseQuery: Parsed table: %s with alias: %s", parsed.Table.EntityType, parsed.Table.Alias)
 	}
 
 	// Parse fields
