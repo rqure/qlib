@@ -214,6 +214,7 @@ func (me *SQLiteBuilder) BuildTable(ctx context.Context, entityType EntityType, 
 	// Create table with all necessary columns
 	columns := make([]string, 0)
 	columns = append(columns, "[$id] TEXT PRIMARY KEY")
+	columns = append(columns, "[$type] TEXT")
 
 	for _, field := range query.Fields {
 		var colType string
@@ -317,7 +318,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 	}()
 
 	// Prepare the insert statement once
-	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$id]) VALUES (?)", me.tableName))
+	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf("INSERT OR IGNORE INTO %s ([$id], [$type]) VALUES (?)", me.tableName))
 	if err != nil {
 		qlog.Error("PopulateTableBatch: Failed to prepare statement: %v", err)
 		return cursorId, fmt.Errorf("failed to prepare statement: %v", err)
@@ -331,7 +332,7 @@ func (me *SQLiteBuilder) PopulateTableBatch(ctx context.Context, entityType Enti
 		qlog.Trace("Processing entity: %s", entityId)
 
 		// Insert the entity ID first
-		if _, err := stmt.ExecContext(ctx, entityId); err != nil {
+		if _, err := stmt.ExecContext(ctx, entityId, entityType); err != nil {
 			qlog.Error("PopulateTableBatch: Failed to insert entity %s: %v", entityId, err)
 			return cursorId, fmt.Errorf("failed to insert entity: %v", err)
 		}
