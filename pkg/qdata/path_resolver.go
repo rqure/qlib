@@ -60,7 +60,7 @@ func (me *pathResolver) Resolve(ctx context.Context, path ...string) *Entity {
 
 	// Start with finding the root entity by name
 	rootName := path[0]
-	iterator := me.store.PrepareQuery("SELECT $EntityId, Children FROM Root WHERE Name = %q", rootName)
+	iterator := me.store.PrepareQuery(`SELECT "$EntityId", Children FROM Root WHERE Name = %q`, rootName)
 	defer iterator.Close()
 	if !iterator.Next(ctx) {
 		return nil

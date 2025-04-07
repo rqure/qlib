@@ -353,7 +353,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 			appName := qcontext.GetAppName(ctx)
 			if me.clientId == nil && appName != "" {
-				me.PrepareQuery("SELECT [$EntityId] FROM Client WHERE Name = %q", appName).
+				me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName).
 					ForEach(ctx, func(client qdata.QueryRow) bool {
 						entityId := client.AsEntity().EntityId
 						me.clientId = &entityId

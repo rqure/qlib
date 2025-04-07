@@ -214,7 +214,7 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	appName := qcontext.GetAppName(ctx)
 	me.store.
 		PrepareQuery(`
-		SELECT $EntityId, LogLevel, QLibLogLevel
+		SELECT "$EntityId", LogLevel, QLibLogLevel
 		FROM Client
 		WHERE Name = %q`,
 			appName).
