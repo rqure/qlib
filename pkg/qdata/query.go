@@ -455,6 +455,22 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 				}
 			}
 		}
+	case *sqlparser.SQLVal:
+		columnName := strings.Trim(string(node.Val), `"`)
+
+		if len(tableLookup) == 1 {
+			var queryTable QueryTable
+			for _, qt := range tableLookup {
+				queryTable = qt
+				break
+			}
+
+			return &QueryColumn{
+				ColumnName: columnName,
+				Table:      queryTable,
+				IsSelected: false, // Will be set by caller if needed
+			}
+		}
 	}
 
 	return nil
