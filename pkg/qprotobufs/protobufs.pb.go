@@ -2372,6 +2372,7 @@ type QueryColumn struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Value         *anypb.Any             `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	IsSelected    bool                   `protobuf:"varint,3,opt,name=is_selected,json=isSelected,proto3" json:"is_selected,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2418,6 +2419,13 @@ func (x *QueryColumn) GetValue() *anypb.Any {
 		return x.Value
 	}
 	return nil
+}
+
+func (x *QueryColumn) GetIsSelected() bool {
+	if x != nil {
+		return x.IsSelected
+	}
+	return false
 }
 
 type QueryRow struct {
@@ -3789,10 +3797,12 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\x06exists\x18\x01 \x01(\bR\x06exists\"F\n" +
 	"\bTypeHint\x12\x1c\n" +
 	"\tfieldType\x18\x01 \x01(\tR\tfieldType\x12\x1c\n" +
-	"\tvalueType\x18\x02 \x01(\tR\tvalueType\"K\n" +
+	"\tvalueType\x18\x02 \x01(\tR\tvalueType\"l\n" +
 	"\vQueryColumn\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value\"=\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value\x12\x1f\n" +
+	"\vis_selected\x18\x03 \x01(\bR\n" +
+	"isSelected\"=\n" +
 	"\bQueryRow\x121\n" +
 	"\acolumns\x18\x01 \x03(\v2\x17.qprotobufs.QueryColumnR\acolumns\"\x98\x01\n" +
 	"\x16ApiRuntimeQueryRequest\x12\x14\n" +
