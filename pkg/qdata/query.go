@@ -457,18 +457,37 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 		}
 	case *sqlparser.SQLVal:
 		columnName := strings.Trim(string(node.Val), `"`)
+		qualifier := ""
 
-		if len(tableLookup) == 1 {
-			var queryTable QueryTable
-			for _, qt := range tableLookup {
-				queryTable = qt
-				break
+		sp := strings.Split(columnName, ".")
+		if len(sp) > 1 {
+			qualifier = sp[0]
+			columnName = sp[1]
+		}
+
+		// If there's a table qualifier, use it to construct the field name
+		if qualifier != "" {
+			if queryTable, ok := tableLookup[qualifier]; ok {
+				return &QueryColumn{
+					ColumnName: columnName,
+					Table:      queryTable,
+					IsSelected: false, // Will be set by caller if needed
+				}
 			}
-
-			return &QueryColumn{
-				ColumnName: columnName,
-				Table:      queryTable,
-				IsSelected: false, // Will be set by caller if needed
+		} else {
+			// If no qualifier and only one table, use the column name directly
+			if len(tableLookup) == 1 {
+				// Get the single table
+				var queryTable QueryTable
+				for _, qt := range tableLookup {
+					queryTable = qt
+					break
+				}
+				return &QueryColumn{
+					ColumnName: columnName,
+					Table:      queryTable,
+					IsSelected: false, // Will be set by caller if needed
+				}
 			}
 		}
 	}
