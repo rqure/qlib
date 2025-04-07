@@ -51,7 +51,8 @@ func (me *QueryTable) EntityType() EntityType {
 
 type ParsedQuery struct {
 	Columns     map[string]QueryColumn // Changed from slice to map keyed by FinalName
-	Tables      map[string]QueryTable  // Changed from slice to map keyed by FinalName
+	ColumnOrder []string
+	Tables      map[string]QueryTable // Changed from slice to map keyed by FinalName
 	OriginalSQL string
 	Where       *sqlparser.Where
 	OrderBy     sqlparser.OrderBy
@@ -182,6 +183,7 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 
 	parsed := &ParsedQuery{
 		Columns:     make(map[string]QueryColumn),
+		ColumnOrder: make([]string, 0),
 		Tables:      make(map[string]QueryTable),
 		OriginalSQL: sql,
 		Where:       selectStmt.Where,
@@ -223,6 +225,7 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 				finalName := field.FinalName()
 				if _, exists := parsed.Columns[finalName]; !exists {
 					parsed.Columns[finalName] = field
+					parsed.ColumnOrder = append(parsed.ColumnOrder, finalName)
 					qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
 				}
 			}
@@ -834,7 +837,12 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	for _, tableName := range entityTables {
 		// Build the SELECT clause for the query - only selected fields
 		selectFields := make([]string, 0, len(query.Columns))
-		for _, field := range query.Columns {
+		for _, columnName := range query.ColumnOrder {
+			field, exists := query.Columns[columnName]
+			if !exists {
+				qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
+				continue
+			}
 			if field.IsSelected {
 				finalName := field.FinalName()
 				selectFields = append(selectFields, fmt.Sprintf("[%s] as [%s]", field.ColumnName, finalName))
