@@ -870,8 +870,13 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	}
 
 	// Build column names for the insert - only selected fields
-	colNames := make([]string, 0, len(query.Columns))
-	for _, field := range query.Columns {
+	colNames := make([]string, 0, len(query.ColumnOrder))
+	for _, columnName := range query.ColumnOrder {
+		field, exists := query.Columns[columnName]
+		if !exists {
+			qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
+			continue
+		}
 		if field.IsSelected {
 			colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
 		}
@@ -880,7 +885,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	// For each entity table, select data and insert into final_results
 	for _, tableName := range entityTables {
 		// Build the SELECT clause for the query - only selected fields
-		selectFields := make([]string, 0, len(query.Columns))
+		selectFields := make([]string, 0, len(query.ColumnOrder))
 		for _, columnName := range query.ColumnOrder {
 			field, exists := query.Columns[columnName]
 			if !exists {
