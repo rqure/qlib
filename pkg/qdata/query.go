@@ -329,7 +329,7 @@ func processTableExpr(expr sqlparser.TableExpr, tableLookup map[string]QueryTabl
 	switch node := expr.(type) {
 	case *sqlparser.AliasedTableExpr:
 		tableName := sqlparser.String(node.Expr)
-		entityType := strings.Trim(tableName, "`")
+		entityType := strings.Trim(tableName, "\"")
 		alias := node.As.String()
 		if alias == "" {
 			alias = entityType
@@ -428,7 +428,7 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 		if node.Qualifier.Name.String() != "" {
 			qualifier = node.Qualifier.Name.String()
 		}
-		columnName := node.Name.String()
+		columnName := strings.Trim(node.Name.String(), "\"")
 
 		// If there's a table qualifier, use it to construct the field name
 		if qualifier != "" {
@@ -586,7 +586,7 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 	}()
 
 	// Drop the table if it exists
-	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS [%s]", entityType))
+	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS \"%s\"", entityType))
 	if err != nil {
 		return fmt.Errorf("failed to drop existing table: %v", err)
 	}
@@ -594,16 +594,16 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 	// Create table with all necessary columns
 	columns := make([]string, 0)
 	addedColumns := make(map[string]bool)
-	columns = append(columns, "[$EntityId] TEXT PRIMARY KEY")
+	columns = append(columns, "\"$EntityId\" TEXT PRIMARY KEY")
 	addedColumns["$EntityId"] = true
-	columns = append(columns, "[$EntityType] TEXT")
+	columns = append(columns, "\"$EntityType\" TEXT")
 	addedColumns["$EntityType"] = true
 
 	// Iterate through the columns map
 	for _, field := range query.Columns {
 		var colType string
 
-		if addedColumns[strings.Trim(field.ColumnName, "[]")] {
+		if addedColumns[field.ColumnName] {
 			continue
 		}
 
@@ -628,15 +628,15 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 		}
 
 		if colType != "" {
-			columns = append(columns, fmt.Sprintf("[%s] %s", field.ColumnName, colType))
+			columns = append(columns, fmt.Sprintf("\"%s\" %s", field.ColumnName, colType))
 
 			// Add metadata columns if needed
-			columns = append(columns, fmt.Sprintf("[%s$WriterId] TEXT", field.ColumnName))
-			columns = append(columns, fmt.Sprintf("[%s$WriteTime] DATETIME", field.ColumnName))
+			columns = append(columns, fmt.Sprintf("\"%s$WriterId\" TEXT", field.ColumnName))
+			columns = append(columns, fmt.Sprintf("\"%s$WriteTime\" DATETIME", field.ColumnName))
 		}
 	}
 
-	createSQL := fmt.Sprintf("CREATE TABLE [%s] (%s)", entityType, strings.Join(columns, ", "))
+	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, entityType, strings.Join(columns, ", "))
 	qlog.Trace("Creating table with SQL: %s", createSQL)
 
 	_, err = me.db.ExecContext(ctx, createSQL)
@@ -669,7 +669,7 @@ func (me *SQLiteBuilder) populateTableForEntityType(ctx context.Context, entityT
 
 	// Prepare the insert statement for entity IDs
 	stmt, err := tx.PrepareContext(ctx, fmt.Sprintf(
-		"INSERT OR IGNORE INTO [%s] ([$EntityId], [$EntityType]) VALUES (?, ?)",
+		`INSERT OR IGNORE INTO "%s" ("$EntityId", "$EntityType") VALUES (?, ?)`,
 		entityType))
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %v", err)
@@ -772,7 +772,7 @@ func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityTyp
 
 		// Update field value in the appropriate table
 		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-			UPDATE [%s] SET [%s] = ?, [%s$WriterId] = ?, [%s$WriteTime] = ? WHERE [$EntityId] = ?
+			UPDATE "%s" SET "%s" = ?, "%s$WriterId" = ?, "%s$WriteTime" = ? WHERE "$EntityId" = ?
 		`, entityType, queryField.ColumnName, queryField.ColumnName, queryField.ColumnName),
 			convertValueForSQLite(req.Value),
 			req.WriterId.AsString(),
@@ -816,9 +816,9 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		vt, ok := me.typeHints[finalName]
 		if ok {
 			sqlType := getSQLiteType(vt)
-			columns = append(columns, fmt.Sprintf("[%s] %s", finalName, sqlType))
+			columns = append(columns, fmt.Sprintf(`"%s" %s`, finalName, sqlType))
 		} else {
-			columns = append(columns, fmt.Sprintf("[%s] TEXT", finalName))
+			columns = append(columns, fmt.Sprintf(`"%s" TEXT`, finalName))
 		}
 	}
 
@@ -829,7 +829,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	}
 
 	// Create an index on the cursor column for efficient WHERE-based pagination
-	_, err = me.db.ExecContext(ctx, "CREATE INDEX idx_cursor ON final_results ([$CursorId])")
+	_, err = me.db.ExecContext(ctx, `CREATE INDEX idx_cursor ON final_results ("$CursorId")`)
 	if err != nil {
 		return fmt.Errorf("failed to create cursor index: %v", err)
 	}
@@ -838,7 +838,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	colNames := make([]string, 0, len(query.Columns))
 	for _, field := range query.Columns {
 		if field.IsSelected {
-			colNames = append(colNames, fmt.Sprintf("[%s]", field.FinalName()))
+			colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
 		}
 	}
 
@@ -854,12 +854,12 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 			}
 			if field.IsSelected {
 				finalName := field.FinalName()
-				selectFields = append(selectFields, fmt.Sprintf("[%s] as [%s]", field.ColumnName, finalName))
+				selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.ColumnName, finalName))
 			}
 		}
 
 		// Build the query for this entity table
-		sqlQuery := fmt.Sprintf("SELECT %s FROM [%s]", strings.Join(selectFields, ", "), tableName)
+		sqlQuery := fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(selectFields, ", "), tableName)
 
 		if query.Where != nil {
 			whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
@@ -880,7 +880,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		}
 
 		// Insert into final results table
-		insertSQL := fmt.Sprintf("INSERT INTO final_results (%s) %s",
+		insertSQL := fmt.Sprintf(`INSERT INTO final_results (%s) %s`,
 			strings.Join(colNames, ", "), sqlQuery)
 		qlog.Trace("executeQuery: Executing query for table [%s]: %s", tableName, insertSQL)
 
@@ -894,7 +894,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 
 	// Drop the temporary entity tables to free up memory
 	for _, tableName := range entityTables {
-		dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS [%s]", tableName)
+		dropSQL := fmt.Sprintf(`DROP TABLE IF EXISTS "%s"`, tableName)
 		_, err = me.db.ExecContext(ctx, dropSQL)
 		if err != nil {
 			qlog.Warn("executeQuery: Failed to drop temporary table [%s]: %v", tableName, err)
@@ -912,10 +912,10 @@ func (me *SQLiteBuilder) getPageFromResults(ctx context.Context, pageSize int64,
 	var query string
 	if cursorId == 0 {
 		// First page - no cursor filtering needed
-		query = fmt.Sprintf("SELECT * FROM final_results ORDER BY [$CursorId] LIMIT %d", pageSize)
+		query = fmt.Sprintf(`SELECT * FROM final_results ORDER BY "$CursorId" LIMIT %d`, pageSize)
 	} else {
 		// Subsequent pages - use WHERE clause for better performance
-		query = fmt.Sprintf("SELECT * FROM final_results WHERE [$CursorId] > %d ORDER BY [$CursorId] LIMIT %d",
+		query = fmt.Sprintf(`SELECT * FROM final_results WHERE "$CursorId" > %d ORDER BY "$CursorId" LIMIT %d`,
 			cursorId, pageSize)
 	}
 
@@ -1066,7 +1066,7 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 		}
 
 		// Trim square brackets from column name if present
-		columnName := strings.Trim(columns[i], "[]")
+		columnName := strings.Trim(columns[i], "\"")
 		vt, ok := me.typeHints[columnName]
 		if !ok {
 			vt = VTString // Default to string if no type hint is provided
