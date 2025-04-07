@@ -64,6 +64,8 @@ type QueryRow interface {
 	Get(column string) *Value
 	Set(column string, value *Value, selected bool)
 	Columns() []string
+	Selected() []string
+	IsSelected(column string) bool
 	AsQueryRowPb() *qprotobufs.QueryRow
 	FromQueryRowPb(row *qprotobufs.QueryRow)
 	AsEntity() *Entity
@@ -97,6 +99,23 @@ func (me *orderedQueryRow) Set(column string, value *Value, selected bool) {
 
 func (me *orderedQueryRow) Columns() []string {
 	return me.columnOrder
+}
+
+func (me *orderedQueryRow) Selected() []string {
+	selected := make([]string, 0)
+	for _, k := range me.columnOrder {
+		if me.selected[k] {
+			selected = append(selected, k)
+		}
+	}
+	return selected
+}
+
+func (me *orderedQueryRow) IsSelected(column string) bool {
+	if _, ok := me.selected[column]; ok {
+		return me.selected[column]
+	}
+	return false
 }
 
 func (me *orderedQueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
