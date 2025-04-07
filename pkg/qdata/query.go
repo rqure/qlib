@@ -108,8 +108,9 @@ func (me *orderedQueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
 	for _, k := range me.columnOrder {
 		if v, ok := me.data[k]; ok {
 			row.Columns = append(row.Columns, &qprotobufs.QueryColumn{
-				Key:   k,
-				Value: v.AsAnyPb(),
+				Key:        k,
+				Value:      v.AsAnyPb(),
+				IsSelected: me.selected[k],
 			})
 		}
 	}
@@ -119,11 +120,13 @@ func (me *orderedQueryRow) AsQueryRowPb() *qprotobufs.QueryRow {
 
 func (me *orderedQueryRow) FromQueryRowPb(row *qprotobufs.QueryRow) {
 	me.data = make(map[string]*Value)
+	me.selected = make(map[string]bool)
 	me.columnOrder = make([]string, 0, len(row.Columns))
 
 	for _, col := range row.Columns {
 		me.columnOrder = append(me.columnOrder, col.Key)
 		me.data[col.Key] = new(Value).FromAnyPb(col.Value)
+		me.selected[col.Key] = col.IsSelected
 	}
 }
 
