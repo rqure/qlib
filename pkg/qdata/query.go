@@ -161,7 +161,7 @@ func (me TypeHintMap) ApplyOpts(opts ...TypeHintOpts) TypeHintMap {
 	return me
 }
 
-func ParseQuery(sql string, store StoreInteractor) (*ParsedQuery, error) {
+func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*ParsedQuery, error) {
 	start := time.Now()
 	qlog.Trace("ParseQuery: Parsing SQL: %s", sql)
 	defer func() {
@@ -204,14 +204,14 @@ func ParseQuery(sql string, store StoreInteractor) (*ParsedQuery, error) {
 			if qualifier == "" {
 				// SELECT * - expand for all tables
 				for _, table := range parsed.Tables {
-					if err := expandWildcard(table, parsed.Columns, store); err != nil {
+					if err := expandWildcard(ctx, table, parsed.Columns, store); err != nil {
 						return nil, err
 					}
 				}
 			} else {
 				// SELECT table.* - expand for specific table
 				if table, exists := tableLookup[qualifier]; exists {
-					if err := expandWildcard(table, parsed.Columns, store); err != nil {
+					if err := expandWildcard(ctx, table, parsed.Columns, store); err != nil {
 						return nil, err
 					}
 				}
@@ -282,8 +282,8 @@ func ParseQuery(sql string, store StoreInteractor) (*ParsedQuery, error) {
 }
 
 // expandWildcard adds all fields from the entity schema to the columns map
-func expandWildcard(table QueryTable, columns map[string]QueryColumn, store StoreInteractor) error {
-	schema := store.GetEntitySchema(context.Background(), table.EntityType())
+func expandWildcard(ctx context.Context, table QueryTable, columns map[string]QueryColumn, store StoreInteractor) error {
+	schema := store.GetEntitySchema(ctx, table.EntityType())
 	if schema == nil {
 		return fmt.Errorf("no schema found for entity type: %s", table.EntityType())
 	}
