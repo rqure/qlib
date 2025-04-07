@@ -660,15 +660,20 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 	addedColumns["$EntityType"] = true
 
 	// Iterate through the columns map
-	for _, field := range query.Columns {
+	for _, col := range query.Columns {
 		var colType string
 
-		if addedColumns[field.ColumnName] {
+		if addedColumns[col.ColumnName] {
 			continue
 		}
 
-		finalName := field.FinalName()
-		ft := field.FieldType()
+		if strings.Contains(col.ColumnName, "$") {
+			// skip system columns
+			continue
+		}
+
+		finalName := col.FinalName()
+		ft := col.FieldType()
 		if ft.IsIndirection() {
 			if vt, ok := me.typeHints[finalName]; ok {
 				colType = getSQLiteType(vt)
@@ -688,11 +693,10 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 		}
 
 		if colType != "" {
-			columns = append(columns, fmt.Sprintf("\"%s\" %s", field.ColumnName, colType))
+			columns = append(columns, fmt.Sprintf("\"%s\" %s", col.ColumnName, colType))
 
-			// Add metadata columns if needed
-			columns = append(columns, fmt.Sprintf("\"%s$WriterId\" TEXT", field.ColumnName))
-			columns = append(columns, fmt.Sprintf("\"%s$WriteTime\" DATETIME", field.ColumnName))
+			columns = append(columns, fmt.Sprintf("\"%s$WriterId\" TEXT", col.ColumnName))
+			columns = append(columns, fmt.Sprintf("\"%s$WriteTime\" DATETIME", col.ColumnName))
 		}
 	}
 
@@ -1134,7 +1138,7 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 		queryCol, ok := query.Columns[columnName]
 		if ok {
 			isSelected = queryCol.IsSelected
-		} else {
+		} else if columnName != "$CursorId" {
 			qlog.Warn("rowToQueryRow: Column %s not found in query columns", columnName)
 		}
 
