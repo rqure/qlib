@@ -593,12 +593,19 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 
 	// Create table with all necessary columns
 	columns := make([]string, 0)
+	addedColumns := make(map[string]bool)
 	columns = append(columns, "[$EntityId] TEXT PRIMARY KEY")
+	addedColumns["$EntityId"] = true
 	columns = append(columns, "[$EntityType] TEXT")
+	addedColumns["$EntityType"] = true
 
 	// Iterate through the columns map
 	for _, field := range query.Columns {
 		var colType string
+
+		if addedColumns[strings.Trim(field.ColumnName, "[]")] {
+			continue
+		}
 
 		finalName := field.FinalName()
 		ft := field.FieldType()
@@ -694,6 +701,8 @@ func (me *SQLiteBuilder) populateTableForEntityType(ctx context.Context, entityT
 		if err := me.loadFieldDataForEntities(ctx, entityType, entityIds, query); err != nil {
 			return fmt.Errorf("failed to load query fields: %v", err)
 		}
+	} else {
+		qlog.Trace("No entity IDs found for type %s", entityType)
 	}
 
 	return nil
