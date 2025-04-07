@@ -1383,20 +1383,6 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.
 		pageConfig.PageSize = 100
 	}
 
-	// Parse the query
-	fmtQuery := fmt.Sprintf(sql, otherArgs...)
-	qlog.Trace("Formatted query: %s", fmtQuery)
-	parsedQuery, err := qdata.ParseQuery(fmtQuery, me)
-	if err != nil {
-		qlog.Error("Failed to parse query: %v", err)
-		return &qdata.PageResult[qdata.QueryRow]{
-			Items:    []qdata.QueryRow{},
-			CursorId: -1,
-			NextPage: nil,
-		}
-	}
-	qlog.Trace("Successfully parsed query. EntityTypes: %+v, Fields: %+v", parsedQuery.Tables, parsedQuery.Columns)
-
 	// Create SQLite builder
 	builder, err := qdata.NewSQLiteBuilder(me)
 	if err != nil {
@@ -1412,6 +1398,20 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.
 		Items:    []qdata.QueryRow{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
+			// Parse the query
+			fmtQuery := fmt.Sprintf(sql, otherArgs...)
+			qlog.Trace("Formatted query: %s", fmtQuery)
+			parsedQuery, err := qdata.ParseQuery(ctx, fmtQuery, me)
+			if err != nil {
+				qlog.Error("Failed to parse query: %v", err)
+				return &qdata.PageResult[qdata.QueryRow]{
+					Items:    []qdata.QueryRow{},
+					CursorId: -1,
+					NextPage: nil,
+				}, err
+			}
+
+			qlog.Trace("Successfully parsed query. EntityTypes: %+v, Fields: %+v", parsedQuery.Tables, parsedQuery.Columns)
 			return builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
 		},
 		Cleanup: builder.Close,
