@@ -232,6 +232,7 @@ message TypeHint {
 message QueryColumn {
     string key = 1;
     google.protobuf.Any value = 2; 
+    bool is_selected = 3;
 }
 
 message QueryRow {

@@ -62,7 +62,7 @@ type ParsedQuery struct {
 
 type QueryRow interface {
 	Get(column string) *Value
-	Set(column string, value *Value)
+	Set(column string, value *Value, selected bool)
 	Columns() []string
 	AsQueryRowPb() *qprotobufs.QueryRow
 	FromQueryRowPb(row *qprotobufs.QueryRow)
@@ -71,12 +71,14 @@ type QueryRow interface {
 
 type orderedQueryRow struct {
 	data        map[string]*Value
+	selected    map[string]bool
 	columnOrder []string
 }
 
 func NewQueryRow() QueryRow {
 	return &orderedQueryRow{
 		data:        make(map[string]*Value),
+		selected:    make(map[string]bool),
 		columnOrder: make([]string, 0),
 	}
 }
@@ -85,11 +87,12 @@ func (me *orderedQueryRow) Get(column string) *Value {
 	return me.data[column]
 }
 
-func (me *orderedQueryRow) Set(column string, value *Value) {
+func (me *orderedQueryRow) Set(column string, value *Value, selected bool) {
 	if _, exists := me.data[column]; !exists {
 		me.columnOrder = append(me.columnOrder, column)
 	}
 	me.data[column] = value
+	me.selected[column] = selected
 }
 
 func (me *orderedQueryRow) Columns() []string {
@@ -844,9 +847,6 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	// Create the final results table - only include selected fields
 	columns := []string{"[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT"}
 	for _, field := range query.Columns {
-		if !field.IsSelected {
-			continue
-		}
 		finalName := field.FinalName()
 		vt, ok := me.typeHints[finalName]
 		if ok {
@@ -877,9 +877,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 			qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
 			continue
 		}
-		if field.IsSelected {
-			colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
-		}
+		colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
 	}
 
 	// For each entity table, select data and insert into final_results
@@ -892,10 +890,8 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 				qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
 				continue
 			}
-			if field.IsSelected {
-				finalName := field.FinalName()
-				selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.ColumnName, finalName))
-			}
+			finalName := field.FinalName()
+			selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.ColumnName, finalName))
 		}
 
 		// Build the query for this entity table
@@ -1027,7 +1023,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, query *ParsedQ
 	// Convert results to QueryRows
 	var queryRows []QueryRow
 	for rows.Next() {
-		row, err := me.rowToQueryRow(rows)
+		row, err := me.rowToQueryRow(rows, query)
 		if err != nil {
 			qlog.Error("QueryWithPagination: Failed to convert row: %v", err)
 			continue
@@ -1078,7 +1074,7 @@ func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, query *ParsedQ
 }
 
 // rowToQueryRow converts a database row to a QueryRow
-func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
+func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows, query *ParsedQuery) (QueryRow, error) {
 	// Get column names from the rows
 	columns, err := rows.Columns()
 	if err != nil {
@@ -1112,7 +1108,15 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows) (QueryRow, error) {
 			vt = VTString // Default to string if no type hint is provided
 		}
 
-		queryRow.Set(columnName, vt.NewValue(value))
+		isSelected := false
+		queryCol, ok := query.Columns[columnName]
+		if ok {
+			isSelected = queryCol.IsSelected
+		} else {
+			qlog.Warn("rowToQueryRow: Column %s not found in query columns", columnName)
+		}
+
+		queryRow.Set(columnName, vt.NewValue(value), isSelected)
 	}
 
 	return queryRow, nil
