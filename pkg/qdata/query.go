@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -161,7 +162,12 @@ func (me TypeHintMap) ApplyOpts(opts ...TypeHintOpts) TypeHintMap {
 }
 
 func ParseQuery(sql string, store StoreInteractor) (*ParsedQuery, error) {
+	start := time.Now()
 	qlog.Trace("ParseQuery: Parsing SQL: %s", sql)
+	defer func() {
+		qlog.Trace("ParseQuery: Total execution time: %v", time.Since(start))
+	}()
+
 	stmt, err := sqlparser.Parse(sql)
 	if err != nil {
 		qlog.Trace("ParseQuery: Failed to parse SQL: %v", err)
@@ -548,7 +554,11 @@ func (me *SQLiteBuilder) Close() error {
 
 // buildAndPopulateTables creates tables for each entity type and populates them with data
 func (me *SQLiteBuilder) buildAndPopulateTables(ctx context.Context, entityTypes []EntityType, query *ParsedQuery) error {
+	start := time.Now()
 	qlog.Trace("buildAndPopulateTables: Building tables for %d entity types", len(entityTypes))
+	defer func() {
+		qlog.Trace("buildAndPopulateTables: Total execution time: %v", time.Since(start))
+	}()
 
 	for _, entityType := range entityTypes {
 		qlog.Trace("buildAndPopulateTables: Creating table for entity type %s", entityType)
@@ -567,6 +577,11 @@ func (me *SQLiteBuilder) buildAndPopulateTables(ctx context.Context, entityTypes
 
 // buildTableForEntityType creates a table for the specified entity type
 func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+	start := time.Now()
+	defer func() {
+		qlog.Trace("buildTableForEntityType: Built table for %s in %v", entityType, time.Since(start))
+	}()
+
 	// Drop the table if it exists
 	_, err := me.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS [%s]", entityType))
 	if err != nil {
@@ -625,7 +640,11 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 
 // populateTableForEntityType populates the table for the specified entity type
 func (me *SQLiteBuilder) populateTableForEntityType(ctx context.Context, entityType EntityType, query *ParsedQuery) error {
+	start := time.Now()
 	qlog.Trace("populateTableForEntityType: Populating table for entity type %s", entityType)
+	defer func() {
+		qlog.Trace("populateTableForEntityType: Populated table %s in %v", entityType, time.Since(start))
+	}()
 
 	// Begin a transaction for batch inserts
 	tx, err := me.db.BeginTx(ctx, nil)
@@ -679,7 +698,12 @@ func (me *SQLiteBuilder) populateTableForEntityType(ctx context.Context, entityT
 
 // loadFieldDataForEntities loads all field data for the given entities into their respective table
 func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityType EntityType, entityIds []EntityId, query *ParsedQuery) error {
+	start := time.Now()
 	qlog.Trace("loadFieldDataForEntities: Loading fields for %d entities of type %s", len(entityIds), entityType)
+	defer func() {
+		qlog.Trace("loadFieldDataForEntities: Loaded fields for %s in %v", entityType, time.Since(start))
+	}()
+
 	if len(entityIds) == 0 {
 		return nil
 	}
@@ -758,7 +782,11 @@ func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityTyp
 
 // executeQuery executes the given query against the entity tables and populates the final results table
 func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, entityTables []EntityType) error {
+	start := time.Now()
 	qlog.Trace("executeQuery: Creating final results table")
+	defer func() {
+		qlog.Trace("executeQuery: Total execution time: %v", time.Since(start))
+	}()
 
 	// Drop the final results table if it exists
 	_, err := me.db.ExecContext(ctx, "DROP TABLE IF EXISTS final_results")
@@ -900,8 +928,11 @@ func getEntityTypesFromQuery(query *ParsedQuery) []EntityType {
 }
 
 func (me *SQLiteBuilder) QueryWithPagination(ctx context.Context, query *ParsedQuery, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
-	qlog.Trace("QueryWithPagination: Starting for pageSize %d, cursorId %d",
-		pageSize, cursorId)
+	start := time.Now()
+	qlog.Trace("QueryWithPagination: Starting for pageSize %d, cursorId %d", pageSize, cursorId)
+	defer func() {
+		qlog.Trace("QueryWithPagination: Total execution time: %v", time.Since(start))
+	}()
 
 	// Apply type hints
 	for _, opt := range opts {
