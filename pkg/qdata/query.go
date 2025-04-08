@@ -607,7 +607,7 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 	exprStr := `true`
 	if me.parsed.Where != nil {
 		whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-			strings.TrimSpace(sqlparser.String(query.Where)), "where"), "WHERE"))
+			strings.TrimSpace(sqlparser.String(me.parsed.Where)), "where"), "WHERE"))
 		exprStr = whereClause
 	}
 
@@ -621,18 +621,37 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 	return true
 }
 
-func (me *ExprEvaluator) Execute(ctx context.Context) (*PageResult[QueryRow], error) {
+func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64) (*PageResult[QueryRow], error) {
 	if me.expr == nil {
 		return &PageResult[QueryRow]{}, fmt.Errorf("expression is not initialized")
 	}
 
+	// Set a reasonable default for page size if it's not positive
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+
 	rows := make([]QueryRow, 0)
+	var currentCount int64 = 0
+	var currentCursorId int64 = cursorId
+	var foundRows int64 = 0
+	var lastSeenCursorId int64 = cursorId
 
 	for tableName := range me.parsed.Tables {
-		qlog.Trace("Execute: Processing table %s", tableName)
+		qlog.Trace("ExecuteWithPagination: Processing table %s with cursorId %d", tableName, cursorId)
 		me.store.FindEntities(EntityType(tableName)).ForEach(ctx, func(entityId EntityId) bool {
-			requests := make([]*Request, 0, len(me.parsed.Columns))
+			// Skip entities until we reach the cursor position
+			if cursorId > 0 && currentCursorId < cursorId {
+				currentCursorId++
+				return true
+			}
 
+			// Once we've collected enough rows for this page, stop
+			if foundRows >= pageSize {
+				return false
+			}
+
+			requests := make([]*Request, 0, len(me.parsed.Columns))
 			for _, col := range me.parsed.Columns {
 				if strings.Contains(col.ColumnName, "$") {
 					continue
@@ -642,49 +661,118 @@ func (me *ExprEvaluator) Execute(ctx context.Context) (*PageResult[QueryRow], er
 				requests = append(requests, new(Request).Init(entityId, ft))
 			}
 
+			// Read all field data for this entity
 			me.store.Read(ctx, requests...)
 
+			// Create a new query row
 			row := NewQueryRow()
-			for _, req := range requests {
-				if !req.Success {
-					qlog.Trace("Execute: Failed to read field %s for entity %s", req.FieldType, req.EntityId)
-					return true
-				}
+			currentCursorId++
+			lastSeenCursorId = currentCursorId
 
-				{
-					isSelected := false
-					if col, ok := me.parsed.Columns["$EntityId"]; ok {
-						isSelected = col.IsSelected
-					}
-					row.Set("$EntityId", NewEntityReference(req.EntityId), isSelected)
+			// Add system fields
+			{
+				isSelected := false
+				if col, ok := me.parsed.Columns["$EntityId"]; ok {
+					isSelected = col.IsSelected
 				}
-
-				{
-					isSelected := false
-					if col, ok := me.parsed.Columns["$EntityType"]; ok {
-						isSelected = col.IsSelected
-					}
-					row.Set("$EntityType", NewString(req.EntityId.GetEntityType().AsString()), isSelected)
-				}
-
+				row.Set("$EntityId", NewEntityReference(entityId), isSelected)
 			}
 
+			{
+				isSelected := false
+				if col, ok := me.parsed.Columns["$EntityType"]; ok {
+					isSelected = col.IsSelected
+				}
+				row.Set("$EntityType", NewString(entityId.GetEntityType().AsString()), isSelected)
+			}
+
+			{
+				// Add cursor ID for pagination
+				row.Set("$CursorId", NewInt(currentCursorId), false)
+			}
+
+			// Add data from field requests
+			for _, req := range requests {
+				if !req.Success {
+					qlog.Trace("ExecuteWithPagination: Failed to read field %s for entity %s", req.FieldType, req.EntityId)
+					continue
+				}
+
+				columnName := string(req.FieldType)
+				isSelected := false
+				if col, ok := me.parsed.Columns[columnName]; ok {
+					isSelected = col.IsSelected
+				}
+
+				row.Set(columnName, req.Value, isSelected)
+
+				// Add writer information if needed
+				writerIdColumn := columnName + "$WriterId"
+				if _, ok := me.parsed.Columns[writerIdColumn]; ok {
+					row.Set(writerIdColumn, NewEntityReference(req.WriterId), me.parsed.Columns[writerIdColumn].IsSelected)
+				}
+
+				writeTimeColumn := columnName + "$WriteTime"
+				if _, ok := me.parsed.Columns[writeTimeColumn]; ok {
+					row.Set(writeTimeColumn, NewTimestamp(req.WriteTime.AsTime()), me.parsed.Columns[writeTimeColumn].IsSelected)
+				}
+			}
+
+			// Evaluate the expression against the row
+			params := make(map[string]interface{})
+			for _, col := range row.Columns() {
+				params[col] = row.Get(col).GetRaw()
+			}
+
+			result, err := me.expr.Evaluate(params)
+			if err != nil {
+				qlog.Trace("ExecuteWithPagination: Failed to evaluate expression: %v", err)
+				return true
+			}
+
+			// If expression evaluates to true, add the row to results
+			if boolResult, ok := result.(bool); ok && boolResult {
+				rows = append(rows, row)
+				foundRows++
+			}
+
+			// Continue iteration
 			return true
 		})
 	}
 
-	params := make(map[string]interface{})
-	for _, col := range row.Columns() {
-		params[col] = row.Get(col).GetValue()
+	// Set the next cursor ID
+	var nextCursorId int64 = -1
+	if foundRows >= pageSize {
+		nextCursorId = lastSeenCursorId
 	}
 
-	result, err := me.expr.Evaluate(params)
-	if err != nil {
-		qlog.Trace("evaluate: Failed to evaluate expression: %v", err)
-		return false, err
+	// Reference to this evaluator to ensure it's not garbage collected
+	evaluator := me
+
+	// Create PageResult with next page function
+	result := &PageResult[QueryRow]{
+		Items:    rows,
+		CursorId: nextCursorId,
+		NextPage: func(ctx context.Context) (*PageResult[QueryRow], error) {
+			if nextCursorId < 0 {
+				qlog.Trace("NextPage: No more results to fetch")
+				return &PageResult[QueryRow]{
+					Items:    []QueryRow{},
+					CursorId: -1,
+					NextPage: nil,
+				}, nil
+			}
+			qlog.Trace("NextPage: Fetching next page with cursorId: %d", nextCursorId)
+			return evaluator.ExecuteWithPagination(ctx, pageSize, nextCursorId)
+		},
+		Cleanup: func() error {
+			qlog.Trace("ExprEvaluator.Cleanup: Releasing resources")
+			return nil
+		},
 	}
 
-	return result.(bool), nil
+	return result, nil
 }
 
 type SQLiteBuilder struct {
