@@ -623,7 +623,11 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 
 func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64) (*PageResult[QueryRow], error) {
 	if me.program == nil {
-		return &PageResult[QueryRow]{}, fmt.Errorf("expression is not initialized")
+		return &PageResult[QueryRow]{
+			Items:    []QueryRow{},
+			CursorId: -1,
+			NextPage: nil,
+		}, fmt.Errorf("expression is not initialized")
 	}
 
 	// Set a reasonable default for page size if it's not positive
