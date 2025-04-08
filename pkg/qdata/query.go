@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blastrain/vitess-sqlparser/sqlparser"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/vm"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
-	"github.com/xwb1989/sqlparser"
 )
 
 type QueryColumn struct {
@@ -567,6 +569,124 @@ func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]Query
 	return fields
 }
 
+type ExprEvaluator struct {
+	store  StoreInteractor
+	parsed *ParsedQuery
+	expr   *vm.Program
+}
+
+func NewExprEvaluator(store StoreInteractor, parsed *ParsedQuery) *ExprEvaluator {
+	return &ExprEvaluator{
+		store:  store,
+		parsed: parsed,
+		expr:   nil,
+	}
+}
+
+func (me *ExprEvaluator) CanEvaluate() bool {
+	if me.parsed == nil {
+		return false
+	}
+
+	if me.parsed.GroupBy != nil {
+		return false
+	}
+
+	if me.parsed.Having != nil {
+		return false
+	}
+
+	if me.parsed.OrderBy != nil {
+		return false
+	}
+
+	if len(me.parsed.Tables) > 1 {
+		return false
+	}
+
+	exprStr := `true`
+	if me.parsed.Where != nil {
+		whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+			strings.TrimSpace(sqlparser.String(query.Where)), "where"), "WHERE"))
+		exprStr = whereClause
+	}
+
+	var err error
+	me.expr, err = expr.Compile(exprStr)
+	if err != nil {
+		qlog.Trace("CanEvaluate: Failed to create evaluable expression: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func (me *ExprEvaluator) Execute(ctx context.Context) (*PageResult[QueryRow], error) {
+	if me.expr == nil {
+		return &PageResult[QueryRow]{}, fmt.Errorf("expression is not initialized")
+	}
+
+	rows := make([]QueryRow, 0)
+
+	for tableName := range me.parsed.Tables {
+		qlog.Trace("Execute: Processing table %s", tableName)
+		me.store.FindEntities(EntityType(tableName)).ForEach(ctx, func(entityId EntityId) bool {
+			requests := make([]*Request, 0, len(me.parsed.Columns))
+
+			for _, col := range me.parsed.Columns {
+				if strings.Contains(col.ColumnName, "$") {
+					continue
+				}
+
+				ft := col.FieldType()
+				requests = append(requests, new(Request).Init(entityId, ft))
+			}
+
+			me.store.Read(ctx, requests...)
+
+			row := NewQueryRow()
+			for _, req := range requests {
+				if !req.Success {
+					qlog.Trace("Execute: Failed to read field %s for entity %s", req.FieldType, req.EntityId)
+					return true
+				}
+
+				{
+					isSelected := false
+					if col, ok := me.parsed.Columns["$EntityId"]; ok {
+						isSelected = col.IsSelected
+					}
+					row.Set("$EntityId", NewEntityReference(req.EntityId), isSelected)
+				}
+
+				{
+					isSelected := false
+					if col, ok := me.parsed.Columns["$EntityType"]; ok {
+						isSelected = col.IsSelected
+					}
+					row.Set("$EntityType", NewString(req.EntityId.GetEntityType().AsString()), isSelected)
+				}
+
+			}
+
+			return true
+		})
+	}
+
+	params := make(map[string]interface{})
+	for _, col := range row.Columns() {
+		params[col] = row.Get(col).GetValue()
+	}
+
+	result, err := me.expr.Evaluate(params)
+	if err != nil {
+		qlog.Trace("evaluate: Failed to evaluate expression: %v", err)
+		return false, err
+	}
+
+	return result.(bool), nil
+}
+
 type SQLiteBuilder struct {
 	db        *sql.DB
 	store     StoreInteractor
@@ -575,7 +695,12 @@ type SQLiteBuilder struct {
 }
 
 func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
+	start := time.Now()
 	qlog.Trace("NewSQLiteBuilder: Creating new SQLite builder")
+	defer func() {
+		qlog.Trace("NewSQLiteBuilder: Total execution time: %v", time.Since(start))
+	}()
+
 	db, err := sql.Open("sqlite3", "")
 	if err != nil {
 		qlog.Trace("NewSQLiteBuilder: Failed to open in-memory SQLite database: %v", err)
