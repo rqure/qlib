@@ -570,16 +570,16 @@ func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]Query
 }
 
 type ExprEvaluator struct {
-	store  StoreInteractor
-	parsed *ParsedQuery
-	expr   *vm.Program
+	store   StoreInteractor
+	parsed  *ParsedQuery
+	program *vm.Program
 }
 
 func NewExprEvaluator(store StoreInteractor, parsed *ParsedQuery) *ExprEvaluator {
 	return &ExprEvaluator{
-		store:  store,
-		parsed: parsed,
-		expr:   nil,
+		store:   store,
+		parsed:  parsed,
+		program: nil,
 	}
 }
 
@@ -612,7 +612,7 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 	}
 
 	var err error
-	me.expr, err = expr.Compile(exprStr)
+	me.program, err = expr.Compile(exprStr)
 	if err != nil {
 		qlog.Trace("CanEvaluate: Failed to create evaluable expression: %v", err)
 		return false
@@ -622,7 +622,7 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 }
 
 func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64) (*PageResult[QueryRow], error) {
-	if me.expr == nil {
+	if me.program == nil {
 		return &PageResult[QueryRow]{}, fmt.Errorf("expression is not initialized")
 	}
 
@@ -632,24 +632,19 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 	}
 
 	rows := make([]QueryRow, 0)
-	var foundRows int64 = 0
 	var lastSeenCursorId int64 = -1
-	var pageResult *PageResult[EntityId] = nil
 
 	for tableName := range me.parsed.Tables {
 		qlog.Trace("ExecuteWithPagination: Processing table %s with cursorId %d", tableName, cursorId)
 
 		// Get the entities using pagination
-		if pageResult == nil {
-			pageResult = me.store.FindEntities(EntityType(tableName), POCursorId(cursorId), POPageSize(pageSize))
-			defer pageResult.Close() // Ensure we close the page result when done
-		}
+		pageResult := me.store.FindEntities(EntityType(tableName), POCursorId(cursorId), POPageSize(pageSize))
+		defer pageResult.Close() // Ensure we close the page result when done
+
+		lastSeenCursorId = pageResult.CursorId
 
 		// Process entities from the page result
-		for pageResult.Next(ctx) && foundRows < pageSize {
-			entityId := pageResult.Get()
-			lastSeenCursorId = pageResult.CursorId
-
+		for _, entityId := range pageResult.Items {
 			requests := make([]*Request, 0, len(me.parsed.Columns))
 			for _, col := range me.parsed.Columns {
 				if strings.Contains(col.ColumnName, "$") {
@@ -685,7 +680,7 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 			{
 				// Add cursor ID for pagination - using entity's cursor ID
-				row.Set("$CursorId", NewInt(lastSeenCursorId), false)
+				row.Set("$CursorId", NewInt(int(lastSeenCursorId)), false)
 			}
 
 			// Add data from field requests
@@ -704,15 +699,19 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				row.Set(columnName, req.Value, isSelected)
 
 				// Add writer information if needed
+				isSelected = false
 				writerIdColumn := columnName + "$WriterId"
 				if _, ok := me.parsed.Columns[writerIdColumn]; ok {
-					row.Set(writerIdColumn, NewEntityReference(req.WriterId), me.parsed.Columns[writerIdColumn].IsSelected)
+					isSelected = me.parsed.Columns[writerIdColumn].IsSelected
 				}
+				row.Set(writerIdColumn, NewEntityReference(*req.WriterId), isSelected)
 
+				isSelected = false
 				writeTimeColumn := columnName + "$WriteTime"
 				if _, ok := me.parsed.Columns[writeTimeColumn]; ok {
-					row.Set(writeTimeColumn, NewTimestamp(req.WriteTime.AsTime()), me.parsed.Columns[writeTimeColumn].IsSelected)
+					isSelected = me.parsed.Columns[writeTimeColumn].IsSelected
 				}
+				row.Set(writeTimeColumn, NewTimestamp(req.WriteTime.AsTime()), isSelected)
 			}
 
 			// Evaluate the expression against the row
@@ -721,7 +720,7 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				params[col] = row.Get(col).GetRaw()
 			}
 
-			result, err := me.expr.Evaluate(params)
+			result, err := expr.Run(me.program, params)
 			if err != nil {
 				qlog.Trace("ExecuteWithPagination: Failed to evaluate expression: %v", err)
 				continue
@@ -730,15 +729,8 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 			// If expression evaluates to true, add the row to results
 			if boolResult, ok := result.(bool); ok && boolResult {
 				rows = append(rows, row)
-				foundRows++
 			}
 		}
-	}
-
-	// Set the next cursor ID
-	var nextCursorId int64 = -1
-	if foundRows >= pageSize && lastSeenCursorId > 0 {
-		nextCursorId = lastSeenCursorId
 	}
 
 	// Reference to this evaluator to ensure it's not garbage collected
@@ -747,9 +739,9 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 	// Create PageResult with next page function
 	result := &PageResult[QueryRow]{
 		Items:    rows,
-		CursorId: nextCursorId,
+		CursorId: lastSeenCursorId,
 		NextPage: func(ctx context.Context) (*PageResult[QueryRow], error) {
-			if nextCursorId < 0 {
+			if lastSeenCursorId < 0 {
 				qlog.Trace("NextPage: No more results to fetch")
 				return &PageResult[QueryRow]{
 					Items:    []QueryRow{},
@@ -757,12 +749,8 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 					NextPage: nil,
 				}, nil
 			}
-			qlog.Trace("NextPage: Fetching next page with cursorId: %d", nextCursorId)
-			return evaluator.ExecuteWithPagination(ctx, pageSize, nextCursorId)
-		},
-		Cleanup: func() error {
-			qlog.Trace("ExprEvaluator.Cleanup: Releasing resources")
-			return nil
+			qlog.Trace("NextPage: Fetching next page with cursorId: %d", lastSeenCursorId)
+			return evaluator.ExecuteWithPagination(ctx, pageSize, lastSeenCursorId)
 		},
 	}
 
