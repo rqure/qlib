@@ -600,6 +600,12 @@ func NewExprEvaluator(store StoreInteractor, parsed *ParsedQuery) *ExprEvaluator
 }
 
 func (me *ExprEvaluator) CanEvaluate() bool {
+	start := time.Now()
+	qlog.Trace("ExprEvaluator.CanEvaluate: Checking if expression can be evaluated")
+	defer func() {
+		qlog.Trace("ExprEvaluator.CanEvaluate: Total execution time: %v", time.Since(start))
+	}()
+
 	if me.parsed == nil {
 		return false
 	}
@@ -642,6 +648,12 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 
 // convertSQLToExpr converts SQL syntax to expr language syntax
 func convertSQLToExpr(sqlExpr string) string {
+	start := time.Now()
+	qlog.Trace("convertSQLToExpr: Converting SQL expression: %s", sqlExpr)
+	defer func() {
+		qlog.Trace("convertSQLToExpr: Conversion completed in %v", time.Since(start))
+	}()
+
 	// Replace common SQL operators with expr language operators
 	replacements := map[string]string{
 		" AND ":        " && ",
@@ -723,6 +735,12 @@ func convertSQLToExpr(sqlExpr string) string {
 }
 
 func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
+	start := time.Now()
+	qlog.Trace("ExprEvaluator.ExecuteWithPagination: Starting for pageSize %d, cursorId %d", pageSize, cursorId)
+	defer func() {
+		qlog.Trace("ExprEvaluator.ExecuteWithPagination: Total execution time: %v", time.Since(start))
+	}()
+
 	if me.program == nil {
 		return &PageResult[QueryRow]{
 			Items:    []QueryRow{},
@@ -744,7 +762,12 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 	var lastSeenCursorId int64 = -1
 
 	for tableName := range me.parsed.Tables {
-		qlog.Trace("ExecuteWithPagination: Processing table %s with cursorId %d", tableName, cursorId)
+		tableStart := time.Now()
+		qlog.Trace("ExprEvaluator.ExecuteWithPagination: Processing table %s with cursorId %d", tableName, cursorId)
+		defer func(tableName string) {
+			qlog.Trace("ExprEvaluator.ExecuteWithPagination: Finished processing table %s in %v",
+				tableName, time.Since(tableStart))
+		}(tableName)
 
 		// Get the entities using pagination
 		pageResult := me.store.FindEntities(EntityType(tableName), POCursorId(cursorId), POPageSize(pageSize))
@@ -753,7 +776,14 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 		lastSeenCursorId = pageResult.CursorId
 
 		// Process entities from the page result
+		entityCount := 0
+		matchCount := 0
+		evalStart := time.Now()
+
 		for _, entityId := range pageResult.Items {
+			entityCount++
+			entityStart := time.Now()
+
 			requests := make([]*Request, 0, len(me.parsed.Columns))
 			for _, col := range me.parsed.Columns {
 				if strings.Contains(col.ColumnName, "$") {
@@ -835,17 +865,26 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				params[col] = row.Get(col).GetRaw()
 			}
 
+			evalExprStart := time.Now()
 			result, err := expr.Run(me.program, params)
 			if err != nil {
-				qlog.Trace("ExecuteWithPagination: Failed to evaluate expression: %v", err)
+				qlog.Trace("ExprEvaluator.ExecuteWithPagination: Failed to evaluate expression: %v", err)
 				continue
 			}
+			qlog.Trace("ExprEvaluator.ExecuteWithPagination: Expression evaluation took %v",
+				time.Since(evalExprStart))
 
 			// If expression evaluates to true, add the row to results
 			if boolResult, ok := result.(bool); ok && boolResult {
 				rows = append(rows, row)
+				matchCount++
 			}
+
+			qlog.Trace("ExprEvaluator.ExecuteWithPagination: Processed entity in %v", time.Since(entityStart))
 		}
+
+		qlog.Trace("ExprEvaluator.ExecuteWithPagination: Evaluated %d entities, found %d matches in %v",
+			entityCount, matchCount, time.Since(evalStart))
 	}
 
 	// Reference to this evaluator to ensure it's not garbage collected
