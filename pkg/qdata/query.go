@@ -231,14 +231,14 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 			if qualifier == "" {
 				// SELECT * - expand for all tables
 				for _, table := range parsed.Tables {
-					if err := expandWildcard(ctx, table, parsed.Columns, store); err != nil {
+					if err := expandWildcard(ctx, table, parsed, store); err != nil {
 						return nil, err
 					}
 				}
 			} else {
 				// SELECT table.* - expand for specific table
 				if table, exists := tableLookup[qualifier]; exists {
-					if err := expandWildcard(ctx, table, parsed.Columns, store); err != nil {
+					if err := expandWildcard(ctx, table, parsed, store); err != nil {
 						return nil, err
 					}
 				}
@@ -310,39 +310,42 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 }
 
 // expandWildcard adds all fields from the entity schema to the columns map
-func expandWildcard(ctx context.Context, table QueryTable, columns map[string]QueryColumn, store StoreInteractor) error {
+func expandWildcard(ctx context.Context, table QueryTable, parsed *ParsedQuery, store StoreInteractor) error {
 	schema := store.GetEntitySchema(ctx, table.EntityType())
 	if schema == nil {
 		return fmt.Errorf("no schema found for entity type: %s", table.EntityType())
 	}
 
+	// Always include system columns
+	systemColumns := []string{"$EntityId", "$EntityType"}
+	for _, sysCol := range systemColumns {
+		col := QueryColumn{
+			ColumnName: sysCol,
+			Table:      table,
+			IsSelected: true,
+		}
+		finalName := col.FinalName()
+		if _, exists := parsed.Columns[finalName]; !exists {
+			parsed.Columns[finalName] = col
+			parsed.ColumnOrder = append(parsed.ColumnOrder, col.ColumnName)
+			qlog.Trace("expandWildcard: Added column %s to table %s", col.ColumnName, table.TableName)
+		}
+	}
+
 	for fieldName := range schema.Fields {
-		// Create a QueryColumn for each field
-		field := QueryColumn{
+		// Create a QueryColumn for each col
+		col := QueryColumn{
 			ColumnName: string(fieldName),
 			Table:      table,
 			IsSelected: true,
 		}
 
 		// Use FinalName as the key to avoid duplicates
-		finalName := field.FinalName()
-		if _, exists := columns[finalName]; !exists {
-			columns[finalName] = field
-			qlog.Trace("expandWildcard: Added field %s from table %s", fieldName, table.TableName)
-		}
-	}
-
-	// Always include system columns
-	systemColumns := []string{"$EntityId", "$EntityType"}
-	for _, sysCol := range systemColumns {
-		field := QueryColumn{
-			ColumnName: sysCol,
-			Table:      table,
-			IsSelected: true,
-		}
-		finalName := field.FinalName()
-		if _, exists := columns[finalName]; !exists {
-			columns[finalName] = field
+		finalName := col.FinalName()
+		if _, exists := parsed.Columns[finalName]; !exists {
+			parsed.Columns[finalName] = col
+			parsed.ColumnOrder = append(parsed.ColumnOrder, col.ColumnName)
+			qlog.Trace("expandWildcard: Added column %s to table %s", col.ColumnName, table.TableName)
 		}
 	}
 
@@ -791,6 +794,11 @@ func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityTyp
 		entity := new(Entity).Init(entityId)
 		// Iterate over columns map
 		for _, field := range query.Columns {
+			if strings.Contains(field.ColumnName, "$") {
+				// Skip system columns
+				continue
+			}
+
 			ft := field.FieldType()
 			allRequests = append(allRequests, entity.Field(ft).AsReadRequest())
 		}
