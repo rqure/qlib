@@ -3,6 +3,7 @@ package qdata
 import (
 	"context"
 
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
 
@@ -97,6 +98,7 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 	// Try to fetch the next page
 	nextResult, err := p.NextPage(ctx)
 	if err != nil || nextResult == nil {
+		qlog.Warn("Failed to fetch next page: %v", err)
 		p.CursorId = -1
 		p.NextPage = nil
 		return false

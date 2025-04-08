@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -65,6 +66,7 @@ type ParsedQuery struct {
 	ColumnOrder []string
 	Tables      map[string]QueryTable // Changed from slice to map keyed by FinalName
 	OriginalSQL string
+	From        sqlparser.TableExprs
 	Where       *sqlparser.Where
 	OrderBy     sqlparser.OrderBy
 	GroupBy     sqlparser.GroupBy
@@ -76,6 +78,7 @@ type QueryRow interface {
 	Set(column string, value *Value, selected bool)
 	Columns() []string
 	Selected() []string
+	SetOrder([]string)
 	IsSelected(column string) bool
 	AsQueryRowPb() *qprotobufs.QueryRow
 	FromQueryRowPb(row *qprotobufs.QueryRow)
@@ -181,6 +184,20 @@ func (me *orderedQueryRow) AsEntity() *Entity {
 	return entity
 }
 
+func (me *orderedQueryRow) SetOrder(order []string) {
+	original := me.columnOrder
+	newOrder := make([]string, 0, len(order))
+	missing := make([]string, 0, len(order))
+	for _, v := range order {
+		if !slices.Contains(original, v) {
+			missing = append(missing, v)
+			continue
+		}
+		newOrder = append(newOrder, v)
+	}
+	me.columnOrder = append(newOrder, missing...)
+}
+
 type TypeHintMap map[string]ValueType
 type TypeHintOpts func(TypeHintMap)
 
@@ -222,6 +239,7 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 		ColumnOrder: make([]string, 0),
 		Tables:      make(map[string]QueryTable),
 		OriginalSQL: sql,
+		From:        selectStmt.From,
 		Where:       selectStmt.Where,
 		OrderBy:     selectStmt.OrderBy,
 		GroupBy:     selectStmt.GroupBy,
@@ -774,6 +792,9 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 		defer pageResult.Close() // Ensure we close the page result when done
 
 		lastSeenCursorId = pageResult.CursorId
+		if len(pageResult.Items) == 0 && pageResult.CursorId >= 0 {
+			pageResult.NextPage(ctx)
+		}
 
 		// Process entities from the page result
 		entityCount := 0
@@ -833,6 +854,7 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				isSelected := false
 				if col, ok := me.parsed.Columns[columnName]; ok {
 					isSelected = col.IsSelected
+					columnName = col.FinalName()
 				}
 
 				row.Set(columnName, req.Value, isSelected)
@@ -1271,52 +1293,49 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 		colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
 	}
 
-	// For each entity table, select data and insert into final_results
-	for _, tableName := range entityTables {
-		// Build the SELECT clause for the query - only selected fields
-		selectFields := make([]string, 0, len(query.ColumnOrder))
-		for _, columnName := range query.ColumnOrder {
-			field, exists := query.Columns[columnName]
-			if !exists {
-				qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
-				continue
-			}
-			finalName := field.FinalName()
-			selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.ColumnName, finalName))
-		}
-
-		// Build the query for this entity table
-		sqlQuery := fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(selectFields, ", "), tableName)
-
-		if query.Where != nil {
-			whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-				strings.TrimSpace(sqlparser.String(query.Where)), "where"), "WHERE"))
-			sqlQuery += " WHERE " + whereClause
-		}
-
-		if len(query.GroupBy) > 0 {
-			groupBy := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-				strings.TrimSpace(sqlparser.String(query.GroupBy)), "group by"), "GROUP BY"))
-			sqlQuery += " GROUP BY " + groupBy
-		}
-
-		if query.Having != nil {
-			havingClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-				strings.TrimSpace(sqlparser.String(query.Having)), "having"), "HAVING"))
-			sqlQuery += " HAVING " + havingClause
-		}
-
-		// Insert into final results table
-		insertSQL := fmt.Sprintf(`INSERT INTO final_results (%s) %s`,
-			strings.Join(colNames, ", "), sqlQuery)
-		qlog.Trace("executeQuery: Executing query for table [%s]: %s", tableName, insertSQL)
-
-		_, err = me.db.ExecContext(ctx, insertSQL)
-		if err != nil {
-			qlog.Error("executeQuery: Failed to execute query for table [%s]: %v", tableName, err)
-			// Continue with other tables instead of failing completely
+	// Build the SELECT clause for the query - only selected fields
+	selectFields := make([]string, 0, len(query.ColumnOrder))
+	for _, columnName := range query.ColumnOrder {
+		field, exists := query.Columns[columnName]
+		if !exists {
+			qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
 			continue
 		}
+		finalName := field.FinalName()
+		selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.ColumnName, finalName))
+	}
+
+	// Build the query for this entity table
+	fromClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+		strings.TrimSpace(sqlparser.String(query.From)), "from"), "FROM"))
+	sqlQuery := fmt.Sprintf(`SELECT %s FROM %s`, strings.Join(selectFields, ", "), fromClause)
+
+	if query.Where != nil {
+		whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+			strings.TrimSpace(sqlparser.String(query.Where)), "where"), "WHERE"))
+		sqlQuery += " WHERE " + whereClause
+	}
+
+	if len(query.GroupBy) > 0 {
+		groupBy := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+			strings.TrimSpace(sqlparser.String(query.GroupBy)), "group by"), "GROUP BY"))
+		sqlQuery += " GROUP BY " + groupBy
+	}
+
+	if query.Having != nil {
+		havingClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+			strings.TrimSpace(sqlparser.String(query.Having)), "having"), "HAVING"))
+		sqlQuery += " HAVING " + havingClause
+	}
+
+	// Insert into final results table
+	insertSQL := fmt.Sprintf(`INSERT INTO final_results (%s) %s`,
+		strings.Join(colNames, ", "), sqlQuery)
+	qlog.Trace("executeQuery: Executing query: %s", insertSQL)
+
+	_, err = me.db.ExecContext(ctx, insertSQL)
+	if err != nil {
+		return fmt.Errorf("failed to execute query: %v", err)
 	}
 
 	// Drop the temporary entity tables to free up memory
@@ -1509,6 +1528,8 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 
 		queryRow.Set(columnName, vt.NewValue(value), isSelected)
 	}
+
+	queryRow.SetOrder(query.ColumnOrder)
 
 	return queryRow, nil
 }
