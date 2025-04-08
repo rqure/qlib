@@ -48,12 +48,35 @@ func (me *ValueTimestamp) GetRaw() any {
 
 func (me *ValueTimestamp) SetRaw(value any) {
 	switch v := value.(type) {
+	case WriteTime:
+		me.Value = v.AsTime()
+	case *WriteTime:
+		if v != nil {
+			me.Value = v.AsTime()
+		}
 	case time.Time:
 		me.Value = v
+	case *time.Time:
+		if v != nil {
+			me.Value = *v
+		}
 	case string:
 		t, err := time.Parse(time.RFC3339, v)
 		if err == nil {
 			me.Value = t
+		}
+	case *string:
+		if v != nil {
+			t, err := time.Parse(time.RFC3339, *v)
+			if err == nil {
+				me.Value = t
+			}
+		}
+	case int64:
+		me.Value = time.Unix(v, 0)
+	case *int64:
+		if v != nil {
+			me.Value = time.Unix(*v, 0)
 		}
 	default:
 		qlog.Error("Invalid type for SetRaw: %T", v)

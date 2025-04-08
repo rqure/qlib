@@ -121,10 +121,10 @@ func (me *ValueType) IsEntityList() bool {
 	return *me == VTEntityList
 }
 
-func (me *ValueType) NewValue(args ...any) *Value {
+func (me ValueType) NewValue(args ...any) *Value {
 	var value *Value
 
-	switch *me {
+	switch me {
 	case VTInt:
 		value = NewInt()
 	case VTFloat:

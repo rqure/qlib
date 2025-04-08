@@ -15,6 +15,14 @@ import (
 	"github.com/rqure/qlib/pkg/qprotobufs"
 )
 
+func writerIdColumnName(columnName string) string {
+	return fmt.Sprintf("%s$WriterId", columnName)
+}
+
+func writeTimeColumnName(columnName string) string {
+	return fmt.Sprintf("%s$WriteTime", columnName)
+}
+
 type QueryColumn struct {
 	ColumnName string
 	Alias      string
@@ -570,16 +578,23 @@ func extractFieldsFromBoolExpr(expr sqlparser.Expr, tableLookup map[string]Query
 }
 
 type ExprEvaluator struct {
-	store   StoreInteractor
-	parsed  *ParsedQuery
-	program *vm.Program
+	store     StoreInteractor
+	parsed    *ParsedQuery
+	program   *vm.Program
+	typeHints TypeHintMap
 }
 
 func NewExprEvaluator(store StoreInteractor, parsed *ParsedQuery) *ExprEvaluator {
+	typeHints := make(TypeHintMap)
+	typeHints["$CursorId"] = VTInt
+	typeHints["$EntityId"] = VTEntityReference
+	typeHints["$EntityType"] = VTString
+
 	return &ExprEvaluator{
-		store:   store,
-		parsed:  parsed,
-		program: nil,
+		store:     store,
+		parsed:    parsed,
+		program:   nil,
+		typeHints: typeHints,
 	}
 }
 
@@ -621,13 +636,17 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 	return true
 }
 
-func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64) (*PageResult[QueryRow], error) {
+func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
 	if me.program == nil {
 		return &PageResult[QueryRow]{
 			Items:    []QueryRow{},
 			CursorId: -1,
 			NextPage: nil,
 		}, fmt.Errorf("expression is not initialized")
+	}
+
+	for _, opt := range opts {
+		opt(me.typeHints)
 	}
 
 	// Set a reasonable default for page size if it's not positive
@@ -704,18 +723,24 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 				// Add writer information if needed
 				isSelected = false
-				writerIdColumn := columnName + "$WriterId"
+				writerIdColumn := writerIdColumnName(columnName)
+				if _, ok := me.typeHints[writerIdColumn]; !ok {
+					me.typeHints[writerIdColumn] = VTEntityReference
+				}
 				if _, ok := me.parsed.Columns[writerIdColumn]; ok {
 					isSelected = me.parsed.Columns[writerIdColumn].IsSelected
 				}
-				row.Set(writerIdColumn, NewEntityReference(*req.WriterId), isSelected)
+				row.Set(writerIdColumn, me.typeHints[writerIdColumn].NewValue(req.WriterId), isSelected)
 
 				isSelected = false
-				writeTimeColumn := columnName + "$WriteTime"
+				writeTimeColumn := writeTimeColumnName(columnName)
+				if _, ok := me.typeHints[writeTimeColumn]; !ok {
+					me.typeHints[writeTimeColumn] = VTTimestamp
+				}
 				if _, ok := me.parsed.Columns[writeTimeColumn]; ok {
 					isSelected = me.parsed.Columns[writeTimeColumn].IsSelected
 				}
-				row.Set(writeTimeColumn, NewTimestamp(req.WriteTime.AsTime()), isSelected)
+				row.Set(writeTimeColumn, me.typeHints[writeTimeColumn].NewValue(req.WriteTime), isSelected)
 			}
 
 			// Evaluate the expression against the row
@@ -787,8 +812,6 @@ func NewSQLiteBuilder(store StoreInteractor) (*SQLiteBuilder, error) {
 	typeHints["$CursorId"] = VTInt
 	typeHints["$EntityId"] = VTEntityReference
 	typeHints["$EntityType"] = VTString
-	typeHints["$WriterId"] = VTEntityReference
-	typeHints["$WriteTime"] = VTTimestamp
 
 	return &SQLiteBuilder{
 		db:        db,
@@ -895,10 +918,20 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 		}
 
 		if colType != "" {
-			columns = append(columns, fmt.Sprintf("\"%s\" %s", col.ColumnName, colType))
+			writerId := writerIdColumnName(col.ColumnName)
+			writeTime := writeTimeColumnName(col.ColumnName)
 
-			columns = append(columns, fmt.Sprintf("\"%s$WriterId\" TEXT", col.ColumnName))
-			columns = append(columns, fmt.Sprintf("\"%s$WriteTime\" DATETIME", col.ColumnName))
+			columns = append(columns, fmt.Sprintf("%q %s", col.ColumnName, colType))
+			columns = append(columns, fmt.Sprintf("%q TEXT", writerId))
+			columns = append(columns, fmt.Sprintf("%q DATETIME", writeTime))
+
+			if _, ok := me.typeHints[writerId]; !ok {
+				me.typeHints[writerId] = VTEntityReference
+			}
+
+			if _, ok := me.typeHints[writeTime]; !ok {
+				me.typeHints[writeTime] = VTTimestamp
+			}
 		}
 	}
 

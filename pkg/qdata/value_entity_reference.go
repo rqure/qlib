@@ -47,8 +47,16 @@ func (me *ValueEntityReference) SetRaw(value any) {
 	switch v := value.(type) {
 	case EntityId:
 		me.Value = v
+	case *EntityId:
+		if v != nil {
+			me.Value = *v
+		}
 	case string:
 		me.Value = EntityId(v)
+	case *string:
+		if v != nil {
+			me.Value = EntityId(*v)
+		}
 	default:
 		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
