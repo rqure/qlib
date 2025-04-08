@@ -632,24 +632,23 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 	}
 
 	rows := make([]QueryRow, 0)
-	var currentCount int64 = 0
-	var currentCursorId int64 = cursorId
 	var foundRows int64 = 0
-	var lastSeenCursorId int64 = cursorId
+	var lastSeenCursorId int64 = -1
+	var pageResult *PageResult[EntityId] = nil
 
 	for tableName := range me.parsed.Tables {
 		qlog.Trace("ExecuteWithPagination: Processing table %s with cursorId %d", tableName, cursorId)
-		me.store.FindEntities(EntityType(tableName)).ForEach(ctx, func(entityId EntityId) bool {
-			// Skip entities until we reach the cursor position
-			if cursorId > 0 && currentCursorId < cursorId {
-				currentCursorId++
-				return true
-			}
 
-			// Once we've collected enough rows for this page, stop
-			if foundRows >= pageSize {
-				return false
-			}
+		// Get the entities using pagination
+		if pageResult == nil {
+			pageResult = me.store.FindEntities(EntityType(tableName), POCursorId(cursorId), POPageSize(pageSize))
+			defer pageResult.Close() // Ensure we close the page result when done
+		}
+
+		// Process entities from the page result
+		for pageResult.Next(ctx) && foundRows < pageSize {
+			entityId := pageResult.Get()
+			lastSeenCursorId = pageResult.CursorId
 
 			requests := make([]*Request, 0, len(me.parsed.Columns))
 			for _, col := range me.parsed.Columns {
@@ -666,8 +665,6 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 			// Create a new query row
 			row := NewQueryRow()
-			currentCursorId++
-			lastSeenCursorId = currentCursorId
 
 			// Add system fields
 			{
@@ -687,8 +684,8 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 			}
 
 			{
-				// Add cursor ID for pagination
-				row.Set("$CursorId", NewInt(currentCursorId), false)
+				// Add cursor ID for pagination - using entity's cursor ID
+				row.Set("$CursorId", NewInt(lastSeenCursorId), false)
 			}
 
 			// Add data from field requests
@@ -727,7 +724,7 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 			result, err := me.expr.Evaluate(params)
 			if err != nil {
 				qlog.Trace("ExecuteWithPagination: Failed to evaluate expression: %v", err)
-				return true
+				continue
 			}
 
 			// If expression evaluates to true, add the row to results
@@ -735,15 +732,12 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				rows = append(rows, row)
 				foundRows++
 			}
-
-			// Continue iteration
-			return true
-		})
+		}
 	}
 
 	// Set the next cursor ID
 	var nextCursorId int64 = -1
-	if foundRows >= pageSize {
+	if foundRows >= pageSize && lastSeenCursorId > 0 {
 		nextCursorId = lastSeenCursorId
 	}
 
