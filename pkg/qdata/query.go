@@ -42,7 +42,8 @@ func (me *QueryColumn) FinalName() string {
 }
 
 func (me *QueryColumn) FieldType() FieldType {
-	return FieldType(me.ColumnName)
+	columnName := strings.Split(me.ColumnName, ".")
+	return FieldType(columnName[len(columnName)-1])
 }
 
 type QueryTable struct {
@@ -1041,6 +1042,11 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 
 		if strings.Contains(col.ColumnName, "$") {
 			// skip system columns
+			continue
+		}
+
+		if col.Table.EntityType() != entityType {
+			// skip columns not belonging to this entity type
 			continue
 		}
 
