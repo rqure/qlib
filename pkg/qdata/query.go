@@ -862,12 +862,19 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 				columnName := string(req.FieldType)
 				isSelected := false
+				found := false
 				for _, col := range me.parsed.Columns {
 					if col.FieldType() == req.FieldType {
 						isSelected = col.IsSelected
 						columnName = col.FinalName()
+						found = true
 						break
 					}
+				}
+
+				if !found {
+					qlog.Trace("ExecuteWithPagination: Column %s not found in parsed columns", columnName)
+					continue
 				}
 
 				row.Set(columnName, req.Value, isSelected)
