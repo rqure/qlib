@@ -41,6 +41,14 @@ func (me *QueryColumn) QualifiedName() string {
 	return me.ColumnName
 }
 
+func (me *QueryColumn) QualifiedNameWithQuotes() string {
+	if me.Table.FinalName() != "" {
+		return fmt.Sprintf("%q.%q", me.Table.FinalName(), me.ColumnName)
+	}
+
+	return fmt.Sprintf("%q", me.ColumnName)
+}
+
 func (me *QueryColumn) FinalName() string {
 	if me.Alias != "" {
 		return me.Alias
@@ -1343,7 +1351,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 			continue
 		}
 		finalName := field.FinalName()
-		selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.QualifiedName(), finalName))
+		selectFields = append(selectFields, fmt.Sprintf(`%s as "%s"`, field.QualifiedNameWithQuotes(), finalName))
 	}
 
 	// Build the query for this entity table
