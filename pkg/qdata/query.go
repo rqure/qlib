@@ -794,7 +794,15 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 		lastSeenCursorId = pageResult.CursorId
 		if len(pageResult.Items) == 0 && pageResult.CursorId >= 0 {
-			pageResult.NextPage(ctx)
+			var err error
+			pageResult, err = pageResult.NextPage(ctx)
+			if err != nil {
+				return &PageResult[QueryRow]{
+					Items:    []QueryRow{},
+					CursorId: -1,
+					NextPage: nil,
+				}, err
+			}
 		}
 
 		// Process entities from the page result
