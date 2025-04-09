@@ -33,12 +33,20 @@ type QueryColumn struct {
 	Order      int // Add this field to track selection order
 }
 
+func (me *QueryColumn) QualifiedName() string {
+	if me.Table.FinalName() != "" {
+		return fmt.Sprintf("%s.%s", me.Table.FinalName(), me.ColumnName)
+	}
+
+	return me.ColumnName
+}
+
 func (me *QueryColumn) FinalName() string {
 	if me.Alias != "" {
 		return me.Alias
 	}
 
-	return me.ColumnName
+	return me.QualifiedName()
 }
 
 func (me *QueryColumn) FieldType() FieldType {
@@ -491,11 +499,13 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 
 		// If there's a table qualifier, use it to construct the field name
 		if qualifier != "" {
-			if queryTable, ok := tableLookup[qualifier]; ok {
-				return &QueryColumn{
-					ColumnName: columnName,
-					Table:      queryTable,
-					IsSelected: false, // Will be set by caller if needed
+			for _, queryTable := range tableLookup {
+				if queryTable.TableName == qualifier || queryTable.Alias == qualifier {
+					return &QueryColumn{
+						ColumnName: columnName,
+						Table:      queryTable,
+						IsSelected: false, // Will be set by caller if needed
+					}
 				}
 			}
 		} else {
@@ -526,11 +536,13 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 
 		// If there's a table qualifier, use it to construct the field name
 		if qualifier != "" {
-			if queryTable, ok := tableLookup[qualifier]; ok {
-				return &QueryColumn{
-					ColumnName: columnName,
-					Table:      queryTable,
-					IsSelected: false, // Will be set by caller if needed
+			for _, queryTable := range tableLookup {
+				if queryTable.TableName == qualifier || queryTable.Alias == qualifier {
+					return &QueryColumn{
+						ColumnName: columnName,
+						Table:      queryTable,
+						IsSelected: false, // Will be set by caller if needed
+					}
 				}
 			}
 		} else {
@@ -1331,7 +1343,7 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 			continue
 		}
 		finalName := field.FinalName()
-		selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.ColumnName, finalName))
+		selectFields = append(selectFields, fmt.Sprintf(`"%s" as "%s"`, field.QualifiedName(), finalName))
 	}
 
 	// Build the query for this entity table
