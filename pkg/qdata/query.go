@@ -862,9 +862,12 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 				columnName := string(req.FieldType)
 				isSelected := false
-				if col, ok := me.parsed.Columns[columnName]; ok {
-					isSelected = col.IsSelected
-					columnName = col.FinalName()
+				for _, col := range me.parsed.Columns {
+					if col.FieldType() == req.FieldType {
+						isSelected = col.IsSelected
+						columnName = col.FinalName()
+						break
+					}
 				}
 
 				row.Set(columnName, req.Value, isSelected)
