@@ -804,6 +804,7 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				}, err
 			}
 		}
+		lastSeenCursorId = pageResult.CursorId
 
 		// Process entities from the page result
 		entityCount := 0

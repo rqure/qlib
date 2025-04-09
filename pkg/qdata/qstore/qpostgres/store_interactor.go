@@ -192,7 +192,7 @@ func (me *PostgresStoreInteractor) FindEntities(entityType qdata.EntityType, pag
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			var entities []qdata.EntityId
-			var nextCursorId int64 = pageConfig.CursorId
+			var nextCursorId int64 = -1
 
 			me.core.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) {
 				// Request exact page size
