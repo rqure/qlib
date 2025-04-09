@@ -831,27 +831,30 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 			// Create a new query row
 			row := NewQueryRow()
 
+			setRow := func(row QueryRow, columnName string, value *Value) {
+				isSelected := false
+				found := false
+				for _, col := range me.parsed.Columns {
+					if col.FieldType() == FieldType(columnName) {
+						isSelected = col.IsSelected
+						found = true
+						columnName = col.FinalName()
+						break
+					}
+				}
+
+				if !found && !strings.Contains(columnName, "$") {
+					qlog.Trace("ExecuteWithPagination: Column %s not found in parsed columns", columnName)
+					return
+				}
+
+				row.Set(columnName, value, isSelected)
+			}
+
 			// Add system fields
-			{
-				isSelected := false
-				if col, ok := me.parsed.Columns["$EntityId"]; ok {
-					isSelected = col.IsSelected
-				}
-				row.Set("$EntityId", NewEntityReference(entityId), isSelected)
-			}
-
-			{
-				isSelected := false
-				if col, ok := me.parsed.Columns["$EntityType"]; ok {
-					isSelected = col.IsSelected
-				}
-				row.Set("$EntityType", NewString(entityId.GetEntityType().AsString()), isSelected)
-			}
-
-			{
-				// Add cursor ID for pagination - using entity's cursor ID
-				row.Set("$CursorId", NewInt(int(lastSeenCursorId)), false)
-			}
+			setRow(row, "$CursorId", NewInt(int(cursorId)))
+			setRow(row, "$EntityId", NewEntityReference(entityId))
+			setRow(row, "$EntityType", NewString(entityId.GetEntityType().AsString()))
 
 			// Add data from field requests
 			for _, req := range requests {
@@ -861,44 +864,19 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 				}
 
 				columnName := string(req.FieldType)
-				isSelected := false
-				found := false
-				for _, col := range me.parsed.Columns {
-					if col.FieldType() == req.FieldType {
-						isSelected = col.IsSelected
-						columnName = col.FinalName()
-						found = true
-						break
-					}
-				}
+				setRow(row, columnName, req.Value)
 
-				if !found {
-					qlog.Trace("ExecuteWithPagination: Column %s not found in parsed columns", columnName)
-					continue
-				}
-
-				row.Set(columnName, req.Value, isSelected)
-
-				// Add writer information if needed
-				isSelected = false
 				writerIdColumn := writerIdColumnName(columnName)
 				if _, ok := me.typeHints[writerIdColumn]; !ok {
 					me.typeHints[writerIdColumn] = VTEntityReference
 				}
-				if _, ok := me.parsed.Columns[writerIdColumn]; ok {
-					isSelected = me.parsed.Columns[writerIdColumn].IsSelected
-				}
-				row.Set(writerIdColumn, me.typeHints[writerIdColumn].NewValue(req.WriterId), isSelected)
+				setRow(row, writerIdColumn, me.typeHints[writerIdColumn].NewValue(req.WriterId))
 
-				isSelected = false
 				writeTimeColumn := writeTimeColumnName(columnName)
 				if _, ok := me.typeHints[writeTimeColumn]; !ok {
 					me.typeHints[writeTimeColumn] = VTTimestamp
 				}
-				if _, ok := me.parsed.Columns[writeTimeColumn]; ok {
-					isSelected = me.parsed.Columns[writeTimeColumn].IsSelected
-				}
-				row.Set(writeTimeColumn, me.typeHints[writeTimeColumn].NewValue(req.WriteTime), isSelected)
+				setRow(row, writeTimeColumn, me.typeHints[writeTimeColumn].NewValue(req.WriteTime))
 			}
 
 			// Evaluate the expression against the row
