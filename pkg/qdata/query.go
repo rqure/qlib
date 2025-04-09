@@ -59,7 +59,8 @@ func (me *QueryTable) FinalName() string {
 }
 
 func (me *QueryTable) EntityType() EntityType {
-	return EntityType(me.TableName)
+	tableName := strings.Split(me.TableName, ".")
+	return EntityType(tableName[len(tableName)-1])
 }
 
 type ParsedQuery struct {
@@ -1175,13 +1176,23 @@ func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityTyp
 	for _, entityId := range entityIds {
 		entity := new(Entity).Init(entityId)
 		// Iterate over columns map
-		for _, field := range query.Columns {
-			if strings.Contains(field.ColumnName, "$") {
+		for _, col := range query.Columns {
+			if strings.Contains(col.ColumnName, "$") {
 				// Skip system columns
 				continue
 			}
 
-			ft := field.FieldType()
+			if strings.Contains(col.ColumnName, "$") {
+				// skip system columns
+				continue
+			}
+
+			if col.Table.EntityType() != entityType {
+				// skip columns not belonging to this entity type
+				continue
+			}
+
+			ft := col.FieldType()
 			allRequests = append(allRequests, entity.Field(ft).AsReadRequest())
 		}
 	}
@@ -1212,9 +1223,24 @@ func (me *SQLiteBuilder) loadFieldDataForEntities(ctx context.Context, entityTyp
 
 		// Find the corresponding field in the query by field type
 		var queryField *QueryColumn
-		for _, field := range query.Columns {
-			if field.FieldType() == fieldType {
-				queryFieldCopy := field
+		for _, col := range query.Columns {
+			if strings.Contains(col.ColumnName, "$") {
+				// Skip system columns
+				continue
+			}
+
+			if strings.Contains(col.ColumnName, "$") {
+				// skip system columns
+				continue
+			}
+
+			if col.Table.EntityType() != entityType {
+				// skip columns not belonging to this entity type
+				continue
+			}
+
+			if col.FieldType() == fieldType {
+				queryFieldCopy := col
 				queryField = &queryFieldCopy
 				break
 			}
@@ -1287,10 +1313,10 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 
 	// Build column names for the insert - only selected fields
 	colNames := make([]string, 0, len(query.ColumnOrder))
-	for _, columnName := range query.ColumnOrder {
-		field, exists := query.Columns[columnName]
+	for _, finalName := range query.ColumnOrder {
+		field, exists := query.Columns[finalName]
 		if !exists {
-			qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
+			qlog.Warn("executeQuery: Field %s not found in query columns", finalName)
 			continue
 		}
 		colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
@@ -1298,10 +1324,10 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 
 	// Build the SELECT clause for the query - only selected fields
 	selectFields := make([]string, 0, len(query.ColumnOrder))
-	for _, columnName := range query.ColumnOrder {
-		field, exists := query.Columns[columnName]
+	for _, finalName := range query.ColumnOrder {
+		field, exists := query.Columns[finalName]
 		if !exists {
-			qlog.Warn("executeQuery: Field %s not found in query columns", columnName)
+			qlog.Warn("executeQuery: Field %s not found in query columns", finalName)
 			continue
 		}
 		finalName := field.FinalName()
