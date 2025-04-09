@@ -1383,22 +1383,11 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.
 		pageConfig.PageSize = 100
 	}
 
-	// Create SQLite builder
-	builder, err := qdata.NewSQLiteBuilder(me)
-	if err != nil {
-		qlog.Error("Failed to create SQLite builder: %v", err)
-		return &qdata.PageResult[qdata.QueryRow]{
-			Items:    []qdata.QueryRow{},
-			CursorId: -1,
-			NextPage: nil,
-		}
-	}
-
 	return &qdata.PageResult[qdata.QueryRow]{
 		Items:    []qdata.QueryRow{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
-			// Parse the query
+			// Format and parse the query
 			fmtQuery := fmt.Sprintf(sql, otherArgs...)
 			qlog.Trace("Formatted query: %s", fmtQuery)
 			parsedQuery, err := qdata.ParseQuery(ctx, fmtQuery, me)
@@ -1411,9 +1400,35 @@ func (me *PostgresStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.
 				}, err
 			}
 
-			qlog.Trace("Successfully parsed query. EntityTypes: %+v, Fields: %+v", parsedQuery.Tables, parsedQuery.Columns)
-			return builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+			// Try with ExprEvaluator first
+			evaluator := qdata.NewExprEvaluator(me, parsedQuery)
+			if evaluator.CanEvaluate() {
+				qlog.Trace("Using ExprEvaluator for query")
+				return evaluator.ExecuteWithPagination(ctx, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+			}
+
+			// Fall back to SQLiteBuilder for complex queries
+			qlog.Trace("Query requires SQLiteBuilder approach")
+			builder, err := qdata.NewSQLiteBuilder(me)
+			if err != nil {
+				qlog.Error("Failed to create SQLite builder: %v", err)
+				return &qdata.PageResult[qdata.QueryRow]{
+					Items:    []qdata.QueryRow{},
+					CursorId: -1,
+					NextPage: nil,
+				}, err
+			}
+
+			result, err := builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+			if err != nil {
+				// Clean up if there was an error
+				builder.Close()
+				return nil, err
+			}
+
+			result.Cleanup = builder.Close
+
+			return result, nil
 		},
-		Cleanup: builder.Close,
 	}
 }
