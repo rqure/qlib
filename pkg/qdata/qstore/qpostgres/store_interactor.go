@@ -626,7 +626,7 @@ func (me *PostgresStoreInteractor) Read(ctx context.Context, requests ...*qdata.
 
 			// Cache the field data
 			if me.cacheEnabled {
-				fieldData, err := SerializeFieldData(indirectEntity, indirectField, value, *req.WriteTime, *req.WriterId)
+				fieldData, err := SerializeFieldData(indirectEntity, indirectField, value, qdata.WriteTime(writeTime), qdata.EntityId(writer))
 				if err == nil {
 					me.setInCache(ctx, cacheKey, fieldData)
 				}
