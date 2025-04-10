@@ -2,9 +2,9 @@ package qpostgres
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qlog"
 )
 
 // SerializableEntity is a simplified version of Entity for serialization
@@ -120,7 +120,7 @@ func SerializeFieldData(entityId qdata.EntityId, fieldType qdata.FieldType, valu
 		FieldType: fieldType.AsString(),
 		Value: SerializableValue{
 			Raw:       value.GetRaw(),
-			ValueType: value.AsString(),
+			ValueType: value.Type().AsString(),
 		},
 		WriteTime: writeTime.AsTime().UnixNano(),
 		WriterID:  writerId.AsString(),
@@ -143,8 +143,7 @@ func DeserializeFieldData(data []byte) (qdata.EntityId, qdata.FieldType, *qdata.
 	valueType := qdata.ValueType(sfd.Value.ValueType)
 	value := valueType.NewValue(sfd.Value.Raw)
 	if value == nil {
-		qlog.Error("Failed to create value from cache for %s->%s", entityId, fieldType)
-		return entityId, fieldType, nil, qdata.WriteTime{}, "", nil
+		return entityId, fieldType, nil, qdata.WriteTime{}, "", fmt.Errorf("failed to create value from cache for %s->%s", entityId, fieldType)
 	}
 
 	// Convert back to WriteTime

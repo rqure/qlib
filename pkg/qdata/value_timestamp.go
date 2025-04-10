@@ -43,7 +43,7 @@ func (me *ValueTimestamp) SetTimestamp(value time.Time) {
 }
 
 func (me *ValueTimestamp) GetRaw() any {
-	return me.Value
+	return me.Value.UnixNano()
 }
 
 func (me *ValueTimestamp) SetRaw(value any) {

@@ -43,7 +43,7 @@ func (me *ValueBinaryFile) SetBinaryFile(value string) {
 }
 
 func (me *ValueBinaryFile) GetRaw() any {
-	return me.Value
+	return FileEncode(me.Value)
 }
 
 func (me *ValueBinaryFile) SetRaw(value any) {
