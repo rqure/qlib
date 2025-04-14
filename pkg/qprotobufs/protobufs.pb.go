@@ -3041,6 +3041,7 @@ type DatabaseRequest struct {
 	WriterId      *String                      `protobuf:"bytes,5,opt,name=writerId,proto3" json:"writerId,omitempty"`
 	Success       bool                         `protobuf:"varint,6,opt,name=success,proto3" json:"success,omitempty"`
 	WriteOpt      DatabaseRequest_WriteOptEnum `protobuf:"varint,7,opt,name=writeOpt,proto3,enum=qprotobufs.DatabaseRequest_WriteOptEnum" json:"writeOpt,omitempty"`
+	Err           string                       `protobuf:"bytes,8,opt,name=err,proto3" json:"err,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3122,6 +3123,13 @@ func (x *DatabaseRequest) GetWriteOpt() DatabaseRequest_WriteOptEnum {
 		return x.WriteOpt
 	}
 	return DatabaseRequest_WRITE_NORMAL
+}
+
+func (x *DatabaseRequest) GetErr() string {
+	if x != nil {
+		return x.Err
+	}
+	return ""
 }
 
 type DatabaseSnapshot struct {
@@ -3849,7 +3857,7 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\x0echoice_options\x18\x03 \x03(\tR\rchoiceOptions\x12)\n" +
 	"\x10read_permissions\x18\x04 \x03(\tR\x0freadPermissions\x12+\n" +
 	"\x11write_permissions\x18\x05 \x03(\tR\x10writePermissions\x12\x12\n" +
-	"\x04rank\x18\x06 \x01(\x05R\x04rank\"\xdd\x02\n" +
+	"\x04rank\x18\x06 \x01(\x05R\x04rank\"\xef\x02\n" +
 	"\x0fDatabaseRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05field\x18\x02 \x01(\tR\x05field\x12*\n" +
@@ -3857,7 +3865,8 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\twriteTime\x18\x04 \x01(\v2\x15.qprotobufs.TimestampR\twriteTime\x12.\n" +
 	"\bwriterId\x18\x05 \x01(\v2\x12.qprotobufs.StringR\bwriterId\x12\x18\n" +
 	"\asuccess\x18\x06 \x01(\bR\asuccess\x12D\n" +
-	"\bwriteOpt\x18\a \x01(\x0e2(.qprotobufs.DatabaseRequest.WriteOptEnumR\bwriteOpt\"3\n" +
+	"\bwriteOpt\x18\a \x01(\x0e2(.qprotobufs.DatabaseRequest.WriteOptEnumR\bwriteOpt\x12\x10\n" +
+	"\x03err\x18\b \x01(\tR\x03err\"3\n" +
 	"\fWriteOptEnum\x12\x10\n" +
 	"\fWRITE_NORMAL\x10\x00\x12\x11\n" +
 	"\rWRITE_CHANGES\x10\x01\"\xc5\x01\n" +
