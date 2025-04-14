@@ -1,11 +1,15 @@
 package qdata
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -14,6 +18,10 @@ type WriteOpt int
 type EntityId string
 type EntityType string
 type FieldType string
+
+type EntityIdSlice []EntityId
+type EntityTypeSlice []EntityType
+type FieldTypeSlice []FieldType
 
 type WriteTime time.Time
 
@@ -29,6 +37,10 @@ func (me EntityId) AsString() string {
 
 func (me FieldType) AsString() string {
 	return string(me)
+}
+
+func GenerateEntityId(entityType EntityType) EntityId {
+	return EntityId(fmt.Sprintf("%s$%s", entityType.AsString(), uuid.New().String()))
 }
 
 func CastSlice[I any, O any](i []I, convert func(I) O) []O {
@@ -64,7 +76,61 @@ func CastToInterfaceSlice[T any](i []T) []any {
 	})
 }
 
-func (me *EntityId) GetEntityType() EntityType {
+func (me EntityIdSlice) AsStringSlice() []string {
+	return CastSlice(me, func(e EntityId) string {
+		return string(e)
+	})
+}
+
+func (me EntityIdSlice) FromStringSlice(i []string) EntityIdSlice {
+	if me == nil {
+		return nil
+	}
+
+	for _, s := range i {
+		me = append(me, EntityId(s))
+	}
+
+	return me
+}
+
+func (me EntityTypeSlice) AsStringSlice() []string {
+	return CastSlice(me, func(e EntityType) string {
+		return string(e)
+	})
+}
+
+func (me FieldTypeSlice) AsStringSlice() []string {
+	return CastSlice(me, func(e FieldType) string {
+		return string(e)
+	})
+}
+
+func (me FieldTypeSlice) FromStringSlice(i []string) FieldTypeSlice {
+	if me == nil {
+		return nil
+	}
+
+	for _, s := range i {
+		me = append(me, FieldType(s))
+	}
+
+	return me
+}
+
+func (me EntityTypeSlice) FromStringSlice(i []string) EntityTypeSlice {
+	if me == nil {
+		return nil
+	}
+
+	for _, s := range i {
+		me = append(me, EntityType(s))
+	}
+
+	return me
+}
+
+func (me EntityId) GetEntityType() EntityType {
 	return EntityType(strings.Split(me.AsString(), "$")[0])
 }
 
@@ -221,8 +287,8 @@ type FieldSchema struct {
 	ValueType  ValueType
 	Rank       int
 
-	ReadPermissions  []EntityId
-	WritePermissions []EntityId
+	ReadPermissions  EntityIdSlice
+	WritePermissions EntityIdSlice
 
 	Choices []string
 }
@@ -354,6 +420,28 @@ func (me *EntitySchema) FromEntitySchemaPb(pb *qprotobufs.DatabaseEntitySchema) 
 	return me
 }
 
+func (me *EntitySchema) AsBytes() []byte {
+	b, err := proto.Marshal(me.AsEntitySchemaPb())
+
+	// This should never happen
+	if err != nil {
+		qlog.Error("Failed to marshal EntitySchema: %v", err)
+		return nil
+	}
+
+	return b
+}
+
+func (me *EntitySchema) FromBytes(data []byte) *EntitySchema {
+	pb := new(qprotobufs.DatabaseEntitySchema)
+	if err := proto.Unmarshal(data, pb); err != nil {
+		qlog.Error("Failed to unmarshal EntitySchema: %v", err)
+		return nil
+	}
+
+	return me.FromEntitySchemaPb(pb)
+}
+
 func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
 	return &qprotobufs.DatabaseFieldSchema{
 		Name:             string(me.FieldType),
@@ -401,6 +489,28 @@ func (me *Field) FromFieldPb(pb *qprotobufs.DatabaseField) *Field {
 	me.WriterId = EntityId(pb.WriterId)
 
 	return me
+}
+
+func (me *Field) FromBytes(data []byte) *Field {
+	pb := new(qprotobufs.DatabaseField)
+	if err := proto.Unmarshal(data, pb); err != nil {
+		qlog.Error("Failed to unmarshal Field: %v", err)
+		return nil
+	}
+
+	return me.FromFieldPb(pb)
+}
+
+func (me *Field) AsBytes() []byte {
+	b, err := proto.Marshal(me.AsFieldPb())
+
+	// This should never happen
+	if err != nil {
+		qlog.Error("Failed to marshal Field: %v", err)
+		return nil
+	}
+
+	return b
 }
 
 type RequestOpts func(*Request)
@@ -700,4 +810,19 @@ func (me *FieldSchema) FromFieldSchemaPb(entityType EntityType, pb *qprotobufs.D
 	me.WritePermissions = CastStringSliceToEntityIdSlice(pb.WritePermissions)
 
 	return me
+}
+
+func AccumulateErrors(errs ...error) error {
+	var errStr []string
+	for _, err := range errs {
+		if err != nil {
+			errStr = append(errStr, err.Error())
+		}
+	}
+
+	if len(errStr) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("one or more errors occurred:\n%s", strings.Join(errStr, ";"))
 }

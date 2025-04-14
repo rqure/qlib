@@ -1,6 +1,12 @@
 package qpostgres
 
 const createTablesSQL = `
+
+CREATE TABLE IF NOT EXISTS EntityTypes (
+    entity_type TEXT NOT NULL PRIMARY KEY,
+    cursor_id BIGSERIAL
+);
+
 CREATE TABLE IF NOT EXISTS Entities (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,

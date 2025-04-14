@@ -144,36 +144,35 @@ func (p *PageResult[T]) Close() error {
 }
 
 type StoreInteractor interface {
-	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) EntityId
-	GetEntity(context.Context, EntityId) *Entity
-	DeleteEntity(context.Context, EntityId)
+	CreateEntity(ctx context.Context, eType EntityType, parentId EntityId, name string) (*Entity, error)
+	DeleteEntity(context.Context, EntityId) error
 
-	PrepareQuery(sql string, args ...any) *PageResult[QueryRow]
-	FindEntities(entityType EntityType, pageOpts ...PageOpts) *PageResult[EntityId]
-	GetEntityTypes(pageOpts ...PageOpts) *PageResult[EntityType]
+	PrepareQuery(sql string, args ...any) (*PageResult[QueryRow], error)
+	FindEntities(entityType EntityType, pageOpts ...PageOpts) (*PageResult[EntityId], error)
+	GetEntityTypes(pageOpts ...PageOpts) (*PageResult[EntityType], error)
 
-	EntityExists(context.Context, EntityId) bool
-	FieldExists(context.Context, EntityType, FieldType) bool
+	EntityExists(context.Context, EntityId) (bool, error)
+	FieldExists(context.Context, EntityType, FieldType) (bool, error)
 
-	GetEntitySchema(context.Context, EntityType) *EntitySchema
-	SetEntitySchema(context.Context, *EntitySchema)
-	GetFieldSchema(context.Context, EntityType, FieldType) *FieldSchema
-	SetFieldSchema(context.Context, EntityType, FieldType, *FieldSchema)
+	GetEntitySchema(context.Context, EntityType) (*EntitySchema, error)
+	SetEntitySchema(context.Context, *EntitySchema) error
+	GetFieldSchema(context.Context, EntityType, FieldType) (*FieldSchema, error)
+	SetFieldSchema(context.Context, EntityType, FieldType, *FieldSchema) error
 
 	PublishNotifications() qss.Signal[PublishNotificationArgs]
 
-	Read(context.Context, ...*Request)
-	Write(context.Context, ...*Request)
+	Read(context.Context, ...*Request) error
+	Write(context.Context, ...*Request) error
 
-	InitializeSchema(ctx context.Context)
-	CreateSnapshot(ctx context.Context) *Snapshot
-	RestoreSnapshot(ctx context.Context, ss *Snapshot)
+	InitializeSchema(ctx context.Context) error
+	CreateSnapshot(ctx context.Context) (*Snapshot, error)
+	RestoreSnapshot(ctx context.Context, ss *Snapshot) error
 }
 
 type StoreNotifier interface {
-	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) NotificationToken
-	Unnotify(ctx context.Context, subscriptionId string)
-	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback)
+	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) (NotificationToken, error)
+	Unnotify(ctx context.Context, subscriptionId string) error
+	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback) error
 }
 
 type StoreOpts func(*Store)
