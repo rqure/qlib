@@ -2,12 +2,11 @@ package qdata
 
 import (
 	"context"
-
-	"github.com/rqure/qlib/pkg/qlog"
+	"fmt"
 )
 
 type IndirectionResolver interface {
-	Resolve(context.Context, EntityId, FieldType) (EntityId, FieldType)
+	Resolve(context.Context, EntityId, FieldType) (EntityId, FieldType, error)
 }
 
 type indirectionResolver struct {
@@ -25,11 +24,11 @@ func NewIndirectionResolver(store StoreInteractor) IndirectionResolver {
 // 2. EntityList1->0->EntityReference1->Field
 // 3. Parent->Field // Parent is an EntityReference type field
 // 4. Children->0->Field // Children is an EntityList type field
-func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, indirectFieldTypes FieldType) (EntityId, FieldType) {
+func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, indirectFieldTypes FieldType) (EntityId, FieldType, error) {
 	fields := indirectFieldTypes.AsIndirectionArray()
 
 	if len(fields) == 1 {
-		return entityId, indirectFieldTypes
+		return entityId, indirectFieldTypes, nil
 	}
 
 	for i, f := range fields[:len(fields)-1] {
@@ -37,8 +36,7 @@ func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, i
 		if i > 0 && f.IsListIndex() {
 			index := f.AsListIndex()
 			if index < 0 {
-				qlog.Error("Invalid array index: %v", f)
-				return "", ""
+				return "", "", fmt.Errorf("negative index: %d", index)
 			}
 
 			// The previous field should have been an EntityList
@@ -47,20 +45,17 @@ func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, i
 			me.store.Read(ctx, r)
 
 			if !r.Success {
-				qlog.Error("Failed to read entity list field: %v", fields[i-1])
-				return "", ""
+				return "", "", fmt.Errorf("failed to read entity list field: %v (%v)", fields[i-1], r.Err)
 			}
 
 			v := r.Value
 			if !v.IsEntityList() {
-				qlog.Error("Field is not an entity list: %v", fields[i-1])
-				return "", ""
+				return "", "", fmt.Errorf("expected EntityList, got: %v", v)
 			}
 
 			entitiesList := v.GetEntityList()
 			if index >= len(entitiesList) {
-				qlog.Error("Array index out of bounds: %v >= %v", index, len(entitiesList))
-				return "", ""
+				return "", "", fmt.Errorf("array index out of bounds: %v >= %v", index, len(entitiesList))
 			}
 
 			entityId = entitiesList[index]
@@ -78,8 +73,7 @@ func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, i
 			if v.IsEntityReference() {
 				entityId = v.GetEntityReference()
 				if entityId == "" {
-					qlog.Error("Empty entity reference in field: %v", f)
-					return "", ""
+					return "", "", fmt.Errorf("empty entity reference")
 				}
 				continue
 			}
@@ -88,21 +82,18 @@ func (me *indirectionResolver) Resolve(ctx context.Context, entityId EntityId, i
 			if v.IsEntityList() {
 				// If next segment is not an index, this is an error
 				if i+1 >= len(fields)-1 || !fields[i+1].IsListIndex() {
-					qlog.Error("EntityList field not followed by index: %v", f)
-					return "", ""
+					return "", "", fmt.Errorf("expected index after EntityList, got: %v", fields[i+1])
 				}
 				// The index will be processed in the next iteration
 				continue
 			}
 
-			qlog.Error("Field is not a reference type (EntityReference or EntityList): %v", f)
-			return "", ""
+			return "", "", fmt.Errorf("field is not a reference type: %v", f)
 		}
 
 		// If we reach here, we couldn't resolve the field
-		qlog.Error("Could not resolve field: %v for entity: %v", f, entityId)
-		return "", ""
+		return "", "", fmt.Errorf("failed to resolve field: %v (%s)", f, r.Err)
 	}
 
-	return entityId, fields[len(fields)-1]
+	return entityId, fields[len(fields)-1], nil
 }

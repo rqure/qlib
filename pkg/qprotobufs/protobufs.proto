@@ -310,6 +310,7 @@ message DatabaseRequest {
     String writerId = 5;
     bool success = 6;
     WriteOptEnum writeOpt = 7;
+    string err = 8;
 }
 
 message DatabaseSnapshot {

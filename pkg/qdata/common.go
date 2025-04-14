@@ -420,26 +420,24 @@ func (me *EntitySchema) FromEntitySchemaPb(pb *qprotobufs.DatabaseEntitySchema) 
 	return me
 }
 
-func (me *EntitySchema) AsBytes() []byte {
+func (me *EntitySchema) AsBytes() ([]byte, error) {
 	b, err := proto.Marshal(me.AsEntitySchemaPb())
 
 	// This should never happen
 	if err != nil {
-		qlog.Error("Failed to marshal EntitySchema: %v", err)
-		return nil
+		return nil, fmt.Errorf("failed to marshal EntitySchema: %v", err)
 	}
 
-	return b
+	return b, nil
 }
 
-func (me *EntitySchema) FromBytes(data []byte) *EntitySchema {
+func (me *EntitySchema) FromBytes(data []byte) (*EntitySchema, error) {
 	pb := new(qprotobufs.DatabaseEntitySchema)
 	if err := proto.Unmarshal(data, pb); err != nil {
-		qlog.Error("Failed to unmarshal EntitySchema: %v", err)
-		return nil
+		return nil, fmt.Errorf("failed to unmarshal EntitySchema: %v", err)
 	}
 
-	return me.FromEntitySchemaPb(pb)
+	return me.FromEntitySchemaPb(pb), nil
 }
 
 func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
@@ -491,26 +489,26 @@ func (me *Field) FromFieldPb(pb *qprotobufs.DatabaseField) *Field {
 	return me
 }
 
-func (me *Field) FromBytes(data []byte) *Field {
+func (me *Field) FromBytes(data []byte) (*Field, error) {
 	pb := new(qprotobufs.DatabaseField)
 	if err := proto.Unmarshal(data, pb); err != nil {
 		qlog.Error("Failed to unmarshal Field: %v", err)
-		return nil
+		return nil, err
 	}
 
-	return me.FromFieldPb(pb)
+	return me.FromFieldPb(pb), nil
 }
 
-func (me *Field) AsBytes() []byte {
+func (me *Field) AsBytes() ([]byte, error) {
 	b, err := proto.Marshal(me.AsFieldPb())
 
 	// This should never happen
 	if err != nil {
 		qlog.Error("Failed to marshal Field: %v", err)
-		return nil
+		return nil, err
 	}
 
-	return b
+	return b, nil
 }
 
 type RequestOpts func(*Request)

@@ -25,8 +25,8 @@ func HasPermission(ctx context.Context, accessorId qdata.EntityId, requiredPermi
 		scriptSrc := permission.Field(qdata.FTPolicy).Value.GetString()
 		policy := qscripting.NewExecutor(scriptSrc)
 		out, err := policy.Execute(ctx, map[string]qscripting.ObjectConverterFn{
-			"ACCESSOR": qscripting.Entity(accessor),
-			"STORE":    qscripting.Store(store),
+			"SUBJECT": qscripting.Entity(accessor),
+			"STORE":   qscripting.Store(store),
 		})
 		if err != nil {
 			qlog.Warn("Error executing script: %v", err)
@@ -60,31 +60,31 @@ func CanWrite(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Fi
 }
 
 type Authorizer interface {
-	AccessorId() qdata.EntityId
+	SubjectId() qdata.EntityId
 	CanRead(ctx context.Context, resource *qdata.Field) bool
 	CanWrite(ctx context.Context, resource *qdata.Field) bool
 }
 
 type authorizer struct {
-	accessorId qdata.EntityId
-	store      qdata.StoreInteractor
+	subjectId qdata.EntityId
+	store     qdata.StoreInteractor
 }
 
-func NewAuthorizer(accessorId qdata.EntityId, store qdata.StoreInteractor) Authorizer {
+func NewAuthorizer(subjectId qdata.EntityId, store qdata.StoreInteractor) Authorizer {
 	return &authorizer{
-		accessorId: accessorId,
-		store:      store,
+		subjectId: subjectId,
+		store:     store,
 	}
 }
 
-func (me *authorizer) AccessorId() qdata.EntityId {
-	return me.accessorId
+func (me *authorizer) SubjectId() qdata.EntityId {
+	return me.subjectId
 }
 
 func (me *authorizer) CanRead(ctx context.Context, resource *qdata.Field) bool {
-	return CanRead(ctx, me.accessorId, resource, me.store)
+	return CanRead(ctx, me.subjectId, resource, me.store)
 }
 
 func (me *authorizer) CanWrite(ctx context.Context, resource *qdata.Field) bool {
-	return CanWrite(ctx, me.accessorId, resource, me.store)
+	return CanWrite(ctx, me.subjectId, resource, me.store)
 }
