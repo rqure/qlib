@@ -60,3 +60,19 @@ func NotifyOverNats(address string) qdata.StoreOpts {
 		store.StoreNotifier = qnats.NewStoreNotifier(core)
 	}
 }
+
+func NotifyOverNatsWithCore(core qnats.NatsCore) qdata.StoreOpts {
+	return func(store *qdata.Store) {
+		if store.StoreConnector == nil {
+			store.StoreConnector = NewMultiConnector()
+		}
+
+		if connector, ok := store.StoreConnector.(MultiConnector); ok {
+			connector.AddConnector(qnats.NewConnector(core))
+		} else {
+			store.StoreConnector = qnats.NewConnector(core)
+		}
+
+		store.StoreNotifier = qnats.NewStoreNotifier(core)
+	}
+}
