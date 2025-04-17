@@ -42,7 +42,12 @@ func HasPermission(ctx context.Context, accessorId qdata.EntityId, requiredPermi
 }
 
 func CanRead(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
-	resourceSchema := store.GetFieldSchema(ctx, resource.EntityId.GetEntityType(), resource.FieldType)
+	resourceSchema, err := store.GetFieldSchema(ctx, resource.EntityId.GetEntityType(), resource.FieldType)
+	if err != nil {
+		qlog.Warn("Failed to get field schema: %v", err)
+		return false
+	}
+
 	if resourceSchema == nil {
 		return false
 	}
@@ -51,7 +56,12 @@ func CanRead(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Fie
 }
 
 func CanWrite(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
-	resourceSchema := store.GetFieldSchema(ctx, resource.EntityId.GetEntityType(), resource.FieldType)
+	resourceSchema, err := store.GetFieldSchema(ctx, resource.EntityId.GetEntityType(), resource.FieldType)
+	if err != nil {
+		qlog.Warn("Failed to get field schema: %v", err)
+		return false
+	}
+
 	if resourceSchema == nil {
 		return false
 	}

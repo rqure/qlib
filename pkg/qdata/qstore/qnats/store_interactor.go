@@ -24,7 +24,7 @@ func NewStoreInteractor(core NatsCore) qdata.StoreInteractor {
 	}
 }
 
-func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) qdata.EntityId {
+func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
 	msg := &qprotobufs.ApiConfigCreateEntityRequest{
 		Type:     entityType.AsString(),
 		ParentId: parentId.AsString(),
@@ -33,55 +33,34 @@ func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdat
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
-		qlog.Error("Failed to create entity: %v", err)
+		return nil, err
 	}
 
 	var response qprotobufs.ApiConfigCreateEntityResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		qlog.Error("Failed to create entity: %v", err)
+		return nil, err
 	}
 
 	if response.Status != qprotobufs.ApiConfigCreateEntityResponse_SUCCESS {
-		qlog.Error("Failed to create entity: %v", response.Status)
+		return nil, fmt.Errorf("failed to create entity: %s", response.Status.String())
 	}
 
-	return *new(qdata.EntityId).FromString(response.Id)
+	return new(qdata.Entity).Init(qdata.EntityId(response.Id)), nil
 }
 
-func (me *NatsStoreInteractor) GetEntity(ctx context.Context, entityId qdata.EntityId) *qdata.Entity {
-	msg := &qprotobufs.ApiConfigGetEntityRequest{
-		Id: entityId.AsString(),
-	}
-
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
-	if err != nil {
-		return nil
-	}
-
-	var response qprotobufs.ApiConfigGetEntityResponse
-	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return nil
-	}
-
-	if response.Status != qprotobufs.ApiConfigGetEntityResponse_SUCCESS {
-		return nil
-	}
-
-	return new(qdata.Entity).FromEntityPb(response.Entity)
-}
-
-func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) {
+func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) error {
 	msg := &qprotobufs.ApiConfigDeleteEntityRequest{
 		Id: entityId.AsString(),
 	}
 
 	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
-		qlog.Error("Failed to delete entity: %v", err)
+		return err
 	}
+	return nil
 }
 
-func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityId] {
+func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityId], error) {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	// Ensure we have a reasonable page size
@@ -89,8 +68,8 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 		pageConfig.PageSize = 100
 	}
 
-	return &qdata.PageResult[qdata.EntityId]{
-		Items:    []qdata.EntityId{}, // Start with empty items
+	result := &qdata.PageResult[qdata.EntityId]{
+		Items:    []qdata.EntityId{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
 			msg := &qprotobufs.ApiRuntimeFindEntitiesRequest{
@@ -101,13 +80,11 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 
 			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 			if err != nil {
-				qlog.Error("Failed to find entities: %v", err)
 				return nil, err
 			}
 
 			var response qprotobufs.ApiRuntimeFindEntitiesResponse
 			if err := resp.Payload.UnmarshalTo(&response); err != nil {
-				qlog.Error("Failed to unmarshal FindEntities response: %v", err)
 				return nil, err
 			}
 
@@ -133,14 +110,15 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 					}
 					return me.FindEntities(entityType,
 						qdata.POPageSize(pageConfig.PageSize),
-						qdata.POCursorId(nextCursor)).NextPage(ctx)
+						qdata.POCursorId(nextCursor))
 				},
 			}, nil
 		},
 	}
+	return result, nil
 }
 
-func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata.PageResult[qdata.EntityType] {
+func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityType], error) {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	// Ensure we have a reasonable page size
@@ -148,7 +126,7 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 		pageConfig.PageSize = 100
 	}
 
-	return &qdata.PageResult[qdata.EntityType]{
+	result := &qdata.PageResult[qdata.EntityType]{
 		Items:    []qdata.EntityType{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
@@ -180,14 +158,15 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) *qdata
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 					return me.GetEntityTypes(
 						qdata.POPageSize(pageConfig.PageSize),
-						qdata.POCursorId(nextCursor)).NextPage(ctx)
+						qdata.POCursorId(nextCursor))
 				},
 			}, nil
 		},
 	}
+	return result, nil
 }
 
-func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.PageResult[qdata.QueryRow] {
+func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
 	otherArgs := []any{}
@@ -203,16 +182,13 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 		}
 	}
 
-	// Format the query with args
 	formattedQuery := fmt.Sprintf(sql, otherArgs...)
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
-	// Ensure we have a reasonable page size
 	if pageConfig.PageSize <= 0 {
 		pageConfig.PageSize = 100
 	}
 
-	// Convert type hints to protobuf format
 	typeHints := []*qprotobufs.TypeHint{}
 	typeHintMap := make(qdata.TypeHintMap)
 	for _, opt := range typeHintOpts {
@@ -226,11 +202,10 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 		})
 	}
 
-	return &qdata.PageResult[qdata.QueryRow]{
+	result := &qdata.PageResult[qdata.QueryRow]{
 		Items:    []qdata.QueryRow{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
-			// Create a query request message
 			msg := &qprotobufs.ApiRuntimeQueryRequest{
 				Query:     formattedQuery,
 				PageSize:  pageConfig.PageSize,
@@ -238,19 +213,16 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 				TypeHints: typeHints,
 			}
 
-			// Send the query to the server
 			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 			if err != nil {
 				return nil, fmt.Errorf("failed to execute query: %v", err)
 			}
 
-			// Parse the response
 			var response qprotobufs.ApiRuntimeQueryResponse
 			if err := resp.Payload.UnmarshalTo(&response); err != nil {
 				return nil, fmt.Errorf("failed to parse query response: %v", err)
 			}
 
-			// Convert rows from protobuf
 			rows := make([]qdata.QueryRow, 0, len(response.Rows))
 			for _, rowPb := range response.Rows {
 				row := qdata.NewQueryRow()
@@ -271,40 +243,39 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) *qdata.Page
 							NextPage: nil,
 						}, nil
 					}
-					// Create new request with updated cursor
 					newArgs := append(otherArgs,
 						qdata.POPageSize(pageConfig.PageSize),
 						qdata.POCursorId(nextCursor))
-					// Also pass along the type hints
 					for _, typeHintOpt := range typeHintOpts {
 						newArgs = append(newArgs, typeHintOpt)
 					}
-					return me.PrepareQuery(sql, newArgs...).NextPage(ctx)
+					return me.PrepareQuery(sql, newArgs...)
 				},
 			}, nil
 		},
 	}
+	return result, nil
 }
 
-func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) bool {
+func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) (bool, error) {
 	msg := &qprotobufs.ApiRuntimeEntityExistsRequest{
 		EntityId: entityId.AsString(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	var response qprotobufs.ApiRuntimeEntityExistsResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return false
+		return false, err
 	}
 
-	return response.Exists
+	return response.Exists, nil
 }
 
-func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Request) {
+func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Request) error {
 	msg := &qprotobufs.ApiRuntimeDatabaseRequest{
 		RequestType: qprotobufs.ApiRuntimeDatabaseRequest_READ,
 		Requests:    make([]*qprotobufs.DatabaseRequest, len(requests)),
@@ -316,12 +287,12 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
-		return
+		return err
 	}
 
 	var response qprotobufs.ApiRuntimeDatabaseResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return
+		return err
 	}
 
 	for i, r := range response.Response {
@@ -337,9 +308,10 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 			requests[i].WriterId.FromString(r.WriterId.Raw)
 		}
 	}
+	return nil
 }
 
-func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Request) {
+func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Request) error {
 	msg := &qprotobufs.ApiRuntimeDatabaseRequest{
 		RequestType: qprotobufs.ApiRuntimeDatabaseRequest_WRITE,
 		Requests:    make([]*qprotobufs.DatabaseRequest, len(requests)),
@@ -353,12 +325,14 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 			appName := qcontext.GetAppName(ctx)
 			if me.clientId == nil && appName != "" {
-				me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName).
-					ForEach(ctx, func(client qdata.QueryRow) bool {
+				page, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName)
+				if err == nil {
+					page.ForEach(ctx, func(client qdata.QueryRow) bool {
 						entityId := client.AsEntity().EntityId
 						me.clientId = &entityId
 						return false
 					})
+				}
 			}
 
 			if me.clientId != nil {
@@ -373,12 +347,12 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
-		return
+		return err
 	}
 
 	var response qprotobufs.ApiRuntimeDatabaseResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return
+		return err
 	}
 
 	for i, r := range response.Response {
@@ -387,9 +361,10 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 		}
 		requests[i].Success = r.Success
 	}
+	return nil
 }
 
-func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) bool {
+func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (bool, error) {
 	msg := &qprotobufs.ApiRuntimeFieldExistsRequest{
 		EntityType: entityType.AsString(),
 		FieldName:  fieldType.AsString(),
@@ -397,120 +372,117 @@ func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	var response qprotobufs.ApiRuntimeFieldExistsResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return false
+		return false, err
 	}
 
-	return response.Exists
+	return response.Exists, nil
 }
 
-func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) *qdata.EntitySchema {
+func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) (*qdata.EntitySchema, error) {
 	msg := &qprotobufs.ApiConfigGetEntitySchemaRequest{
 		Type: entityType.AsString(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	var response qprotobufs.ApiConfigGetEntitySchemaResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		return nil
+		return nil, err
 	}
 
 	if response.Status != qprotobufs.ApiConfigGetEntitySchemaResponse_SUCCESS {
-		return nil
+		return nil, fmt.Errorf("failed to get entity schema: %v", response.Status)
 	}
 
-	return new(qdata.EntitySchema).FromEntitySchemaPb(response.Schema)
+	return new(qdata.EntitySchema).FromEntitySchemaPb(response.Schema), nil
 }
 
-func (me *NatsStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) {
+func (me *NatsStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) error {
 	msg := &qprotobufs.ApiConfigSetEntitySchemaRequest{
 		Schema: schema.AsEntitySchemaPb(),
 	}
 
 	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
-		qlog.Error("Failed to set entity schema: %v", err)
+		return err
 	}
+	return nil
 }
 
-func (me *NatsStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) *qdata.FieldSchema {
-	schema := me.GetEntitySchema(ctx, entityType)
-	if schema == nil {
-		return nil
+func (me *NatsStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (*qdata.FieldSchema, error) {
+	schema, err := me.GetEntitySchema(ctx, entityType)
+	if err != nil || schema == nil {
+		return nil, err
 	}
 
-	return schema.Fields[fieldType]
+	return schema.Fields[fieldType], nil
 }
 
-func (me *NatsStoreInteractor) SetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType, schema *qdata.FieldSchema) {
-	entitySchema := me.GetEntitySchema(ctx, entityType)
-	if entitySchema == nil {
-		qlog.Error("Failed to get entity schema for type %s", entityType)
-		return
+func (me *NatsStoreInteractor) SetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType, schema *qdata.FieldSchema) error {
+	entitySchema, err := me.GetEntitySchema(ctx, entityType)
+	if err != nil || entitySchema == nil {
+		return fmt.Errorf("failed to get entity schema for type %s", entityType)
 	}
 
 	entitySchema.Fields[fieldType] = schema
 
-	me.SetEntitySchema(ctx, entitySchema)
+	return me.SetEntitySchema(ctx, entitySchema)
 }
 
 func (me *NatsStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
 	return me.publishSig
 }
 
-func (me *NatsStoreInteractor) InitializeSchema(ctx context.Context) {
+func (me *NatsStoreInteractor) InitializeSchema(ctx context.Context) error {
 	// No-op for NATS
+	return nil
 }
 
-func (me *NatsStoreInteractor) CreateSnapshot(ctx context.Context) *qdata.Snapshot {
+func (me *NatsStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error) {
 	msg := &qprotobufs.ApiConfigCreateSnapshotRequest{}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
 	if err != nil {
-		qlog.Error("Failed to create snapshot: %v", err)
-		return nil
+		return nil, err
 	}
 
 	var response qprotobufs.ApiConfigCreateSnapshotResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		qlog.Error("Failed to create snapshot: error while unmarshalling response: %v", err)
-		return nil
+		return nil, err
 	}
 
 	if response.Status != qprotobufs.ApiConfigCreateSnapshotResponse_SUCCESS {
-		qlog.Error("Failed to create snapshot: response returned an unsuccessful status: %v", response.Status)
-		return nil
+		return nil, fmt.Errorf("failed to create snapshot: %v", response.Status)
 	}
 
-	return new(qdata.Snapshot).FromSnapshotPb(response.Snapshot)
+	return new(qdata.Snapshot).FromSnapshotPb(response.Snapshot), nil
 }
 
-func (me *NatsStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) {
+func (me *NatsStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
 	msg := &qprotobufs.ApiConfigRestoreSnapshotRequest{
 		Snapshot: ss.AsSnapshotPb(),
 	}
 
 	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
 	if err != nil {
-		qlog.Error("Failed to restore snapshot: %v", err)
-		return
+		return err
 	}
 
 	var response qprotobufs.ApiConfigRestoreSnapshotResponse
 	if err := resp.Payload.UnmarshalTo(&response); err != nil {
-		qlog.Error("Failed to restore snapshot: error while unmarshalling response: %v", err)
-		return
+		return err
 	}
 
 	if response.Status != qprotobufs.ApiConfigRestoreSnapshotResponse_SUCCESS {
-		qlog.Error("Failed to restore snapshot: response returned an unsuccessful status: %v", response.Status)
+		return fmt.Errorf("failed to restore snapshot: %v", response.Status)
 	}
+	return nil
 }

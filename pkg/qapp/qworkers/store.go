@@ -200,51 +200,69 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 
 	me.notificationTokens = make([]qdata.NotificationToken, 0)
 
-	me.notificationTokens = append(me.notificationTokens,
-		me.store.Notify(
-			ctx,
-			qnotify.NewConfig().
-				SetEntityType("Root").
-				SetFieldType("SchemaUpdateTrigger"),
-			qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
-				me.schemaUpdated.Emit(ctx)
-			})),
-	)
+	token, err := me.store.Notify(
+		ctx,
+		qnotify.NewConfig().
+			SetEntityType("Root").
+			SetFieldType("SchemaUpdateTrigger"),
+		qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
+			me.schemaUpdated.Emit(ctx)
+		}))
+	if err != nil {
+		qlog.Error("Failed to bind to schema update trigger: %v", err)
+	} else {
+		me.notificationTokens = append(me.notificationTokens, token)
+	}
 
 	appName := qcontext.GetAppName(ctx)
-	me.store.
+	iter, err := me.store.
 		PrepareQuery(`
 		SELECT "$EntityId", LogLevel, QLibLogLevel
 		FROM Client
 		WHERE Name = %q`,
-			appName).
-		ForEach(ctx, func(row qdata.QueryRow) bool {
+			appName)
+	if err != nil {
+		qlog.Error("Failed to prepare query: %v", err)
+	} else {
+		iter.ForEach(ctx, func(row qdata.QueryRow) bool {
 			client := row.AsEntity()
 			logLevel := client.Field("LogLevel").Value.GetChoice() + 1
 			qlog.SetLevel(qlog.Level(logLevel))
 
-			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+			token, err := me.store.Notify(
 				ctx,
 				qnotify.NewConfig().
 					SetEntityId(client.EntityId).
 					SetFieldType("LogLevel").
 					SetNotifyOnChange(true),
 				qnotify.NewCallback(me.onLogLevelChanged),
-			))
+			)
+			if err != nil {
+				qlog.Error("Failed to bind to log level change: %v", err)
+			} else {
+				me.notificationTokens = append(me.notificationTokens, token)
+			}
 
 			qlibLogLevel := client.Field("QLibLogLevel").Value.GetChoice() + 1
 			qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
-			me.notificationTokens = append(me.notificationTokens, me.store.Notify(
+			token, err = me.store.Notify(
 				ctx,
 				qnotify.NewConfig().
 					SetEntityId(client.EntityId).
 					SetFieldType("QLibLogLevel").
 					SetNotifyOnChange(true),
 				qnotify.NewCallback(me.onQLibLogLevelChanged),
-			))
+			)
+			if err != nil {
+				qlog.Error("Failed to bind to QLib log level change: %v", err)
+			} else {
+				me.notificationTokens = append(me.notificationTokens, token)
+			}
+
 			return true
 		})
+	}
 }
 
 func (me *storeWorker) OnNotReady(ctx context.Context) {

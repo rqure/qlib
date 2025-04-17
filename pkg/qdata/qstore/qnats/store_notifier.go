@@ -3,6 +3,7 @@ package qnats
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -131,7 +132,7 @@ func (me *NatsStoreNotifier) sendNotify(ctx context.Context, config qdata.Notifi
 }
 
 // Note: Callers are expected to call this method from the main thread
-func (me *NatsStoreNotifier) Notify(ctx context.Context, config qdata.NotificationConfig, cb qdata.NotificationCallback) qdata.NotificationToken {
+func (me *NatsStoreNotifier) Notify(ctx context.Context, config qdata.NotificationConfig, cb qdata.NotificationCallback) (qdata.NotificationToken, error) {
 	tokenId := config.GetToken()
 	var err error
 
@@ -141,30 +142,31 @@ func (me *NatsStoreNotifier) Notify(ctx context.Context, config qdata.Notificati
 
 	if err == nil {
 		me.callbacks[tokenId] = append(me.callbacks[tokenId], cb)
-		return qnotify.NewToken(tokenId, me, cb)
+		return qnotify.NewToken(tokenId, me, cb), nil
 	}
 
-	qlog.Error("notification registration failed: %v", err)
-	return qnotify.NewToken("", me, nil)
+	return qnotify.NewToken("", me, nil), fmt.Errorf("failed to register notification: %w", err)
 }
 
 // Note: Callers are expected to call this method from the main thread
-func (me *NatsStoreNotifier) Unnotify(ctx context.Context, token string) {
+func (me *NatsStoreNotifier) Unnotify(ctx context.Context, token string) error {
 	msg := &qprotobufs.ApiRuntimeUnregisterNotificationRequest{
 		Tokens: []string{token},
 	}
 
 	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetNotificationRegistrationSubject(), msg)
 	if err != nil {
-		qlog.Error("Failed to unregister notification: %v", err)
+		return fmt.Errorf("failed to unregister notification: %w", err)
 	}
+
 	delete(me.callbacks, token)
+	return nil
 }
 
 // Note: Callers are expected to call this method from the main thread
-func (me *NatsStoreNotifier) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) {
+func (me *NatsStoreNotifier) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) error {
 	if me.callbacks[token] == nil {
-		return
+		return fmt.Errorf("no callbacks registered for token: %s", token)
 	}
 
 	callbacks := []qdata.NotificationCallback{}
@@ -175,9 +177,9 @@ func (me *NatsStoreNotifier) UnnotifyCallback(ctx context.Context, token string,
 	}
 
 	if len(callbacks) == 0 {
-		me.Unnotify(ctx, token)
-		return
+		return me.Unnotify(ctx, token)
 	}
 
 	me.callbacks[token] = callbacks
+	return nil
 }

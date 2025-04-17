@@ -490,11 +490,6 @@ func (me *RedisStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request
 		}
 
 		entity := new(qdata.Entity).Init(indirectEntity)
-		if err != nil {
-			req.Err = fmt.Errorf("schema not found for field %s in entity type %s: %v", indirectField, entity.EntityType, err)
-			errs = append(errs, req.Err)
-			continue
-		}
 
 		if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
 			if !authorizer.CanRead(ctx, new(qdata.Field).Init(indirectEntity, indirectField)) {
@@ -651,8 +646,73 @@ func (me *RedisStoreInteractor) InitializeSchema(ctx context.Context) error {
 }
 
 func (me *RedisStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error) {
-	// Implement snapshot creation logic here
-	return nil, nil
+	var snapshot qdata.Snapshot
+
+	err := me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
+		entityTypesRes := client.ZRange(ctx, me.keyBuilder.GetAllEntityTypesKey(), 0, -1)
+		if entityTypesRes.Err() != nil {
+			return entityTypesRes.Err()
+		}
+		entityTypes := entityTypesRes.Val()
+
+		pipe := client.Pipeline()
+		schemaCmds := make([]*redis.StringCmd, len(entityTypes))
+		for i, et := range entityTypes {
+			schemaCmds[i] = pipe.Get(ctx, me.keyBuilder.GetSchemaKey(qdata.EntityType(et)))
+		}
+		_, err := pipe.Exec(ctx)
+		if err != nil && err != redis.Nil {
+			return err
+		}
+
+		for _, cmd := range schemaCmds {
+			if cmd.Err() == nil {
+				b, _ := cmd.Bytes()
+				schema := new(qdata.EntitySchema)
+				schema.FromBytes(b)
+				snapshot.Schemas = append(snapshot.Schemas, schema)
+			}
+		}
+
+		for _, et := range entityTypes {
+			entitiesRes := client.ZRange(ctx, me.keyBuilder.GetAllEntitiesKey(qdata.EntityType(et)), 0, -1)
+			if entitiesRes.Err() != nil {
+				return entitiesRes.Err()
+			}
+			entityIds := entitiesRes.Val()
+
+			// Pipeline HGETALL for each entity
+			pipe := client.Pipeline()
+			entityCmds := make([]*redis.MapStringStringCmd, len(entityIds))
+			for i, eid := range entityIds {
+				entityCmds[i] = pipe.HGetAll(ctx, me.keyBuilder.GetEntityKey(qdata.EntityId(eid)))
+			}
+			_, err := pipe.Exec(ctx)
+			if err != nil && err != redis.Nil {
+				return err
+			}
+			for i, cmd := range entityCmds {
+				if cmd.Err() == nil {
+					entity := new(qdata.Entity).Init(qdata.EntityId(entityIds[i]))
+					for _, val := range cmd.Val() {
+						field, err := new(qdata.Field).FromBytes([]byte(val))
+						if err == nil {
+							entity.Fields[field.FieldType] = field
+						}
+					}
+					snapshot.Entities = append(snapshot.Entities, entity)
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &snapshot, nil
 }
 
 func (me *RedisStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
@@ -663,6 +723,41 @@ func (me *RedisStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.S
 			return result.Err()
 		}
 
-		return nil
+		pipe := client.Pipeline()
+
+		for _, schema := range ss.Schemas {
+			b, err := schema.AsBytes()
+			if err != nil {
+				return err
+			}
+
+			pipe.Set(ctx, me.keyBuilder.GetSchemaKey(schema.EntityType), b, 0)
+			pipe.ZAdd(ctx, me.keyBuilder.GetAllEntityTypesKey(), redis.Z{
+				Score:  float64(0),
+				Member: schema.EntityType.AsString(),
+			})
+		}
+
+		for _, entity := range ss.Entities {
+			entityKey := me.keyBuilder.GetEntityKey(entity.EntityId)
+			fields := make(map[string]interface{})
+			for _, field := range entity.Fields {
+				b, err := field.AsBytes()
+				if err != nil {
+					return err
+				}
+				fields[field.FieldType.AsString()] = b
+			}
+			if len(fields) > 0 {
+				pipe.HSet(ctx, entityKey, fields)
+			}
+			pipe.ZAdd(ctx, me.keyBuilder.GetAllEntitiesKey(entity.EntityType), redis.Z{
+				Score:  0,
+				Member: entity.EntityId.AsString(),
+			})
+		}
+
+		_, err := pipe.Exec(ctx)
+		return err
 	})
 }

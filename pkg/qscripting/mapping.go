@@ -928,8 +928,12 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						entityId := s.CreateEntity(ctx, eType, parentId, name)
-						return &tengo.String{Value: string(entityId)}, nil
+						entity, err := s.CreateEntity(ctx, eType, parentId, name)
+						if err != nil {
+							return nil, err
+						}
+
+						return &tengo.String{Value: string(entity.EntityId)}, nil
 					},
 				},
 				"getEntity": &tengo.UserFunction{
@@ -949,7 +953,16 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						entity := s.GetEntity(ctx, entityId)
+						exists, err := s.EntityExists(ctx, entityId)
+						if err != nil {
+							return nil, err
+						}
+
+						if !exists {
+							return nil, fmt.Errorf("entity with ID %s does not exist", entityId)
+						}
+
+						entity := new(qdata.Entity).Init(entityId)
 						return entityToTengo(entity), nil
 					},
 				},
@@ -1004,7 +1017,10 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							pageOpts = append(pageOpts, qdata.POCursorId(int64(cursorId)))
 						}
 
-						result := s.FindEntities(entityType, pageOpts...)
+						result, err := s.FindEntities(entityType, pageOpts...)
+						if err != nil {
+							return nil, err
+						}
 
 						// Create a PageResult object for Tengo
 						return pageResultToTengo(result, func(item qdata.EntityId) tengo.Object {
@@ -1037,7 +1053,10 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							pageOpts = append(pageOpts, qdata.POCursorId(int64(cursorId)))
 						}
 
-						result := s.GetEntityTypes(pageOpts...)
+						result, err := s.GetEntityTypes(pageOpts...)
+						if err != nil {
+							return nil, err
+						}
 
 						// Create a PageResult object for Tengo
 						return pageResultToTengo(result, func(item qdata.EntityType) tengo.Object {
@@ -1062,10 +1081,15 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						exists := s.EntityExists(ctx, entityId)
+						exists, err := s.EntityExists(ctx, entityId)
+						if err != nil {
+							return nil, err
+						}
+
 						if exists {
 							return tengo.TrueValue, nil
 						}
+
 						return tengo.FalseValue, nil
 					},
 				},
@@ -1091,10 +1115,15 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						exists := s.FieldExists(ctx, entityType, fieldType)
+						exists, err := s.FieldExists(ctx, entityType, fieldType)
+						if err != nil {
+							return nil, err
+						}
+
 						if exists {
 							return tengo.TrueValue, nil
 						}
+
 						return tengo.FalseValue, nil
 					},
 				},
@@ -1115,7 +1144,11 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						schema := s.GetEntitySchema(ctx, entityType)
+						schema, err := s.GetEntitySchema(ctx, entityType)
+						if err != nil {
+							return nil, err
+						}
+
 						return entitySchemaToTengo(schema), nil
 					},
 				},
@@ -1141,7 +1174,11 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							return nil, err
 						}
 
-						schema := s.GetFieldSchema(ctx, entityType, fieldType)
+						schema, err := s.GetFieldSchema(ctx, entityType, fieldType)
+						if err != nil {
+							return nil, err
+						}
+
 						return fieldSchemaToTengo(schema), nil
 					},
 				},
@@ -1242,7 +1279,10 @@ func Store(s qdata.StoreInteractor) ObjectConverterFn {
 							}
 						}
 
-						result := s.PrepareQuery(sqlQuery, queryArgs...)
+						result, err := s.PrepareQuery(sqlQuery, queryArgs...)
+						if err != nil {
+							return nil, err
+						}
 
 						// Create a PageResult object for Tengo that returns entities
 						return pageResultToTengo(result, func(item qdata.QueryRow) tengo.Object {
