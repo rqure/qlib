@@ -301,6 +301,7 @@ type Request struct {
 	WriteTime *WriteTime // optional
 	WriterId  *EntityId  // optional
 	Success   bool
+	Err       error
 }
 
 func (me *Entity) Clone() *Entity {
@@ -370,12 +371,17 @@ func (me *Field) AsWriteRequest(opts ...RequestOpts) *Request {
 }
 
 func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
+	err := ""
+	if me.Err != nil {
+		err = me.Err.Error()
+	}
 	return &qprotobufs.DatabaseRequest{
 		Id:        string(me.EntityId),
 		Field:     string(me.FieldType),
 		Value:     me.Value.AsAnyPb(),
 		WriteTime: me.WriteTime.AsTimestampPb(),
 		WriterId:  me.WriterId.AsStringPb(),
+		Err:       err,
 	}
 }
 
@@ -387,10 +393,20 @@ func (me *Request) FromRequestPb(pb *qprotobufs.DatabaseRequest) *Request {
 
 	if pb.WriteTime != nil {
 		me.WriteTime = new(WriteTime).FromTime(pb.WriteTime.Raw.AsTime())
+	} else {
+		me.WriteTime = nil
 	}
 
 	if pb.WriterId != nil {
 		me.WriterId = new(EntityId).FromString(pb.WriterId.Raw)
+	} else {
+		me.WriterId = nil
+	}
+
+	if pb.Err != "" {
+		me.Err = fmt.Errorf("%s", pb.Err)
+	} else {
+		me.Err = nil
 	}
 
 	return me

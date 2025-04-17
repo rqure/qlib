@@ -358,8 +358,8 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 
 // expandWildcard adds all fields from the entity schema to the columns map
 func expandWildcard(ctx context.Context, table QueryTable, parsed *ParsedQuery, store StoreInteractor) error {
-	schema := store.GetEntitySchema(ctx, table.EntityType())
-	if schema == nil {
+	schema, err := store.GetEntitySchema(ctx, table.EntityType())
+	if err != nil {
 		return fmt.Errorf("no schema found for entity type: %s", table.EntityType())
 	}
 
@@ -810,7 +810,10 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 		}(tableName)
 
 		// Get the entities using pagination
-		pageResult := me.store.FindEntities(EntityType(tableName), POCursorId(cursorId), POPageSize(pageSize))
+		pageResult, err := me.store.FindEntities(EntityType(tableName), POCursorId(cursorId), POPageSize(pageSize))
+		if err != nil {
+			return nil, fmt.Errorf("failed to find entities: %v", err)
+		}
 		defer pageResult.Close() // Ensure we close the page result when done
 
 		lastSeenCursorId = pageResult.CursorId
@@ -1080,8 +1083,8 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 			if vt, ok := me.typeHints[finalName]; ok {
 				colType = getSQLiteType(vt)
 			} else {
-				schema := me.store.GetFieldSchema(ctx, entityType, ft)
-				if schema != nil {
+				schema, err := me.store.GetFieldSchema(ctx, entityType, ft)
+				if err == nil {
 					colType = getSQLiteType(schema.ValueType)
 					me.typeHints[finalName] = schema.ValueType
 				}
@@ -1148,7 +1151,11 @@ func (me *SQLiteBuilder) populateTableForEntityType(ctx context.Context, entityT
 
 	// Collect entity IDs and insert them
 	entityIds := make([]EntityId, 0)
-	me.store.FindEntities(entityType).ForEach(ctx, func(entityId EntityId) bool {
+	iter, err := me.store.FindEntities(entityType)
+	if err != nil {
+		return fmt.Errorf("failed to find entities: %v", err)
+	}
+	iter.ForEach(ctx, func(entityId EntityId) bool {
 		entityIds = append(entityIds, entityId)
 
 		// Insert the entity ID

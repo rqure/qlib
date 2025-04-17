@@ -1,6 +1,9 @@
 package qdata
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // import (
 // 	"context"
@@ -40,7 +43,7 @@ import "context"
 // */
 
 type PathResolver interface {
-	Resolve(context.Context, ...string) *Entity
+	Resolve(context.Context, ...string) (*Entity, error)
 }
 
 type pathResolver struct {
@@ -53,14 +56,17 @@ func NewPathResolver(store StoreInteractor) PathResolver {
 	}
 }
 
-func (me *pathResolver) Resolve(ctx context.Context, path ...string) *Entity {
+func (me *pathResolver) Resolve(ctx context.Context, path ...string) (*Entity, error) {
 	if len(path) == 0 {
-		return nil
+		return nil, fmt.Errorf("path cannot be empty")
 	}
 
 	// Start with finding the root entity by name
 	rootName := path[0]
-	iterator := me.store.PrepareQuery(`SELECT "$EntityId", Children FROM Root WHERE Name = %q`, rootName)
+	iterator, err := me.store.PrepareQuery(`SELECT "$EntityId", Children FROM Root WHERE Name = %q`, rootName)
+	if err != nil {
+		return nil
+	}
 	defer iterator.Close()
 	if !iterator.Next(ctx) {
 		return nil

@@ -3,8 +3,6 @@ package qdata
 import (
 	"context"
 	"fmt"
-
-	"github.com/rqure/qlib/pkg/qlog"
 )
 
 // EntityFieldValidator ensures that entities and their fields exist in the schema
@@ -42,16 +40,14 @@ func (v *entityFieldValidatorImpl) RegisterEntityFields(entityType EntityType, f
 
 func (v *entityFieldValidatorImpl) ValidateFields(ctx context.Context) error {
 	for entityType, fields := range v.entities {
-		schema := v.store.GetEntitySchema(ctx, entityType)
-		if schema == nil {
-			qlog.Error("Schema does not exist: %v", entityType)
+		schema, err := v.store.GetEntitySchema(ctx, entityType)
+		if err != nil {
 			return fmt.Errorf("schema does not exist: %s", entityType)
 		}
 
 		for _, f := range fields {
 			fsc := schema.Fields[f]
 			if fsc == nil {
-				qlog.Error("Field does not exist: %v->%v", entityType, f)
 				return fmt.Errorf("field does not exist: %s->%s", entityType, f)
 			}
 		}

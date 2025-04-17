@@ -480,26 +480,26 @@ func (me *RedisStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request
 
 	for _, req := range reqs {
 		req.Success = false
-		req.Err = ""
+		req.Err = nil
 
 		indirectEntity, indirectField, err := ir.Resolve(ctx, req.EntityId, req.FieldType)
 		if err != nil {
-			req.Err = err.Error()
+			req.Err = err
 			errs = append(errs, err)
 			continue
 		}
 
 		entity := new(qdata.Entity).Init(indirectEntity)
 		if err != nil {
-			req.Err = fmt.Sprintf("schema not found for field %s in entity type %s: %v", indirectField, entity.EntityType, err)
-			errs = append(errs, fmt.Errorf(req.Err))
+			req.Err = fmt.Errorf("schema not found for field %s in entity type %s: %v", indirectField, entity.EntityType, err)
+			errs = append(errs, req.Err)
 			continue
 		}
 
 		if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
 			if !authorizer.CanRead(ctx, new(qdata.Field).Init(indirectEntity, indirectField)) {
-				req.Err = fmt.Sprintf("permission denied for field %s in entity type %s", indirectField, entity.EntityType)
-				errs = append(errs, fmt.Errorf(req.Err))
+				req.Err = fmt.Errorf("permission denied for field %s in entity type %s", indirectField, entity.EntityType)
+				errs = append(errs, req.Err)
 				continue
 			}
 		}
@@ -528,8 +528,8 @@ func (me *RedisStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request
 		})
 
 		if err != nil {
-			req.Err = fmt.Sprintf("failed to read field %s in entity type %s: %v", indirectField, entity.EntityType, err)
-			errs = append(errs, fmt.Errorf(req.Err))
+			req.Err = fmt.Errorf("failed to read field %s in entity type %s: %v", indirectField, entity.EntityType, err)
+			errs = append(errs, req.Err)
 			continue
 		}
 
@@ -545,28 +545,28 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 
 	for _, req := range reqs {
 		req.Success = false
-		req.Err = ""
+		req.Err = nil
 
 		indirectEntity, indirectField, err := ir.Resolve(ctx, req.EntityId, req.FieldType)
 		if err != nil {
-			req.Err = err.Error()
+			req.Err = err
 			errs = append(errs, err)
 			continue
 		}
 
 		// Check if the field is part of the entity type schema
-		schema, err := me.GetFieldSchema(ctx, indirectEntity.GetEntityType(), indirectField)
+		_, err = me.GetFieldSchema(ctx, indirectEntity.GetEntityType(), indirectField)
 		if err != nil {
-			req.Err = fmt.Sprintf("schema not found for field %s in entity type %s: %v", indirectField, indirectEntity.GetEntityType(), err)
-			errs = append(errs, fmt.Errorf(req.Err))
+			req.Err = fmt.Errorf("schema not found for field %s in entity type %s: %v", indirectField, indirectEntity.GetEntityType(), err)
+			errs = append(errs, req.Err)
 			continue
 		}
 
 		// Check if the subject is allowed to write to the field
 		if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
 			if !authorizer.CanWrite(ctx, new(qdata.Field).Init(req.EntityId, req.FieldType)) {
-				req.Err = fmt.Sprintf("permission denied for field %s in entity type %s", req.FieldType, req.EntityId.GetEntityType())
-				errs = append(errs, fmt.Errorf(req.Err))
+				req.Err = fmt.Errorf("permission denied for field %s in entity type %s", req.FieldType, req.EntityId.GetEntityType())
+				errs = append(errs, req.Err)
 				continue
 			} else {
 				subjectId := authorizer.SubjectId()
@@ -628,8 +628,8 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 		})
 
 		if err != nil {
-			req.Err = fmt.Sprintf("failed to write field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
-			errs = append(errs, fmt.Errorf(req.Err))
+			req.Err = fmt.Errorf("failed to write field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
+			errs = append(errs, req.Err)
 			continue
 		}
 
