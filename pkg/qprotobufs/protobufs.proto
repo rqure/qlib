@@ -48,21 +48,6 @@ message ApiConfigDeleteEntityResponse {
     StatusEnum status = 1;
 }
 
-message ApiConfigGetEntityRequest {
-    string id = 1;
-}
-
-message ApiConfigGetEntityResponse {
-    enum StatusEnum {
-        UNSPECIFIED = 0;
-        SUCCESS = 1;
-        FAILURE = 2;
-    }
-
-    StatusEnum status = 1;
-    DatabaseEntity entity = 2;
-}
-
 message ApiConfigGetFieldSchemaRequest {
     string field = 1;
 }
@@ -154,6 +139,13 @@ message ApiRuntimeDatabaseRequest {
 }
 
 message ApiRuntimeDatabaseResponse {
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
     repeated DatabaseRequest response = 2;
 }
 
@@ -162,7 +154,14 @@ message ApiRuntimeRegisterNotificationRequest {
 }
 
 message ApiRuntimeRegisterNotificationResponse {
-    repeated string tokens = 1;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    repeated string tokens = 2;
 }
 
 message ApiRuntimeUnregisterNotificationRequest {
@@ -183,7 +182,14 @@ message ApiRuntimeGetDatabaseConnectionStatusRequest {
 }
 
 message ApiRuntimeGetDatabaseConnectionStatusResponse {
-    bool connected = 1;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        CONNECTED = 1;
+        DISCONNECTED = 2;
+    }
+
+    StatusEnum status = 1;
+    bool connected = 2;
 }
 
 message ApiRuntimeFindEntitiesRequest {
@@ -193,7 +199,14 @@ message ApiRuntimeFindEntitiesRequest {
 }
 
 message ApiRuntimeFindEntitiesResponse {
-    repeated string entities = 1;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    repeated string entities = 2;
     int64 next_cursor = 3;
 }
 
@@ -203,7 +216,14 @@ message ApiRuntimeGetEntityTypesRequest {
 }
 
 message ApiRuntimeGetEntityTypesResponse {
-    repeated string entity_types = 1;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    repeated string entity_types = 2;
     int64 next_cursor = 3;
 }
 
@@ -213,7 +233,14 @@ message ApiRuntimeFieldExistsRequest {
 }
 
 message ApiRuntimeFieldExistsResponse {
-    bool exists = 1;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    bool exists = 2;
 }
 
 message ApiRuntimeEntityExistsRequest {
@@ -221,7 +248,14 @@ message ApiRuntimeEntityExistsRequest {
 }
 
 message ApiRuntimeEntityExistsResponse {
-    bool exists = 1;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    bool exists = 2;
 }
 
 message TypeHint {
@@ -247,8 +281,15 @@ message ApiRuntimeQueryRequest {
 }
 
 message ApiRuntimeQueryResponse {
-    repeated QueryRow rows = 1;
-    int64 next_cursor = 2;
+    enum StatusEnum {
+        UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    StatusEnum status = 1;
+    repeated QueryRow rows = 2;
+    int64 next_cursor = 3;
 }
 
 message DatabaseEntity {
