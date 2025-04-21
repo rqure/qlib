@@ -88,21 +88,11 @@ func (me *schemaValidityCriteria) RegisterEntityFields(entityType qdata.EntityTy
 	return me
 }
 
-func (me *schemaValidityCriteria) OnSchemaUpdated(ctx context.Context) {
-	me.isValid = true
-
-	if err := me.validator.ValidateFields(ctx); err != nil {
-		me.isValid = false
-	}
-}
-
 func NewSchemaValidityCriteria(storeWorker Store, store *qdata.Store) SchemaValidityCriteria {
 	c := &schemaValidityCriteria{
 		isValid:   false,
 		validator: qdata.NewEntityFieldValidator(store),
 	}
-
-	storeWorker.SchemaUpdated().Connect(c.OnSchemaUpdated)
 
 	return c
 }

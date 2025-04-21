@@ -20,7 +20,6 @@ type Store interface {
 	// Fired when the store is connected
 	Connected() qss.Signal[context.Context]
 	Disconnected() qss.Signal[context.Context]
-	SchemaUpdated() qss.Signal[context.Context]
 
 	// Fired when the session to the store has authenticated successfully
 	AuthReady() qss.Signal[context.Context]
@@ -33,9 +32,8 @@ type Store interface {
 }
 
 type storeWorker struct {
-	connected     qss.Signal[context.Context]
-	disconnected  qss.Signal[context.Context]
-	schemaUpdated qss.Signal[context.Context]
+	connected    qss.Signal[context.Context]
+	disconnected qss.Signal[context.Context]
 
 	authReady    qss.Signal[context.Context]
 	authNotReady qss.Signal[context.Context]
@@ -55,9 +53,8 @@ type storeWorker struct {
 
 func NewStore(store *qdata.Store) Store {
 	return &storeWorker{
-		connected:     qss.New[context.Context](),
-		disconnected:  qss.New[context.Context](),
-		schemaUpdated: qss.New[context.Context](),
+		connected:    qss.New[context.Context](),
+		disconnected: qss.New[context.Context](),
 
 		authReady:    qss.New[context.Context](),
 		authNotReady: qss.New[context.Context](),
@@ -76,10 +73,6 @@ func (me *storeWorker) Connected() qss.Signal[context.Context] {
 
 func (me *storeWorker) Disconnected() qss.Signal[context.Context] {
 	return me.disconnected
-}
-
-func (me *storeWorker) SchemaUpdated() qss.Signal[context.Context] {
-	return me.schemaUpdated
 }
 
 func (me *storeWorker) Init(ctx context.Context) {
@@ -161,7 +154,6 @@ func (me *storeWorker) onConnected(args qdata.ConnectedArgs) {
 		qlog.Info("Connection status changed to [CONNECTED]")
 
 		me.connected.Emit(ctx)
-		me.schemaUpdated.Emit(ctx)
 	})
 }
 
@@ -199,20 +191,6 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	}
 
 	me.notificationTokens = make([]qdata.NotificationToken, 0)
-
-	token, err := me.store.Notify(
-		ctx,
-		qnotify.NewConfig().
-			SetEntityType("Root").
-			SetFieldType("SchemaUpdateTrigger"),
-		qnotify.NewCallback(func(ctx context.Context, n qdata.Notification) {
-			me.schemaUpdated.Emit(ctx)
-		}))
-	if err != nil {
-		qlog.Error("Failed to bind to schema update trigger: %v", err)
-	} else {
-		me.notificationTokens = append(me.notificationTokens, token)
-	}
 
 	appName := qcontext.GetAppName(ctx)
 	iter, err := me.store.
