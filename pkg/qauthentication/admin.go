@@ -450,10 +450,10 @@ func (me *admin) Session(ctx context.Context) Session {
 	return me.session
 }
 
-func (me *admin) assignRealmAdminRoleToClient(ctx context.Context, clientID, realm string) error {
+func (me *admin) assignRealmAdminRoleToClient(ctx context.Context, clientID, realm, accessToken string) error {
 	client, err := me.core.GetClient().GetClients(
 		ctx,
-		me.session.AccessToken(),
+		accessToken,
 		realm,
 		gocloak.GetClientsParams{ClientID: &clientID},
 	)
@@ -463,7 +463,7 @@ func (me *admin) assignRealmAdminRoleToClient(ctx context.Context, clientID, rea
 
 	serviceAccountUser, err := me.core.GetClient().GetClientServiceAccount(
 		ctx,
-		me.session.AccessToken(),
+		accessToken,
 		realm,
 		*client[0].ID,
 	)
@@ -473,7 +473,7 @@ func (me *admin) assignRealmAdminRoleToClient(ctx context.Context, clientID, rea
 
 	realmMgmtClients, err := me.core.GetClient().GetClients(
 		ctx,
-		me.session.AccessToken(),
+		accessToken,
 		realm,
 		gocloak.GetClientsParams{ClientID: gocloak.StringP("realm-management")},
 	)
@@ -483,7 +483,7 @@ func (me *admin) assignRealmAdminRoleToClient(ctx context.Context, clientID, rea
 
 	roles, err := me.core.GetClient().GetClientRoles(
 		ctx,
-		me.session.AccessToken(),
+		accessToken,
 		realm,
 		*realmMgmtClients[0].ID,
 		gocloak.GetRoleParams{},
@@ -507,12 +507,13 @@ func (me *admin) assignRealmAdminRoleToClient(ctx context.Context, clientID, rea
 
 	err = me.core.GetClient().AddClientRolesToUser(
 		ctx,
-		me.session.AccessToken(),
+		accessToken,
 		realm,
 		*realmMgmtClients[0].ID,
 		*serviceAccountUser.ID,
 		[]gocloak.Role{*realmAdminRole},
 	)
+
 	if err != nil {
 		return fmt.Errorf("failed to assign realm-admin role: %w", err)
 	}
