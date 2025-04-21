@@ -6,6 +6,7 @@ import (
 
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
 
@@ -53,6 +54,9 @@ func (me *oneShotWorker) Init(ctx context.Context) {
 	me.connectionAttemptTimer = time.NewTimer(5 * time.Second)
 	me.connectionCheckTimer = time.NewTimer(1 * time.Second)
 
+	me.store.Connected().Connect(me.onConnected)
+	me.store.Disconnected().Connect(me.onDisconnected)
+
 	me.tryConnect(ctx)
 }
 
@@ -79,4 +83,24 @@ func (me *oneShotWorker) DoWork(ctx context.Context) {
 
 func (me *oneShotWorker) tryConnect(ctx context.Context) {
 	me.store.Connect(ctx)
+}
+
+func (me *oneShotWorker) onConnected(args qdata.ConnectedArgs) {
+	me.isStoreConnected = true
+
+	if !me.performedOneshot {
+		me.connected.Emit(args.Ctx)
+		me.performedOneshot = true
+
+		me.handle.Exit()
+	}
+}
+
+func (me *oneShotWorker) onDisconnected(args qdata.DisconnectedArgs) {
+	if args.Err != nil {
+		qlog.Warn("Unexpected disconnected from store: %v", args.Err)
+	}
+
+	me.isStoreConnected = false
+	me.disconnected.Emit(args.Ctx)
 }
