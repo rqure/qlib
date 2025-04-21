@@ -2,6 +2,7 @@ package qstore
 
 import (
 	"os"
+	"time"
 
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qstore/qnats"
@@ -20,7 +21,7 @@ func DefaultNatsAddress() string {
 }
 
 func DefaultRedisAddress() string {
-	return getFromEnvOrDefault("Q_REDIS_URL", "redis://redis:6379")
+	return getFromEnvOrDefault("Q_REDIS_URL", "redis:6379")
 }
 
 func New(opts ...qdata.StoreOpts) *qdata.Store {
@@ -37,7 +38,10 @@ func New(opts ...qdata.StoreOpts) *qdata.Store {
 
 func New2(natsCore qnats.NatsCore) *qdata.Store {
 	opts := []qdata.StoreOpts{
-		PersistOverRedis(DefaultRedisAddress(), "", 0, 10),
+		PersistOverRedis(
+			DefaultRedisAddress(), "", 0, 10,
+			30*time.Second, 1*time.Minute,
+		),
 		NotifyOverNatsWithCore(natsCore),
 	}
 

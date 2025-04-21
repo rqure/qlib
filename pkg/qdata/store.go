@@ -85,6 +85,10 @@ type PageResult[T any] struct {
 }
 
 func (p *PageResult[T]) Next(ctx context.Context) bool {
+	if p == nil {
+		return false
+	}
+
 	// Return true if we still have items in the current page
 	if len(p.Items) > 0 {
 		return true
@@ -136,6 +140,10 @@ func (p *PageResult[T]) ForEach(ctx context.Context, fn func(item T) bool) {
 }
 
 func (p *PageResult[T]) Close() error {
+	if p == nil {
+		return nil
+	}
+
 	if p.Cleanup != nil {
 		return p.Cleanup()
 	}

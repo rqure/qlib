@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/redis/go-redis/v9"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
@@ -17,15 +18,34 @@ type RedisStoreInteractor struct {
 	keyBuilder   *KeyBuilder
 	publisherSig qss.Signal[qdata.PublishNotificationArgs]
 	clientId     *qdata.EntityId
+
+	// Optional in-memory cache for fields and schemas
+	cacheEnabled bool
+	fieldCache   *cache.Cache // key: entityId:fieldType, value: *qdata.Field
+	schemaCache  *cache.Cache // key: entityType, value: *qdata.EntitySchema
+}
+
+// Option to enable go-cache for RedisStoreInteractor
+func WithGoCache(defaultExpiration, cleanupInterval time.Duration) func(*RedisStoreInteractor) {
+	return func(r *RedisStoreInteractor) {
+		r.cacheEnabled = true
+		r.fieldCache = cache.New(defaultExpiration, cleanupInterval)
+		r.schemaCache = cache.New(defaultExpiration, cleanupInterval)
+	}
 }
 
 // NewStoreInteractor creates a new Redis store interactor
-func NewStoreInteractor(core RedisCore) qdata.StoreInteractor {
-	return &RedisStoreInteractor{
+func NewStoreInteractor(core RedisCore, opts ...func(*RedisStoreInteractor)) qdata.StoreInteractor {
+	r := &RedisStoreInteractor{
 		core:         core,
 		keyBuilder:   NewKeyBuilder("qos"),
 		publisherSig: qss.New[qdata.PublishNotificationArgs](),
+		cacheEnabled: false,
 	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 func (me *RedisStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
@@ -317,7 +337,24 @@ func (me *RedisStoreInteractor) FieldExists(ctx context.Context, entityType qdat
 	return ok, nil
 }
 
+func (me *RedisStoreInteractor) cacheFieldKey(entityId qdata.EntityId, fieldType qdata.FieldType) string {
+	return entityId.AsString() + ":" + fieldType.AsString()
+}
+
+func (me *RedisStoreInteractor) cacheSchemaKey(entityType qdata.EntityType) string {
+	return entityType.AsString()
+}
+
 func (me *RedisStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) (*qdata.EntitySchema, error) {
+	// Try cache first
+	if me.cacheEnabled && me.schemaCache != nil {
+		if v, found := me.schemaCache.Get(me.cacheSchemaKey(entityType)); found {
+			if schema, ok := v.(*qdata.EntitySchema); ok {
+				return schema.Clone(), nil
+			}
+		}
+	}
+
 	schema := new(qdata.EntitySchema).Init(entityType)
 
 	err := me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
@@ -341,6 +378,11 @@ func (me *RedisStoreInteractor) GetEntitySchema(ctx context.Context, entityType 
 			return nil, fmt.Errorf("schema not found for entity type %s", entityType)
 		}
 		return nil, err
+	}
+
+	// Store in cache
+	if me.cacheEnabled && me.schemaCache != nil {
+		me.schemaCache.Set(me.cacheSchemaKey(entityType), schema.Clone(), cache.DefaultExpiration)
 	}
 
 	return schema, nil
@@ -383,6 +425,11 @@ func (me *RedisStoreInteractor) SetEntitySchema(ctx context.Context, schema *qda
 
 	if err != nil {
 		return err
+	}
+
+	// Invalidate schema cache
+	if me.cacheEnabled && me.schemaCache != nil {
+		me.schemaCache.Delete(me.cacheSchemaKey(schema.EntityType))
 	}
 
 	errs := make([]error, 0)
@@ -499,35 +546,54 @@ func (me *RedisStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request
 			}
 		}
 
-		// Now do the actual reading
-		err = me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
-			result := client.HGet(ctx, me.keyBuilder.GetEntityKey(entity.EntityId), indirectField.AsString())
-			if result.Err() != nil {
-				return result.Err()
+		// Try cache first
+		var field *qdata.Field
+		cacheHit := false
+		if me.cacheEnabled && me.fieldCache != nil {
+			if v, found := me.fieldCache.Get(me.cacheFieldKey(indirectEntity, indirectField)); found {
+				if f, ok := v.(*qdata.Field); ok {
+					field = f.Clone()
+					cacheHit = true
+				}
 			}
-
-			b, err := result.Bytes()
-			if err != nil {
-				return err
-			}
-
-			field, err := new(qdata.Field).FromBytes(b)
-			if err != nil {
-				return err
-			}
-
-			req.Value.FromValue(field.Value)
-			req.WriteTime.FromTime(field.WriteTime.AsTime())
-			req.WriterId.FromString(field.WriterId.AsString())
-			return nil
-		})
-
-		if err != nil {
-			req.Err = fmt.Errorf("failed to read field %s in entity type %s: %v", indirectField, entity.EntityType, err)
-			errs = append(errs, req.Err)
-			continue
 		}
 
+		if !cacheHit {
+			// Now do the actual reading
+			err = me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
+				result := client.HGet(ctx, me.keyBuilder.GetEntityKey(entity.EntityId), indirectField.AsString())
+				if result.Err() != nil {
+					return result.Err()
+				}
+
+				b, err := result.Bytes()
+				if err != nil {
+					return err
+				}
+
+				field, err = new(qdata.Field).FromBytes(b)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+
+			if err != nil {
+				req.Err = fmt.Errorf("failed to read field %s in entity type %s: %v", indirectField, entity.EntityType, err)
+				errs = append(errs, req.Err)
+				continue
+			}
+		}
+
+		// Store in cache or update existing cache and TTL
+		if me.cacheEnabled && me.fieldCache != nil && field != nil {
+			me.fieldCache.Set(me.cacheFieldKey(indirectEntity, indirectField), field.Clone(), cache.DefaultExpiration)
+		}
+
+		req.Value.FromValue(field.Value)
+		req.WriteTime.FromTime(field.WriteTime.AsTime())
+		req.WriterId.FromString(field.WriterId.AsString())
 		req.Success = true
 	}
 
@@ -626,6 +692,11 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 			req.Err = fmt.Errorf("failed to write field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
 			errs = append(errs, req.Err)
 			continue
+		}
+
+		// Invalidate field cache
+		if me.cacheEnabled && me.fieldCache != nil {
+			me.fieldCache.Delete(me.cacheFieldKey(indirectEntity, indirectField))
 		}
 
 		me.publisherSig.Emit(qdata.PublishNotificationArgs{
