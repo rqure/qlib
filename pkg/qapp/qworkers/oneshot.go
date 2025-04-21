@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -11,6 +12,8 @@ import (
 )
 
 type OneShot interface {
+	qapp.Worker
+
 	Connected() qss.Signal[context.Context]
 	Disconnected() qss.Signal[context.Context]
 }
