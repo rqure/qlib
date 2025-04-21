@@ -29,6 +29,7 @@ type application struct {
 	tasks   chan func(context.Context)
 	wg      *sync.WaitGroup
 	ticker  *time.Ticker
+	exitCh  chan struct{}
 
 	ctxKVs map[any]any
 }
@@ -40,6 +41,7 @@ func NewApplication(name string, opts ...ApplicationOpts) Application {
 		tasks:  make(chan func(context.Context), 10000),
 		wg:     &sync.WaitGroup{},
 		ctxKVs: make(map[any]any),
+		exitCh: make(chan struct{}, 1),
 	}
 
 	a.ctxKVs[qcontext.KeyAppName] = name
@@ -126,6 +128,8 @@ func (a *application) Execute() {
 
 	go func() {
 		select {
+		case <-a.exitCh:
+			cancel()
 		case <-interrupt:
 			cancel()
 		case <-ctx.Done():
@@ -157,4 +161,9 @@ func (a *application) DoInMainThread(t func(context.Context)) {
 
 func (a *application) GetWg() *sync.WaitGroup {
 	return a.wg
+}
+
+func (a *application) Exit() {
+	qlog.Trace("Application exit requested")
+	a.exitCh <- struct{}{}
 }

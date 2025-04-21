@@ -22,6 +22,7 @@ type ClientProvider[T any] interface {
 
 type Handle interface {
 	DoInMainThread(func(context.Context))
+	Exit()
 	GetWg() *sync.WaitGroup
 }
 
