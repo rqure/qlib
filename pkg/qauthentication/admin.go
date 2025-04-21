@@ -74,7 +74,7 @@ func NewAdmin(core Core, opts ...AdminOption) Admin {
 		Realm(getEnvOrDefault("Q_KEYCLOAK_REALM", "qos")),
 		Username(getEnvOrDefault("Q_KEYCLOAK_ADMIN_USER", "admin")),
 		Password(getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin")),
-		ClientID(getEnvOrDefault("Q_KEYCLOAK_ADMIN_CLIENT_ID", "admin-cli")),
+		ClientID(getEnvOrDefault("Q_KEYCLOAK_ADMIN_CLIENT_ID", "admin-qcore")),
 	}
 
 	for _, opt := range defaultOpts {
@@ -132,7 +132,7 @@ func (me *admin) GetOrCreateClient(ctx context.Context, clientID string) (Client
 		return nil, err
 	}
 
-	return me.getOrCreateClient(ctx, clientID, me.session.AccessToken(), me.config.realm)
+	return me.getOrCreateClient(ctx, clientID, me.session.AccessToken(), me.config.realm, false)
 }
 
 // CreateUser creates a new user with the given username and password
@@ -345,7 +345,7 @@ func (me *admin) authenticate(ctx context.Context) error {
 		qlog.Warn("No session id found in token claims")
 	}
 
-	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken, me.config.masterRealm)
+	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken, me.config.masterRealm, true)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func (me *admin) authenticate(ctx context.Context) error {
 	return nil
 }
 
-func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, realm string) (Client, error) {
+func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, realm string, withAdminAccess bool) (Client, error) {
 	// Try to find existing client
 	clients, err := me.core.GetClient().GetClients(
 		ctx,
@@ -430,6 +430,14 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, r
 		secret = *secretObj.Value
 	}
 
+	// Handle admin access if requested
+	if withAdminAccess {
+		err = me.setupClientAdminAccess(ctx, accessToken, realm, *client.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set up admin access: %w", err)
+		}
+	}
+
 	return NewClient(me.core, *client.ClientID, secret, realm), nil
 }
 
@@ -440,4 +448,77 @@ func (me *admin) Session(ctx context.Context) Session {
 	}
 
 	return me.session
+}
+
+func (me *admin) setupClientAdminAccess(ctx context.Context, accessToken, realm, clientID string) error {
+	// 1. Get service account user for the client
+	serviceAccountUser, err := me.core.GetClient().GetClientServiceAccount(
+		ctx,
+		accessToken,
+		realm,
+		clientID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get service account user: %w", err)
+	}
+
+	// 2. Get realm-management client
+	realmManagementClients, err := me.core.GetClient().GetClients(
+		ctx,
+		accessToken,
+		realm,
+		gocloak.GetClientsParams{
+			ClientID: gocloak.StringP("realm-management"),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get realm-management client: %w", err)
+	}
+
+	if len(realmManagementClients) == 0 {
+		return fmt.Errorf("realm-management client not found")
+	}
+
+	realmManagementClientID := *realmManagementClients[0].ID
+
+	// 3. Get realm-admin role
+	roles, err := me.core.GetClient().GetClientRoles(
+		ctx,
+		accessToken,
+		realm,
+		realmManagementClientID,
+		gocloak.GetRoleParams{
+			Search: gocloak.StringP("realm-admin"),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get realm-admin role: %w", err)
+	}
+
+	var adminRole *gocloak.Role
+	for _, role := range roles {
+		if *role.Name == "realm-admin" {
+			adminRole = role
+			break
+		}
+	}
+
+	if adminRole == nil {
+		return fmt.Errorf("realm-admin role not found")
+	}
+
+	// 4. Add realm-admin role to service account
+	err = me.core.GetClient().AddClientRolesToUser(
+		ctx,
+		accessToken,
+		realm,
+		realmManagementClientID,
+		*serviceAccountUser.ID,
+		[]gocloak.Role{*adminRole},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to add realm-admin role to service account: %w", err)
+	}
+
+	return nil
 }
