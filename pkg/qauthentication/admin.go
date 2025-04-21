@@ -429,7 +429,7 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, r
 
 		if asAdmin {
 			// Assign realm-admin role to the client
-			err = me.assignRealmAdminRoleToClient(ctx, clientID, realm)
+			err = me.assignRealmAdminRoleToClient(ctx, clientID, realm, accessToken)
 			if err != nil {
 				return nil, fmt.Errorf("failed to assign realm-admin role: %w", err)
 			}
