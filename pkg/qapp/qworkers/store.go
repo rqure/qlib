@@ -91,6 +91,7 @@ func (me *storeWorker) Init(ctx context.Context) {
 func (me *storeWorker) Deinit(context.Context) {
 	me.sessionRefreshTimer.Stop()
 	me.connectionAttemptTimer.Stop()
+	me.connectionCheckTimer.Stop()
 }
 
 func (me *storeWorker) DoWork(ctx context.Context) {
@@ -148,23 +149,19 @@ func (me *storeWorker) tryRefreshSession(ctx context.Context) {
 }
 
 func (me *storeWorker) onConnected(args qdata.ConnectedArgs) {
-	me.handle.DoInMainThread(func(ctx context.Context) {
-		me.isStoreConnected = true
+	me.isStoreConnected = true
 
-		qlog.Info("Connection status changed to [CONNECTED]")
+	qlog.Info("Connection status changed to [CONNECTED]")
 
-		me.connected.Emit(ctx)
-	})
+	me.connected.Emit(args.Ctx)
 }
 
 func (me *storeWorker) onDisconnected(args qdata.DisconnectedArgs) {
-	me.handle.DoInMainThread(func(ctx context.Context) {
-		me.isStoreConnected = false
+	me.isStoreConnected = false
 
-		qlog.Info("Connection status changed to [DISCONNECTED] with reason: %v", args.Err)
+	qlog.Info("Connection status changed to [DISCONNECTED] with reason: %v", args.Err)
 
-		me.disconnected.Emit(ctx)
-	})
+	me.disconnected.Emit(args.Ctx)
 }
 
 func (me *storeWorker) IsConnected() bool {
