@@ -22,9 +22,6 @@ func (me *clientProvider) Client(ctx context.Context) Client {
 	if me.client == nil {
 		admin := NewAdmin(me.core)
 
-		// logout of the session after attempting to get the client
-		defer admin.Session(ctx).Revoke(ctx)
-
 		client, err := admin.GetOrCreateClient(ctx, qcontext.GetAppName(ctx))
 
 		if err != nil {

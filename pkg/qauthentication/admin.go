@@ -8,10 +8,17 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 )
 
+type CtxKeyType string
+
+const (
+	TokenKey CtxKeyType = "token"
+)
+
 type Admin interface {
+	Execute(ctx context.Context, fn func(context.Context) error) error
+
 	EnsureSetup(ctx context.Context) error
 	GetOrCreateClient(ctx context.Context, clientID string) (Client, error)
-	Session(ctx context.Context) Session
 
 	CreateUser(ctx context.Context, username, password string) error
 	DeleteUser(ctx context.Context, username string) error
@@ -21,15 +28,13 @@ type Admin interface {
 }
 
 type admin struct {
-	core    Core
-	session Session
-	config  *adminConfig
+	core   Core
+	config *adminConfig
 }
 
 type adminConfig struct {
 	masterRealm string
 	realm       string
-	clientID    string
 	username    string
 	password    string
 }
@@ -60,12 +65,6 @@ func Password(password string) AdminOption {
 	}
 }
 
-func ClientID(clientID string) AdminOption {
-	return func(c *adminConfig) {
-		c.clientID = clientID
-	}
-}
-
 func NewAdmin(core Core, opts ...AdminOption) Admin {
 	config := &adminConfig{}
 
@@ -74,7 +73,6 @@ func NewAdmin(core Core, opts ...AdminOption) Admin {
 		Realm(getEnvOrDefault("Q_KEYCLOAK_REALM", "qos")),
 		Username(getEnvOrDefault("Q_KEYCLOAK_ADMIN_USER", "admin")),
 		Password(getEnvOrDefault("Q_KEYCLOAK_ADMIN_PASSWORD", "admin")),
-		ClientID(getEnvOrDefault("Q_KEYCLOAK_ADMIN_CLIENT_ID", "admin-qcore")),
 	}
 
 	for _, opt := range defaultOpts {
@@ -92,185 +90,209 @@ func NewAdmin(core Core, opts ...AdminOption) Admin {
 }
 
 func (me *admin) EnsureSetup(ctx context.Context) error {
-	// Authenticate as admin
-	if err := me.authenticate(ctx); err != nil {
-		return fmt.Errorf("admin authentication failed: %w", err)
-	}
-
-	// Create realm if it doesn't exist
-	realms, err := me.core.GetClient().GetRealms(ctx, me.session.AccessToken())
-	if err != nil {
-		return fmt.Errorf("failed to get realms: %w", err)
-	}
-
-	realmExists := false
-	for _, r := range realms {
-		if *r.Realm == me.config.realm {
-			realmExists = true
-			break
-		}
-	}
-
-	if !realmExists {
-		realm := gocloak.RealmRepresentation{
-			Realm:   gocloak.StringP(me.config.realm),
-			Enabled: gocloak.BoolP(true),
-		}
-
-		_, err := me.core.GetClient().CreateRealm(ctx, me.session.AccessToken(), realm)
+	return me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
+		// Create realm if it doesn't exist
+		realms, err := me.core.GetClient().GetRealms(ctx, token.AccessToken)
 		if err != nil {
-			return fmt.Errorf("failed to create realm: %w", err)
+			return fmt.Errorf("failed to get realms: %w", err)
 		}
-	}
 
-	return nil
+		realmExists := false
+		for _, r := range realms {
+			if *r.Realm == me.config.realm {
+				realmExists = true
+				break
+			}
+		}
+
+		if !realmExists {
+			realm := gocloak.RealmRepresentation{
+				Realm:   gocloak.StringP(me.config.realm),
+				Enabled: gocloak.BoolP(true),
+			}
+
+			_, err := me.core.GetClient().CreateRealm(ctx, token.AccessToken, realm)
+			if err != nil {
+				return fmt.Errorf("failed to create realm: %w", err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // GetOrCreateClient creates a new client or gets an existing one
 func (me *admin) GetOrCreateClient(ctx context.Context, clientID string) (Client, error) {
-	if err := me.authenticate(ctx); err != nil {
+	var client Client
+
+	err := me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
+		var err error
+		client, err = me.getOrCreateClient(ctx, clientID, token.AccessToken, me.config.realm)
+		if err != nil {
+			return fmt.Errorf("failed to get or create client: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	return me.getOrCreateClient(ctx, clientID, me.session.AccessToken(), me.config.realm, false)
+	return client, nil
 }
 
 // CreateUser creates a new user with the given username and password
 func (me *admin) CreateUser(ctx context.Context, username, password string) error {
-	if err := me.authenticate(ctx); err != nil {
-		return err
-	}
+	return me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
+		user := gocloak.User{
+			Username: &username,
+			Enabled:  gocloak.BoolP(true),
+		}
 
-	user := gocloak.User{
-		Username: &username,
-		Enabled:  gocloak.BoolP(true),
-	}
+		// Create the user
+		userID, err := me.core.GetClient().CreateUser(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			user,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
 
-	// Create the user
-	userID, err := me.core.GetClient().CreateUser(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		user,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
-	}
+		// Set the password
+		err = me.core.GetClient().SetPassword(
+			ctx,
+			token.AccessToken,
+			userID,
+			me.config.realm,
+			password,
+			false,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to set password: %w", err)
+		}
 
-	// Set the password
-	err = me.core.GetClient().SetPassword(
-		ctx,
-		me.session.AccessToken(),
-		userID,
-		me.config.realm,
-		password,
-		false,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to set password: %w", err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // DeleteUser deletes the user with the given username
 func (me *admin) DeleteUser(ctx context.Context, username string) error {
-	if err := me.authenticate(ctx); err != nil {
-		return err
-	}
+	return me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
+		// Find user by username
+		users, err := me.core.GetClient().GetUsers(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			gocloak.GetUsersParams{
+				Username: &username,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get users: %w", err)
+		}
 
-	// Find user by username
-	users, err := me.core.GetClient().GetUsers(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		gocloak.GetUsersParams{
-			Username: &username,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get users: %w", err)
-	}
+		if len(users) == 0 {
+			return fmt.Errorf("user not found: %s", username)
+		}
 
-	if len(users) == 0 {
-		return fmt.Errorf("user not found: %s", username)
-	}
+		// Delete the user
+		err = me.core.GetClient().DeleteUser(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			*users[0].ID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to delete user: %w", err)
+		}
 
-	// Delete the user
-	err = me.core.GetClient().DeleteUser(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		*users[0].ID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // GetUser retrieves a user by username
 func (me *admin) GetUser(ctx context.Context, username string) (User, error) {
-	if err := me.authenticate(ctx); err != nil {
+	var user User
+	err := me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
+
+		// Find user by username
+		users, err := me.core.GetClient().GetUsers(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			gocloak.GetUsersParams{
+				Username: &username,
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get users: %w", err)
+		}
+
+		if len(users) == 0 {
+			return fmt.Errorf("user not found: %s", username)
+		}
+
+		// Get user roles
+		kcUser := users[0]
+
+		// Convert to our User type using proper setters
+		user = NewUser(kcUser)
+
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
-
-	// Find user by username
-	users, err := me.core.GetClient().GetUsers(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		gocloak.GetUsersParams{
-			Username: &username,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get users: %w", err)
-	}
-
-	if len(users) == 0 {
-		return nil, fmt.Errorf("user not found: %s", username)
-	}
-
-	// Get user roles
-	kcUser := users[0]
-
-	// Convert to our User type using proper setters
-	user := NewUser(kcUser)
 
 	return user, nil
 }
 
 // GetUsers retrieves all users
 func (me *admin) GetUsers(ctx context.Context) (map[string]User, error) {
-	if err := me.authenticate(ctx); err != nil {
-		return nil, err
-	}
+	var users map[string]User
 
-	// Get all users
-	kcUsers, err := me.core.GetClient().GetUsers(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		gocloak.GetUsersParams{
-			Max: gocloak.IntP(-1),
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get users: %w", err)
-	}
+	err := me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
 
-	// Convert to our User type
-	users := make(map[string]User)
-	for _, kcUser := range kcUsers {
-		if kcUser.Username == nil {
-			continue
+		// Get all users
+		kcUsers, err := me.core.GetClient().GetUsers(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			gocloak.GetUsersParams{
+				Max: gocloak.IntP(-1),
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get users: %w", err)
 		}
 
-		user := NewUser(kcUser)
+		// Convert to our User type
+		users = make(map[string]User)
+		for _, kcUser := range kcUsers {
+			if kcUser.Username == nil {
+				continue
+			}
 
-		users[*kcUser.Username] = user
+			user := NewUser(kcUser)
+
+			users[*kcUser.Username] = user
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return users, nil
@@ -278,83 +300,78 @@ func (me *admin) GetUsers(ctx context.Context) (map[string]User, error) {
 
 // UpdateUser updates a user's information
 func (me *admin) UpdateUser(ctx context.Context, user User) error {
-	if err := me.authenticate(ctx); err != nil {
-		return err
-	}
+	return me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
 
-	// Find user by username
-	users, err := me.core.GetClient().GetUsers(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		gocloak.GetUsersParams{
-			Username: gocloak.StringP(user.GetUsername()),
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get users: %w", err)
-	}
+		// Find user by username
+		users, err := me.core.GetClient().GetUsers(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			gocloak.GetUsersParams{
+				Username: gocloak.StringP(user.GetUsername()),
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to get users: %w", err)
+		}
 
-	if len(users) == 0 {
-		return fmt.Errorf("user not found: %s", user.GetUsername())
-	}
+		if len(users) == 0 {
+			return fmt.Errorf("user not found: %s", user.GetUsername())
+		}
 
-	// Update user details
-	kcUser := users[0]
-	kcUser.FirstName = gocloak.StringP(user.GetFirstName())
-	kcUser.LastName = gocloak.StringP(user.GetLastName())
-	kcUser.Email = gocloak.StringP(user.GetEmail())
-	kcUser.EmailVerified = gocloak.BoolP(user.IsEmailVerified())
-	kcUser.Enabled = gocloak.BoolP(user.IsEnabled())
+		// Update user details
+		kcUser := users[0]
+		kcUser.FirstName = gocloak.StringP(user.GetFirstName())
+		kcUser.LastName = gocloak.StringP(user.GetLastName())
+		kcUser.Email = gocloak.StringP(user.GetEmail())
+		kcUser.EmailVerified = gocloak.BoolP(user.IsEmailVerified())
+		kcUser.Enabled = gocloak.BoolP(user.IsEnabled())
 
-	err = me.core.GetClient().UpdateUser(
-		ctx,
-		me.session.AccessToken(),
-		me.config.realm,
-		*kcUser,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update user: %w", err)
-	}
+		err = me.core.GetClient().UpdateUser(
+			ctx,
+			token.AccessToken,
+			me.config.realm,
+			*kcUser,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update user: %w", err)
+		}
 
-	return nil
-}
-
-func (me *admin) authenticate(ctx context.Context) error {
-	if me.session != nil && me.session.IsValid(ctx) {
 		return nil
-	}
-
-	token, err := me.core.GetClient().LoginAdmin(ctx, me.config.username, me.config.password, me.config.masterRealm)
-	if err != nil {
-		return err
-	}
-	_, claims, err := me.core.GetClient().DecodeAccessToken(ctx, token.AccessToken, me.config.masterRealm)
-	if err != nil {
-		return err
-	}
-
-	if sid, ok := (*claims)["sid"].(string); ok {
-		defer func() {
-			err := me.core.GetClient().LogoutUserSession(ctx, token.AccessToken, me.config.masterRealm, sid)
-			if err != nil {
-				qlog.Warn("Failed to logout user session: %v", err)
-			}
-		}()
-	} else {
-		qlog.Warn("No session id found in token claims")
-	}
-
-	client, err := me.getOrCreateClient(ctx, me.config.clientID, token.AccessToken, me.config.masterRealm, true)
-	if err != nil {
-		return err
-	}
-
-	me.session = client.GetSession(ctx)
-	return nil
+	})
 }
 
-func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, realm string, withAdminAccess bool) (Client, error) {
+func (me *admin) Execute(ctx context.Context, fn func(context.Context) error) error {
+	token, ok := ctx.Value(TokenKey).(*gocloak.JWT)
+
+	if !ok {
+		token, err := me.core.GetClient().LoginAdmin(ctx, me.config.username, me.config.password, me.config.masterRealm)
+		if err != nil {
+			return fmt.Errorf("failed to login as admin: %w", err)
+		}
+
+		_, claims, err := me.core.GetClient().DecodeAccessToken(ctx, token.AccessToken, me.config.masterRealm)
+		if err != nil {
+			return fmt.Errorf("failed to decode access token: %w", err)
+		}
+
+		if sid, ok := (*claims)["sid"].(string); ok {
+			defer func() {
+				err := me.core.GetClient().LogoutUserSession(ctx, token.AccessToken, me.config.masterRealm, sid)
+				if err != nil {
+					qlog.Warn("Failed to logout user session: %v", err)
+				}
+			}()
+		} else {
+			qlog.Warn("No session id found in token claims")
+		}
+	}
+
+	return fn(context.WithValue(ctx, TokenKey, token))
+}
+
+func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, realm string) (Client, error) {
 	// Try to find existing client
 	clients, err := me.core.GetClient().GetClients(
 		ctx,
@@ -430,66 +447,5 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, r
 		secret = *secretObj.Value
 	}
 
-	// Handle admin access if requested
-	if withAdminAccess {
-		err = me.setupClientAdminAccess(ctx, accessToken, realm, *client.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set up admin access: %w", err)
-		}
-	}
-
 	return NewClient(me.core, *client.ClientID, secret, realm), nil
-}
-
-func (me *admin) Session(ctx context.Context) Session {
-	if me.authenticate(ctx) != nil {
-		qlog.Warn("Failed to authenticate admin")
-		return NewSession(me.core, nil, "", "", "")
-	}
-
-	return me.session
-}
-
-func (me *admin) setupClientAdminAccess(ctx context.Context, accessToken, realm, clientID string) error {
-	serviceAccountUser, err := me.core.GetClient().GetClientServiceAccount(
-		ctx,
-		accessToken,
-		realm,
-		clientID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get service account user: %w", err)
-	}
-
-	realmManagementClientID := getEnvOrDefault("Q_KEYCLOAK_REALM_MANAGEMENT_CLIENT_ID", "master-realm")
-
-	roles, err := me.core.GetClient().GetClientRoles(
-		ctx,
-		accessToken,
-		realm,
-		realmManagementClientID,
-		gocloak.GetRoleParams{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get roles from client '%s': %w", realmManagementClientID, err)
-	}
-
-	var copiedRoles []gocloak.Role
-	for _, role := range roles {
-		copiedRoles = append(copiedRoles, *role)
-	}
-
-	err = me.core.GetClient().AddClientRolesToUser(
-		ctx,
-		accessToken,
-		realm,
-		realmManagementClientID,
-		*serviceAccountUser.ID,
-		copiedRoles,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to add roles [%+v] to service account (%s): %w", copiedRoles, clientID, err)
-	}
-
-	return nil
 }
