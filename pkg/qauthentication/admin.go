@@ -449,3 +449,11 @@ func (me *admin) getOrCreateClient(ctx context.Context, clientID, accessToken, r
 
 	return NewClient(me.core, *client.ClientID, secret, realm), nil
 }
+
+func (me *admin) ProcessEvents(ctx context.Context, eventEmitter EventEmitter) error {
+	return me.Execute(ctx, func(ctx context.Context) error {
+		token := ctx.Value(TokenKey).(*gocloak.JWT)
+
+		return eventEmitter.ProcessNextBatch(ctx, token.AccessToken, me.config.realm)
+	})
+}

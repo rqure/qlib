@@ -156,7 +156,7 @@ type EventEmitter interface {
 
 	GetLastEventTime() time.Time
 	SetLastEventTime(time.Time)
-	ProcessNextBatch(ctx context.Context, session Session) error
+	ProcessNextBatch(ctx context.Context, accessToken, realm string) error
 }
 
 type eventEmitterConfig struct {
@@ -245,17 +245,9 @@ func convertGocloakEvent(e *gocloak.EventRepresentation) (Event, error) {
 	}, nil
 }
 
-func (me *eventEmitter) ProcessNextBatch(ctx context.Context, session Session) error {
-	if session == nil {
-		return fmt.Errorf("session is nil")
-	}
-
-	if !session.IsValid(ctx) {
-		return fmt.Errorf("session is invalid")
-	}
-
+func (me *eventEmitter) ProcessNextBatch(ctx context.Context, accessToken, realm string) error {
 	max := int32(me.config.batchSize)
-	events, err := me.core.GetClient().GetEvents(ctx, session.AccessToken(), session.Realm(), gocloak.GetEventsParams{
+	events, err := me.core.GetClient().GetEvents(ctx, accessToken, realm, gocloak.GetEventsParams{
 		DateFrom: gocloak.StringP(me.lastEventTime.Format(time.RFC3339)),
 		Max:      &max,
 		Type:     convertEventTypes(me.config.eventTypes),
