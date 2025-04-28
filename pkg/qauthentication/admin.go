@@ -348,7 +348,9 @@ func (me *admin) Execute(ctx context.Context, fn func(context.Context) error) er
 	token, ok := ctx.Value(TokenKey).(*gocloak.JWT)
 
 	if !ok {
-		token, err := me.core.GetClient().LoginAdmin(ctx, me.config.username, me.config.password, me.config.masterRealm)
+		var err error
+
+		token, err = me.core.GetClient().LoginAdmin(ctx, me.config.username, me.config.password, me.config.masterRealm)
 		if err != nil {
 			return fmt.Errorf("failed to login as admin: %w", err)
 		}
