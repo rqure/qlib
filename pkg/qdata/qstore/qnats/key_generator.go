@@ -19,7 +19,7 @@ func (g *natsKeyGenerator) GetReadSubject() string {
 }
 
 func (g *natsKeyGenerator) GetWriteSubject() string {
-	return "q.store.read.request"
+	return "q.store.write.request"
 }
 
 func (g *natsKeyGenerator) GetNotificationRegistrationSubject() string {
