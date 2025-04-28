@@ -451,7 +451,6 @@ func (me *admin) Session(ctx context.Context) Session {
 }
 
 func (me *admin) setupClientAdminAccess(ctx context.Context, accessToken, realm, clientID string) error {
-	// 1. Get service account user for the client
 	serviceAccountUser, err := me.core.GetClient().GetClientServiceAccount(
 		ctx,
 		accessToken,
@@ -462,62 +461,34 @@ func (me *admin) setupClientAdminAccess(ctx context.Context, accessToken, realm,
 		return fmt.Errorf("failed to get service account user: %w", err)
 	}
 
-	// 2. Get realm-management client
-	realmManagementClients, err := me.core.GetClient().GetClients(
-		ctx,
-		accessToken,
-		realm,
-		gocloak.GetClientsParams{
-			ClientID: gocloak.StringP("realm-management"),
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get realm-management client: %w", err)
-	}
+	realmManagementClientID := getEnvOrDefault("Q_KEYCLOAK_REALM_MANAGEMENT_CLIENT_ID", "master-realm")
 
-	if len(realmManagementClients) == 0 {
-		return fmt.Errorf("realm-management client not found")
-	}
-
-	realmManagementClientID := *realmManagementClients[0].ID
-
-	// 3. Get realm-admin role
 	roles, err := me.core.GetClient().GetClientRoles(
 		ctx,
 		accessToken,
 		realm,
 		realmManagementClientID,
-		gocloak.GetRoleParams{
-			Search: gocloak.StringP("realm-admin"),
-		},
+		gocloak.GetRoleParams{},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to get realm-admin role: %w", err)
+		return fmt.Errorf("failed to get roles from client '%s': %w", realmManagementClientID, err)
 	}
 
-	var adminRole *gocloak.Role
+	var copiedRoles []gocloak.Role
 	for _, role := range roles {
-		if *role.Name == "realm-admin" {
-			adminRole = role
-			break
-		}
+		copiedRoles = append(copiedRoles, *role)
 	}
 
-	if adminRole == nil {
-		return fmt.Errorf("realm-admin role not found")
-	}
-
-	// 4. Add realm-admin role to service account
 	err = me.core.GetClient().AddClientRolesToUser(
 		ctx,
 		accessToken,
 		realm,
 		realmManagementClientID,
 		*serviceAccountUser.ID,
-		[]gocloak.Role{*adminRole},
+		copiedRoles,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to add realm-admin role to service account: %w", err)
+		return fmt.Errorf("failed to add roles [%+v] to service account (%s): %w", copiedRoles, clientID, err)
 	}
 
 	return nil
