@@ -25,6 +25,8 @@ type Admin interface {
 	GetUser(ctx context.Context, username string) (User, error)
 	GetUsers(ctx context.Context) (map[string]User, error)
 	UpdateUser(ctx context.Context, user User) error
+
+	ProcessEvents(ctx context.Context, eventEmitter EventEmitter) error
 }
 
 type admin struct {
