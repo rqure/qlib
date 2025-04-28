@@ -14,10 +14,12 @@ import (
 
 // RedisStoreInteractor implements Redis-specific caching mechanisms
 type RedisStoreInteractor struct {
-	core         RedisCore
-	keyBuilder   *KeyBuilder
-	publisherSig qss.Signal[qdata.PublishNotificationArgs]
-	clientId     *qdata.EntityId
+	core          RedisCore
+	keyBuilder    *KeyBuilder
+	publisherSig  qss.Signal[qdata.PublishNotificationArgs]
+	readEventSig  qss.Signal[qdata.ReadEventArgs]
+	writeEventSig qss.Signal[qdata.WriteEventArgs]
+	clientId      *qdata.EntityId
 
 	// Optional in-memory cache for fields and schemas
 	cacheEnabled bool
@@ -37,10 +39,12 @@ func WithGoCache(defaultExpiration, cleanupInterval time.Duration) func(*RedisSt
 // NewStoreInteractor creates a new Redis store interactor
 func NewStoreInteractor(core RedisCore, opts ...func(*RedisStoreInteractor)) qdata.StoreInteractor {
 	r := &RedisStoreInteractor{
-		core:         core,
-		keyBuilder:   NewKeyBuilder("qos"),
-		publisherSig: qss.New[qdata.PublishNotificationArgs](),
-		cacheEnabled: false,
+		core:          core,
+		keyBuilder:    NewKeyBuilder("qos"),
+		publisherSig:  qss.New[qdata.PublishNotificationArgs](),
+		readEventSig:  qss.New[qdata.ReadEventArgs](),
+		writeEventSig: qss.New[qdata.WriteEventArgs](),
+		cacheEnabled:  false,
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -595,6 +599,11 @@ func (me *RedisStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request
 		req.WriteTime.FromTime(field.WriteTime.AsTime())
 		req.WriterId.FromString(field.WriterId.AsString())
 		req.Success = true
+
+		me.readEventSig.Emit(qdata.ReadEventArgs{
+			Ctx: ctx,
+			Req: req,
+		})
 	}
 
 	return qdata.AccumulateErrors(errs...)
@@ -706,6 +715,11 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 		})
 
 		req.Success = true
+
+		me.writeEventSig.Emit(qdata.WriteEventArgs{
+			Ctx: ctx,
+			Req: req,
+		})
 	}
 
 	return qdata.AccumulateErrors(errs...)
@@ -831,4 +845,12 @@ func (me *RedisStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.S
 		_, err := pipe.Exec(ctx)
 		return err
 	})
+}
+
+func (me *RedisStoreInteractor) ReadEvent() qss.Signal[qdata.ReadEventArgs] {
+	return me.readEventSig
+}
+
+func (me *RedisStoreInteractor) WriteEvent() qss.Signal[qdata.WriteEventArgs] {
+	return me.writeEventSig
 }

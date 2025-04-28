@@ -12,15 +12,19 @@ import (
 )
 
 type NatsStoreInteractor struct {
-	core       NatsCore
-	publishSig qss.Signal[qdata.PublishNotificationArgs]
-	clientId   *qdata.EntityId
+	core          NatsCore
+	publishSig    qss.Signal[qdata.PublishNotificationArgs]
+	readEventSig  qss.Signal[qdata.ReadEventArgs]
+	writeEventSig qss.Signal[qdata.WriteEventArgs]
+	clientId      *qdata.EntityId
 }
 
 func NewStoreInteractor(core NatsCore) qdata.StoreInteractor {
 	return &NatsStoreInteractor{
-		core:       core,
-		publishSig: qss.New[qdata.PublishNotificationArgs](),
+		core:          core,
+		publishSig:    qss.New[qdata.PublishNotificationArgs](),
+		readEventSig:  qss.New[qdata.ReadEventArgs](),
+		writeEventSig: qss.New[qdata.WriteEventArgs](),
 	}
 }
 
@@ -327,7 +331,15 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 		if r.WriterId != nil {
 			requests[i].WriterId.FromString(r.WriterId.Raw)
 		}
+
+		if r.Success {
+			me.readEventSig.Emit(qdata.ReadEventArgs{
+				Ctx: ctx,
+				Req: requests[i],
+			})
+		}
 	}
+
 	return nil
 }
 
@@ -384,7 +396,15 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 			break
 		}
 		requests[i].Success = r.Success
+
+		if r.Success {
+			me.writeEventSig.Emit(qdata.WriteEventArgs{
+				Ctx: ctx,
+				Req: requests[i],
+			})
+		}
 	}
+
 	return nil
 }
 
@@ -524,4 +544,12 @@ func (me *NatsStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Sn
 	}
 
 	return nil
+}
+
+func (me *NatsStoreInteractor) ReadEvent() qss.Signal[qdata.ReadEventArgs] {
+	return me.readEventSig
+}
+
+func (me *NatsStoreInteractor) WriteEvent() qss.Signal[qdata.WriteEventArgs] {
+	return me.writeEventSig
 }

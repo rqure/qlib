@@ -36,6 +36,16 @@ type PublishNotificationArgs struct {
 	Prev *Request
 }
 
+type ReadEventArgs struct {
+	Ctx context.Context
+	Req *Request
+}
+
+type WriteEventArgs struct {
+	Ctx context.Context
+	Req *Request
+}
+
 type PageConfig struct {
 	PageSize int64
 	CursorId int64
@@ -167,14 +177,17 @@ type StoreInteractor interface {
 	GetFieldSchema(context.Context, EntityType, FieldType) (*FieldSchema, error)
 	SetFieldSchema(context.Context, EntityType, FieldType, *FieldSchema) error
 
-	PublishNotifications() qss.Signal[PublishNotificationArgs]
-
 	Read(context.Context, ...*Request) error
 	Write(context.Context, ...*Request) error
 
 	InitializeSchema(ctx context.Context) error
 	CreateSnapshot(ctx context.Context) (*Snapshot, error)
 	RestoreSnapshot(ctx context.Context, ss *Snapshot) error
+
+	PublishNotifications() qss.Signal[PublishNotificationArgs]
+
+	WriteEvent() qss.Signal[WriteEventArgs]
+	ReadEvent() qss.Signal[ReadEventArgs]
 }
 
 type StoreNotifier interface {
