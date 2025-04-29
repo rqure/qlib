@@ -51,34 +51,6 @@ func (me ValueType) AsString() string {
 	return string(me)
 }
 
-func (me *ValueType) ProtobufName() string {
-	switch *me {
-	case VTInt:
-		return "qprotobufs.Int"
-	case VTFloat:
-		return "qprotobufs.Float"
-	case VTString:
-		return "qprotobufs.String"
-	case VTBool:
-		return "qprotobufs.Bool"
-	case VTBinaryFile:
-		return "qprotobufs.BinaryFile"
-	case VTEntityReference:
-		return "qprotobufs.EntityReference"
-	case VTTimestamp:
-		return "qprotobufs.Timestamp"
-	case VTChoice:
-		return "qprotobufs.Choice"
-	case VTEntityList:
-		return "qprotobufs.EntityList"
-	default:
-		// This should never happen, but if it does, log an error for debugging
-		qlog.Error("ValueType '%s' does not have a protobuf name", *me)
-	}
-
-	return ""
-}
-
 func (me *ValueType) As(o ValueType) *ValueType {
 	*me = o
 	return me
@@ -159,32 +131,4 @@ func (me ValueType) NewValue(args ...any) *Value {
 	}
 
 	return value
-}
-
-func (me *ValueType) FromProtobufName(name string) ValueType {
-	switch {
-	case name == "qprotobufs.Int":
-		*me = VTInt
-	case name == "qprotobufs.Float":
-		*me = VTFloat
-	case name == "qprotobufs.String":
-		*me = VTString
-	case name == "qprotobufs.Bool":
-		*me = VTBool
-	case name == "qprotobufs.BinaryFile":
-		*me = VTBinaryFile
-	case name == "qprotobufs.EntityReference":
-		*me = VTEntityReference
-	case name == "qprotobufs.Timestamp":
-		*me = VTTimestamp
-	case name == "qprotobufs.Choice":
-		*me = VTChoice
-	case name == "qprotobufs.EntityList":
-		*me = VTEntityList
-	default:
-		// This should never happen, but if it does, log an error for debugging
-		qlog.Error("ValueType '%s' does not have a protobuf name", *me)
-	}
-
-	return *me
 }

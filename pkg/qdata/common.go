@@ -459,7 +459,7 @@ func (me *EntitySchema) FromBytes(data []byte) (*EntitySchema, error) {
 func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
 	return &qprotobufs.DatabaseFieldSchema{
 		Name:             string(me.FieldType),
-		Type:             me.ValueType.ProtobufName(),
+		Type:             me.ValueType.AsString(),
 		ReadPermissions:  CastEntityIdSliceToStringSlice(me.ReadPermissions),
 		WritePermissions: CastEntityIdSliceToStringSlice(me.WritePermissions),
 	}
@@ -819,7 +819,7 @@ func (me *FieldSchema) ApplyOpts(opts ...FieldSchemaOpts) *FieldSchema {
 func (me *FieldSchema) FromFieldSchemaPb(entityType EntityType, pb *qprotobufs.DatabaseFieldSchema) *FieldSchema {
 	me.EntityType = EntityType(entityType)
 	me.FieldType = FieldType(pb.Name)
-	me.ValueType = new(ValueType).FromProtobufName(pb.Type)
+	me.ValueType = ValueType(pb.Type)
 	me.ReadPermissions = CastStringSliceToEntityIdSlice(pb.ReadPermissions)
 	me.WritePermissions = CastStringSliceToEntityIdSlice(pb.WritePermissions)
 
