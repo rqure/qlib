@@ -3,6 +3,7 @@ package qnats
 import (
 	"context"
 	"fmt"
+	"time"
 
 	natsgo "github.com/nats-io/nats.go" // Changed import name to avoid conflict
 	"github.com/rqure/qlib/pkg/qauthentication"
@@ -149,10 +150,12 @@ func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Messag
 		return nil, fmt.Errorf("not connected")
 	}
 
+	startTime := time.Now()
 	response, err := c.conn.RequestWithContext(ctx, subject, data)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
+	qlog.Trace("Request to %s took %s", subject, time.Since(startTime))
 
 	var respMsg qprotobufs.ApiMessage
 	if err := proto.Unmarshal(response.Data, &respMsg); err != nil {
