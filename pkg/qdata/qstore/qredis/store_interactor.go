@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
 
@@ -180,8 +181,78 @@ func (me *RedisStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata
 }
 
 func (me *RedisStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
-	// Implement query preparation logic here
-	return nil, nil
+	qlog.Trace("PrepareQuery called with SQL: %s, args: %v", sql, args)
+	pageOpts := []qdata.PageOpts{}
+	typeHintOpts := []qdata.TypeHintOpts{}
+	otherArgs := []any{}
+
+	for _, arg := range args {
+		switch arg := arg.(type) {
+		case qdata.PageOpts:
+			pageOpts = append(pageOpts, arg)
+		case qdata.TypeHintOpts:
+			typeHintOpts = append(typeHintOpts, arg)
+		default:
+			otherArgs = append(otherArgs, arg)
+		}
+	}
+
+	// Apply page options or use defaults
+	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
+
+	// Ensure we have a reasonable page size
+	if pageConfig.PageSize <= 0 {
+		pageConfig.PageSize = 100
+	}
+
+	return &qdata.PageResult[qdata.QueryRow]{
+		Items:    []qdata.QueryRow{},
+		CursorId: pageConfig.CursorId,
+		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.QueryRow], error) {
+			// Format and parse the query
+			fmtQuery := fmt.Sprintf(sql, otherArgs...)
+			qlog.Trace("Formatted query: %s", fmtQuery)
+			parsedQuery, err := qdata.ParseQuery(ctx, fmtQuery, me)
+			if err != nil {
+				qlog.Error("Failed to parse query: %v", err)
+				return &qdata.PageResult[qdata.QueryRow]{
+					Items:    []qdata.QueryRow{},
+					CursorId: -1,
+					NextPage: nil,
+				}, err
+			}
+
+			// Try with ExprEvaluator first
+			evaluator := qdata.NewExprEvaluator(me, parsedQuery)
+			if evaluator.CanEvaluate() {
+				qlog.Trace("Using ExprEvaluator for query")
+				return evaluator.ExecuteWithPagination(ctx, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+			}
+
+			// Fall back to SQLiteBuilder for complex queries
+			qlog.Trace("Query requires SQLiteBuilder approach")
+			builder, err := qdata.NewSQLiteBuilder(me)
+			if err != nil {
+				qlog.Error("Failed to create SQLite builder: %v", err)
+				return &qdata.PageResult[qdata.QueryRow]{
+					Items:    []qdata.QueryRow{},
+					CursorId: -1,
+					NextPage: nil,
+				}, err
+			}
+
+			result, err := builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+			if err != nil {
+				// Clean up if there was an error
+				builder.Close()
+				return nil, err
+			}
+
+			result.Cleanup = builder.Close
+
+			return result, nil
+		},
+	}, nil
 }
 
 func (me *RedisStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityId], error) {
