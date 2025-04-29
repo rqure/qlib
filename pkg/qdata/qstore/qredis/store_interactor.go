@@ -572,6 +572,10 @@ func (me *RedisStoreInteractor) GetFieldSchema(ctx context.Context, entityType q
 		return nil, fmt.Errorf("field %s not found in entity type %s", fieldType, entityType)
 	}
 
+	if fieldSchema.ValueType.IsNil() {
+		return nil, fmt.Errorf("field %s in entity type %s has no value type", fieldType, entityType)
+	}
+
 	return fieldSchema, nil
 }
 

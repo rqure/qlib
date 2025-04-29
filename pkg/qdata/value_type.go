@@ -1,6 +1,10 @@
 package qdata
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/rqure/qlib/pkg/qlog"
+)
 
 type ValueType string
 
@@ -67,6 +71,9 @@ func (me *ValueType) ProtobufName() string {
 		return "qprotobufs.Choice"
 	case VTEntityList:
 		return "qprotobufs.EntityList"
+	default:
+		// This should never happen, but if it does, log an error for debugging
+		qlog.Error("ValueType '%s' does not have a protobuf name", *me)
 	}
 
 	return ""
@@ -143,6 +150,8 @@ func (me ValueType) NewValue(args ...any) *Value {
 		value = NewChoice()
 	case VTEntityList:
 		value = NewEntityList()
+	default:
+		qlog.Error("Invalid value type: '%s'", me)
 	}
 
 	if value != nil && len(args) > 0 {
