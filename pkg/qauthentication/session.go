@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
-	"github.com/rqure/qlib/pkg/qlog"
 )
 
 type Session interface {
@@ -57,7 +56,6 @@ func (me *session) Refresh(ctx context.Context) error {
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid_grant") {
-			qlog.Trace("Token refresh failed: %v; reauthenticating...", err)
 			token, err = me.core.GetClient().GetToken(
 				ctx,
 				me.realm,
@@ -70,7 +68,7 @@ func (me *session) Refresh(ctx context.Context) error {
 		}
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to refresh token: %v", err)
 		}
 	}
 
