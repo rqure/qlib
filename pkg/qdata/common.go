@@ -819,7 +819,7 @@ func (me *FieldSchema) ApplyOpts(opts ...FieldSchemaOpts) *FieldSchema {
 func (me *FieldSchema) FromFieldSchemaPb(entityType EntityType, pb *qprotobufs.DatabaseFieldSchema) *FieldSchema {
 	me.EntityType = EntityType(entityType)
 	me.FieldType = FieldType(pb.Name)
-	me.ValueType = ValueType(pb.Type)
+	me.ValueType = new(ValueType).FromProtobufName(pb.Type)
 	me.ReadPermissions = CastStringSliceToEntityIdSlice(pb.ReadPermissions)
 	me.WritePermissions = CastStringSliceToEntityIdSlice(pb.WritePermissions)
 

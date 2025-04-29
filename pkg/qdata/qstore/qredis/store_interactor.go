@@ -880,7 +880,15 @@ func (me *RedisStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snap
 }
 
 func (me *RedisStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
-	// Clear the database
+	if me.cacheEnabled {
+		if me.fieldCache != nil {
+			me.fieldCache.Flush()
+		}
+		if me.schemaCache != nil {
+			me.schemaCache.Flush()
+		}
+	}
+
 	return me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
 		result := client.FlushDB(ctx)
 		if result.Err() != nil {

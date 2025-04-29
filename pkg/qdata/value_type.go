@@ -160,3 +160,31 @@ func (me ValueType) NewValue(args ...any) *Value {
 
 	return value
 }
+
+func (me *ValueType) FromProtobufName(name string) ValueType {
+	switch {
+	case name == "qprotobufs.Int":
+		*me = VTInt
+	case name == "qprotobufs.Float":
+		*me = VTFloat
+	case name == "qprotobufs.String":
+		*me = VTString
+	case name == "qprotobufs.Bool":
+		*me = VTBool
+	case name == "qprotobufs.BinaryFile":
+		*me = VTBinaryFile
+	case name == "qprotobufs.EntityReference":
+		*me = VTEntityReference
+	case name == "qprotobufs.Timestamp":
+		*me = VTTimestamp
+	case name == "qprotobufs.Choice":
+		*me = VTChoice
+	case name == "qprotobufs.EntityList":
+		*me = VTEntityList
+	default:
+		// This should never happen, but if it does, log an error for debugging
+		qlog.Error("ValueType '%s' does not have a protobuf name", *me)
+	}
+
+	return *me
+}
