@@ -696,7 +696,7 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 		}
 
 		// Check if the field is part of the entity type schema
-		_, err = me.GetFieldSchema(ctx, indirectEntity.GetEntityType(), indirectField)
+		schema, err := me.GetFieldSchema(ctx, indirectEntity.GetEntityType(), indirectField)
 		if err != nil {
 			req.Err = fmt.Errorf("schema not found for field %s in entity type %s: %v", indirectField, indirectEntity.GetEntityType(), err)
 			errs = append(errs, req.Err)
@@ -713,6 +713,10 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 				subjectId := authorizer.SubjectId()
 				req.WriterId = &subjectId
 			}
+		}
+
+		if req.Value == nil {
+			req.Value = schema.ValueType.NewValue()
 		}
 
 		oldReq := new(qdata.Request).Init(indirectEntity, indirectField)
