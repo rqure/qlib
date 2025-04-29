@@ -109,6 +109,19 @@ func (me *RedisStoreInteractor) CreateEntity(ctx context.Context, entityType qda
 		reqs = append(reqs, req)
 	}
 
+	if parentId != "" {
+		req := new(qdata.Request).Init(parentId, qdata.FTChildren)
+		err = me.Read(ctx, req)
+		if err == nil {
+			children := req.Value.GetEntityList()
+			children = append(children, entityId)
+			req.Value.FromEntityList(children)
+			reqs = append(reqs, req)
+		} else {
+			return nil, fmt.Errorf("failed to read parent entity: %v", err)
+		}
+	}
+
 	err = me.Write(ctx, reqs...)
 	if err != nil {
 		return nil, err
