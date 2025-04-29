@@ -3,9 +3,11 @@ package qauthentication
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/rqure/qlib/pkg/qlog"
 )
 
 type Session interface {
@@ -54,7 +56,22 @@ func (me *session) Refresh(ctx context.Context) error {
 		me.realm,
 	)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "invalid_grant") {
+			qlog.Trace("Token refresh failed: %v; reauthenticating...", err)
+			token, err = me.core.GetClient().GetToken(
+				ctx,
+				me.realm,
+				gocloak.TokenOptions{
+					ClientID:     &me.clientID,
+					ClientSecret: &me.clientSecret,
+					GrantType:    gocloak.StringP("client_credentials"),
+				},
+			)
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	me.token = token
