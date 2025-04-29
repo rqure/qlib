@@ -707,6 +707,10 @@ func (me *RedisStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reques
 			continue
 		}
 
+		if req.Value == nil {
+			req.Value = schema.ValueType.NewValue()
+		}
+
 		// Check if the subject is allowed to write to the field
 		if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
 			if !authorizer.CanWrite(ctx, new(qdata.Field).Init(req.EntityId, req.FieldType)) {
