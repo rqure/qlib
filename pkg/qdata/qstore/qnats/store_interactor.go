@@ -3,6 +3,7 @@ package qnats
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
@@ -10,6 +11,8 @@ import (
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"github.com/rqure/qlib/pkg/qss"
 )
+
+const DefaultRequestTimeout = 5 * time.Second
 
 type NatsStoreInteractor struct {
 	core          NatsCore
@@ -35,7 +38,12 @@ func (me *NatsStoreInteractor) CreateEntity(ctx context.Context, entityType qdat
 		Name:     name,
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetWriteSubject(),
+		msg)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +65,12 @@ func (me *NatsStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.
 		Id: entityId.AsString(),
 	}
 
-	_, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	_, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetWriteSubject(),
+		msg)
 	if err != nil {
 		return err
 	}
@@ -82,7 +95,12 @@ func (me *NatsStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpt
 				Cursor:     pageConfig.CursorId,
 			}
 
-			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+			defer cancel()
+			resp, err := me.core.Request(
+				timeoutCtx,
+				me.core.GetKeyGenerator().GetReadSubject(),
+				msg)
 			if err != nil {
 				return nil, err
 			}
@@ -143,7 +161,12 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdat
 				Cursor:   pageConfig.CursorId,
 			}
 
-			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+			defer cancel()
+			resp, err := me.core.Request(
+				timeoutCtx,
+				me.core.GetKeyGenerator().GetReadSubject(),
+				msg)
 			if err != nil {
 				return nil, err
 			}
@@ -225,7 +248,12 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 				TypeHints: typeHints,
 			}
 
-			resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+			defer cancel()
+			resp, err := me.core.Request(
+				timeoutCtx,
+				me.core.GetKeyGenerator().GetReadSubject(),
+				msg)
 			if err != nil {
 				return nil, fmt.Errorf("failed to execute query: %v", err)
 			}
@@ -278,7 +306,12 @@ func (me *NatsStoreInteractor) EntityExists(ctx context.Context, entityId qdata.
 		EntityId: entityId.AsString(),
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetReadSubject(),
+		msg)
 	if err != nil {
 		return false, err
 	}
@@ -305,7 +338,12 @@ func (me *NatsStoreInteractor) Read(ctx context.Context, requests ...*qdata.Requ
 		msg.Requests[i] = r.AsRequestPb()
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetReadSubject(),
+		msg)
 	if err != nil {
 		return err
 	}
@@ -377,7 +415,12 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 		msg.Requests[i] = r.AsRequestPb()
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetWriteSubject(),
+		msg)
 	if err != nil {
 		return err
 	}
@@ -414,7 +457,12 @@ func (me *NatsStoreInteractor) FieldExists(ctx context.Context, entityType qdata
 		FieldName:  fieldType.AsString(),
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetReadSubject(),
+		msg)
 	if err != nil {
 		return false, err
 	}
@@ -436,7 +484,12 @@ func (me *NatsStoreInteractor) GetEntitySchema(ctx context.Context, entityType q
 		Type: entityType.AsString(),
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetReadSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetReadSubject(),
+		msg)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +511,12 @@ func (me *NatsStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdat
 		Schema: schema.AsEntitySchemaPb(),
 	}
 
-	resp, err := me.core.Request(ctx, me.core.GetKeyGenerator().GetWriteSubject(), msg)
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
+	defer cancel()
+	resp, err := me.core.Request(
+		timeoutCtx,
+		me.core.GetKeyGenerator().GetWriteSubject(),
+		msg)
 	if err != nil {
 		return err
 	}
