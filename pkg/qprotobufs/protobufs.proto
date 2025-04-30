@@ -278,6 +278,7 @@ message ApiRuntimeQueryRequest {
     int64 page_size = 2;
     int64 cursor = 3;
     repeated TypeHint type_hints = 4;
+    string engine = 5;
 }
 
 message ApiRuntimeQueryResponse {

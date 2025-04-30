@@ -197,6 +197,7 @@ func (me *RedisStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pa
 	qlog.Trace("PrepareQuery called with SQL: %s, args: %v", sql, args)
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
+	queryEngine := qdata.QEExprLang
 	otherArgs := []any{}
 
 	for _, arg := range args {
@@ -205,6 +206,8 @@ func (me *RedisStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pa
 			pageOpts = append(pageOpts, arg)
 		case qdata.TypeHintOpts:
 			typeHintOpts = append(typeHintOpts, arg)
+		case qdata.QueryEngineType:
+			queryEngine = arg
 		default:
 			otherArgs = append(otherArgs, arg)
 		}
@@ -236,34 +239,36 @@ func (me *RedisStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pa
 			}
 
 			// Try with ExprEvaluator first
-			evaluator := qdata.NewExprEvaluator(me, parsedQuery)
-			if evaluator.CanEvaluate() {
+			if queryEngine == qdata.QEExprLang {
 				qlog.Trace("Using ExprEvaluator for query")
-				return evaluator.ExecuteWithPagination(ctx, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+				evaluator := qdata.NewExprEvaluator(me, parsedQuery)
+				if evaluator.CanEvaluate() {
+					return evaluator.ExecuteWithPagination(ctx, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+				} else {
+					return nil, fmt.Errorf("query engine '%s' cannot evaluate this query", queryEngine)
+				}
 			}
 
-			// Fall back to SQLiteBuilder for complex queries
-			qlog.Trace("Query requires SQLiteBuilder approach")
-			builder, err := qdata.NewSQLiteBuilder(me)
-			if err != nil {
-				qlog.Error("Failed to create SQLite builder: %v", err)
-				return &qdata.PageResult[qdata.QueryRow]{
-					Items:    []qdata.QueryRow{},
-					CursorId: -1,
-					NextPage: nil,
-				}, err
+			if queryEngine == qdata.QESqlite {
+				qlog.Trace("Using SQLite for query")
+				builder, err := qdata.NewSQLiteBuilder(me)
+				if err != nil {
+					return nil, err
+				}
+
+				result, err := builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
+				if err != nil {
+					// Clean up if there was an error
+					builder.Close()
+					return nil, err
+				}
+
+				result.Cleanup = builder.Close
+
+				return result, nil
 			}
 
-			result, err := builder.QueryWithPagination(ctx, parsedQuery, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
-			if err != nil {
-				// Clean up if there was an error
-				builder.Close()
-				return nil, err
-			}
-
-			result.Cleanup = builder.Close
-
-			return result, nil
+			return nil, fmt.Errorf("query engine '%s' not supported for this query", queryEngine)
 		},
 	}, nil
 }

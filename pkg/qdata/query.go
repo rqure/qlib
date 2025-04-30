@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -15,6 +14,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
+)
+
+type QueryEngineType string
+
+const (
+	QESqlite   QueryEngineType = "sqlite"
+	QEExprLang QueryEngineType = "exprlang"
 )
 
 func writerIdColumnName(columnName string) string {
@@ -668,12 +674,8 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 
 	exprStr := `true`
 	if me.parsed.Where != nil {
-		whereClause := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
+		exprStr = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
 			strings.TrimSpace(sqlparser.String(me.parsed.Where)), "where"), "WHERE"))
-
-		// Convert SQL operators to expr language operators
-		exprStr = convertSQLToExpr(whereClause)
-		qlog.Trace("CanEvaluate: Converted SQL WHERE to expr: %s", exprStr)
 	}
 
 	var err error
@@ -684,94 +686,6 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 	}
 
 	return true
-}
-
-// convertSQLToExpr converts SQL syntax to expr language syntax
-func convertSQLToExpr(sqlExpr string) string {
-	start := time.Now()
-	qlog.Trace("convertSQLToExpr: Converting SQL expression: %s", sqlExpr)
-	defer func() {
-		qlog.Trace("convertSQLToExpr: Conversion completed in %v", time.Since(start))
-	}()
-
-	// Replace common SQL operators with expr language operators
-	replacements := map[string]string{
-		" AND ":        " && ",
-		" OR ":         " || ",
-		"NOT ":         "!",
-		" NOT ":        " !",
-		" = ":          " == ",
-		" IS NULL":     " == nil",
-		" IS NOT NULL": " != nil",
-		"NULL":         "nil",
-		" LIKE ":       " matches ",
-	}
-
-	result := sqlExpr
-
-	// Handle complex LIKE patterns by converting them to regex patterns
-	// This regex finds LIKE operators and their patterns
-	likeRegex := regexp.MustCompile(`\s+LIKE\s+['"](.+?)['"]`)
-	result = likeRegex.ReplaceAllStringFunc(result, func(match string) string {
-		// Extract the pattern
-		submatches := likeRegex.FindStringSubmatch(match)
-		if len(submatches) < 2 {
-			return match
-		}
-
-		pattern := submatches[1]
-		// Convert SQL LIKE pattern to regex pattern
-		pattern = strings.Replace(pattern, "%", ".*", -1)
-		pattern = strings.Replace(pattern, "_", ".", -1)
-		return ` matches "^` + pattern + `$"`
-	})
-
-	// Apply simple replacements
-	for sqlOp, exprOp := range replacements {
-		result = strings.Replace(result, sqlOp, exprOp, -1)
-	}
-
-	// Handle case-insensitive comparison for SQL
-	result = strings.Replace(result, "LOWER(", "lower(", -1)
-	result = strings.Replace(result, "UPPER(", "upper(", -1)
-
-	// Handle function names
-	result = strings.Replace(result, "COUNT(", "count(", -1)
-	result = strings.Replace(result, "SUM(", "sum(", -1)
-	result = strings.Replace(result, "AVG(", "mean(", -1)
-	result = strings.Replace(result, "MIN(", "min(", -1)
-	result = strings.Replace(result, "MAX(", "max(", -1)
-
-	// Handle IN operator
-	inRegex := regexp.MustCompile(`(\w+)\s+IN\s+\(([^)]+)\)`)
-	result = inRegex.ReplaceAllStringFunc(result, func(match string) string {
-		submatches := inRegex.FindStringSubmatch(match)
-		if len(submatches) < 3 {
-			return match
-		}
-
-		field := submatches[1]
-		items := submatches[2]
-		// Convert to expr's "in" operator syntax
-		return field + " in [" + items + "]"
-	})
-
-	// Handle BETWEEN operator
-	betweenRegex := regexp.MustCompile(`(\w+)\s+BETWEEN\s+(\w+)\s+AND\s+(\w+)`)
-	result = betweenRegex.ReplaceAllStringFunc(result, func(match string) string {
-		submatches := betweenRegex.FindStringSubmatch(match)
-		if len(submatches) < 4 {
-			return match
-		}
-
-		field := submatches[1]
-		lower := submatches[2]
-		upper := submatches[3]
-		// Convert to expr's comparison operators
-		return field + " >= " + lower + " && " + field + " <= " + upper
-	})
-
-	return result
 }
 
 func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int64, cursorId int64, opts ...TypeHintOpts) (*PageResult[QueryRow], error) {
