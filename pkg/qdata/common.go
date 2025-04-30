@@ -10,6 +10,7 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -375,10 +376,16 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 	if me.Err != nil {
 		err = me.Err.Error()
 	}
+
+	var anyValue *anypb.Any
+	if !me.Value.IsNil() {
+		anyValue = me.Value.AsAnyPb()
+	}
+
 	return &qprotobufs.DatabaseRequest{
 		Id:        string(me.EntityId),
 		Field:     string(me.FieldType),
-		Value:     me.Value.AsAnyPb(),
+		Value:     anyValue,
 		WriteTime: me.WriteTime.AsTimestampPb(),
 		WriterId:  me.WriterId.AsStringPb(),
 		Err:       err,
