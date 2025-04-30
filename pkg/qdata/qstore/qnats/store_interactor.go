@@ -204,6 +204,7 @@ func (me *NatsStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdat
 func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
+	queryEngine := qdata.QEExprLang
 	otherArgs := []any{}
 
 	for _, arg := range args {
@@ -212,6 +213,8 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 			pageOpts = append(pageOpts, arg)
 		case qdata.TypeHintOpts:
 			typeHintOpts = append(typeHintOpts, arg)
+		case qdata.QueryEngineType:
+			queryEngine = arg
 		default:
 			otherArgs = append(otherArgs, arg)
 		}
@@ -246,6 +249,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 				PageSize:  pageConfig.PageSize,
 				Cursor:    pageConfig.CursorId,
 				TypeHints: typeHints,
+				Engine:    string(queryEngine),
 			}
 
 			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
@@ -289,7 +293,8 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 					}
 					newArgs := append(otherArgs,
 						qdata.POPageSize(pageConfig.PageSize),
-						qdata.POCursorId(nextCursor))
+						qdata.POCursorId(nextCursor),
+						queryEngine)
 					for _, typeHintOpt := range typeHintOpts {
 						newArgs = append(newArgs, typeHintOpt)
 					}
@@ -395,7 +400,7 @@ func (me *NatsStoreInteractor) Write(ctx context.Context, requests ...*qdata.Req
 
 			appName := qcontext.GetAppName(ctx)
 			if me.clientId == nil && appName != "" {
-				page, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName)
+				page, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name == %q`, appName)
 				if err == nil {
 					page.ForEach(ctx, func(client qdata.QueryRow) bool {
 						entityId := client.AsEntity().EntityId

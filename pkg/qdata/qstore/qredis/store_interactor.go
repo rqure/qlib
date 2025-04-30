@@ -242,7 +242,7 @@ func (me *RedisStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pa
 			if queryEngine == qdata.QEExprLang {
 				qlog.Trace("Using ExprEvaluator for query")
 				evaluator := qdata.NewExprEvaluator(me, parsedQuery)
-				if evaluator.CanEvaluate() {
+				if evaluator.TryCompile() {
 					return evaluator.ExecuteWithPagination(ctx, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
 				} else {
 					return nil, fmt.Errorf("query engine '%s' cannot evaluate this query", queryEngine)

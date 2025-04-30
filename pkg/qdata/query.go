@@ -645,7 +645,7 @@ func NewExprEvaluator(store StoreInteractor, parsed *ParsedQuery) *ExprEvaluator
 	}
 }
 
-func (me *ExprEvaluator) CanEvaluate() bool {
+func (me *ExprEvaluator) TryCompile() bool {
 	start := time.Now()
 	qlog.Trace("ExprEvaluator.CanEvaluate: Checking if expression can be evaluated")
 	defer func() {
@@ -672,10 +672,87 @@ func (me *ExprEvaluator) CanEvaluate() bool {
 		return false
 	}
 
-	exprStr := `true`
-	if me.parsed.Where != nil {
-		exprStr = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(
-			strings.TrimSpace(sqlparser.String(me.parsed.Where)), "where"), "WHERE"))
+	// Helper: map SQL operator to expr operator
+	sqlToExprOp := func(op string) string {
+		switch op {
+		case "=":
+			return "=="
+		case "<>":
+			return "!="
+		case "!=":
+			return "!="
+		case ">":
+			return ">"
+		case "<":
+			return "<"
+		case ">=":
+			return ">="
+		case "<=":
+			return "<="
+		case "and", "AND":
+			return "and"
+		case "or", "OR":
+			return "or"
+		case "not", "NOT":
+			return "not"
+		default:
+			return op
+		}
+	}
+
+	// Helper: convert SQL AST expression to expr-lang string
+	var exprFromSQL func(sqlparser.Expr) string
+	exprFromSQL = func(e sqlparser.Expr) string {
+		switch node := e.(type) {
+		case *sqlparser.AndExpr:
+			return "(" + exprFromSQL(node.Left) + " and " + exprFromSQL(node.Right) + ")"
+		case *sqlparser.OrExpr:
+			return "(" + exprFromSQL(node.Left) + " or " + exprFromSQL(node.Right) + ")"
+		case *sqlparser.NotExpr:
+			return "not (" + exprFromSQL(node.Expr) + ")"
+		case *sqlparser.ComparisonExpr:
+			left := exprFromSQL(node.Left)
+			right := exprFromSQL(node.Right)
+			op := sqlToExprOp(node.Operator)
+			return left + " " + op + " " + right
+		case *sqlparser.ParenExpr:
+			return "(" + exprFromSQL(node.Expr) + ")"
+		case *sqlparser.SQLVal:
+			switch node.Type {
+			case sqlparser.StrVal, sqlparser.HexVal:
+				return `"` + strings.ReplaceAll(string(node.Val), `"`, `\"`) + `"`
+			case sqlparser.IntVal:
+				return string(node.Val)
+			case sqlparser.FloatVal:
+				return string(node.Val)
+			default:
+				return string(node.Val)
+			}
+		case *sqlparser.ColName:
+			// Map SQL column name to expr variable (use FinalName if possible)
+			col := node.Name.String()
+			qual := node.Qualifier.Name.String()
+			if qual != "" {
+				col = qual + "." + col
+			}
+			// Try to map to FinalName in parsed.Columns
+			for _, qc := range me.parsed.Columns {
+				if qc.ColumnName == col || qc.QualifiedName() == col || qc.QualifiedNameWithQuotes() == col {
+					return qc.FinalName()
+				}
+			}
+			return col
+		case *sqlparser.FuncExpr:
+			// Not supported for now, fallback to SQL string
+			return sqlparser.String(node)
+		default:
+			return sqlparser.String(node)
+		}
+	}
+
+	exprStr := "true"
+	if me.parsed.Where != nil && me.parsed.Where.Expr != nil {
+		exprStr = exprFromSQL(me.parsed.Where.Expr)
 	}
 
 	var err error
