@@ -262,21 +262,25 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 				return nil, fmt.Errorf("failed to execute query: %v", err)
 			}
 
+			startTime := time.Now()
 			var response qprotobufs.ApiRuntimeQueryResponse
 			if err := resp.Payload.UnmarshalTo(&response); err != nil {
 				return nil, fmt.Errorf("failed to parse query response: %v", err)
 			}
+			qlog.Trace("Query response unmarshal parsing took %s", time.Since(startTime))
 
 			if response.Status != qprotobufs.ApiRuntimeQueryResponse_SUCCESS {
 				return nil, fmt.Errorf("query failed: %s", response.Status.String())
 			}
 
 			rows := make([]qdata.QueryRow, 0, len(response.Rows))
+			startTime = time.Now()
 			for _, rowPb := range response.Rows {
 				row := qdata.NewQueryRow()
 				row.FromQueryRowPb(rowPb)
 				rows = append(rows, row)
 			}
+			qlog.Trace("Query row conversion from Pb took %s", time.Since(startTime))
 
 			nextCursor := response.NextCursor
 
