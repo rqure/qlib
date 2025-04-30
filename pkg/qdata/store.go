@@ -2,6 +2,7 @@ package qdata
 
 import (
 	"context"
+	"time"
 
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
@@ -110,7 +111,9 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 	}
 
 	// Try to fetch the next page
+	startTime := time.Now()
 	nextResult, err := p.NextPage(ctx)
+	qlog.Trace("Fetching next page took %s", time.Since(startTime))
 	if err != nil || nextResult == nil {
 		qlog.Warn("Failed to fetch next page: %v", err)
 		p.CursorId = -1
