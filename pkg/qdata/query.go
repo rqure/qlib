@@ -747,7 +747,11 @@ func (me *ExprEvaluator) TryCompile() bool {
 			}
 			// Try to map to FinalName in parsed.Columns
 			for _, qc := range me.parsed.Columns {
-				if qc.ColumnName == col || qc.QualifiedName() == col || qc.QualifiedNameWithQuotes() == col {
+				if qc.ColumnName == col || qc.QualifiedName() == col {
+					if qc.IsSelected {
+						return qc.SelectedName
+					}
+
 					return qc.FinalName()
 				}
 			}
