@@ -684,6 +684,7 @@ func (me *ExprEvaluator) TryCompile() bool {
 
 	// Helper: map SQL operator to expr operator
 	sqlToExprOp := func(op string) string {
+		op = strings.ToLower(op)
 		switch op {
 		case "=":
 			return "=="
@@ -699,12 +700,14 @@ func (me *ExprEvaluator) TryCompile() bool {
 			return ">="
 		case "<=":
 			return "<="
-		case "and", "AND":
+		case "and":
 			return "and"
-		case "or", "OR":
+		case "or":
 			return "or"
-		case "not", "NOT":
+		case "not":
 			return "not"
+		case "like":
+			return "in"
 		default:
 			return op
 		}
