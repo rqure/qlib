@@ -254,6 +254,7 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 
 			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultRequestTimeout)
 			defer cancel()
+			startTime := time.Now()
 			resp, err := me.core.Request(
 				timeoutCtx,
 				me.core.GetKeyGenerator().GetReadSubject(),
@@ -261,8 +262,9 @@ func (me *NatsStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.Pag
 			if err != nil {
 				return nil, fmt.Errorf("failed to execute query: %v", err)
 			}
+			qlog.Trace("Query request took %s", time.Since(startTime))
 
-			startTime := time.Now()
+			startTime = time.Now()
 			var response qprotobufs.ApiRuntimeQueryResponse
 			if err := resp.Payload.UnmarshalTo(&response); err != nil {
 				return nil, fmt.Errorf("failed to parse query response: %v", err)

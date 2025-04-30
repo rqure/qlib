@@ -134,33 +134,39 @@ func (c *natsCore) Request(ctx context.Context, subject string, msg proto.Messag
 	apiMsg.Header = &qprotobufs.ApiHeader{}
 	apiMsg.Payload, _ = anypb.New(msg)
 
+	startTime := time.Now()
 	clientProvider := qcontext.GetClientProvider[qauthentication.Client](ctx)
 	client := clientProvider.Client(ctx)
 	if client != nil {
 		session := client.GetSession(ctx)
 		apiMsg.Header.AccessToken = session.AccessToken()
+		qlog.Trace("Retrieving access token took %s", time.Since(startTime))
 	}
 
+	startTime = time.Now()
 	data, err := proto.Marshal(apiMsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal message: %v", err)
 	}
+	qlog.Trace("Marshalling message took %s", time.Since(startTime))
 
 	if c.conn == nil {
 		return nil, fmt.Errorf("not connected")
 	}
 
-	startTime := time.Now()
+	startTime = time.Now()
 	response, err := c.conn.RequestWithContext(ctx, subject, data)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
 	qlog.Trace("Request to %s took %s", subject, time.Since(startTime))
 
+	startTime = time.Now()
 	var respMsg qprotobufs.ApiMessage
 	if err := proto.Unmarshal(response.Data, &respMsg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
+	qlog.Trace("Unmarshalling response took %s", time.Since(startTime))
 
 	return &respMsg, nil
 }

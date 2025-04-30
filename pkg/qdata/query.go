@@ -32,11 +32,12 @@ func writeTimeColumnName(columnName string) string {
 }
 
 type QueryColumn struct {
-	ColumnName string
-	Alias      string
-	Table      QueryTable
-	IsSelected bool
-	Order      int // Add this field to track selection order
+	ColumnName   string
+	Alias        string
+	Table        QueryTable
+	SelectedName string
+	IsSelected   bool
+	Order        int // Add this field to track selection order
 }
 
 func (me *QueryColumn) QualifiedName() string {
@@ -373,9 +374,10 @@ func expandWildcard(ctx context.Context, table QueryTable, parsed *ParsedQuery, 
 	systemColumns := []string{"$EntityId", "$EntityType"}
 	for _, sysCol := range systemColumns {
 		col := QueryColumn{
-			ColumnName: sysCol,
-			Table:      table,
-			IsSelected: true,
+			ColumnName:   sysCol,
+			Table:        table,
+			SelectedName: sysCol,
+			IsSelected:   true,
 		}
 		finalName := col.FinalName()
 		if _, exists := parsed.Columns[finalName]; !exists {
@@ -388,9 +390,10 @@ func expandWildcard(ctx context.Context, table QueryTable, parsed *ParsedQuery, 
 	for fieldName := range schema.Fields {
 		// Create a QueryColumn for each col
 		col := QueryColumn{
-			ColumnName: string(fieldName),
-			Table:      table,
-			IsSelected: true,
+			ColumnName:   string(fieldName),
+			Table:        table,
+			SelectedName: string(fieldName),
+			IsSelected:   true,
 		}
 
 		// Use FinalName as the key to avoid duplicates
@@ -444,10 +447,13 @@ func extractFieldsFromExpr(expr sqlparser.SQLNode, tableLookup map[string]QueryT
 	case *sqlparser.AliasedExpr:
 		field := extractField(node.Expr, tableLookup)
 		if field != nil {
+			field.IsSelected = isSelect
 			if !node.As.IsEmpty() {
 				field.Alias = node.As.String()
+				if field.IsSelected {
+					field.SelectedName = field.Alias
+				}
 			}
-			field.IsSelected = isSelect
 			fields = append(fields, *field)
 		}
 
@@ -516,9 +522,10 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 			for _, queryTable := range tableLookup {
 				if queryTable.TableName == qualifier || queryTable.Alias == qualifier {
 					return &QueryColumn{
-						ColumnName: columnName,
-						Table:      queryTable,
-						IsSelected: false, // Will be set by caller if needed
+						ColumnName:   columnName,
+						Table:        queryTable,
+						SelectedName: qualifier + "." + columnName,
+						IsSelected:   false, // Will be set by caller if needed
 					}
 				}
 			}
@@ -532,9 +539,10 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 					break
 				}
 				return &QueryColumn{
-					ColumnName: columnName,
-					Table:      queryTable,
-					IsSelected: false, // Will be set by caller if needed
+					ColumnName:   columnName,
+					Table:        queryTable,
+					SelectedName: columnName,
+					IsSelected:   false, // Will be set by caller if needed
 				}
 			}
 		}
@@ -553,9 +561,10 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 			for _, queryTable := range tableLookup {
 				if queryTable.TableName == qualifier || queryTable.Alias == qualifier {
 					return &QueryColumn{
-						ColumnName: columnName,
-						Table:      queryTable,
-						IsSelected: false, // Will be set by caller if needed
+						ColumnName:   columnName,
+						Table:        queryTable,
+						SelectedName: qualifier + "." + columnName,
+						IsSelected:   false, // Will be set by caller if needed
 					}
 				}
 			}
@@ -569,9 +578,10 @@ func extractField(expr sqlparser.Expr, tableLookup map[string]QueryTable) *Query
 					break
 				}
 				return &QueryColumn{
-					ColumnName: columnName,
-					Table:      queryTable,
-					IsSelected: false, // Will be set by caller if needed
+					ColumnName:   columnName,
+					Table:        queryTable,
+					SelectedName: columnName,
+					IsSelected:   false, // Will be set by caller if needed
 				}
 			}
 		}
@@ -854,6 +864,9 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 						isSelected = col.IsSelected
 						found = true
 						columnName = col.FinalName()
+						if col.IsSelected {
+							columnName = col.SelectedName
+						}
 						break
 					}
 				}
