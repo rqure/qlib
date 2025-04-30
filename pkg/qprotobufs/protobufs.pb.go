@@ -2781,6 +2781,7 @@ type ApiRuntimeQueryRequest struct {
 	PageSize      int64                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	Cursor        int64                  `protobuf:"varint,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	TypeHints     []*TypeHint            `protobuf:"bytes,4,rep,name=type_hints,json=typeHints,proto3" json:"type_hints,omitempty"`
+	Engine        string                 `protobuf:"bytes,5,opt,name=engine,proto3" json:"engine,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2841,6 +2842,13 @@ func (x *ApiRuntimeQueryRequest) GetTypeHints() []*TypeHint {
 		return x.TypeHints
 	}
 	return nil
+}
+
+func (x *ApiRuntimeQueryRequest) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
 }
 
 type ApiRuntimeQueryResponse struct {
@@ -4155,13 +4163,14 @@ const file_pkg_qprotobufs_protobufs_proto_rawDesc = "" +
 	"\vis_selected\x18\x03 \x01(\bR\n" +
 	"isSelected\"=\n" +
 	"\bQueryRow\x121\n" +
-	"\acolumns\x18\x01 \x03(\v2\x17.qprotobufs.QueryColumnR\acolumns\"\x98\x01\n" +
+	"\acolumns\x18\x01 \x03(\v2\x17.qprotobufs.QueryColumnR\acolumns\"\xb0\x01\n" +
 	"\x16ApiRuntimeQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x03R\bpageSize\x12\x16\n" +
 	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\x123\n" +
 	"\n" +
-	"type_hints\x18\x04 \x03(\v2\x14.qprotobufs.TypeHintR\ttypeHints\"\xe5\x01\n" +
+	"type_hints\x18\x04 \x03(\v2\x14.qprotobufs.TypeHintR\ttypeHints\x12\x16\n" +
+	"\x06engine\x18\x05 \x01(\tR\x06engine\"\xe5\x01\n" +
 	"\x17ApiRuntimeQueryResponse\x12F\n" +
 	"\x06status\x18\x01 \x01(\x0e2..qprotobufs.ApiRuntimeQueryResponse.StatusEnumR\x06status\x12(\n" +
 	"\x04rows\x18\x02 \x03(\v2\x14.qprotobufs.QueryRowR\x04rows\x12\x1f\n" +
