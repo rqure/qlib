@@ -897,7 +897,24 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 			// Evaluate the expression against the row
 			params := make(map[string]interface{})
 			for _, col := range row.Columns() {
-				params[col] = row.Get(col).GetRaw()
+				dividedCol := strings.Split(col, ".")
+				if len(dividedCol) == 2 {
+					table := dividedCol[0]
+					field := dividedCol[1]
+
+					if params[table] == nil {
+						params[table] = make(map[string]interface{})
+					}
+
+					if m, ok := params[table].(map[string]interface{}); ok {
+						m[field] = row.Get(col).GetRaw()
+					} else {
+						// This should not happen, but just in case
+						qlog.Trace("ExprEvaluator.ExecuteWithPagination: Failed to set parameter for %s", col)
+					}
+				} else {
+					params[col] = row.Get(col).GetRaw()
+				}
 			}
 
 			evalExprStart := time.Now()
