@@ -115,7 +115,6 @@ func (p *PageResult[T]) Next(ctx context.Context) bool {
 	nextResult, err := p.NextPage(ctx)
 	qlog.Trace("Fetching next page took %s", time.Since(startTime))
 	if err != nil || nextResult == nil {
-		qlog.Warn("Failed to fetch next page: %v", err)
 		p.CursorId = -1
 		p.NextPage = nil
 		return false
