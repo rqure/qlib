@@ -8,8 +8,8 @@ import (
 	"github.com/rqure/qlib/pkg/qscripting"
 )
 
-func HasPermission(ctx context.Context, accessorId qdata.EntityId, requiredPermissions []qdata.EntityId, store qdata.StoreInteractor) bool {
-	accessor := new(qdata.Entity).Init(accessorId)
+func HasPermission(ctx context.Context, subjectId qdata.EntityId, requiredPermissions []qdata.EntityId, store qdata.StoreInteractor) bool {
+	subject := new(qdata.Entity).Init(subjectId)
 
 	permissions := []*qdata.Entity{}
 	for _, permissionId := range requiredPermissions {
@@ -25,7 +25,7 @@ func HasPermission(ctx context.Context, accessorId qdata.EntityId, requiredPermi
 		scriptSrc := permission.Field(qdata.FTPolicy).Value.GetString()
 		policy := qscripting.NewExecutor(scriptSrc)
 		out, err := policy.Execute(ctx, map[string]qscripting.ObjectConverterFn{
-			"SUBJECT": qscripting.Entity(accessor),
+			"SUBJECT": qscripting.Entity(subject),
 			"STORE":   qscripting.Store(store),
 		})
 		if err != nil {
@@ -41,7 +41,7 @@ func HasPermission(ctx context.Context, accessorId qdata.EntityId, requiredPermi
 	return true
 }
 
-func CanRead(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
+func CanRead(ctx context.Context, subjectId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
 	resourceSchema, err := store.GetFieldSchema(ctx, resource.EntityId.GetEntityType(), resource.FieldType)
 	if err != nil {
 		qlog.Warn("Failed to get field schema: %v", err)
@@ -52,10 +52,10 @@ func CanRead(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Fie
 		return false
 	}
 
-	return HasPermission(ctx, accessorId, resourceSchema.ReadPermissions, store)
+	return HasPermission(ctx, subjectId, resourceSchema.ReadPermissions, store)
 }
 
-func CanWrite(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
+func CanWrite(ctx context.Context, subjectId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
 	resourceSchema, err := store.GetFieldSchema(ctx, resource.EntityId.GetEntityType(), resource.FieldType)
 	if err != nil {
 		qlog.Warn("Failed to get field schema: %v", err)
@@ -66,7 +66,7 @@ func CanWrite(ctx context.Context, accessorId qdata.EntityId, resource *qdata.Fi
 		return false
 	}
 
-	return HasPermission(ctx, accessorId, resourceSchema.WritePermissions, store)
+	return HasPermission(ctx, subjectId, resourceSchema.WritePermissions, store)
 }
 
 type Authorizer interface {
