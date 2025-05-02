@@ -33,7 +33,17 @@ func HasPermission(ctx context.Context, subjectId qdata.EntityId, requiredPermis
 			return false
 		}
 
-		if !out["ALLOW"].(bool) {
+		allow, ok := out["ALLOW"]
+		if !ok {
+			return false
+		}
+
+		allowBool, ok := allow.(bool)
+		if !ok {
+			return false
+		}
+
+		if !allowBool {
 			return false
 		}
 	}
