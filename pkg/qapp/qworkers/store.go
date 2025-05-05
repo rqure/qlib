@@ -160,9 +160,12 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 			me.client.Field(qdata.FTReadsPerSecond).Value.FromInt(me.readCount)
 			me.client.Field(qdata.FTWritesPerSecond).Value.FromInt(me.writeCount)
 
-			me.store.Write(ctx,
+			err := me.store.Write(ctx,
 				me.client.Field(qdata.FTReadsPerSecond).AsWriteRequest(),
 				me.client.Field(qdata.FTWritesPerSecond).AsWriteRequest())
+			if err != nil {
+				qlog.Warn("Failed to write metrics: %v", err)
+			}
 
 			me.readCount = 0
 			me.writeCount = 0

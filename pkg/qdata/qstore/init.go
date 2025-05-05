@@ -82,6 +82,8 @@ func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 		Fields: []*qprotobufs.DatabaseFieldSchema{
 			{Name: qdata.FTLogLevel.AsString(), Type: qdata.VTChoice.AsString(), ChoiceOptions: []string{"Trace", "Debug", "Info", "Warn", "Error", "Panic"}, Rank: 5},
 			{Name: qdata.FTQLibLogLevel.AsString(), Type: qdata.VTChoice.AsString(), ChoiceOptions: []string{"Trace", "Debug", "Info", "Warn", "Error", "Panic"}, Rank: 6},
+			{Name: qdata.FTReadsPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 7},
+			{Name: qdata.FTWritesPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 8},
 		},
 	}))
 	if err != nil {
