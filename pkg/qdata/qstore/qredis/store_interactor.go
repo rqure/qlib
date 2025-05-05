@@ -546,15 +546,17 @@ func (me *RedisStoreInteractor) SetEntitySchema(ctx context.Context, schema *qda
 		}
 
 		iter.ForEach(ctx, func(entityId qdata.EntityId) bool {
-			err := me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
-				result := client.HDel(ctx, me.keyBuilder.GetEntityKey(entityId), removedFields.AsStringSlice()...)
-				if result.Err() != nil {
-					return result.Err()
-				}
-				return nil
-			})
+			if len(removedFields) > 0 {
+				err := me.core.WithClient(ctx, func(ctx context.Context, client *redis.Client) error {
+					result := client.HDel(ctx, me.keyBuilder.GetEntityKey(entityId), removedFields.AsStringSlice()...)
+					if result.Err() != nil {
+						return result.Err()
+					}
+					return nil
+				})
 
-			errs = append(errs, fmt.Errorf("failed to remove fields (%+v) from entity %s: %w", removedFields, entityId.AsString(), err))
+				errs = append(errs, fmt.Errorf("failed to remove fields (%+v) from entity %s: %w", removedFields, entityId.AsString(), err))
+			}
 
 			reqs := make([]*qdata.Request, 0)
 			for _, newField := range newFields {

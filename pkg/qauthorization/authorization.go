@@ -62,7 +62,7 @@ func CanRead(ctx context.Context, subjectId qdata.EntityId, resource *qdata.Fiel
 		return false
 	}
 
-	return HasPermission(ctx, subjectId, resourceSchema.ReadPermissions, store)
+	return HasPermission(ctx, subjectId, resourceSchema.ReadPermissions, store) || HasKernelPermission(ctx, subjectId, store)
 }
 
 func CanWrite(ctx context.Context, subjectId qdata.EntityId, resource *qdata.Field, store qdata.StoreInteractor) bool {
@@ -76,7 +76,30 @@ func CanWrite(ctx context.Context, subjectId qdata.EntityId, resource *qdata.Fie
 		return false
 	}
 
-	return HasPermission(ctx, subjectId, resourceSchema.WritePermissions, store)
+	return HasPermission(ctx, subjectId, resourceSchema.WritePermissions, store) || HasKernelPermission(ctx, subjectId, store)
+}
+
+func HasKernelPermission(ctx context.Context, subjectId qdata.EntityId, store qdata.StoreInteractor) bool {
+	iter, err := store.PrepareQuery(`SELECT "$EntityId" FROM Permission WHERE Name = "Kernel"`, subjectId)
+	if err != nil {
+		qlog.Warn("Failed to prepare query: %v", err)
+		return false
+	}
+	defer iter.Close()
+
+	var permission *qdata.Entity
+	iter.ForEach(ctx, func(row qdata.QueryRow) bool {
+		permission = row.AsEntity()
+
+		return false // Break after first permission
+	})
+
+	if permission == nil {
+		qlog.Warn("kernel permission not found")
+		return false
+	}
+
+	return HasPermission(ctx, subjectId, []qdata.EntityId{permission.EntityId}, store)
 }
 
 type Authorizer interface {
