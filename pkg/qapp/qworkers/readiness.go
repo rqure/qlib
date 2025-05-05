@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/rqure/qlib/pkg/qapp"
-	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
@@ -65,47 +64,6 @@ func NewStoreConnectedCriteria(s Store, r Readiness) ReadinessCriteria {
 
 	r.BecameReady().Connect(s.OnReady)
 	r.BecameNotReady().Connect(s.OnNotReady)
-
-	return c
-}
-
-type SchemaValidityCriteria interface {
-	ReadinessCriteria
-	RegisterEntityFields(entityType qdata.EntityType, fields ...qdata.FieldType) SchemaValidityCriteria
-}
-
-type schemaValidityCriteria struct {
-	isValid   bool
-	validator qdata.EntityFieldValidator
-}
-
-func (me *schemaValidityCriteria) IsReady() bool {
-	return me.isValid
-}
-
-func (me *schemaValidityCriteria) RegisterEntityFields(entityType qdata.EntityType, fields ...qdata.FieldType) SchemaValidityCriteria {
-	me.validator.RegisterEntityFields(entityType, fields...)
-	return me
-}
-
-func (me *schemaValidityCriteria) onSchemaChanged(args SchemaChangedArgs) {
-	err := me.validator.ValidateFields(args.Ctx)
-	if err != nil {
-		qlog.Warn("Schema validation failed: %v", err)
-		me.isValid = false
-	} else {
-		qlog.Info("Schema validation succeeded")
-		me.isValid = true
-	}
-}
-
-func NewSchemaValidityCriteria(storeWorker Store, store *qdata.Store) SchemaValidityCriteria {
-	c := &schemaValidityCriteria{
-		isValid:   false,
-		validator: qdata.NewEntityFieldValidator(store),
-	}
-
-	storeWorker.SchemaChanged().Connect(c.onSchemaChanged)
 
 	return c
 }
