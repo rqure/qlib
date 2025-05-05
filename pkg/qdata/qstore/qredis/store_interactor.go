@@ -554,8 +554,9 @@ func (me *RedisStoreInteractor) SetEntitySchema(ctx context.Context, schema *qda
 					}
 					return nil
 				})
-
-				errs = append(errs, fmt.Errorf("failed to remove fields (%+v) from entity %s: %w", removedFields, entityId.AsString(), err))
+				if err != nil {
+					errs = append(errs, fmt.Errorf("failed to remove fields (%+v) from entity %s: %w", removedFields, entityId.AsString(), err))
+				}
 			}
 
 			reqs := make([]*qdata.Request, 0)
@@ -566,8 +567,9 @@ func (me *RedisStoreInteractor) SetEntitySchema(ctx context.Context, schema *qda
 				reqs = append(reqs, req)
 			}
 			err = me.Write(ctx, reqs...)
-
-			errs = append(errs, fmt.Errorf("failed to add fields (%+v) to entity %s: %w", newFields, entityId.AsString(), err))
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to add fields (%+v) to entity %s: %w", newFields, entityId.AsString(), err))
+			}
 
 			return true
 		})
