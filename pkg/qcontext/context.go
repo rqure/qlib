@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/qauthorization"
+	"github.com/rqure/qlib/pkg/qss"
 )
 
 type CtxType string
@@ -21,6 +22,7 @@ type ClientProvider[T any] interface {
 }
 
 type Handle interface {
+	BusyEvent() qss.Signal[time.Duration]
 	DoInMainThread(func(context.Context))
 	Exit()
 	GetWg() *sync.WaitGroup

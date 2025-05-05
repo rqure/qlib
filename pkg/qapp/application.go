@@ -11,6 +11,7 @@ import (
 	"github.com/rqure/qlib/pkg/qauthentication"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qlog"
+	"github.com/rqure/qlib/pkg/qss"
 )
 
 type Application interface {
@@ -31,6 +32,8 @@ type application struct {
 	ticker  *time.Ticker
 	exitCh  chan struct{}
 
+	busyDuration qss.Signal[time.Duration]
+
 	ctxKVs map[any]any
 }
 
@@ -38,10 +41,11 @@ type ApplicationOpts func(map[any]any)
 
 func NewApplication(name string, opts ...ApplicationOpts) Application {
 	a := &application{
-		tasks:  make(chan func(context.Context), 10000),
-		wg:     &sync.WaitGroup{},
-		ctxKVs: make(map[any]any),
-		exitCh: make(chan struct{}, 1),
+		tasks:        make(chan func(context.Context), 10000),
+		wg:           &sync.WaitGroup{},
+		ctxKVs:       make(map[any]any),
+		exitCh:       make(chan struct{}, 1),
+		busyDuration: qss.New[time.Duration](),
 	}
 
 	a.ctxKVs[qcontext.KeyAppName] = name
@@ -56,16 +60,16 @@ func NewApplication(name string, opts ...ApplicationOpts) Application {
 	return a
 }
 
-func (a *application) ApplyOpts(opts ...ApplicationOpts) Application {
+func (me *application) ApplyOpts(opts ...ApplicationOpts) Application {
 	for _, opt := range opts {
-		opt(a.ctxKVs)
+		opt(me.ctxKVs)
 	}
 
-	return a
+	return me
 }
 
-func (a *application) AddWorker(w Worker) {
-	a.workers = append(a.workers, w)
+func (me *application) AddWorker(w Worker) {
+	me.workers = append(me.workers, w)
 }
 
 func (a *application) Init() {
@@ -83,21 +87,21 @@ func (a *application) Init() {
 	}
 }
 
-func (a *application) Deinit() {
+func (me *application) Deinit() {
 	qlog.Info("Deinitializing workers")
 
-	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), a.ctxKVs), 10*time.Second)
+	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), me.ctxKVs), 10*time.Second)
 	defer cancel()
 
-	a.ticker.Stop()
+	me.ticker.Stop()
 
-	for _, w := range a.workers {
+	for _, w := range me.workers {
 		w.Deinit(ctx)
 	}
 
 	done := make(chan struct{})
 	go func() {
-		a.wg.Wait()
+		me.wg.Wait()
 		close(done)
 	}()
 
@@ -117,18 +121,18 @@ func makeContextWithKV(ctx context.Context, kv map[any]any) context.Context {
 	return ctx
 }
 
-func (a *application) Execute() {
+func (me *application) Execute() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
 	defer close(interrupt)
 
-	ctx, cancel := context.WithCancel(makeContextWithKV(context.Background(), a.ctxKVs))
+	ctx, cancel := context.WithCancel(makeContextWithKV(context.Background(), me.ctxKVs))
 	defer cancel()
 
 	go func() {
 		select {
-		case <-a.exitCh:
+		case <-me.exitCh:
 			cancel()
 		case <-interrupt:
 			cancel()
@@ -137,33 +141,41 @@ func (a *application) Execute() {
 		}
 	}()
 
-	a.Init()
-	defer a.Deinit()
+	me.Init()
+	defer me.Deinit()
 
 	qlog.Info("Application execution started")
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-a.ticker.C:
-			for _, w := range a.workers {
+		case <-me.ticker.C:
+			busyStart := time.Now()
+			for _, w := range me.workers {
 				w.DoWork(ctx)
 			}
-		case task := <-a.tasks:
+			me.busyDuration.Emit(time.Since(busyStart))
+		case task := <-me.tasks:
+			busyStart := time.Now()
 			task(ctx)
+			me.busyDuration.Emit(time.Since(busyStart))
 		}
 	}
 }
 
-func (a *application) DoInMainThread(t func(context.Context)) {
-	go func() { a.tasks <- t }()
+func (me *application) DoInMainThread(t func(context.Context)) {
+	go func() { me.tasks <- t }()
 }
 
 func (a *application) GetWg() *sync.WaitGroup {
 	return a.wg
 }
 
-func (a *application) Exit() {
+func (me *application) Exit() {
 	qlog.Trace("Application exit requested")
-	a.exitCh <- struct{}{}
+	me.exitCh <- struct{}{}
+}
+
+func (me *application) BusyEvent() qss.Signal[time.Duration] {
+	return me.busyDuration
 }

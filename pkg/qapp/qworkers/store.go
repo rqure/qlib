@@ -74,8 +74,9 @@ type storeWorker struct {
 	connectionAttemptTimer *time.Ticker
 	metricsTimer           *time.Ticker
 
-	readCount  int
-	writeCount int
+	readCount    int
+	writeCount   int
+	busyDuration time.Duration
 
 	handle qcontext.Handle
 }
@@ -111,6 +112,8 @@ func (me *storeWorker) Disconnected() qss.Signal[context.Context] {
 
 func (me *storeWorker) Init(ctx context.Context) {
 	me.handle = qcontext.GetHandle(ctx)
+	me.handle.BusyEvent().Connect(me.onBusyEvent)
+
 	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
 	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
 	me.connectionCheckTimer = time.NewTicker(1 * time.Second)
@@ -159,16 +162,20 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 		if me.isReady && me.client != nil {
 			me.client.Field(qdata.FTReadsPerSecond).Value.FromInt(me.readCount)
 			me.client.Field(qdata.FTWritesPerSecond).Value.FromInt(me.writeCount)
+			idleDuration := (1 * time.Second) - me.busyDuration
+			me.client.Field(qdata.FTIdleMsPerSec).Value.FromInt(int(idleDuration.Milliseconds()))
 
 			err := me.store.Write(ctx,
 				me.client.Field(qdata.FTReadsPerSecond).AsWriteRequest(),
-				me.client.Field(qdata.FTWritesPerSecond).AsWriteRequest())
+				me.client.Field(qdata.FTWritesPerSecond).AsWriteRequest(),
+				me.client.Field(qdata.FTIdleMsPerSec).AsWriteRequest())
 			if err != nil {
 				qlog.Warn("Failed to write metrics: %v", err)
 			}
 
 			me.readCount = 0
 			me.writeCount = 0
+			me.busyDuration = 0
 		}
 	default:
 	}
@@ -248,11 +255,13 @@ func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notifi
 }
 
 func (me *storeWorker) OnReady(ctx context.Context) {
+	me.isReady = true
 	me.client = nil
 
 	// Clear metrics
 	me.readCount = 0
 	me.writeCount = 0
+	me.busyDuration = 0
 
 	// Clear previous notifications
 	for _, token := range me.notificationTokens {
@@ -358,7 +367,7 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 }
 
 func (me *storeWorker) OnNotReady(ctx context.Context) {
-
+	me.isReady = false
 }
 
 func (me *storeWorker) AuthReady() qss.Signal[context.Context] {
@@ -426,4 +435,8 @@ func (me *storeWorker) onEntityDeleted(ctx context.Context, n qdata.Notification
 		Ctx:    ctx,
 		Entity: new(qdata.Entity).Init(entityId),
 	})
+}
+
+func (me *storeWorker) onBusyEvent(d time.Duration) {
+	me.busyDuration += d
 }
