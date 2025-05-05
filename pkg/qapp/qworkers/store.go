@@ -14,6 +14,21 @@ import (
 	"github.com/rqure/qlib/pkg/qss"
 )
 
+type SchemaChangedArgs struct {
+	Ctx        context.Context
+	EntityType qdata.EntityType
+}
+
+type EntityCreateArgs struct {
+	Ctx    context.Context
+	Entity *qdata.Entity
+}
+
+type EntityDeletedArgs struct {
+	Ctx    context.Context
+	Entity *qdata.Entity
+}
+
 type Store interface {
 	qapp.Worker
 
@@ -29,6 +44,10 @@ type Store interface {
 	// The ReadinessWorker will fire this when all readiness criteria are met
 	OnReady(context.Context)
 	OnNotReady(context.Context)
+
+	SchemaChanged() qss.Signal[SchemaChangedArgs]
+	EntityCreated() qss.Signal[EntityCreateArgs]
+	EntityDeleted() qss.Signal[EntityDeletedArgs]
 }
 
 type storeWorker struct {
@@ -37,6 +56,10 @@ type storeWorker struct {
 
 	authReady    qss.Signal[context.Context]
 	authNotReady qss.Signal[context.Context]
+
+	schemaChanged qss.Signal[SchemaChangedArgs]
+	entityCreated qss.Signal[EntityCreateArgs]
+	entityDeleted qss.Signal[EntityDeletedArgs]
 
 	store            *qdata.Store
 	isStoreConnected bool
@@ -64,6 +87,10 @@ func NewStore(store *qdata.Store) Store {
 
 		authReady:    qss.New[context.Context](),
 		authNotReady: qss.New[context.Context](),
+
+		schemaChanged: qss.New[SchemaChangedArgs](),
+		entityCreated: qss.New[EntityCreateArgs](),
+		entityDeleted: qss.New[EntityDeletedArgs](),
 
 		store:            store,
 		isStoreConnected: false,
@@ -232,6 +259,48 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	// Reinitialize notifications
 	me.notificationTokens = make([]qdata.NotificationToken, 0)
 
+	root, err := qdata.NewPathResolver(me.store).Resolve(ctx, "Root")
+	if err != nil {
+		qlog.Warn("Failed to resolve root: %v", err)
+		return
+	}
+
+	token, err := me.store.Notify(
+		ctx,
+		qnotify.NewConfig().
+			SetEntityId(root.EntityId).
+			SetFieldType(qdata.FTSchemaChanged),
+		qnotify.NewCallback(me.onSchemaChanged))
+	if err != nil {
+		qlog.Warn("Failed to bind to schema change: %v", err)
+	} else {
+		me.notificationTokens = append(me.notificationTokens, token)
+	}
+
+	token, err = me.store.Notify(
+		ctx,
+		qnotify.NewConfig().
+			SetEntityId(root.EntityId).
+			SetFieldType(qdata.FTEntityCreated),
+		qnotify.NewCallback(me.onEntityCreated))
+	if err != nil {
+		qlog.Warn("Failed to bind to entity creation: %v", err)
+	} else {
+		me.notificationTokens = append(me.notificationTokens, token)
+	}
+
+	token, err = me.store.Notify(
+		ctx,
+		qnotify.NewConfig().
+			SetEntityId(root.EntityId).
+			SetFieldType(qdata.FTEntityDeleted),
+		qnotify.NewCallback(me.onEntityDeleted))
+	if err != nil {
+		qlog.Warn("Failed to bind to entity deletion: %v", err)
+	} else {
+		me.notificationTokens = append(me.notificationTokens, token)
+	}
+
 	appName := qcontext.GetAppName(ctx)
 	iter, err := me.store.
 		PrepareQuery(`
@@ -240,42 +309,42 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 		WHERE Name = %q`,
 			appName)
 	if err != nil {
-		qlog.Error("Failed to prepare query: %v", err)
+		qlog.Warn("Failed to prepare query: %v", err)
 	} else {
 		iter.ForEach(ctx, func(row qdata.QueryRow) bool {
 			client := row.AsEntity()
 			me.client = client
 
-			logLevel := client.Field("LogLevel").Value.GetChoice() + 1
+			logLevel := client.Field(qdata.FTLogLevel).Value.GetChoice() + 1
 			qlog.SetLevel(qlog.Level(logLevel))
 
 			token, err := me.store.Notify(
 				ctx,
 				qnotify.NewConfig().
 					SetEntityId(client.EntityId).
-					SetFieldType("LogLevel").
+					SetFieldType(qdata.FTLogLevel).
 					SetNotifyOnChange(true),
 				qnotify.NewCallback(me.onLogLevelChanged),
 			)
 			if err != nil {
-				qlog.Error("Failed to bind to log level change: %v", err)
+				qlog.Warn("Failed to bind to log level change: %v", err)
 			} else {
 				me.notificationTokens = append(me.notificationTokens, token)
 			}
 
-			qlibLogLevel := client.Field("QLibLogLevel").Value.GetChoice() + 1
+			qlibLogLevel := client.Field(qdata.FTQLibLogLevel).Value.GetChoice() + 1
 			qlog.SetLibLevel(qlog.Level(qlibLogLevel))
 
 			token, err = me.store.Notify(
 				ctx,
 				qnotify.NewConfig().
 					SetEntityId(client.EntityId).
-					SetFieldType("QLibLogLevel").
+					SetFieldType(qdata.FTQLibLogLevel).
 					SetNotifyOnChange(true),
 				qnotify.NewCallback(me.onQLibLogLevelChanged),
 			)
 			if err != nil {
-				qlog.Error("Failed to bind to QLib log level change: %v", err)
+				qlog.Warn("Failed to bind to QLib log level change: %v", err)
 			} else {
 				me.notificationTokens = append(me.notificationTokens, token)
 			}
@@ -311,4 +380,47 @@ func (me *storeWorker) setAuthReadiness(ctx context.Context, ready bool, reason 
 		qlog.Warn("Authentication status changed to [NOT READY] with reason: %s", reason)
 		me.authNotReady.Emit(ctx)
 	}
+}
+
+func (me *storeWorker) SchemaChanged() qss.Signal[SchemaChangedArgs] {
+	return me.schemaChanged
+}
+
+func (me *storeWorker) EntityCreated() qss.Signal[EntityCreateArgs] {
+	return me.entityCreated
+}
+
+func (me *storeWorker) EntityDeleted() qss.Signal[EntityDeletedArgs] {
+	return me.entityDeleted
+}
+
+func (me *storeWorker) onSchemaChanged(ctx context.Context, n qdata.Notification) {
+	qlog.Debug("Schema changed for EntityType %s", n.GetCurrent().Value.GetString())
+	entityType := qdata.EntityType(n.GetCurrent().Value.GetString())
+	me.schemaChanged.Emit(SchemaChangedArgs{
+		Ctx:        ctx,
+		EntityType: entityType,
+	})
+}
+
+func (me *storeWorker) onEntityCreated(ctx context.Context, n qdata.Notification) {
+	qlog.Debug("Entity created: %s", n.GetCurrent().Value.GetString())
+
+	entityId := n.GetCurrent().Value.GetEntityReference()
+
+	me.entityCreated.Emit(EntityCreateArgs{
+		Ctx:    ctx,
+		Entity: new(qdata.Entity).Init(entityId),
+	})
+}
+
+func (me *storeWorker) onEntityDeleted(ctx context.Context, n qdata.Notification) {
+	qlog.Debug("Entity deleted: %s", n.GetCurrent().Value.GetString())
+
+	entityId := n.GetCurrent().Value.GetEntityReference()
+
+	me.entityDeleted.Emit(EntityDeletedArgs{
+		Ctx:    ctx,
+		Entity: new(qdata.Entity).Init(entityId),
+	})
 }
