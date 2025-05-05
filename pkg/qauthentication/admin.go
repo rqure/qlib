@@ -3,6 +3,7 @@ package qauthentication
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -118,10 +119,159 @@ func (me *admin) EnsureSetup(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("failed to create realm: %w", err)
 			}
+
+			qlog.Info("Created realm: %s", me.config.realm)
+		}
+
+		// Create or update the QUI client
+		err = me.ensureQuiClient(ctx, token.AccessToken)
+		if err != nil {
+			return fmt.Errorf("failed to setup QUI client: %w", err)
 		}
 
 		return nil
 	})
+}
+
+// ensureQuiClient creates or updates the QUI client with proper CORS configuration
+func (me *admin) ensureQuiClient(ctx context.Context, accessToken string) error {
+	// Check if the client already exists
+	clientID := getEnvOrDefault("Q_KEYCLOAK_CLIENT_ID", "qui")
+
+	clients, err := me.core.GetClient().GetClients(
+		ctx,
+		accessToken,
+		me.config.realm,
+		gocloak.GetClientsParams{
+			ClientID: &clientID,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get clients: %w", err)
+	}
+
+	// Get redirect URIs from environment
+	redirectUrisStr := getEnvOrDefault("Q_KEYCLOAK_REDIRECT_URIS",
+		"http://localhost:5173/*,http://localhost:4173/*,http://localhost:8080/*,http://localhost/*")
+	redirectUris := strings.Split(redirectUrisStr, ",")
+
+	// Get web origins from environment
+	webOriginsStr := getEnvOrDefault("Q_KEYCLOAK_WEB_ORIGINS",
+		"http://localhost:5173,http://localhost:4173,http://localhost:8080,http://localhost,+")
+	webOrigins := strings.Split(webOriginsStr, ",")
+
+	// Client attributes for CORS and other settings
+	tokenLifespanStr := getEnvOrDefault("Q_KEYCLOAK_TOKEN_LIFESPAN", "300")
+	postLogoutRedirectUris := getEnvOrDefault("Q_KEYCLOAK_POST_LOGOUT_REDIRECT_URIS", "+")
+
+	attributes := map[string]string{
+		"post.logout.redirect.uris": postLogoutRedirectUris,
+		"access.token.lifespan":     tokenLifespanStr,
+	}
+
+	// Get additional attributes from environment
+	additionalAttrsStr := getEnvOrDefault("Q_KEYCLOAK_CLIENT_ATTRIBUTES", "")
+	if additionalAttrsStr != "" {
+		attrPairs := strings.Split(additionalAttrsStr, ",")
+		for _, pair := range attrPairs {
+			kv := strings.SplitN(pair, "=", 2)
+			if len(kv) == 2 {
+				attributes[kv[0]] = kv[1]
+			}
+		}
+	}
+
+	// Get client configuration
+	clientName := getEnvOrDefault("Q_KEYCLOAK_CLIENT_NAME", "QUI Web Application")
+	publicClient := getBoolEnvOrDefault("Q_KEYCLOAK_PUBLIC_CLIENT", true)
+	standardFlow := getBoolEnvOrDefault("Q_KEYCLOAK_STANDARD_FLOW_ENABLED", true)
+	implicitFlow := getBoolEnvOrDefault("Q_KEYCLOAK_IMPLICIT_FLOW_ENABLED", false)
+	directAccessGrants := getBoolEnvOrDefault("Q_KEYCLOAK_DIRECT_ACCESS_GRANTS_ENABLED", true)
+	serviceAccountsEnabled := getBoolEnvOrDefault("Q_KEYCLOAK_SERVICE_ACCOUNTS_ENABLED", false)
+
+	var clientIdValue string
+	if len(clients) > 0 {
+		// Update existing client
+		client := clients[0]
+		clientIdValue = *client.ID
+
+		// Preserve existing redirect URIs and web origins and add our defaults if not present
+		if client.RedirectURIs != nil {
+			existingRedirects := *client.RedirectURIs
+			redirectUris = mergeStringArrays(existingRedirects, redirectUris)
+		}
+
+		if client.WebOrigins != nil {
+			existingOrigins := *client.WebOrigins
+			webOrigins = mergeStringArrays(existingOrigins, webOrigins)
+		}
+
+		// Merge existing attributes with our defaults
+		if client.Attributes != nil {
+			for k, v := range *client.Attributes {
+				if _, exists := attributes[k]; !exists {
+					attributes[k] = v
+				}
+			}
+		}
+
+		// Update client configuration
+		updateClient := gocloak.Client{
+			ID:                        &clientIdValue,
+			ClientID:                  gocloak.StringP(clientID),
+			Name:                      gocloak.StringP(clientName),
+			Enabled:                   gocloak.BoolP(true),
+			PublicClient:              gocloak.BoolP(publicClient),
+			StandardFlowEnabled:       gocloak.BoolP(standardFlow),
+			ImplicitFlowEnabled:       gocloak.BoolP(implicitFlow),
+			DirectAccessGrantsEnabled: gocloak.BoolP(directAccessGrants),
+			ServiceAccountsEnabled:    gocloak.BoolP(serviceAccountsEnabled),
+			RedirectURIs:              &redirectUris,
+			WebOrigins:                &webOrigins,
+			Attributes:                &attributes,
+		}
+
+		err = me.core.GetClient().UpdateClient(
+			ctx,
+			accessToken,
+			me.config.realm,
+			updateClient,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update client %s: %w", clientID, err)
+		}
+
+		qlog.Info("Updated client configuration for %s", clientID)
+	} else {
+		// Create new client
+		newClient := gocloak.Client{
+			ClientID:                  gocloak.StringP(clientID),
+			Name:                      gocloak.StringP(clientName),
+			Enabled:                   gocloak.BoolP(true),
+			PublicClient:              gocloak.BoolP(publicClient),
+			StandardFlowEnabled:       gocloak.BoolP(standardFlow),
+			ImplicitFlowEnabled:       gocloak.BoolP(implicitFlow),
+			DirectAccessGrantsEnabled: gocloak.BoolP(directAccessGrants),
+			ServiceAccountsEnabled:    gocloak.BoolP(serviceAccountsEnabled),
+			RedirectURIs:              &redirectUris,
+			WebOrigins:                &webOrigins,
+			Attributes:                &attributes,
+		}
+
+		clientIdValue, err = me.core.GetClient().CreateClient(
+			ctx,
+			accessToken,
+			me.config.realm,
+			newClient,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create client %s: %w", clientID, err)
+		}
+
+		qlog.Info("Created client %s", clientID)
+	}
+
+	return nil
 }
 
 // GetOrCreateClient creates a new client or gets an existing one
