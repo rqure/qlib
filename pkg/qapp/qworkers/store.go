@@ -41,12 +41,18 @@ type storeWorker struct {
 	store            *qdata.Store
 	isStoreConnected bool
 	isAuthReady      bool
+	isReady          bool
+	client           *qdata.Entity
 
 	notificationTokens []qdata.NotificationToken
 
 	sessionRefreshTimer    *time.Ticker
 	connectionCheckTimer   *time.Ticker
 	connectionAttemptTimer *time.Ticker
+	metricsTimer           *time.Ticker
+
+	readCount  int
+	writeCount int
 
 	handle qcontext.Handle
 }
@@ -62,6 +68,7 @@ func NewStore(store *qdata.Store) Store {
 		store:            store,
 		isStoreConnected: false,
 		isAuthReady:      false,
+		isReady:          false,
 
 		notificationTokens: make([]qdata.NotificationToken, 0),
 	}
@@ -80,9 +87,13 @@ func (me *storeWorker) Init(ctx context.Context) {
 	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
 	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
 	me.connectionCheckTimer = time.NewTicker(1 * time.Second)
+	me.metricsTimer = time.NewTicker(1 * time.Second)
 
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
+
+	me.store.ReadEvent().Connect(me.onRead)
+	me.store.WriteEvent().Connect(me.onWrite)
 
 	me.tryRefreshSession(ctx)
 	me.tryConnect(ctx)
@@ -92,6 +103,7 @@ func (me *storeWorker) Deinit(context.Context) {
 	me.sessionRefreshTimer.Stop()
 	me.connectionAttemptTimer.Stop()
 	me.connectionCheckTimer.Stop()
+	me.metricsTimer.Stop()
 }
 
 func (me *storeWorker) DoWork(ctx context.Context) {
@@ -115,6 +127,21 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 	default:
 	}
 
+	select {
+	case <-me.metricsTimer.C:
+		if me.isReady && me.client != nil {
+			me.client.Field(qdata.FTReadsPerSecond).Value.FromInt(me.readCount)
+			me.client.Field(qdata.FTWritesPerSecond).Value.FromInt(me.writeCount)
+
+			me.store.Write(ctx,
+				me.client.Field(qdata.FTReadsPerSecond).AsWriteRequest(),
+				me.client.Field(qdata.FTWritesPerSecond).AsWriteRequest())
+
+			me.readCount = 0
+			me.writeCount = 0
+		}
+	default:
+	}
 }
 
 func (me *storeWorker) tryConnect(ctx context.Context) {
@@ -164,6 +191,14 @@ func (me *storeWorker) onDisconnected(args qdata.DisconnectedArgs) {
 	me.disconnected.Emit(args.Ctx)
 }
 
+func (me *storeWorker) onRead(_ qdata.ReadEventArgs) {
+	me.readCount += 1
+}
+
+func (me *storeWorker) onWrite(_ qdata.WriteEventArgs) {
+	me.writeCount += 1
+}
+
 func (me *storeWorker) IsConnected() bool {
 	return me.isStoreConnected
 }
@@ -183,10 +218,18 @@ func (me *storeWorker) onQLibLogLevelChanged(ctx context.Context, n qdata.Notifi
 }
 
 func (me *storeWorker) OnReady(ctx context.Context) {
+	me.client = nil
+
+	// Clear metrics
+	me.readCount = 0
+	me.writeCount = 0
+
+	// Clear previous notifications
 	for _, token := range me.notificationTokens {
 		token.Unbind(ctx)
 	}
 
+	// Reinitialize notifications
 	me.notificationTokens = make([]qdata.NotificationToken, 0)
 
 	appName := qcontext.GetAppName(ctx)
@@ -201,6 +244,8 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	} else {
 		iter.ForEach(ctx, func(row qdata.QueryRow) bool {
 			client := row.AsEntity()
+			me.client = client
+
 			logLevel := client.Field("LogLevel").Value.GetChoice() + 1
 			qlog.SetLevel(qlog.Level(logLevel))
 

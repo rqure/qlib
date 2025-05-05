@@ -20,7 +20,9 @@ const (
 	FTParent                  FieldType = "Parent"
 	FTPolicy                  FieldType = "Policy"
 	FTQLibLogLevel            FieldType = "QLibLogLevel"
+	FTReadsPerSecond          FieldType = "ReadsPerSecond"
 	FTRoles                   FieldType = "Roles"
 	FTSchemaChanged           FieldType = "SchemaChanged"
 	FTSourceOfTruth           FieldType = "SourceOfTruth"
+	FTWritesPerSecond         FieldType = "WritesPerSecond"
 )
