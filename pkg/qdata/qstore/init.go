@@ -84,7 +84,7 @@ func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 			{Name: qdata.FTQLibLogLevel.AsString(), Type: qdata.VTChoice.AsString(), ChoiceOptions: []string{"Trace", "Debug", "Info", "Warn", "Error", "Panic"}, Rank: 6},
 			{Name: qdata.FTReadsPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 7},
 			{Name: qdata.FTWritesPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 8},
-			{Name: qdata.FTIdleMsPerSec.AsString(), Type: qdata.VTInt.AsString(), Rank: 9},
+			{Name: qdata.FTIdleMsPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 9},
 		},
 	}))
 	if err != nil {

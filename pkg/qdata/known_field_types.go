@@ -8,7 +8,7 @@ const (
 	FTEntityCreated           FieldType = "EntityCreated"
 	FTEntityDeleted           FieldType = "EntityDeleted"
 	FTFirstName               FieldType = "FirstName"
-	FTIdleMsPerSec            FieldType = "IdleMsPerSec"
+	FTIdleMsPerSecond         FieldType = "IdleMsPerSecond"
 	FTIsEmailVerified         FieldType = "IsEmailVerified"
 	FTIsEnabled               FieldType = "IsEnabled"
 	FTJSON                    FieldType = "JSON"
