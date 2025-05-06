@@ -244,55 +244,77 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 	}
 
 	return &qdata.PageResult[qdata.EntityId]{
-		Items:    make([]qdata.EntityId, 0),
+		Items:    []qdata.EntityId{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-			var entities []qdata.EntityId = make([]qdata.EntityId, 0)
+			var entities []qdata.EntityId
 			var nextCursorId int64 = -1 // Default to no more results
 
-			cursorSnowflake := pageConfig.CursorId
-
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
+				// Create a prefix for this entity type
 				prefix := []byte(me.keyBuilder.BuildKey("entity"))
 				opts := badger.DefaultIteratorOptions
-				opts.PrefetchValues = false // We only need keys for this operation
+				opts.PrefetchValues = false // We only need keys
 
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
+				// Track unique entities
+				uniqueEntities := make(map[qdata.EntityId]bool)
+				count := int64(0)
+
+				// Find starting point based on cursor
 				it.Seek(prefix)
 
-				// Collect up to PageSize entities with snowflake ID > cursor
+				// Iterate through keys
 				for ; it.Valid(); it.Next() {
 					key := string(it.Item().Key())
+
+					// Check if the key has the correct prefix
 					if !strings.HasPrefix(key, string(prefix)) {
 						continue
 					}
-					parts := strings.Split(key, ":")
-					if len(parts) < 2 {
+
+					// Extract entity ID from key
+					entityId, err := me.keyBuilder.ExtractEntityIdFromKey(key)
+					if err != nil {
+						qlog.Warn("Invalid entity key: %s", key)
 						continue
 					}
-					entityIdStr := parts[1]
-					entityId := qdata.EntityId(entityIdStr)
-					if entityId.GetEntityType() != entityType || containsField(key) {
+
+					// Skip entities of different types
+					if entityId.GetEntityType() != entityType {
 						continue
 					}
+
+					// Extract snowflake ID for comparison with cursor
 					snowflakeId := entityId.AsInt()
-					if snowflakeId <= cursorSnowflake {
+
+					// Skip entities with IDs less than or equal to the cursor
+					if snowflakeId <= pageConfig.CursorId {
 						continue
 					}
+
 					// Only add each entity once
-					if !containsEntity(entities, entityId) {
+					if !uniqueEntities[entityId] {
+						uniqueEntities[entityId] = true
 						entities = append(entities, entityId)
-						if int64(len(entities)) >= pageConfig.PageSize {
+						count++
+
+						// Keep track of the highest ID we've seen for the next cursor
+						if nextCursorId < 0 || snowflakeId > nextCursorId {
 							nextCursorId = snowflakeId
+						}
+
+						// Break if we've reached page size
+						if count >= pageConfig.PageSize {
 							break
 						}
 					}
 				}
 
-				// If we didn't fill the page, set nextCursorId to -1
-				if int64(len(entities)) < pageConfig.PageSize {
+				// If we didn't fill the page, there are no more results
+				if count < pageConfig.PageSize {
 					nextCursorId = -1
 				}
 
@@ -327,22 +349,6 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 	}, nil
 }
 
-// Helper function to check if a key contains a field component
-func containsField(key string) bool {
-	parts := strings.Split(key, ":")
-	return len(parts) > 2
-}
-
-// Helper function to check if an entity is already in the list
-func containsEntity(entities []qdata.EntityId, entityId qdata.EntityId) bool {
-	for _, e := range entities {
-		if e == entityId {
-			return true
-		}
-	}
-	return false
-}
-
 func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityType], error) {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
@@ -351,45 +357,70 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 	}
 
 	return &qdata.PageResult[qdata.EntityType]{
-		Items:    make([]qdata.EntityType, 0),
+		Items:    []qdata.EntityType{},
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 			var entityTypes []qdata.EntityType
 			var nextCursorId int64 = -1
 
-			cursorId := pageConfig.CursorId
-
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
+				// Use schema prefix to find all entity types
 				prefix := []byte(me.keyBuilder.BuildKey("schema"))
 				opts := badger.DefaultIteratorOptions
 				opts.PrefetchValues = false
+
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				seekKey := prefix
-
+				// Track unique entity types
+				uniqueTypes := make(map[qdata.EntityType]bool)
 				count := int64(0)
-				for it.Seek(seekKey); it.ValidForPrefix(prefix); it.Next() {
+
+				// Find starting point based on cursor
+				it.Seek(prefix)
+
+				// Iterate through keys
+				for ; it.ValidForPrefix(prefix); it.Next() {
 					key := string(it.Item().Key())
-					parts := strings.Split(key, ":")
-					if len(parts) < 3 {
+
+					// Extract entity type from the schema key
+					entityType, err := me.keyBuilder.ExtractEntityTypeFromKey(key)
+					if err != nil {
+						qlog.Warn("Invalid schema key: %s", key)
 						continue
 					}
-					entityType := qdata.EntityType(parts[2])
-					etypeId := entityType.AsInt()
-					if etypeId <= cursorId {
+
+					// Calculate numeric ID for this entity type
+					typeId := entityType.AsInt()
+
+					// Skip types with IDs less than or equal to the cursor
+					if typeId <= pageConfig.CursorId {
 						continue
 					}
-					entityTypes = append(entityTypes, entityType)
-					count++
-					if count >= pageConfig.PageSize {
-						nextCursorId = etypeId
-						break
+
+					// Only add each entity type once
+					if !uniqueTypes[entityType] {
+						uniqueTypes[entityType] = true
+						entityTypes = append(entityTypes, entityType)
+						count++
+
+						// Keep track of the highest ID we've seen for the next cursor
+						if nextCursorId < 0 || typeId > nextCursorId {
+							nextCursorId = typeId
+						}
+
+						// Break if we've reached page size
+						if count >= pageConfig.PageSize {
+							break
+						}
 					}
 				}
+
+				// If we didn't fill the page, there are no more results
 				if count < pageConfig.PageSize {
 					nextCursorId = -1
 				}
+
 				return nil
 			})
 
