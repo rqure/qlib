@@ -2,7 +2,6 @@ package qbadger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -13,64 +12,6 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
-
-// Sorted set implementation for BadgerDB
-type SortedSet struct {
-	Items map[string]float64
-}
-
-func NewSortedSet() *SortedSet {
-	return &SortedSet{
-		Items: make(map[string]float64),
-	}
-}
-
-func (s *SortedSet) Add(member string, score float64) {
-	s.Items[member] = score
-}
-
-func (s *SortedSet) Remove(member string) {
-	delete(s.Items, member)
-}
-
-func (s *SortedSet) GetRange(start, stop int64) []string {
-	// Convert to slice and sort
-	type Item struct {
-		Member string
-		Score  float64
-	}
-
-	items := make([]Item, 0, len(s.Items))
-	for member, score := range s.Items {
-		items = append(items, Item{Member: member, Score: score})
-	}
-
-	// Sort by score (and member for ties)
-	// Using a simple bubble sort for clarity
-	for i := 0; i < len(items)-1; i++ {
-		for j := 0; j < len(items)-i-1; j++ {
-			if items[j].Score > items[j+1].Score ||
-				(items[j].Score == items[j+1].Score && items[j].Member > items[j+1].Member) {
-				items[j], items[j+1] = items[j+1], items[j]
-			}
-		}
-	}
-
-	// Get requested range
-	result := []string{}
-	if stop < 0 {
-		stop = int64(len(items)) - 1
-	}
-	if start < 0 {
-		start = 0
-	}
-
-	for i := start; i <= stop && i < int64(len(items)); i++ {
-		result = append(result, items[i].Member)
-	}
-
-	return result
-}
 
 // BadgerStoreInteractor implements BadgerDB-specific storage mechanisms
 type BadgerStoreInteractor struct {
@@ -97,36 +38,6 @@ func NewStoreInteractor(core BadgerCore, opts ...func(*BadgerStoreInteractor)) q
 	return r
 }
 
-// getSortedSet retrieves a sorted set from BadgerDB
-func (me *BadgerStoreInteractor) getSortedSet(txn *badger.Txn, key string) (*SortedSet, error) {
-	item, err := txn.Get([]byte(key))
-	if err != nil {
-		if err == badger.ErrKeyNotFound {
-			return NewSortedSet(), nil
-		}
-		return nil, err
-	}
-
-	set := NewSortedSet()
-	err = item.Value(func(val []byte) error {
-		return json.Unmarshal(val, &set.Items)
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	return set, nil
-}
-
-// setSortedSet stores a sorted set in BadgerDB
-func (me *BadgerStoreInteractor) setSortedSet(txn *badger.Txn, key string, set *SortedSet) error {
-	data, err := json.Marshal(set.Items)
-	if err != nil {
-		return err
-	}
-	return txn.Set([]byte(key), data)
-}
-
 func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
 	var entity *qdata.Entity
 	err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
@@ -148,20 +59,6 @@ func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qd
 
 		entity = new(qdata.Entity).Init(entityId, qdata.EOEntityType(entityType))
 		schema, err := me.GetEntitySchema(ctx, entityType)
-		if err != nil {
-			return err
-		}
-
-		// Add entity to the sorted set of entities
-		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType))
-			if err != nil {
-				return err
-			}
-			set.Add(entityId.AsString(), 0) // Use 0 as the score
-			return me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType), set)
-		})
-
 		if err != nil {
 			return err
 		}
@@ -225,19 +122,6 @@ func (me *BadgerStoreInteractor) DeleteEntity(ctx context.Context, entityId qdat
 					errs = append(errs, err)
 				}
 			}
-		}
-
-		// Remove from the sorted set of entities
-		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()))
-			if err != nil {
-				return err
-			}
-			set.Remove(entityId.AsString())
-			return me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()), set)
-		})
-		if err != nil {
-			errs = append(errs, err)
 		}
 
 		// Delete all fields for this entity
@@ -363,33 +247,71 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 		Items:    make([]qdata.EntityId, 0),
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-			if pageConfig.CursorId < 0 {
-				return &qdata.PageResult[qdata.EntityId]{
-					Items:    make([]qdata.EntityId, 0),
-					CursorId: -1,
-					NextPage: nil,
-				}, nil
-			}
-
-			entities := make([]qdata.EntityId, 0)
-			var nextCursorId int64 = -1
+			var entities []qdata.EntityId = make([]qdata.EntityId, 0)
+			var nextCursorId int64 = -1 // Default to no more results
 
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType))
-				if err != nil {
-					return err
+				// Use prefix iteration to find all entities of this type
+				// We'll scan the entity keys directly rather than using a separate index
+				prefix := []byte(me.keyBuilder.BuildKey("entity"))
+				opts := badger.DefaultIteratorOptions
+				opts.PrefetchValues = false // We only need keys for this operation
+
+				it := txn.NewIterator(opts)
+				defer it.Close()
+
+				// Start iterating
+				it.Seek(prefix)
+
+				// Skip to the cursor position if needed
+				if pageConfig.CursorId > 0 {
+					// Skip items
+					var skipped int64
+					for ; it.Valid() && skipped < pageConfig.CursorId; it.Next() {
+						key := string(it.Item().Key())
+						// Only count keys that match our prefix and entity type
+						if strings.HasPrefix(key, string(prefix)) {
+							// Extract entity ID from the key
+							parts := strings.Split(key, ":")
+							if len(parts) >= 2 {
+								entityIdStr := parts[1]
+								entityId := qdata.EntityId(entityIdStr)
+								if entityId.GetEntityType() == entityType && !containsField(key) {
+									skipped++
+								}
+							}
+						}
+					}
 				}
 
-				members := set.GetRange(pageConfig.CursorId, pageConfig.CursorId+pageConfig.PageSize-1)
+				// Collect up to PageSize entities of the specified type
+				var count int64
+				for ; it.Valid() && count < pageConfig.PageSize; it.Next() {
+					key := string(it.Item().Key())
+					// Check if this key is for the entity prefix
+					if strings.HasPrefix(key, string(prefix)) {
+						// Extract entity ID from the key
+						parts := strings.Split(key, ":")
+						if len(parts) >= 2 {
+							entityIdStr := parts[1]
+							entityId := qdata.EntityId(entityIdStr)
 
-				for _, member := range members {
-					entities = append(entities, qdata.EntityId(member))
+							// Check if this entity matches the requested type
+							// and make sure we're not counting field keys
+							if entityId.GetEntityType() == entityType && !containsField(key) {
+								// Only add each entity once
+								if !containsEntity(entities, entityId) {
+									entities = append(entities, entityId)
+									count++
+								}
+							}
+						}
+					}
 				}
 
-				if len(members) < int(pageConfig.PageSize) {
-					nextCursorId = -1
-				} else {
-					nextCursorId = pageConfig.CursorId + pageConfig.PageSize
+				// Check if there are more results
+				if it.Valid() {
+					nextCursorId = pageConfig.CursorId + count
 				}
 
 				return nil
@@ -403,7 +325,17 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 				Items:    entities,
 				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityId], error) {
-					next, err := me.FindEntities(entityType, qdata.POCursorId(nextCursorId), qdata.POPageSize(pageConfig.PageSize))
+					if nextCursorId < 0 {
+						return &qdata.PageResult[qdata.EntityId]{
+							Items:    []qdata.EntityId{},
+							CursorId: -1,
+							NextPage: nil,
+						}, nil
+					}
+
+					next, err := me.FindEntities(entityType,
+						qdata.POCursorId(nextCursorId),
+						qdata.POPageSize(pageConfig.PageSize))
 					if err != nil {
 						return nil, err
 					}
@@ -412,6 +344,22 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 			}, nil
 		},
 	}, nil
+}
+
+// Helper function to check if a key contains a field component
+func containsField(key string) bool {
+	parts := strings.Split(key, ":")
+	return len(parts) > 2
+}
+
+// Helper function to check if an entity is already in the list
+func containsEntity(entities []qdata.EntityId, entityId qdata.EntityId) bool {
+	for _, e := range entities {
+		if e == entityId {
+			return true
+		}
+	}
+	return false
 }
 
 func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityType], error) {
@@ -425,33 +373,49 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 		Items:    make([]qdata.EntityType, 0),
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-			if pageConfig.CursorId < 0 {
-				return &qdata.PageResult[qdata.EntityType]{
-					Items:    make([]qdata.EntityType, 0),
-					CursorId: -1,
-					NextPage: nil,
-				}, nil
-			}
-
-			entityTypes := make([]qdata.EntityType, 0)
-			var nextCursorId int64 = -1
+			var entityTypes []qdata.EntityType = make([]qdata.EntityType, 0)
+			var nextCursorId int64 = -1 // Default to no more results
 
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey())
-				if err != nil {
-					return err
+				// Find all schema keys
+				prefix := []byte(me.keyBuilder.BuildKey("schema"))
+				opts := badger.DefaultIteratorOptions
+				opts.PrefetchValues = false // We only need keys for this operation
+
+				it := txn.NewIterator(opts)
+				defer it.Close()
+
+				// Start iterating
+				it.Seek(prefix)
+
+				// Skip to cursor position if needed
+				if pageConfig.CursorId > 0 {
+					var skipped int64
+					for ; it.Valid() && skipped < pageConfig.CursorId; it.Next() {
+						key := string(it.Item().Key())
+						if strings.HasPrefix(key, string(prefix)) {
+							skipped++
+						}
+					}
 				}
 
-				members := set.GetRange(pageConfig.CursorId, pageConfig.CursorId+pageConfig.PageSize-1)
-
-				for _, member := range members {
-					entityTypes = append(entityTypes, qdata.EntityType(member))
+				// Collect up to PageSize entity types
+				var count int64
+				for ; it.Valid() && count < pageConfig.PageSize; it.Next() {
+					key := string(it.Item().Key())
+					if strings.HasPrefix(key, string(prefix)) {
+						parts := strings.Split(key, ":")
+						if len(parts) >= 3 { // prefix:schema:entityType
+							entityType := qdata.EntityType(parts[2])
+							entityTypes = append(entityTypes, entityType)
+							count++
+						}
+					}
 				}
 
-				if len(members) < int(pageConfig.PageSize) {
-					nextCursorId = -1
-				} else {
-					nextCursorId = pageConfig.CursorId + pageConfig.PageSize
+				// Check if there are more results
+				if it.Valid() {
+					nextCursorId = pageConfig.CursorId + count
 				}
 
 				return nil
@@ -465,7 +429,17 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 				Items:    entityTypes,
 				CursorId: nextCursorId,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					next, err := me.GetEntityTypes(qdata.POCursorId(nextCursorId), qdata.POPageSize(pageConfig.PageSize))
+					if nextCursorId < 0 {
+						return &qdata.PageResult[qdata.EntityType]{
+							Items:    []qdata.EntityType{},
+							CursorId: -1,
+							NextPage: nil,
+						}, nil
+					}
+
+					next, err := me.GetEntityTypes(
+						qdata.POCursorId(nextCursorId),
+						qdata.POPageSize(pageConfig.PageSize))
 					if err != nil {
 						return nil, err
 					}
@@ -480,17 +454,17 @@ func (me *BadgerStoreInteractor) EntityExists(ctx context.Context, entityId qdat
 	exists := false
 
 	err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-		set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()))
-		if err != nil {
-			return err
-		}
+		// Check if any field exists for this entity
+		prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchValues = false // We only need keys
 
-		// Check if the entity ID exists in the set
-		for member := range set.Items {
-			if member == entityId.AsString() {
-				exists = true
-				break
-			}
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		it.Seek(prefix)
+		if it.Valid() && strings.HasPrefix(string(it.Item().Key()), string(prefix)) {
+			exists = true
 		}
 
 		return nil
@@ -555,25 +529,14 @@ func (me *BadgerStoreInteractor) SetEntitySchema(ctx context.Context, schema *qd
 		removedFields := make(qdata.FieldTypeSlice, 0)
 		newFields := make(qdata.FieldTypeSlice, 0)
 
-		// Save the schema in BadgerDB and update the entity types index
+		// Save the schema in BadgerDB
 		schemaBytes, err := schema.AsBytes()
 		if err != nil {
 			return err
 		}
 
-		// Add to entity types set
-		set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey())
-		if err != nil {
-			return err
-		}
-		set.Add(schema.EntityType.AsString(), 0)
-		if err := me.setSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey(), set); err != nil {
-			return err
-		}
-
 		// Save the schema
 		err = txn.Set([]byte(me.keyBuilder.GetSchemaKey(schema.EntityType)), schemaBytes)
-
 		if err != nil {
 			return err
 		}
@@ -880,61 +843,37 @@ func (me *BadgerStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Sna
 	var snapshot qdata.Snapshot
 
 	// Get all entity types
-	var entityTypes []string
-	err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-		set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey())
-		if err != nil {
-			return err
-		}
+	entityTypesResult, err := me.GetEntityTypes()
+	if err != nil {
+		return nil, err
+	}
 
-		for member := range set.Items {
-			entityTypes = append(entityTypes, member)
-		}
-
-		return nil
-	})
-
+	entityTypesPage, err := entityTypesResult.NextPage(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get all schemas
-	for _, et := range entityTypes {
-		schema, err := me.GetEntitySchema(ctx, qdata.EntityType(et))
+	for _, et := range entityTypesPage.Items {
+		schema, err := me.GetEntitySchema(ctx, et)
 		if err == nil {
 			snapshot.Schemas = append(snapshot.Schemas, schema)
 		}
 	}
 
 	// Get all entities for each entity type
-	for _, et := range entityTypes {
-		entityType := qdata.EntityType(et)
-
+	for _, et := range entityTypesPage.Items {
 		// Get all entity IDs for this type
-		var entityIds []string
-		err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType))
-			if err != nil {
-				return err
-			}
-
-			for member := range set.Items {
-				entityIds = append(entityIds, member)
-			}
-
-			return nil
-		})
-
+		entityIdsResult, err := me.FindEntities(et)
 		if err != nil {
 			return nil, err
 		}
-
-		// Get all fields for each entity
-		for _, eid := range entityIds {
-			entityId := qdata.EntityId(eid)
+		defer entityIdsResult.Close()
+		entityIdsResult.ForEach(ctx, func(eid qdata.EntityId) bool {
+			entityId := eid
 			entity := new(qdata.Entity).Init(entityId)
 
-			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
+			err = me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
 				prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
 				opts := badger.DefaultIteratorOptions
 				opts.PrefetchSize = 10
@@ -976,13 +915,15 @@ func (me *BadgerStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Sna
 			})
 
 			if err != nil {
-				return nil, err
+				return false
 			}
 
 			if len(entity.Fields) > 0 {
 				snapshot.Entities = append(snapshot.Entities, entity)
 			}
-		}
+
+			return true
+		})
 	}
 
 	return &snapshot, nil
@@ -1016,16 +957,6 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 		}
 
 		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			// Add to entity types set
-			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey())
-			if err != nil {
-				return err
-			}
-			set.Add(schema.EntityType.AsString(), 0)
-			if err := me.setSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey(), set); err != nil {
-				return err
-			}
-
 			// Save the schema
 			return txn.Set([]byte(me.keyBuilder.GetSchemaKey(schema.EntityType)), schemaBytes)
 		})
@@ -1038,16 +969,6 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 	// Restore entities and their fields
 	for _, entity := range ss.Entities {
 		err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			// Add entity to the entities set
-			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entity.EntityType))
-			if err != nil {
-				return err
-			}
-			set.Add(entity.EntityId.AsString(), 0)
-			if err := me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entity.EntityType), set); err != nil {
-				return err
-			}
-
 			// Write all fields
 			for fieldType, field := range entity.Fields {
 				fieldBytes, err := field.AsBytes()
