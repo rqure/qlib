@@ -128,137 +128,148 @@ func (me *BadgerStoreInteractor) setSortedSet(txn *badger.Txn, key string, set *
 }
 
 func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
-	entityId := qdata.GenerateEntityId(entityType)
+	var entity *qdata.Entity
+	err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+		entityId := qdata.GenerateEntityId(entityType)
 
-	// Keep generating IDs until we find one that doesn't exist
-	for {
-		exists, err := me.EntityExists(ctx, entityId)
-		if err != nil {
-			return nil, err
+		// Keep generating IDs until we find one that doesn't exist
+		for {
+			exists, err := me.EntityExists(ctx, entityId)
+			if err != nil {
+				return err
+			}
+
+			if !exists {
+				break
+			}
+
+			entityId = qdata.GenerateEntityId(entityType)
 		}
 
-		if !exists {
-			break
-		}
-
-		entityId = qdata.GenerateEntityId(entityType)
-	}
-
-	entity := new(qdata.Entity).Init(entityId, qdata.EOEntityType(entityType))
-	schema, err := me.GetEntitySchema(ctx, entityType)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add entity to the sorted set of entities
-	err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-		set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType))
+		entity = new(qdata.Entity).Init(entityId, qdata.EOEntityType(entityType))
+		schema, err := me.GetEntitySchema(ctx, entityType)
 		if err != nil {
 			return err
 		}
-		set.Add(entityId.AsString(), 0) // Use 0 as the score
-		return me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType), set)
+
+		// Add entity to the sorted set of entities
+		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType))
+			if err != nil {
+				return err
+			}
+			set.Add(entityId.AsString(), 0) // Use 0 as the score
+			return me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityType), set)
+		})
+
+		if err != nil {
+			return err
+		}
+
+		// Create the initial fields based on the schema
+		reqs := make([]*qdata.Request, 0)
+		for _, field := range schema.Fields {
+			req := new(qdata.Request).Init(entityId, field.FieldType)
+
+			if field.FieldType == qdata.FTName {
+				req.Value.FromString(name)
+			} else if field.FieldType == qdata.FTParent {
+				req.Value.FromEntityReference(parentId)
+			}
+
+			reqs = append(reqs, req)
+		}
+
+		// If this entity has a parent, we need to add this entity to the parent's children
+		if parentId != "" {
+			req := new(qdata.Request).Init(parentId, qdata.FTChildren)
+			err = me.Read(ctx, req)
+			if err == nil {
+				children := req.Value.GetEntityList()
+				children = append(children, entityId)
+				req.Value.FromEntityList(children)
+				reqs = append(reqs, req)
+			} else {
+				return fmt.Errorf("failed to read parent entity: %v", err)
+			}
+		}
+
+		// Write all the fields
+		err = me.Write(ctx, reqs...)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	if err != nil {
-		return nil, err
-	}
-
-	// Create the initial fields based on the schema
-	reqs := make([]*qdata.Request, 0)
-	for _, field := range schema.Fields {
-		req := new(qdata.Request).Init(entityId, field.FieldType)
-
-		if field.FieldType == qdata.FTName {
-			req.Value.FromString(name)
-		} else if field.FieldType == qdata.FTParent {
-			req.Value.FromEntityReference(parentId)
-		}
-
-		reqs = append(reqs, req)
-	}
-
-	// If this entity has a parent, we need to add this entity to the parent's children
-	if parentId != "" {
-		req := new(qdata.Request).Init(parentId, qdata.FTChildren)
-		err = me.Read(ctx, req)
-		if err == nil {
-			children := req.Value.GetEntityList()
-			children = append(children, entityId)
-			req.Value.FromEntityList(children)
-			reqs = append(reqs, req)
-		} else {
-			return nil, fmt.Errorf("failed to read parent entity: %v", err)
-		}
-	}
-
-	// Write all the fields
-	err = me.Write(ctx, reqs...)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create entity: %v", err)
 	}
 
 	return entity, nil
 }
 
 func (me *BadgerStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) error {
-	var errs []error
+	return me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+		var errs []error
 
-	// First, get the entity's children
-	req := new(qdata.Request).Init(entityId, qdata.FTChildren)
-	err := me.Read(ctx, req)
-	if err == nil {
-		// Recursively delete all children
-		children := req.Value.GetEntityList()
-		for _, childId := range children {
-			if err := me.DeleteEntity(ctx, childId); err != nil {
-				errs = append(errs, err)
+		// First, get the entity's children
+		req := new(qdata.Request).Init(entityId, qdata.FTChildren)
+		err := me.Read(ctx, req)
+		if err == nil {
+			// Recursively delete all children
+			children := req.Value.GetEntityList()
+			for _, childId := range children {
+				if err := me.DeleteEntity(ctx, childId); err != nil {
+					errs = append(errs, err)
+				}
 			}
 		}
-	}
 
-	// Remove from the sorted set of entities
-	err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-		set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()))
-		if err != nil {
-			return err
-		}
-		set.Remove(entityId.AsString())
-		return me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()), set)
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	// Delete all fields for this entity
-	err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-		// Use a prefix seek to find all keys for this entity
-		prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
-		opts := badger.DefaultIteratorOptions
-		opts.PrefetchSize = 10
-		opts.Prefix = prefix
-
-		it := txn.NewIterator(opts)
-		defer it.Close()
-
-		for it.Seek(prefix); it.Valid(); it.Next() {
-			key := it.Item().Key()
-			if err := txn.Delete(key); err != nil {
+		// Remove from the sorted set of entities
+		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+			set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()))
+			if err != nil {
 				return err
 			}
+			set.Remove(entityId.AsString())
+			return me.setSortedSet(txn, me.keyBuilder.GetAllEntitiesKey(entityId.GetEntityType()), set)
+		})
+		if err != nil {
+			errs = append(errs, err)
 		}
+
+		// Delete all fields for this entity
+		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+			// Use a prefix seek to find all keys for this entity
+			prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
+			opts := badger.DefaultIteratorOptions
+			opts.PrefetchSize = 10
+			opts.Prefix = prefix
+
+			it := txn.NewIterator(opts)
+			defer it.Close()
+
+			for it.Seek(prefix); it.Valid(); it.Next() {
+				key := it.Item().Key()
+				if err := txn.Delete(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			errs = append(errs, err)
+		}
+
+		// Check if there were any errors during deletion
+		if len(errs) > 0 {
+			return qdata.AccumulateErrors(errs...)
+		}
+
 		return nil
 	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	// Check if there were any errors during deletion
-	if len(errs) > 0 {
-		return qdata.AccumulateErrors(errs...)
-	}
-
-	return nil
 }
 
 func (me *BadgerStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
@@ -533,23 +544,23 @@ func (me *BadgerStoreInteractor) GetEntitySchema(ctx context.Context, entityType
 }
 
 func (me *BadgerStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) error {
-	// Ensure the default fields are set
-	schema.Field(qdata.FTName, qdata.FSOValueType(qdata.VTString), qdata.FSORank(0))
-	schema.Field(qdata.FTDescription, qdata.FSOValueType(qdata.VTString), qdata.FSORank(1))
-	schema.Field(qdata.FTParent, qdata.FSOValueType(qdata.VTEntityReference), qdata.FSORank(2))
-	schema.Field(qdata.FTChildren, qdata.FSOValueType(qdata.VTEntityList), qdata.FSORank(3))
+	return me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+		// Ensure the default fields are set
+		schema.Field(qdata.FTName, qdata.FSOValueType(qdata.VTString), qdata.FSORank(0))
+		schema.Field(qdata.FTDescription, qdata.FSOValueType(qdata.VTString), qdata.FSORank(1))
+		schema.Field(qdata.FTParent, qdata.FSOValueType(qdata.VTEntityReference), qdata.FSORank(2))
+		schema.Field(qdata.FTChildren, qdata.FSOValueType(qdata.VTEntityList), qdata.FSORank(3))
 
-	oldSchema, oldSchemaErr := me.GetEntitySchema(ctx, schema.EntityType)
-	removedFields := make(qdata.FieldTypeSlice, 0)
-	newFields := make(qdata.FieldTypeSlice, 0)
+		oldSchema, oldSchemaErr := me.GetEntitySchema(ctx, schema.EntityType)
+		removedFields := make(qdata.FieldTypeSlice, 0)
+		newFields := make(qdata.FieldTypeSlice, 0)
 
-	// Save the schema in BadgerDB and update the entity types index
-	schemaBytes, err := schema.AsBytes()
-	if err != nil {
-		return err
-	}
+		// Save the schema in BadgerDB and update the entity types index
+		schemaBytes, err := schema.AsBytes()
+		if err != nil {
+			return err
+		}
 
-	err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
 		// Add to entity types set
 		set, err := me.getSortedSet(txn, me.keyBuilder.GetAllEntityTypesKey())
 		if err != nil {
@@ -561,75 +572,75 @@ func (me *BadgerStoreInteractor) SetEntitySchema(ctx context.Context, schema *qd
 		}
 
 		// Save the schema
-		return txn.Set([]byte(me.keyBuilder.GetSchemaKey(schema.EntityType)), schemaBytes)
-	})
+		err = txn.Set([]byte(me.keyBuilder.GetSchemaKey(schema.EntityType)), schemaBytes)
 
-	if err != nil {
-		return err
-	}
-
-	errs := make([]error, 0)
-
-	if oldSchemaErr == nil {
-		// Find removed fields
-		for _, oldField := range oldSchema.Fields {
-			if _, ok := schema.Fields[oldField.FieldType]; !ok {
-				removedFields = append(removedFields, oldField.FieldType)
-			}
-		}
-
-		// Find new fields
-		for _, newField := range schema.Fields {
-			if _, ok := oldSchema.Fields[newField.FieldType]; !ok {
-				newFields = append(newFields, newField.FieldType)
-			}
-		}
-
-		// Update existing entities with the schema changes
-		iter, err := me.FindEntities(schema.EntityType)
 		if err != nil {
 			return err
 		}
 
-		iter.ForEach(ctx, func(entityId qdata.EntityId) bool {
-			// Remove deleted fields
-			if len(removedFields) > 0 {
-				err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-					for _, field := range removedFields {
-						if err := txn.Delete([]byte(me.keyBuilder.GetEntityFieldKey(entityId, field))); err != nil {
-							return err
-						}
-					}
-					return nil
-				})
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed to remove fields (%+v) from entity %s: %w", removedFields, entityId.AsString(), err))
+		errs := make([]error, 0)
+
+		if oldSchemaErr == nil {
+			// Find removed fields
+			for _, oldField := range oldSchema.Fields {
+				if _, ok := schema.Fields[oldField.FieldType]; !ok {
+					removedFields = append(removedFields, oldField.FieldType)
 				}
 			}
 
-			// Add new fields
-			reqs := make([]*qdata.Request, 0)
-			for _, newField := range newFields {
-				req := new(qdata.Request).Init(entityId, newField)
-				vt := schema.Fields[newField].ValueType
-				req.Value.FromValue(vt.NewValue())
-				reqs = append(reqs, req)
+			// Find new fields
+			for _, newField := range schema.Fields {
+				if _, ok := oldSchema.Fields[newField.FieldType]; !ok {
+					newFields = append(newFields, newField.FieldType)
+				}
 			}
-			err = me.Write(ctx, reqs...)
+
+			// Update existing entities with the schema changes
+			iter, err := me.FindEntities(schema.EntityType)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to add fields (%+v) to entity %s: %w", newFields, entityId.AsString(), err))
+				return err
 			}
 
-			return true
-		})
-	}
+			iter.ForEach(ctx, func(entityId qdata.EntityId) bool {
+				// Remove deleted fields
+				if len(removedFields) > 0 {
+					err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+						for _, field := range removedFields {
+							if err := txn.Delete([]byte(me.keyBuilder.GetEntityFieldKey(entityId, field))); err != nil {
+								return err
+							}
+						}
+						return nil
+					})
+					if err != nil {
+						errs = append(errs, fmt.Errorf("failed to remove fields (%+v) from entity %s: %w", removedFields, entityId.AsString(), err))
+					}
+				}
 
-	err = qdata.AccumulateErrors(errs...)
-	if err != nil {
-		return err
-	}
+				// Add new fields
+				reqs := make([]*qdata.Request, 0)
+				for _, newField := range newFields {
+					req := new(qdata.Request).Init(entityId, newField)
+					vt := schema.Fields[newField].ValueType
+					req.Value.FromValue(vt.NewValue())
+					reqs = append(reqs, req)
+				}
+				err = me.Write(ctx, reqs...)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("failed to add fields (%+v) to entity %s: %w", newFields, entityId.AsString(), err))
+				}
 
-	return nil
+				return true
+			})
+		}
+
+		err = qdata.AccumulateErrors(errs...)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (me *BadgerStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (*qdata.FieldSchema, error) {
@@ -745,120 +756,119 @@ func (me *BadgerStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Reques
 }
 
 func (me *BadgerStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Request) error {
-	ir := qdata.NewIndirectionResolver(me)
-	errs := make([]error, 0)
+	return me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
+		ir := qdata.NewIndirectionResolver(me)
+		errs := make([]error, 0)
 
-	for _, req := range reqs {
-		req.Success = false
-		req.Err = nil
+		for _, req := range reqs {
+			req.Success = false
+			req.Err = nil
 
-		indirectEntity, indirectField, err := ir.Resolve(ctx, req.EntityId, req.FieldType)
-		if err != nil {
-			req.Err = err
-			errs = append(errs, err)
-			continue
-		}
+			indirectEntity, indirectField, err := ir.Resolve(ctx, req.EntityId, req.FieldType)
+			if err != nil {
+				req.Err = err
+				errs = append(errs, err)
+				continue
+			}
 
-		// Check if the field is part of the entity type schema
-		schema, err := me.GetFieldSchema(ctx, indirectEntity.GetEntityType(), indirectField)
-		if err != nil {
-			req.Err = fmt.Errorf("schema not found for field %s in entity type %s: %v", indirectField, indirectEntity.GetEntityType(), err)
-			errs = append(errs, req.Err)
-			continue
-		}
-
-		if req.Value == nil {
-			req.Value = schema.ValueType.NewValue()
-		}
-
-		if req.Value.IsNil() {
-			req.Value.FromValue(schema.ValueType.NewValue())
-		}
-
-		// Check if the subject is allowed to write to the field
-		if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
-			if !authorizer.CanWrite(ctx, new(qdata.Field).Init(req.EntityId, req.FieldType)) {
-				req.Err = fmt.Errorf("permission denied for field %s in entity type %s", req.FieldType, req.EntityId.GetEntityType())
+			// Check if the field is part of the entity type schema
+			schema, err := me.GetFieldSchema(ctx, indirectEntity.GetEntityType(), indirectField)
+			if err != nil {
+				req.Err = fmt.Errorf("schema not found for field %s in entity type %s: %v", indirectField, indirectEntity.GetEntityType(), err)
 				errs = append(errs, req.Err)
 				continue
-			} else {
-				subjectId := authorizer.SubjectId()
-				req.WriterId = &subjectId
 			}
-		}
 
-		oldReq := new(qdata.Request).Init(indirectEntity, indirectField)
-		// It's okay if the field doesn't exist
-		me.Read(ctx, oldReq)
-		if oldReq.Success && req.WriteOpt == qdata.WriteChanges {
-			if req.Value.Equals(oldReq.Value) {
-				// No changes, so we can skip the write
-				req.Success = true
-				continue
+			if req.Value == nil {
+				req.Value = schema.ValueType.NewValue()
 			}
-		}
 
-		if req.WriteTime == nil {
-			wt := time.Now()
-			req.WriteTime = new(qdata.WriteTime).FromTime(wt)
-		}
+			if req.Value.IsNil() {
+				req.Value.FromValue(schema.ValueType.NewValue())
+			}
 
-		if req.WriterId == nil || req.WriterId.IsEmpty() {
-			wr := new(qdata.EntityId).FromString("")
-
-			appName := qcontext.GetAppName(ctx)
-			if me.clientId == nil && appName != "" {
-				iter, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName)
-
-				if err == nil {
-					iter.ForEach(ctx, func(client qdata.QueryRow) bool {
-						entityId := client.AsEntity().EntityId
-						me.clientId = &entityId
-						return false
-					})
+			// Check if the subject is allowed to write to the field
+			if authorizer, ok := qcontext.GetAuthorizer(ctx); ok {
+				if !authorizer.CanWrite(ctx, new(qdata.Field).Init(req.EntityId, req.FieldType)) {
+					req.Err = fmt.Errorf("permission denied for field %s in entity type %s", req.FieldType, req.EntityId.GetEntityType())
+					errs = append(errs, req.Err)
+					continue
+				} else {
+					subjectId := authorizer.SubjectId()
+					req.WriterId = &subjectId
 				}
 			}
 
-			if me.clientId != nil {
-				*wr = *me.clientId
+			oldReq := new(qdata.Request).Init(indirectEntity, indirectField)
+			// It's okay if the field doesn't exist
+			me.Read(ctx, oldReq)
+			if oldReq.Success && req.WriteOpt == qdata.WriteChanges {
+				if req.Value.Equals(oldReq.Value) {
+					// No changes, so we can skip the write
+					req.Success = true
+					continue
+				}
 			}
 
-			req.WriterId = wr
+			if req.WriteTime == nil {
+				wt := time.Now()
+				req.WriteTime = new(qdata.WriteTime).FromTime(wt)
+			}
+
+			if req.WriterId == nil || req.WriterId.IsEmpty() {
+				wr := new(qdata.EntityId).FromString("")
+
+				appName := qcontext.GetAppName(ctx)
+				if me.clientId == nil && appName != "" {
+					iter, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName)
+
+					if err == nil {
+						iter.ForEach(ctx, func(client qdata.QueryRow) bool {
+							entityId := client.AsEntity().EntityId
+							me.clientId = &entityId
+							return false
+						})
+					}
+				}
+
+				if me.clientId != nil {
+					*wr = *me.clientId
+				}
+
+				req.WriterId = wr
+			}
+
+			// Write the field to BadgerDB
+			fieldBytes, err := req.AsField().AsBytes()
+			if err != nil {
+				req.Err = fmt.Errorf("failed to serialize field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
+				errs = append(errs, req.Err)
+				continue
+			}
+
+			err = txn.Set([]byte(me.keyBuilder.GetEntityFieldKey(indirectEntity, indirectField)), fieldBytes)
+			if err != nil {
+				req.Err = fmt.Errorf("failed to write field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
+				errs = append(errs, req.Err)
+				continue
+			}
+
+			me.publisherSig.Emit(qdata.PublishNotificationArgs{
+				Ctx:  ctx,
+				Curr: req,
+				Prev: oldReq,
+			})
+
+			req.Success = true
+
+			me.writeEventSig.Emit(qdata.WriteEventArgs{
+				Ctx: ctx,
+				Req: req,
+			})
 		}
 
-		// Write the field to BadgerDB
-		fieldBytes, err := req.AsField().AsBytes()
-		if err != nil {
-			req.Err = fmt.Errorf("failed to serialize field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
-			errs = append(errs, req.Err)
-			continue
-		}
-
-		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			return txn.Set([]byte(me.keyBuilder.GetEntityFieldKey(indirectEntity, indirectField)), fieldBytes)
-		})
-
-		if err != nil {
-			req.Err = fmt.Errorf("failed to write field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
-			errs = append(errs, req.Err)
-			continue
-		}
-
-		me.publisherSig.Emit(qdata.PublishNotificationArgs{
-			Ctx:  ctx,
-			Curr: req,
-			Prev: oldReq,
-		})
-
-		req.Success = true
-
-		me.writeEventSig.Emit(qdata.WriteEventArgs{
-			Ctx: ctx,
-			Req: req,
-		})
-	}
-
-	return qdata.AccumulateErrors(errs...)
+		return qdata.AccumulateErrors(errs...)
+	})
 }
 
 func (me *BadgerStoreInteractor) InitializeSchema(ctx context.Context) error {
