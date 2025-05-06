@@ -2,7 +2,6 @@ package qstore
 
 import (
 	"os"
-	"time"
 
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qstore/qnats"
@@ -38,10 +37,7 @@ func New(opts ...qdata.StoreOpts) *qdata.Store {
 
 func New2(natsCore qnats.NatsCore) *qdata.Store {
 	opts := []qdata.StoreOpts{
-		PersistOverRedis(
-			DefaultRedisAddress(), "", 0, 10,
-			30*time.Second, 1*time.Minute,
-		),
+		PersistInMemoryBadger(),
 		NotifyOverNatsWithCore(natsCore),
 	}
 
