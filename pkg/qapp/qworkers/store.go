@@ -129,11 +129,13 @@ func (me *storeWorker) Init(ctx context.Context) {
 	me.tryConnect(ctx)
 }
 
-func (me *storeWorker) Deinit(context.Context) {
+func (me *storeWorker) Deinit(ctx context.Context) {
 	me.sessionRefreshTimer.Stop()
 	me.connectionAttemptTimer.Stop()
 	me.connectionCheckTimer.Stop()
 	me.metricsTimer.Stop()
+
+	me.store.Disconnect(ctx)
 }
 
 func (me *storeWorker) DoWork(ctx context.Context) {
