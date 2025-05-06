@@ -858,7 +858,11 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 			}
 
 			// Read all field data for this entity
-			me.store.Read(ctx, requests...)
+			err := me.store.Read(ctx, requests...)
+			if err != nil {
+				qlog.Trace("ExprEvaluator.ExecuteWithPagination: Failed to read entity %s: %v", entityId, err)
+				continue
+			}
 
 			// Create a new query row
 			row := NewQueryRow()
@@ -948,6 +952,7 @@ func (me *ExprEvaluator) ExecuteWithPagination(ctx context.Context, pageSize int
 
 			// If expression evaluates to true, add the row to results
 			if boolResult, ok := result.(bool); ok && boolResult {
+				row.SetOrder(me.parsed.ColumnOrder)
 				rows = append(rows, row)
 				matchCount++
 			}
@@ -1610,6 +1615,9 @@ func (me *SQLiteBuilder) rowToQueryRow(rows *sql.Rows, query *ParsedQuery) (Quer
 			qlog.Warn("rowToQueryRow: Column %s not found in query columns", columnName)
 		}
 
+		if isSelected {
+			columnName = queryCol.SelectedName
+		}
 		queryRow.Set(columnName, vt.NewValue(value), isSelected)
 	}
 

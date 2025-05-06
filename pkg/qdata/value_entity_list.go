@@ -42,7 +42,7 @@ func (me *ValueEntityList) SetEntityList(value []EntityId) {
 }
 
 func (me *ValueEntityList) GetRaw() any {
-	return me.Value
+	return CastEntityIdSliceToStringSlice(me.Value)
 }
 
 func (me *ValueEntityList) SetRaw(value any) {

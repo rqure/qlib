@@ -40,7 +40,7 @@ func (me *ValueEntityReference) SetEntityReference(value EntityId) {
 }
 
 func (me *ValueEntityReference) GetRaw() any {
-	return me.Value
+	return me.Value.AsString()
 }
 
 func (me *ValueEntityReference) SetRaw(value any) {
