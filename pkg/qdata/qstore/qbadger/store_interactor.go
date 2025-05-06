@@ -252,28 +252,33 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
 				// Create a prefix for this entity type
-				prefix := []byte(me.keyBuilder.BuildKey("entity"))
+				prefix := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetEntityPrefix(), entityType.AsString()))
 				opts := badger.DefaultIteratorOptions
 				opts.PrefetchValues = false // We only need keys
+				opts.Prefix = prefix
 
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				// Track unique entities
-				uniqueEntities := make(map[qdata.EntityId]bool)
-				count := int64(0)
+				lastSeenId := ""
+				if pageConfig.CursorId > 0 {
+					lastSeenId = fmt.Sprintf("%d", pageConfig.CursorId)
+				} else if pageConfig.CursorId < 0 {
+					// less than 0 means iteration is at the end
+					return nil
+				}
+
+				lastSeen := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetEntityPrefix(), fmt.Sprintf("%s$%s", entityType.AsString(), lastSeenId)))
 
 				// Find starting point based on cursor
-				it.Seek(prefix)
+				it.Seek(lastSeen)
+
+				// Keep track of how many entities we've found so far
+				count := int64(0)
 
 				// Iterate through keys
 				for ; it.Valid(); it.Next() {
 					key := string(it.Item().Key())
-
-					// Check if the key has the correct prefix
-					if !strings.HasPrefix(key, string(prefix)) {
-						continue
-					}
 
 					// Extract entity ID from key
 					entityId, err := me.keyBuilder.ExtractEntityIdFromKey(key)
@@ -282,35 +287,15 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 						continue
 					}
 
-					// Skip entities of different types
-					if entityId.GetEntityType() != entityType {
-						continue
+					// Break if we've reached page size
+					if count >= pageConfig.PageSize {
+						nextCursorId = entityId.AsInt()
+						break
 					}
 
-					// Extract snowflake ID for comparison with cursor
-					snowflakeId := entityId.AsInt()
-
-					// Skip entities with IDs less than or equal to the cursor
-					if snowflakeId <= pageConfig.CursorId {
-						continue
-					}
-
-					// Only add each entity once
-					if !uniqueEntities[entityId] {
-						uniqueEntities[entityId] = true
-						entities = append(entities, entityId)
-						count++
-
-						// Keep track of the highest ID we've seen for the next cursor
-						if nextCursorId < 0 || snowflakeId > nextCursorId {
-							nextCursorId = snowflakeId
-						}
-
-						// Break if we've reached page size
-						if count >= pageConfig.PageSize {
-							break
-						}
-					}
+					// Add to our results
+					entities = append(entities, entityId)
+					count++
 				}
 
 				// If we didn't fill the page, there are no more results
@@ -372,8 +357,7 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				// Track unique entity types
-				uniqueTypes := make(map[qdata.EntityType]bool)
+				// Keep track of how many types we've found so far
 				count := int64(0)
 
 				// Find starting point based on cursor
@@ -398,21 +382,16 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 						continue
 					}
 
-					// Only add each entity type once
-					if !uniqueTypes[entityType] {
-						uniqueTypes[entityType] = true
-						entityTypes = append(entityTypes, entityType)
-						count++
+					// Add to our results
+					entityTypes = append(entityTypes, entityType)
+					count++
 
-						// Keep track of the highest ID we've seen for the next cursor
-						if nextCursorId < 0 || typeId > nextCursorId {
-							nextCursorId = typeId
-						}
+					// Track for next pagination cursor
+					nextCursorId = typeId
 
-						// Break if we've reached page size
-						if count >= pageConfig.PageSize {
-							break
-						}
+					// Break if we've reached page size
+					if count >= pageConfig.PageSize {
+						break
 					}
 				}
 

@@ -21,21 +21,28 @@ func (kb *KeyBuilder) BuildKey(parts ...string) string {
 	return strings.Join(append([]string{kb.Prefix}, parts...), ":")
 }
 
+func (me *KeyBuilder) GetEntityPrefix() string {
+	return "entity"
+}
+
+func (me *KeyBuilder) GetFieldPrefix() string {
+	return "field"
+}
+
+func (me *KeyBuilder) GetSchemaPrefix() string {
+	return "schema"
+}
+
 func (me *KeyBuilder) GetEntityKey(entityId qdata.EntityId) string {
-	return me.BuildKey("entity", entityId.AsString())
+	return me.BuildKey(me.GetEntityPrefix(), entityId.AsString())
 }
 
 func (me *KeyBuilder) GetEntityFieldKey(entityId qdata.EntityId, fieldType qdata.FieldType) string {
-	return me.BuildKey("entity", entityId.AsString(), fieldType.AsString())
+	return me.BuildKey(me.GetFieldPrefix(), entityId.AsString(), fieldType.AsString())
 }
 
 func (me *KeyBuilder) GetSchemaKey(entityType qdata.EntityType) string {
-	return me.BuildKey("schema", entityType.AsString())
-}
-
-// GetNumericSchemaKey returns a schema key with numeric entity type ID for ordering
-func (me *KeyBuilder) GetNumericSchemaKey(entityType qdata.EntityType) string {
-	return me.BuildKey("schema", fmt.Sprintf("%s:%d", entityType.AsString(), entityType.AsInt()))
+	return me.BuildKey(me.GetSchemaPrefix(), entityType.AsString(), fmt.Sprintf("%d", entityType.AsInt()))
 }
 
 // ExtractEntityIdFromKey extracts the EntityId from a key
@@ -52,12 +59,6 @@ func (me *KeyBuilder) ExtractEntityTypeFromKey(key string) (qdata.EntityType, er
 	parts := strings.Split(key, ":")
 	if len(parts) < 3 {
 		return "", fmt.Errorf("invalid key format: %s", key)
-	}
-
-	// Check if the format includes numeric ID
-	typeParts := strings.Split(parts[2], ":")
-	if len(typeParts) > 0 {
-		return qdata.EntityType(typeParts[0]), nil
 	}
 
 	return qdata.EntityType(parts[2]), nil
