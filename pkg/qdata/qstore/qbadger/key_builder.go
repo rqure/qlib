@@ -39,11 +39,3 @@ func (me *KeyBuilder) GetAllEntityTypesKey() string {
 func (me *KeyBuilder) GetAllEntitiesKey(entityType qdata.EntityType) string {
 	return me.BuildKey("all-entities", entityType.AsString())
 }
-
-func (me *KeyBuilder) GetReverseReferenceFieldKey(entityId qdata.EntityId) string {
-	return me.BuildKey("reverse-reference", "field", entityId.AsString())
-}
-
-func (me *KeyBuilder) GetReverseReferenceSchemaKey(entityId string) string {
-	return me.BuildKey("reverse-reference", "schema", entityId)
-}
