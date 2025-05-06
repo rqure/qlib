@@ -2,9 +2,11 @@ package qbadger
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/rqure/qlib/pkg/qdata"
@@ -169,6 +171,47 @@ func fileExists(path string) bool {
 
 // Disconnect closes the BadgerDB connection
 func (me *BadgerConnector) Disconnect(ctx context.Context) {
+	// Take a final snapshot before disconnecting, but only if DB is initialized
+	// and we're not using in-memory mode
+	if me.core.GetDB() != nil {
+		config := me.core.GetConfig()
+		if !config.InMemory && config.Path != "" && !config.DisableBackgroundTasks && config.SnapshotDirectory != "" {
+			qlog.Info("Taking final snapshot before disconnecting...")
+
+			// Create snapshot directory if needed
+			if err := os.MkdirAll(config.SnapshotDirectory, 0755); err != nil {
+				qlog.Error("Failed to create snapshot directory: %v", err)
+			} else {
+				// Create snapshot filename with timestamp
+				timestamp := time.Now().Format("20060102_150405")
+				snapshotFile := filepath.Join(config.SnapshotDirectory, fmt.Sprintf("badger_snapshot_%s.bak", timestamp))
+
+				// Create the file for writing
+				file, err := os.Create(snapshotFile)
+				if err != nil {
+					qlog.Error("Failed to create final snapshot file: %v", err)
+				} else {
+					// Take the snapshot
+					_, err = me.core.GetDB().Backup(file, 0)
+
+					// Close the file regardless of backup success
+					closeErr := file.Close()
+					if closeErr != nil {
+						qlog.Warn("Error closing snapshot file: %v", closeErr)
+					}
+
+					if err != nil {
+						qlog.Error("Failed to create final snapshot: %v", err)
+						// Try to remove the incomplete snapshot file
+						os.Remove(snapshotFile)
+					} else {
+						qlog.Info("Final snapshot created successfully: %s", snapshotFile)
+					}
+				}
+			}
+		}
+	}
+
 	me.closeDB()
 	me.setConnected(ctx, false, nil)
 }
