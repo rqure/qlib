@@ -301,10 +301,14 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 			// Handle regular field expressions
 			fields := extractFieldsFromExpr(expr, tableLookup, true)
 			for _, field := range fields {
-				finalName := field.FinalName()
-				if _, exists := parsed.Columns[finalName]; !exists {
-					parsed.Columns[finalName] = field
-					parsed.ColumnOrder = append(parsed.ColumnOrder, finalName)
+				colName := field.FinalName()
+				if field.IsSelected {
+					colName = field.SelectedName
+				}
+
+				if _, exists := parsed.Columns[colName]; !exists {
+					parsed.ColumnOrder = append(parsed.ColumnOrder, colName)
+					parsed.Columns[colName] = field
 					qlog.Trace("ParseQuery: Parsed SELECT field: %s, alias: %s", field.FieldType(), field.Alias)
 				}
 			}
@@ -315,9 +319,13 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 	if selectStmt.Where != nil {
 		fields := extractFieldsFromWhere(selectStmt.Where, tableLookup)
 		for _, field := range fields {
-			finalName := field.FinalName()
-			if _, exists := parsed.Columns[finalName]; !exists {
-				parsed.Columns[finalName] = field
+			colName := field.FinalName()
+			if field.IsSelected {
+				colName = field.SelectedName
+			}
+
+			if _, exists := parsed.Columns[colName]; !exists {
+				parsed.Columns[colName] = field
 				qlog.Trace("ParseQuery: Parsed WHERE field: %s", field.FieldType())
 			}
 		}
@@ -327,9 +335,13 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 	for _, groupBy := range selectStmt.GroupBy {
 		fields := extractFieldsFromExpr(groupBy, tableLookup, false)
 		for _, field := range fields {
-			finalName := field.FinalName()
-			if _, exists := parsed.Columns[finalName]; !exists {
-				parsed.Columns[finalName] = field
+			colName := field.FinalName()
+			if field.IsSelected {
+				colName = field.SelectedName
+			}
+
+			if _, exists := parsed.Columns[colName]; !exists {
+				parsed.Columns[colName] = field
 				qlog.Trace("ParseQuery: Parsed GROUP BY field: %s", field.FieldType())
 			}
 		}
@@ -339,9 +351,13 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 	if selectStmt.Having != nil {
 		fields := extractFieldsFromWhere(selectStmt.Having, tableLookup)
 		for _, field := range fields {
-			finalName := field.FinalName()
-			if _, exists := parsed.Columns[finalName]; !exists {
-				parsed.Columns[finalName] = field
+			colName := field.FinalName()
+			if field.IsSelected {
+				colName = field.SelectedName
+			}
+
+			if _, exists := parsed.Columns[colName]; !exists {
+				parsed.Columns[colName] = field
 				qlog.Trace("ParseQuery: Parsed HAVING field: %s", field.FieldType())
 			}
 		}
@@ -351,9 +367,13 @@ func ParseQuery(ctx context.Context, sql string, store StoreInteractor) (*Parsed
 	for _, orderBy := range selectStmt.OrderBy {
 		fields := extractFieldsFromExpr(orderBy.Expr, tableLookup, false)
 		for _, field := range fields {
-			finalName := field.FinalName()
-			if _, exists := parsed.Columns[finalName]; !exists {
-				parsed.Columns[finalName] = field
+			colName := field.FinalName()
+			if field.IsSelected {
+				colName = field.SelectedName
+			}
+
+			if _, exists := parsed.Columns[colName]; !exists {
+				parsed.Columns[colName] = field
 				qlog.Trace("ParseQuery: Parsed ORDER BY field: %s", field.FieldType())
 			}
 		}
@@ -379,10 +399,14 @@ func expandWildcard(ctx context.Context, table QueryTable, parsed *ParsedQuery, 
 			SelectedName: sysCol,
 			IsSelected:   true,
 		}
-		finalName := col.FinalName()
-		if _, exists := parsed.Columns[finalName]; !exists {
-			parsed.Columns[finalName] = col
-			parsed.ColumnOrder = append(parsed.ColumnOrder, col.ColumnName)
+		colName := col.FinalName()
+		if col.IsSelected {
+			colName = col.SelectedName
+		}
+
+		if _, exists := parsed.Columns[colName]; !exists {
+			parsed.ColumnOrder = append(parsed.ColumnOrder, colName)
+			parsed.Columns[colName] = col
 			qlog.Trace("expandWildcard: Added column %s to table %s", col.ColumnName, table.TableName)
 		}
 	}
@@ -397,10 +421,14 @@ func expandWildcard(ctx context.Context, table QueryTable, parsed *ParsedQuery, 
 		}
 
 		// Use FinalName as the key to avoid duplicates
-		finalName := col.FinalName()
-		if _, exists := parsed.Columns[finalName]; !exists {
-			parsed.Columns[finalName] = col
-			parsed.ColumnOrder = append(parsed.ColumnOrder, col.ColumnName)
+		colName := col.FinalName()
+		if col.IsSelected {
+			colName = col.SelectedName
+		}
+
+		if _, exists := parsed.Columns[colName]; !exists {
+			parsed.ColumnOrder = append(parsed.ColumnOrder, colName)
+			parsed.Columns[colName] = col
 			qlog.Trace("expandWildcard: Added column %s to table %s", col.ColumnName, table.TableName)
 		}
 	}
@@ -1104,22 +1132,26 @@ func (me *SQLiteBuilder) buildTableForEntityType(ctx context.Context, entityType
 			continue
 		}
 
-		finalName := col.FinalName()
+		colName := col.FinalName()
+		if col.IsSelected {
+			colName = col.SelectedName
+		}
+
 		ft := col.FieldType()
 		if ft.IsIndirection() {
-			if vt, ok := me.typeHints[finalName]; ok {
+			if vt, ok := me.typeHints[colName]; ok {
 				colType = getSQLiteType(vt)
 			} else {
 				colType = "TEXT"
 			}
 		} else {
-			if vt, ok := me.typeHints[finalName]; ok {
+			if vt, ok := me.typeHints[colName]; ok {
 				colType = getSQLiteType(vt)
 			} else {
 				schema, err := me.store.GetFieldSchema(ctx, entityType, ft)
 				if err == nil {
 					colType = getSQLiteType(schema.ValueType)
-					me.typeHints[finalName] = schema.ValueType
+					me.typeHints[colName] = schema.ValueType
 				}
 			}
 		}
@@ -1349,13 +1381,17 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 	// Create the final results table - only include selected fields
 	columns := []string{"[$CursorId] INTEGER PRIMARY KEY AUTOINCREMENT"}
 	for _, field := range query.Columns {
-		finalName := field.FinalName()
-		vt, ok := me.typeHints[finalName]
+		colName := field.FinalName()
+		if field.IsSelected {
+			colName = field.SelectedName
+		}
+
+		vt, ok := me.typeHints[colName]
 		if ok {
 			sqlType := getSQLiteType(vt)
-			columns = append(columns, fmt.Sprintf(`"%s" %s`, finalName, sqlType))
+			columns = append(columns, fmt.Sprintf(`"%s" %s`, colName, sqlType))
 		} else {
-			columns = append(columns, fmt.Sprintf(`"%s" TEXT`, finalName))
+			columns = append(columns, fmt.Sprintf(`"%s" TEXT`, colName))
 		}
 	}
 
@@ -1373,25 +1409,24 @@ func (me *SQLiteBuilder) executeQuery(ctx context.Context, query *ParsedQuery, e
 
 	// Build column names for the insert - only selected fields
 	colNames := make([]string, 0, len(query.ColumnOrder))
-	for _, finalName := range query.ColumnOrder {
-		field, exists := query.Columns[finalName]
+	for _, colName := range query.ColumnOrder {
+		_, exists := query.Columns[colName]
 		if !exists {
-			qlog.Warn("executeQuery: Field %s not found in query columns", finalName)
+			qlog.Warn("executeQuery: Field %s not found in query columns", colName)
 			continue
 		}
-		colNames = append(colNames, fmt.Sprintf(`"%s"`, field.FinalName()))
+		colNames = append(colNames, fmt.Sprintf(`"%s"`, colName))
 	}
 
 	// Build the SELECT clause for the query - only selected fields
 	selectFields := make([]string, 0, len(query.ColumnOrder))
-	for _, finalName := range query.ColumnOrder {
-		field, exists := query.Columns[finalName]
+	for _, colName := range query.ColumnOrder {
+		field, exists := query.Columns[colName]
 		if !exists {
-			qlog.Warn("executeQuery: Field %s not found in query columns", finalName)
+			qlog.Warn("executeQuery: Field %s not found in query columns", colName)
 			continue
 		}
-		finalName := field.FinalName()
-		selectFields = append(selectFields, fmt.Sprintf(`%s as "%s"`, field.QualifiedNameWithQuotes(), finalName))
+		selectFields = append(selectFields, fmt.Sprintf(`%s as "%s"`, field.QualifiedNameWithQuotes(), colName))
 	}
 
 	// Build the query for this entity table
