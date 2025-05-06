@@ -250,9 +250,9 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 			var entities []qdata.EntityId = make([]qdata.EntityId, 0)
 			var nextCursorId int64 = -1 // Default to no more results
 
+			cursorSnowflake := pageConfig.CursorId
+
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				// Use prefix iteration to find all entities of this type
-				// We'll scan the entity keys directly rather than using a separate index
 				prefix := []byte(me.keyBuilder.BuildKey("entity"))
 				opts := badger.DefaultIteratorOptions
 				opts.PrefetchValues = false // We only need keys for this operation
@@ -260,58 +260,40 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				// Start iterating
 				it.Seek(prefix)
 
-				// Skip to the cursor position if needed
-				if pageConfig.CursorId > 0 {
-					// Skip items
-					var skipped int64
-					for ; it.Valid() && skipped < pageConfig.CursorId; it.Next() {
-						key := string(it.Item().Key())
-						// Only count keys that match our prefix and entity type
-						if strings.HasPrefix(key, string(prefix)) {
-							// Extract entity ID from the key
-							parts := strings.Split(key, ":")
-							if len(parts) >= 2 {
-								entityIdStr := parts[1]
-								entityId := qdata.EntityId(entityIdStr)
-								if entityId.GetEntityType() == entityType && !containsField(key) {
-									skipped++
-								}
-							}
-						}
-					}
-				}
-
-				// Collect up to PageSize entities of the specified type
-				var count int64
-				for ; it.Valid() && count < pageConfig.PageSize; it.Next() {
+				// Collect up to PageSize entities with snowflake ID > cursor
+				for ; it.Valid(); it.Next() {
 					key := string(it.Item().Key())
-					// Check if this key is for the entity prefix
-					if strings.HasPrefix(key, string(prefix)) {
-						// Extract entity ID from the key
-						parts := strings.Split(key, ":")
-						if len(parts) >= 2 {
-							entityIdStr := parts[1]
-							entityId := qdata.EntityId(entityIdStr)
-
-							// Check if this entity matches the requested type
-							// and make sure we're not counting field keys
-							if entityId.GetEntityType() == entityType && !containsField(key) {
-								// Only add each entity once
-								if !containsEntity(entities, entityId) {
-									entities = append(entities, entityId)
-									count++
-								}
-							}
+					if !strings.HasPrefix(key, string(prefix)) {
+						continue
+					}
+					parts := strings.Split(key, ":")
+					if len(parts) < 2 {
+						continue
+					}
+					entityIdStr := parts[1]
+					entityId := qdata.EntityId(entityIdStr)
+					if entityId.GetEntityType() != entityType || containsField(key) {
+						continue
+					}
+					snowflakeId := entityId.AsInt()
+					if snowflakeId <= cursorSnowflake {
+						continue
+					}
+					// Only add each entity once
+					if !containsEntity(entities, entityId) {
+						entities = append(entities, entityId)
+						if int64(len(entities)) >= pageConfig.PageSize {
+							nextCursorId = snowflakeId
+							break
 						}
 					}
 				}
 
-				// Check if there are more results
-				if it.Valid() {
-					nextCursorId = pageConfig.CursorId + count
+				// If we didn't fill the page, set nextCursorId to -1
+				if int64(len(entities)) < pageConfig.PageSize {
+					nextCursorId = -1
 				}
 
 				return nil
@@ -332,7 +314,6 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 							NextPage: nil,
 						}, nil
 					}
-
 					next, err := me.FindEntities(entityType,
 						qdata.POCursorId(nextCursorId),
 						qdata.POPageSize(pageConfig.PageSize))
@@ -374,10 +355,10 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
 			var entityTypes []qdata.EntityType = make([]qdata.EntityType, 0)
+			var allTypes []qdata.EntityType
 			var nextCursorId int64 = -1 // Default to no more results
 
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				// Find all schema keys
 				prefix := []byte(me.keyBuilder.BuildKey("schema"))
 				opts := badger.DefaultIteratorOptions
 				opts.PrefetchValues = false // We only need keys for this operation
@@ -385,44 +366,44 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				// Start iterating
 				it.Seek(prefix)
 
-				// Skip to cursor position if needed
-				if pageConfig.CursorId > 0 {
-					var skipped int64
-					for ; it.Valid() && skipped < pageConfig.CursorId; it.Next() {
-						key := string(it.Item().Key())
-						if strings.HasPrefix(key, string(prefix)) {
-							skipped++
-						}
-					}
-				}
-
-				// Collect up to PageSize entity types
-				var count int64
-				for ; it.Valid() && count < pageConfig.PageSize; it.Next() {
+				for ; it.Valid(); it.Next() {
 					key := string(it.Item().Key())
 					if strings.HasPrefix(key, string(prefix)) {
 						parts := strings.Split(key, ":")
 						if len(parts) >= 3 { // prefix:schema:entityType
 							entityType := qdata.EntityType(parts[2])
-							entityTypes = append(entityTypes, entityType)
-							count++
+							allTypes = append(allTypes, entityType)
 						}
 					}
 				}
-
-				// Check if there are more results
-				if it.Valid() {
-					nextCursorId = pageConfig.CursorId + count
-				}
-
 				return nil
 			})
 
 			if err != nil {
 				return nil, err
+			}
+
+			// Sort allTypes for deterministic pagination
+			// (optional: import "sort" and sort.Strings if needed)
+			// sort.Slice(allTypes, func(i, j int) bool { return allTypes[i] < allTypes[j] })
+
+			startIdx := int(pageConfig.CursorId)
+			endIdx := startIdx + int(pageConfig.PageSize)
+			if startIdx >= len(allTypes) {
+				entityTypes = []qdata.EntityType{}
+				nextCursorId = -1
+			} else {
+				if endIdx > len(allTypes) {
+					endIdx = len(allTypes)
+				}
+				entityTypes = allTypes[startIdx:endIdx]
+				if endIdx < len(allTypes) {
+					nextCursorId = int64(endIdx)
+				} else {
+					nextCursorId = -1
+				}
 			}
 
 			return &qdata.PageResult[qdata.EntityType]{
