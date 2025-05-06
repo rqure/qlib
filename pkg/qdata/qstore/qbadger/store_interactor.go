@@ -820,91 +820,76 @@ func (me *BadgerStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Sna
 	// Get all entity types
 	entityTypesResult, err := me.GetEntityTypes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get entity types: %w", err)
 	}
 
-	entityTypesPage, err := entityTypesResult.NextPage(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get all schemas
-	for _, et := range entityTypesPage.Items {
+	// Get all schemas and entities using ForEach
+	entityTypesResult.ForEach(ctx, func(et qdata.EntityType) bool {
+		// Get schema for this entity type
 		schema, err := me.GetEntitySchema(ctx, et)
 		if err == nil {
 			snapshot.Schemas = append(snapshot.Schemas, schema)
+		} else {
+			qlog.Warn("Failed to get schema for entity type %s: %v", et, err)
+			// Continue with next entity type even if this one fails
+			return true
 		}
-	}
 
-	// Get all entities for each entity type
-	for _, et := range entityTypesPage.Items {
 		// Get all entity IDs for this type
 		entityIdsResult, err := me.FindEntities(et)
 		if err != nil {
-			return nil, err
+			qlog.Warn("Failed to find entities of type %s: %v", et, err)
+			return true
 		}
 		defer entityIdsResult.Close()
-		entityIdsResult.ForEach(ctx, func(eid qdata.EntityId) bool {
-			entityId := eid
+
+		// Process all entities using ForEach
+		entityIdsResult.ForEach(ctx, func(entityId qdata.EntityId) bool {
 			entity := new(qdata.Entity).Init(entityId)
 
-			err = me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				prefix := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetFieldPrefix(), entityId.AsString()))
-				opts := badger.DefaultIteratorOptions
-				opts.Prefix = prefix
-
-				it := txn.NewIterator(opts)
-				defer it.Close()
-
-				for ; it.Valid(); it.Next() {
-					item := it.Item()
-					key := string(item.Key())
-					fieldParts := strings.Split(key, ":")
-
-					if len(fieldParts) < 3 {
-						continue
-					}
-
-					fieldType := qdata.FieldType(fieldParts[len(fieldParts)-1])
-
-					var fieldBytes []byte
-					err := item.Value(func(val []byte) error {
-						fieldBytes = append([]byte{}, val...)
-						return nil
-					})
-
-					if err != nil {
-						continue
-					}
-
-					field, err := new(qdata.Field).FromBytes(fieldBytes)
-					if err != nil {
-						continue
-					}
-
-					entity.Fields[fieldType] = field
-				}
-
-				return nil
-			})
-
+			// Get the entity's schema to know which fields to fetch
+			schema, err := me.GetEntitySchema(ctx, entityId.GetEntityType())
 			if err != nil {
-				return false
+				qlog.Warn("Failed to get schema for entity %s: %v", entityId, err)
+				return true // Continue with next entity
+			}
+
+			// Create read requests for each field in the schema
+			requests := make([]*qdata.Request, 0, len(schema.Fields))
+			for fieldType := range schema.Fields {
+				requests = append(requests, new(qdata.Request).Init(entityId, fieldType))
+			}
+
+			// Read all fields at once
+			err = me.Read(ctx, requests...)
+			if err != nil {
+				qlog.Warn("Some fields couldn't be read for entity %s: %v", entityId, err)
+				// Continue with any fields that were successfully read
+			}
+
+			// Add successful reads to the entity
+			for _, req := range requests {
+				if req.Success {
+					field := req.AsField()
+					entity.Fields[req.FieldType] = field
+				}
 			}
 
 			if len(entity.Fields) > 0 {
 				snapshot.Entities = append(snapshot.Entities, entity)
 			}
 
-			return true
+			return true // Continue to next entity
 		})
-	}
+
+		return true // Continue to next entity type
+	})
 
 	return &snapshot, nil
 }
 
 func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
-	// Delete all existing data
+	// Delete all existing data first
 	err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
@@ -920,48 +905,44 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to clear existing data: %w", err)
 	}
 
+	// Restore schemas first
 	for _, schema := range ss.Schemas {
-		schemaBytes, err := schema.AsBytes()
+		err := me.SetEntitySchema(ctx, schema)
 		if err != nil {
-			return err
-		}
-
-		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			return txn.Set([]byte(me.keyBuilder.GetSchemaKey(schema.EntityType)), schemaBytes)
-		})
-
-		if err != nil {
-			return err
+			return fmt.Errorf("failed to restore schema %s: %w", schema.EntityType, err)
 		}
 	}
 
+	// Restore entities and their fields
 	for _, entity := range ss.Entities {
+		// First, create the entity key
 		err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			// Write all fields
-			for fieldType, field := range entity.Fields {
-				fieldBytes, err := field.AsBytes()
-				if err != nil {
-					return err
-				}
-
-				if err := txn.Set([]byte(me.keyBuilder.GetEntityFieldKey(entity.EntityId, fieldType)), fieldBytes); err != nil {
-					return err
-				}
-			}
-
-			// Fix: Also set the entity key itself
-			if err := txn.Set([]byte(me.keyBuilder.GetEntityKey(entity.EntityId)), []byte("")); err != nil {
-				return err
-			}
-
-			return nil
+			return txn.Set([]byte(me.keyBuilder.GetEntityKey(entity.EntityId)), []byte(""))
 		})
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create entity key for %s: %w", entity.EntityId, err)
+		}
+
+		// Create write requests for each field
+		requests := make([]*qdata.Request, 0, len(entity.Fields))
+		for fieldType, field := range entity.Fields {
+			req := new(qdata.Request).Init(entity.EntityId, fieldType,
+				qdata.ROValuePtr(field.Value),
+				qdata.ROWriteTime(field.WriteTime),
+				qdata.ROWriterId(field.WriterId))
+			requests = append(requests, req)
+		}
+
+		// Write all fields
+		if len(requests) > 0 {
+			err = me.Write(ctx, requests...)
+			if err != nil {
+				return fmt.Errorf("failed to write fields for entity %s: %w", entity.EntityId, err)
+			}
 		}
 	}
 
