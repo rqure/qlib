@@ -354,56 +354,47 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 		Items:    make([]qdata.EntityType, 0),
 		CursorId: pageConfig.CursorId,
 		NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-			var entityTypes []qdata.EntityType = make([]qdata.EntityType, 0)
-			var allTypes []qdata.EntityType
-			var nextCursorId int64 = -1 // Default to no more results
+			var entityTypes []qdata.EntityType
+			var nextCursorId int64 = -1
+
+			cursorId := pageConfig.CursorId
 
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
 				prefix := []byte(me.keyBuilder.BuildKey("schema"))
 				opts := badger.DefaultIteratorOptions
-				opts.PrefetchValues = false // We only need keys for this operation
-
+				opts.PrefetchValues = false
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				it.Seek(prefix)
+				seekKey := prefix
 
-				for ; it.Valid(); it.Next() {
+				count := int64(0)
+				for it.Seek(seekKey); it.ValidForPrefix(prefix); it.Next() {
 					key := string(it.Item().Key())
-					if strings.HasPrefix(key, string(prefix)) {
-						parts := strings.Split(key, ":")
-						if len(parts) >= 3 { // prefix:schema:entityType
-							entityType := qdata.EntityType(parts[2])
-							allTypes = append(allTypes, entityType)
-						}
+					parts := strings.Split(key, ":")
+					if len(parts) < 3 {
+						continue
 					}
+					entityType := qdata.EntityType(parts[2])
+					etypeId := entityType.AsInt()
+					if etypeId <= cursorId {
+						continue
+					}
+					entityTypes = append(entityTypes, entityType)
+					count++
+					if count >= pageConfig.PageSize {
+						nextCursorId = etypeId
+						break
+					}
+				}
+				if count < pageConfig.PageSize {
+					nextCursorId = -1
 				}
 				return nil
 			})
 
 			if err != nil {
 				return nil, err
-			}
-
-			// Sort allTypes for deterministic pagination
-			// (optional: import "sort" and sort.Strings if needed)
-			// sort.Slice(allTypes, func(i, j int) bool { return allTypes[i] < allTypes[j] })
-
-			startIdx := int(pageConfig.CursorId)
-			endIdx := startIdx + int(pageConfig.PageSize)
-			if startIdx >= len(allTypes) {
-				entityTypes = []qdata.EntityType{}
-				nextCursorId = -1
-			} else {
-				if endIdx > len(allTypes) {
-					endIdx = len(allTypes)
-				}
-				entityTypes = allTypes[startIdx:endIdx]
-				if endIdx < len(allTypes) {
-					nextCursorId = int64(endIdx)
-				} else {
-					nextCursorId = -1
-				}
 			}
 
 			return &qdata.PageResult[qdata.EntityType]{
@@ -417,7 +408,6 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 							NextPage: nil,
 						}, nil
 					}
-
 					next, err := me.GetEntityTypes(
 						qdata.POCursorId(nextCursorId),
 						qdata.POPageSize(pageConfig.PageSize))

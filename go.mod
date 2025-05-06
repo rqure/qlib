@@ -6,6 +6,7 @@ require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
 	github.com/blastrain/vitess-sqlparser v0.0.0-20201030050434-a139afbb1aba
 	github.com/bwmarrin/snowflake v0.3.0
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/expr-lang/expr v1.17.2
@@ -18,7 +19,6 @@ require (
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect

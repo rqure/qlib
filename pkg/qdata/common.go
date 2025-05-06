@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/snowflake"
+	"github.com/cespare/xxhash/v2"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/proto"
@@ -32,6 +33,10 @@ const IndirectionDelimiter = "->"
 
 func (me EntityType) AsString() string {
 	return string(me)
+}
+
+func (me EntityType) AsInt() int64 {
+	return int64(xxhash.Sum64String(me.AsString()))
 }
 
 func (me EntityId) AsString() string {
