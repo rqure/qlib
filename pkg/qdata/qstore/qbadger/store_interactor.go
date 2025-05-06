@@ -58,6 +58,8 @@ func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qd
 			entityId = qdata.GenerateEntityId(entityType)
 		}
 
+		txn.Set([]byte(me.keyBuilder.GetEntityKey(entityId)), []byte(""))
+
 		entity = new(qdata.Entity).Init(entityId, qdata.EOEntityType(entityType))
 		schema, err := me.GetEntitySchema(ctx, entityType)
 		if err != nil {
