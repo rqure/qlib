@@ -153,13 +153,13 @@ func (me *badgerCore) WithReadTxn(ctx context.Context, fn func(txn *badger.Txn) 
 func (me *badgerCore) StartBackgroundTasks(ctx context.Context) {
 	me.StopBackgroundTasks()
 
-	// Skip background tasks if in-memory or explicitly disabled
-	if me.config.DisableBackgroundTasks || (me.config.InMemory && me.config.Path == "") {
+	// Skip background tasks if explicitly disabled
+	if me.config.DisableBackgroundTasks {
 		return
 	}
 
-	// Create snapshot directory if needed
-	if me.config.Path != "" && me.config.SnapshotDirectory != "" {
+	// Create snapshot directory if needed and specified
+	if me.config.SnapshotDirectory != "" {
 		if err := os.MkdirAll(me.config.SnapshotDirectory, 0755); err != nil {
 			qlog.Error("Failed to create snapshot directory: %v", err)
 		}
@@ -172,8 +172,8 @@ func (me *badgerCore) StartBackgroundTasks(ctx context.Context) {
 		go me.runGarbageCollection(gcCtx)
 	}
 
-	// Start snapshot task (only for disk-based DB)
-	if !me.config.InMemory && me.config.Path != "" && me.config.SnapshotInterval > 0 {
+	// Start snapshot task (for any DB with a snapshot directory)
+	if me.config.SnapshotDirectory != "" && me.config.SnapshotInterval > 0 {
 		snapshotCtx, snapshotCancel := context.WithCancel(ctx)
 		me.cancelFunctions = append(me.cancelFunctions, snapshotCancel)
 		go me.runSnapshotTask(snapshotCtx)
@@ -223,7 +223,7 @@ func (me *badgerCore) runSnapshotTask(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if me.db == nil || me.config.InMemory {
+			if me.db == nil {
 				continue
 			}
 

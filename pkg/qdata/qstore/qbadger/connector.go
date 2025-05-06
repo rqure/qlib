@@ -80,50 +80,50 @@ func (me *BadgerConnector) Connect(ctx context.Context) {
 		options = options.WithValueLogFileSize(config.ValueSize)
 	}
 
-	// Check for existing database or snapshots
-	if !config.InMemory && config.Path != "" {
-		// Try loading from latest snapshot if available and DB doesn't exist
-		if !fileExists(config.Path) && config.SnapshotDirectory != "" {
-			latestSnapshot := findLatestSnapshot(config.SnapshotDirectory)
-			if latestSnapshot != "" {
-				qlog.Info("Found database snapshot: %s", latestSnapshot)
+	// Check for existing snapshots when snapshot directory is specified
+	if config.SnapshotDirectory != "" {
+		// Try loading from latest snapshot if available
+		latestSnapshot := findLatestSnapshot(config.SnapshotDirectory)
+		if latestSnapshot != "" {
+			qlog.Info("Found database snapshot: %s", latestSnapshot)
 
-				// Create directory for DB if it doesn't exist
+			// For disk-based DB, create directory if it doesn't exist
+			if !config.InMemory && config.Path != "" && !fileExists(config.Path) {
 				if err := os.MkdirAll(filepath.Dir(config.Path), 0755); err != nil {
 					qlog.Error("Failed to create database directory: %v", err)
+				}
+			}
+
+			// Open the database (either in memory or disk-based)
+			db, err := badger.Open(options)
+			if err == nil {
+				me.core.SetDB(db)
+
+				// Open the snapshot file for reading
+				file, err := os.Open(latestSnapshot)
+				if err != nil {
+					qlog.Error("Failed to open snapshot file: %v", err)
+					_ = db.Close()
+					me.core.SetDB(nil)
 				} else {
-					// Open the database from snapshot
-					db, err := badger.Open(options)
-					if err == nil {
-						me.core.SetDB(db)
+					// Load from the snapshot file
+					qlog.Info("Loading database from snapshot: %s", latestSnapshot)
+					err = db.Load(file, 1) // 1 worker thread
 
-						// Open the snapshot file for reading
-						file, err := os.Open(latestSnapshot)
-						if err != nil {
-							qlog.Error("Failed to open snapshot file: %v", err)
-							_ = db.Close()
-							me.core.SetDB(nil)
-						} else {
-							// Load from the snapshot file
-							qlog.Info("Loading database from snapshot: %s", latestSnapshot)
-							err = db.Load(file, 1) // 1 worker thread
+					// Close the file after loading
+					if closeErr := file.Close(); closeErr != nil {
+						qlog.Warn("Error closing snapshot file: %v", closeErr)
+					}
 
-							// Close the file after loading
-							if closeErr := file.Close(); closeErr != nil {
-								qlog.Warn("Error closing snapshot file: %v", closeErr)
-							}
-
-							if err != nil {
-								qlog.Error("Failed to load database from snapshot: %v", err)
-								_ = db.Close()
-								me.core.SetDB(nil)
-							} else {
-								qlog.Info("Database loaded successfully from snapshot")
-								me.setConnected(ctx, true, nil)
-								me.core.StartBackgroundTasks(ctx)
-								return
-							}
-						}
+					if err != nil {
+						qlog.Error("Failed to load database from snapshot: %v", err)
+						_ = db.Close()
+						me.core.SetDB(nil)
+					} else {
+						qlog.Info("Database loaded successfully from snapshot")
+						me.setConnected(ctx, true, nil)
+						me.core.StartBackgroundTasks(ctx)
+						return
 					}
 				}
 			}

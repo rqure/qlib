@@ -1,6 +1,8 @@
 package qstore
 
 import (
+	"time"
+
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qstore/qbadger"
 )
@@ -49,10 +51,50 @@ func PersistOverBadger(path string, inMemory bool, opts ...interface{}) qdata.St
 }
 
 // PersistInMemoryBadger configures an in-memory BadgerDB as the persistence layer
+// with optional snapshot support
 func PersistInMemoryBadger(cacheOpts ...interface{}) qdata.StoreOpts {
-	allOpts := make([]interface{}, 0, len(cacheOpts)+2)
-	allOpts = append(allOpts, "", true) // Empty path and inMemory=true
-	allOpts = append(allOpts, cacheOpts...)
+	return func(store *qdata.Store) {
+		config := qbadger.BadgerConfig{
+			Path:     "",
+			InMemory: true,
+			// Default to snapshots in the current directory if not otherwise specified
+			SnapshotDirectory: "./badger_snapshots",
+		}
 
-	return PersistOverBadger("", true, allOpts...)
+		// Process any additional options
+		for i, opt := range cacheOpts {
+			switch i {
+			case 0:
+				// First option can be snapshot directory
+				if snapshotDir, ok := opt.(string); ok && snapshotDir != "" {
+					config.SnapshotDirectory = snapshotDir
+				}
+			case 1:
+				// Second option can be snapshot interval
+				if interval, ok := opt.(time.Duration); ok {
+					config.SnapshotInterval = interval
+				}
+			case 2:
+				// Third option can be snapshot retention count
+				if retention, ok := opt.(int); ok {
+					config.SnapshotRetention = retention
+				}
+			}
+		}
+
+		core := qbadger.NewCore(config)
+
+		interactor := qbadger.NewStoreInteractor(core)
+		if store.StoreConnector == nil {
+			store.StoreConnector = NewMultiConnector()
+		}
+
+		if connector, ok := store.StoreConnector.(MultiConnector); ok {
+			connector.AddConnector(qbadger.NewConnector(core))
+		} else {
+			store.StoreConnector = qbadger.NewConnector(core)
+		}
+
+		store.StoreInteractor = interactor
+	}
 }
