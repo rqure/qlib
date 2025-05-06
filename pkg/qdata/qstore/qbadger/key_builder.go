@@ -2,6 +2,7 @@ package qbadger
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/rqure/qlib/pkg/qdata"
@@ -42,7 +43,7 @@ func (me *KeyBuilder) GetEntityFieldKey(entityId qdata.EntityId, fieldType qdata
 }
 
 func (me *KeyBuilder) GetSchemaKey(entityType qdata.EntityType) string {
-	return me.BuildKey(me.GetSchemaPrefix(), entityType.AsString(), fmt.Sprintf("%d", entityType.AsInt()))
+	return me.BuildKey(me.GetSchemaPrefix(), strconv.FormatInt(entityType.AsInt(), 10), entityType.AsString())
 }
 
 // ExtractEntityIdFromKey extracts the EntityId from a key
@@ -57,9 +58,9 @@ func (me *KeyBuilder) ExtractEntityIdFromKey(key string) (qdata.EntityId, error)
 // ExtractEntityTypeFromKey extracts the EntityType from a schema key
 func (me *KeyBuilder) ExtractEntityTypeFromKey(key string) (qdata.EntityType, error) {
 	parts := strings.Split(key, ":")
-	if len(parts) < 3 {
+	if len(parts) < 4 {
 		return "", fmt.Errorf("invalid key format: %s", key)
 	}
 
-	return qdata.EntityType(parts[2]), nil
+	return qdata.EntityType(parts[3]), nil
 }

@@ -3,6 +3,7 @@ package qbadger
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -262,7 +263,7 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 
 				lastSeenId := ""
 				if pageConfig.CursorId > 0 {
-					lastSeenId = fmt.Sprintf("%d", pageConfig.CursorId)
+					lastSeenId = strconv.FormatInt(pageConfig.CursorId, 10)
 				} else if pageConfig.CursorId < 0 {
 					// less than 0 means iteration is at the end
 					return nil
@@ -272,9 +273,6 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 
 				// Find starting point based on cursor
 				it.Seek(lastSeen)
-
-				// Keep track of how many entities we've found so far
-				count := int64(0)
 
 				// Iterate through keys
 				for ; it.Valid(); it.Next() {
@@ -288,18 +286,17 @@ func (me *BadgerStoreInteractor) FindEntities(entityType qdata.EntityType, pageO
 					}
 
 					// Break if we've reached page size
-					if count >= pageConfig.PageSize {
+					if int64(len(entities)) >= pageConfig.PageSize {
 						nextCursorId = entityId.AsInt()
 						break
 					}
 
 					// Add to our results
 					entities = append(entities, entityId)
-					count++
 				}
 
 				// If we didn't fill the page, there are no more results
-				if count < pageConfig.PageSize {
+				if int64(len(entities)) < pageConfig.PageSize {
 					nextCursorId = -1
 				}
 
@@ -350,21 +347,26 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 
 			err := me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
 				// Use schema prefix to find all entity types
-				prefix := []byte(me.keyBuilder.BuildKey("schema"))
+				prefix := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetSchemaPrefix()))
 				opts := badger.DefaultIteratorOptions
 				opts.PrefetchValues = false
+				opts.Prefix = prefix
 
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				// Keep track of how many types we've found so far
-				count := int64(0)
+				lastSeenId := ""
+				if pageConfig.CursorId > 0 {
+					lastSeenId = strconv.FormatInt(pageConfig.CursorId, 10)
+				} else if pageConfig.CursorId < 0 {
+					// less than 0 means iteration is at the end
+					return nil
+				}
 
-				// Find starting point based on cursor
-				it.Seek(prefix)
+				lastSeen := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetSchemaPrefix(), lastSeenId))
+				it.Seek(lastSeen)
 
-				// Iterate through keys
-				for ; it.ValidForPrefix(prefix); it.Next() {
+				for ; it.Valid(); it.Next() {
 					key := string(it.Item().Key())
 
 					// Extract entity type from the schema key
@@ -374,29 +376,17 @@ func (me *BadgerStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qd
 						continue
 					}
 
-					// Calculate numeric ID for this entity type
-					typeId := entityType.AsInt()
-
-					// Skip types with IDs less than or equal to the cursor
-					if typeId <= pageConfig.CursorId {
-						continue
+					if int64(len(entityTypes)) >= pageConfig.PageSize {
+						nextCursorId = entityType.AsInt()
+						break
 					}
 
 					// Add to our results
 					entityTypes = append(entityTypes, entityType)
-					count++
-
-					// Track for next pagination cursor
-					nextCursorId = typeId
-
-					// Break if we've reached page size
-					if count >= pageConfig.PageSize {
-						break
-					}
 				}
 
 				// If we didn't fill the page, there are no more results
-				if count < pageConfig.PageSize {
+				if int64(len(entityTypes)) < pageConfig.PageSize {
 					nextCursorId = -1
 				}
 
