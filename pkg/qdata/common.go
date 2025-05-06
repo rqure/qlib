@@ -6,13 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/bwmarrin/snowflake"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var snownode *snowflake.Node
 
 type WriteOpt int
 
@@ -40,8 +42,37 @@ func (me FieldType) AsString() string {
 	return string(me)
 }
 
+func (me EntityId) AsInt() int64 {
+	if me.IsEmpty() {
+		qlog.Error("EntityId is empty")
+		return 0
+	}
+
+	parts := strings.Split(me.AsString(), "$")
+	if len(parts) != 2 {
+		qlog.Error("Invalid EntityId format: %s", me.AsString())
+		return 0
+	}
+
+	id, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		qlog.Error("Failed to parse EntityId: %s", err)
+		return 0
+	}
+
+	return id
+}
+
 func GenerateEntityId(entityType EntityType) EntityId {
-	return EntityId(fmt.Sprintf("%s$%s", entityType.AsString(), uuid.New().String()))
+	if snownode == nil {
+		var err error
+		snownode, err = snowflake.NewNode(1)
+		if err != nil {
+			qlog.Panic("Failed to create snowflake node: %v", err)
+		}
+	}
+
+	return EntityId(fmt.Sprintf("%s$%s", entityType.AsString(), snownode.Generate().String()))
 }
 
 func CastSlice[I any, O any](i []I, convert func(I) O) []O {
