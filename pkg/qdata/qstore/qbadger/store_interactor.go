@@ -132,7 +132,6 @@ func (me *BadgerStoreInteractor) DeleteEntity(ctx context.Context, entityId qdat
 			// Use a prefix seek to find all keys for this entity
 			prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
 			opts := badger.DefaultIteratorOptions
-			opts.PrefetchSize = 10
 			opts.Prefix = prefix
 
 			it := txn.NewIterator(opts)
@@ -847,15 +846,16 @@ func (me *BadgerStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Sna
 			entity := new(qdata.Entity).Init(entityId)
 
 			err = me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
+				txn.Delete([]byte(me.keyBuilder.GetEntityKey(entityId)))
+
+				prefix := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetFieldPrefix(), entityId.AsString()))
 				opts := badger.DefaultIteratorOptions
-				opts.PrefetchSize = 10
 				opts.Prefix = prefix
 
 				it := txn.NewIterator(opts)
 				defer it.Close()
 
-				for it.Seek(prefix); it.Valid(); it.Next() {
+				for ; it.Valid(); it.Next() {
 					item := it.Item()
 					key := string(item.Key())
 					fieldParts := strings.Split(key, ":")
@@ -922,7 +922,6 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 		return err
 	}
 
-	// Restore schemas
 	for _, schema := range ss.Schemas {
 		schemaBytes, err := schema.AsBytes()
 		if err != nil {
@@ -930,7 +929,6 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 		}
 
 		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			// Save the schema
 			return txn.Set([]byte(me.keyBuilder.GetSchemaKey(schema.EntityType)), schemaBytes)
 		})
 
@@ -939,7 +937,6 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 		}
 	}
 
-	// Restore entities and their fields
 	for _, entity := range ss.Entities {
 		err := me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
 			// Write all fields
