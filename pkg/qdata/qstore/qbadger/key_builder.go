@@ -52,14 +52,26 @@ func (me *KeyBuilder) ExtractEntityIdFromKey(key string) (qdata.EntityId, error)
 	if len(parts) < 3 {
 		return "", fmt.Errorf("invalid key format: %s", key)
 	}
-	return qdata.EntityId(parts[2]), nil
+
+	// If it's an entity key, it has format prefix:entity:entityId
+	if parts[1] == me.GetEntityPrefix() && len(parts) >= 3 {
+		return qdata.EntityId(parts[2]), nil
+	}
+
+	// If it's a field key, it has format prefix:field:entityId:fieldType
+	if parts[1] == me.GetFieldPrefix() && len(parts) >= 3 {
+		return qdata.EntityId(parts[2]), nil
+	}
+
+	return "", fmt.Errorf("invalid key format: %s", key)
 }
 
 // ExtractEntityTypeFromKey extracts the EntityType from a schema key
 func (me *KeyBuilder) ExtractEntityTypeFromKey(key string) (qdata.EntityType, error) {
 	parts := strings.Split(key, ":")
-	if len(parts) < 4 {
-		return "", fmt.Errorf("invalid key format: %s", key)
+	// Schema keys have format prefix:schema:entityTypeId:entityTypeName
+	if len(parts) < 4 || parts[1] != me.GetSchemaPrefix() {
+		return "", fmt.Errorf("invalid schema key format: %s", key)
 	}
 
 	return qdata.EntityType(parts[3]), nil

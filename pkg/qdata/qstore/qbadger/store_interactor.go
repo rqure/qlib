@@ -58,7 +58,10 @@ func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qd
 			entityId = qdata.GenerateEntityId(entityType)
 		}
 
-		txn.Set([]byte(me.keyBuilder.GetEntityKey(entityId)), []byte(""))
+		err := txn.Set([]byte(me.keyBuilder.GetEntityKey(entityId)), []byte(""))
+		if err != nil {
+			return err
+		}
 
 		entity = new(qdata.Entity).Init(entityId, qdata.EOEntityType(entityType))
 		schema, err := me.GetEntitySchema(ctx, entityType)
@@ -129,8 +132,7 @@ func (me *BadgerStoreInteractor) DeleteEntity(ctx context.Context, entityId qdat
 
 		// Delete all fields for this entity
 		err = me.core.WithWriteTxn(ctx, func(txn *badger.Txn) error {
-			// Use a prefix seek to find all keys for this entity
-			prefix := []byte(me.keyBuilder.GetEntityKey(entityId))
+			prefix := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetFieldPrefix(), entityId.AsString()))
 			opts := badger.DefaultIteratorOptions
 			opts.Prefix = prefix
 
@@ -143,7 +145,8 @@ func (me *BadgerStoreInteractor) DeleteEntity(ctx context.Context, entityId qdat
 					return err
 				}
 			}
-			return nil
+
+			return txn.Delete([]byte(me.keyBuilder.GetEntityKey(entityId)))
 		})
 		if err != nil {
 			errs = append(errs, err)
@@ -846,8 +849,6 @@ func (me *BadgerStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Sna
 			entity := new(qdata.Entity).Init(entityId)
 
 			err = me.core.WithReadTxn(ctx, func(txn *badger.Txn) error {
-				txn.Delete([]byte(me.keyBuilder.GetEntityKey(entityId)))
-
 				prefix := []byte(me.keyBuilder.BuildKey(me.keyBuilder.GetFieldPrefix(), entityId.AsString()))
 				opts := badger.DefaultIteratorOptions
 				opts.Prefix = prefix
@@ -949,6 +950,11 @@ func (me *BadgerStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.
 				if err := txn.Set([]byte(me.keyBuilder.GetEntityFieldKey(entity.EntityId, fieldType)), fieldBytes); err != nil {
 					return err
 				}
+			}
+
+			// Fix: Also set the entity key itself
+			if err := txn.Set([]byte(me.keyBuilder.GetEntityKey(entity.EntityId)), []byte("")); err != nil {
+				return err
 			}
 
 			return nil
