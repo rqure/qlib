@@ -69,10 +69,8 @@ type storeWorker struct {
 
 	notificationTokens []qdata.NotificationToken
 
-	sessionRefreshTimer    *time.Ticker
-	connectionCheckTimer   *time.Ticker
-	connectionAttemptTimer *time.Ticker
-	metricsTimer           *time.Ticker
+	sessionRefreshTimer *time.Ticker
+	metricsTimer        *time.Ticker
 
 	readCount    int
 	writeCount   int
@@ -115,24 +113,20 @@ func (me *storeWorker) Init(ctx context.Context) {
 	me.handle.BusyEvent().Connect(me.onBusyEvent)
 
 	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
-	me.connectionAttemptTimer = time.NewTicker(5 * time.Second)
-	me.connectionCheckTimer = time.NewTicker(1 * time.Second)
 	me.metricsTimer = time.NewTicker(1 * time.Second)
 
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
-
 	me.store.ReadEvent().Connect(me.onRead)
 	me.store.WriteEvent().Connect(me.onWrite)
 
 	me.tryRefreshSession(ctx)
-	me.tryConnect(ctx)
+
+	me.store.Connect(ctx)
 }
 
 func (me *storeWorker) Deinit(ctx context.Context) {
 	me.sessionRefreshTimer.Stop()
-	me.connectionAttemptTimer.Stop()
-	me.connectionCheckTimer.Stop()
 	me.metricsTimer.Stop()
 
 	me.store.Disconnect(ctx)
@@ -142,20 +136,6 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 	select {
 	case <-me.sessionRefreshTimer.C:
 		me.tryRefreshSession(ctx)
-	default:
-	}
-
-	select {
-	case <-me.connectionAttemptTimer.C:
-		if !me.isStoreConnected {
-			me.tryConnect(ctx)
-		}
-	default:
-	}
-
-	select {
-	case <-me.connectionCheckTimer.C:
-		me.store.CheckConnection(ctx)
 	default:
 	}
 
@@ -181,10 +161,6 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 		}
 	default:
 	}
-}
-
-func (me *storeWorker) tryConnect(ctx context.Context) {
-	me.store.Connect(ctx)
 }
 
 func (me *storeWorker) tryRefreshSession(ctx context.Context) {

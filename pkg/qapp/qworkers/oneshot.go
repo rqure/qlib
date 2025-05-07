@@ -2,7 +2,6 @@ package qworkers
 
 import (
 	"context"
-	"time"
 
 	"github.com/rqure/qlib/pkg/qapp"
 	"github.com/rqure/qlib/pkg/qcontext"
@@ -24,9 +23,6 @@ type oneShotWorker struct {
 
 	store            *qdata.Store
 	isStoreConnected bool
-
-	connectionCheckTimer   *time.Timer
-	connectionAttemptTimer *time.Timer
 
 	handle qcontext.Handle
 
@@ -54,38 +50,15 @@ func (me *oneShotWorker) Disconnected() qss.Signal[context.Context] {
 func (me *oneShotWorker) Init(ctx context.Context) {
 	me.handle = qcontext.GetHandle(ctx)
 
-	me.connectionAttemptTimer = time.NewTimer(5 * time.Second)
-	me.connectionCheckTimer = time.NewTimer(1 * time.Second)
-
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
-
-	me.tryConnect(ctx)
+	me.store.Connect(ctx)
 }
 
 func (me *oneShotWorker) Deinit(ctx context.Context) {
-	me.connectionAttemptTimer.Stop()
-	me.connectionCheckTimer.Stop()
 }
 
 func (me *oneShotWorker) DoWork(ctx context.Context) {
-	select {
-	case <-me.connectionAttemptTimer.C:
-		if !me.isStoreConnected {
-			me.tryConnect(ctx)
-		}
-	default:
-	}
-
-	select {
-	case <-me.connectionCheckTimer.C:
-		me.store.CheckConnection(ctx)
-	default:
-	}
-}
-
-func (me *oneShotWorker) tryConnect(ctx context.Context) {
-	me.store.Connect(ctx)
 }
 
 func (me *oneShotWorker) onConnected(args qdata.ConnectedArgs) {
