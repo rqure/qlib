@@ -49,7 +49,7 @@ type WebSocketCore interface {
 	Connected() qss.Signal[qdata.ConnectedArgs]
 	Disconnected() qss.Signal[qdata.DisconnectedArgs]
 
-	Publish(msg proto.Message) error
+	Publish(ctx context.Context, msg proto.Message) error
 	Request(ctx context.Context, msg proto.Message) (*qprotobufs.ApiMessage, error)
 
 	SetConfig(config WebSocketConfig)
@@ -339,8 +339,10 @@ func (wc *webSocketCore) signalReconnect() {
 	if wc.isConnected {
 		wc.isConnected = false
 
-		// Emit disconnected signal
-		ctx := context.Background()
+		// This is a difficult situation because we don't have a context from the caller
+		// The best approach is to use a background context but make sure we don't do
+		// anything with it that would cause deadlocks
+		ctx := context.Background() // Can't avoid this in this disconnect scenario
 		handle := qcontext.GetHandle(ctx)
 		handle.DoInMainThread(func(ctx context.Context) {
 			wc.disconnected.Emit(qdata.DisconnectedArgs{
@@ -358,7 +360,7 @@ func (wc *webSocketCore) signalReconnect() {
 	}
 }
 
-func (wc *webSocketCore) Publish(msg proto.Message) error {
+func (wc *webSocketCore) Publish(ctx context.Context, msg proto.Message) error {
 	apiMsg := &qprotobufs.ApiMessage{
 		Header:  &qprotobufs.ApiHeader{Id: uuid.New().String()},
 		Payload: nil,
@@ -384,7 +386,8 @@ func (wc *webSocketCore) Publish(msg proto.Message) error {
 		return errors.New("not connected")
 	}
 
-	if err := conn.Write(context.Background(), websocket.MessageBinary, data); err != nil {
+	// Use the provided context for this write operation
+	if err := conn.Write(ctx, websocket.MessageBinary, data); err != nil {
 		qlog.Error("WebSocket write error: %v", err)
 		wc.signalReconnect()
 		return fmt.Errorf("failed to send message: %w", err)
@@ -444,7 +447,8 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 		return nil, errors.New("not connected")
 	}
 
-	if err := conn.Write(context.Background(), websocket.MessageBinary, data); err != nil {
+	// Use the provided context for the write operation
+	if err := conn.Write(ctx, websocket.MessageBinary, data); err != nil {
 		qlog.Error("WebSocket write error: %v", err)
 		wc.signalReconnect()
 		return nil, fmt.Errorf("failed to send request: %w", err)

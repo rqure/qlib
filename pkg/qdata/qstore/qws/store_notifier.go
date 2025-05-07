@@ -47,8 +47,8 @@ func (wsn *WebSocketStoreNotifier) onConnected(args qdata.ConnectedArgs) {
 	wsn.appName = qcontext.GetAppName(args.Ctx)
 	wsn.handle = qcontext.GetHandle(args.Ctx)
 
-	// Start keepAlive task
-	ctx, cancel := context.WithCancel(context.Background())
+	// Start keepAlive task using the context from the connection
+	ctx, cancel := context.WithCancel(args.Ctx)
 	wsn.cancelKeepAlive = cancel
 	go wsn.keepAliveTask(ctx)
 }
