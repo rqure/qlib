@@ -46,6 +46,7 @@ type WebSocketCore interface {
 
 	Connected() qss.Signal[qdata.ConnectedArgs]
 	Disconnected() qss.Signal[qdata.DisconnectedArgs]
+	EventMsg() qss.Signal[*qprotobufs.ApiMessage]
 
 	Publish(ctx context.Context, msg proto.Message) error
 	Request(ctx context.Context, msg proto.Message) (*qprotobufs.ApiMessage, error)
@@ -66,6 +67,7 @@ type webSocketCore struct {
 
 	connected    qss.Signal[qdata.ConnectedArgs]
 	disconnected qss.Signal[qdata.DisconnectedArgs]
+	eventMsg     qss.Signal[*qprotobufs.ApiMessage]
 }
 
 // NewCore creates a new WebSocketCore instance
@@ -83,48 +85,49 @@ func NewCore(config WebSocketConfig) WebSocketCore {
 		pendingReqs:  make(map[string]chan *qprotobufs.ApiMessage),
 		connected:    qss.New[qdata.ConnectedArgs](),
 		disconnected: qss.New[qdata.DisconnectedArgs](),
+		eventMsg:     qss.New[*qprotobufs.ApiMessage](),
 		reconnectCh:  make(chan struct{}),
 	}
 }
 
-func (wc *webSocketCore) Connect(ctx context.Context) {
-	wc.lock.Lock()
-	if wc.isConnected {
-		wc.lock.Unlock()
+func (me *webSocketCore) Connect(ctx context.Context) {
+	me.lock.Lock()
+	if me.isConnected {
+		me.lock.Unlock()
 		return
 	}
 
 	// Close any existing connection
-	wc.cleanupConnection()
-	wc.done = make(chan struct{})
-	wc.lock.Unlock()
+	me.cleanupConnection()
+	me.done = make(chan struct{})
+	me.lock.Unlock()
 
-	go wc.connectLoop(ctx)
+	go me.connectLoop(ctx)
 }
 
-func (wc *webSocketCore) connectLoop(ctx context.Context) {
+func (me *webSocketCore) connectLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			if err := wc.doConnect(ctx); err != nil {
+			if err := me.doConnect(ctx); err != nil {
 				qlog.Error("WebSocket connection failed: %v, retrying in %s", err, DefaultReconnectInterval)
 				time.Sleep(DefaultReconnectInterval)
 				continue
 			}
 
 			// Start read loop
-			go wc.readLoop(ctx)
+			go me.readLoop(ctx)
 
 			// Start ping loop
-			go wc.pingLoop(ctx)
+			go me.pingLoop(ctx)
 
 			// Wait for reconnect signal or context cancel
 			select {
 			case <-ctx.Done():
 				return
-			case <-wc.reconnectCh:
+			case <-me.reconnectCh:
 				qlog.Info("Reconnecting WebSocket...")
 				continue
 			}
@@ -132,18 +135,18 @@ func (wc *webSocketCore) connectLoop(ctx context.Context) {
 	}
 }
 
-func (wc *webSocketCore) doConnect(ctx context.Context) error {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
+func (me *webSocketCore) doConnect(ctx context.Context) error {
+	me.lock.Lock()
+	defer me.lock.Unlock()
 
 	// Parse the URL
-	u, err := url.Parse(wc.config.URL)
+	u, err := url.Parse(me.config.URL)
 	if err != nil {
 		return fmt.Errorf("invalid WebSocket URL: %w", err)
 	}
 
 	// Dial with timeout
-	dialCtx, cancel := context.WithTimeout(ctx, wc.config.DialTimeout)
+	dialCtx, cancel := context.WithTimeout(ctx, me.config.DialTimeout)
 	defer cancel()
 
 	conn, _, err := websocket.Dial(dialCtx, u.String(), nil)
@@ -151,37 +154,37 @@ func (wc *webSocketCore) doConnect(ctx context.Context) error {
 		return fmt.Errorf("WebSocket dial failed: %w", err)
 	}
 
-	wc.conn = conn
-	wc.isConnected = true
+	me.conn = conn
+	me.isConnected = true
 
 	// Emit the connected signal
 	handle := qcontext.GetHandle(ctx)
 	handle.DoInMainThread(func(ctx context.Context) {
-		wc.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+		me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
 	})
 
 	return nil
 }
 
-func (wc *webSocketCore) readLoop(ctx context.Context) {
+func (me *webSocketCore) readLoop(ctx context.Context) {
 	defer func() {
-		wc.signalReconnect(ctx)
+		me.signalReconnect(ctx)
 	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-wc.done:
+		case <-me.done:
 			return
 		default:
-			if !wc.IsConnected() {
+			if !me.IsConnected() {
 				return
 			}
 
-			wc.lock.RLock()
-			conn := wc.conn
-			wc.lock.RUnlock()
+			me.lock.RLock()
+			conn := me.conn
+			me.lock.RUnlock()
 
 			if conn == nil {
 				return
@@ -200,29 +203,29 @@ func (wc *webSocketCore) readLoop(ctx context.Context) {
 			}
 
 			// Process the message
-			wc.processMessage(&apiMsg)
+			me.processMessage(&apiMsg)
 		}
 	}
 }
 
-func (wc *webSocketCore) pingLoop(ctx context.Context) {
-	ticker := time.NewTicker(wc.config.PingInterval)
+func (me *webSocketCore) pingLoop(ctx context.Context) {
+	ticker := time.NewTicker(me.config.PingInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-wc.done:
+		case <-me.done:
 			return
 		case <-ticker.C:
-			if !wc.IsConnected() {
+			if !me.IsConnected() {
 				return
 			}
 
-			wc.lock.RLock()
-			conn := wc.conn
-			wc.lock.RUnlock()
+			me.lock.RLock()
+			conn := me.conn
+			me.lock.RUnlock()
 
 			if conn == nil {
 				return
@@ -230,14 +233,14 @@ func (wc *webSocketCore) pingLoop(ctx context.Context) {
 
 			if err := conn.Ping(ctx); err != nil {
 				qlog.Error("WebSocket ping failed: %v", err)
-				wc.signalReconnect(ctx)
+				me.signalReconnect(ctx)
 				return
 			}
 		}
 	}
 }
 
-func (wc *webSocketCore) processMessage(msg *qprotobufs.ApiMessage) {
+func (me *webSocketCore) processMessage(msg *qprotobufs.ApiMessage) {
 	if msg == nil || msg.Header == nil {
 		return
 	}
@@ -245,68 +248,70 @@ func (wc *webSocketCore) processMessage(msg *qprotobufs.ApiMessage) {
 	msgID := msg.Header.Id
 
 	// Check if this is a response to a request
-	wc.reqLock.RLock()
-	respCh, exists := wc.pendingReqs[msgID]
-	wc.reqLock.RUnlock()
+	me.reqLock.RLock()
+	respCh, exists := me.pendingReqs[msgID]
+	me.reqLock.RUnlock()
 
 	if exists {
 		// Send response to the waiting goroutine
 		respCh <- msg
+	} else {
+		me.eventMsg.Emit(msg)
 	}
 }
 
-func (wc *webSocketCore) Disconnect(ctx context.Context) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
+func (me *webSocketCore) Disconnect(ctx context.Context) {
+	me.lock.Lock()
+	defer me.lock.Unlock()
 
-	wc.cleanupConnection()
-	wc.isConnected = false
+	me.cleanupConnection()
+	me.isConnected = false
 
 	// Emit the disconnected signal
 	handle := qcontext.GetHandle(ctx)
 	handle.DoInMainThread(func(ctx context.Context) {
-		wc.disconnected.Emit(qdata.DisconnectedArgs{
+		me.disconnected.Emit(qdata.DisconnectedArgs{
 			Ctx: ctx,
 			Err: nil,
 		})
 	})
 }
 
-func (wc *webSocketCore) cleanupConnection() {
-	if wc.conn != nil {
-		wc.conn.Close(websocket.StatusNormalClosure, "Client disconnecting")
-		wc.conn = nil
+func (me *webSocketCore) cleanupConnection() {
+	if me.conn != nil {
+		me.conn.Close(websocket.StatusNormalClosure, "Client disconnecting")
+		me.conn = nil
 	}
 
-	if wc.done != nil {
-		close(wc.done)
-		wc.done = nil
+	if me.done != nil {
+		close(me.done)
+		me.done = nil
 	}
 
 	// Close all pending request channels
-	wc.reqLock.Lock()
-	for id, ch := range wc.pendingReqs {
+	me.reqLock.Lock()
+	for id, ch := range me.pendingReqs {
 		close(ch)
-		delete(wc.pendingReqs, id)
+		delete(me.pendingReqs, id)
 	}
-	wc.reqLock.Unlock()
+	me.reqLock.Unlock()
 }
 
-func (wc *webSocketCore) IsConnected() bool {
-	wc.lock.RLock()
-	defer wc.lock.RUnlock()
-	return wc.isConnected
+func (me *webSocketCore) IsConnected() bool {
+	me.lock.RLock()
+	defer me.lock.RUnlock()
+	return me.isConnected
 }
 
-func (wc *webSocketCore) signalReconnect(ctx context.Context) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
+func (me *webSocketCore) signalReconnect(ctx context.Context) {
+	me.lock.Lock()
+	defer me.lock.Unlock()
 
-	if wc.isConnected {
-		wc.isConnected = false
+	if me.isConnected {
+		me.isConnected = false
 		handle := qcontext.GetHandle(ctx)
 		handle.DoInMainThread(func(ctx context.Context) {
-			wc.disconnected.Emit(qdata.DisconnectedArgs{
+			me.disconnected.Emit(qdata.DisconnectedArgs{
 				Ctx: ctx,
 				Err: errors.New("connection lost"),
 			})
@@ -314,14 +319,14 @@ func (wc *webSocketCore) signalReconnect(ctx context.Context) {
 
 		// Signal reconnection
 		select {
-		case wc.reconnectCh <- struct{}{}:
+		case me.reconnectCh <- struct{}{}:
 		default:
 			// Channel is already signaled
 		}
 	}
 }
 
-func (wc *webSocketCore) Publish(ctx context.Context, msg proto.Message) error {
+func (me *webSocketCore) Publish(ctx context.Context, msg proto.Message) error {
 	apiMsg := &qprotobufs.ApiMessage{
 		Header:  &qprotobufs.ApiHeader{Id: uuid.New().String()},
 		Payload: nil,
@@ -338,10 +343,10 @@ func (wc *webSocketCore) Publish(ctx context.Context, msg proto.Message) error {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	wc.lock.RLock()
-	conn := wc.conn
-	isConnected := wc.isConnected
-	wc.lock.RUnlock()
+	me.lock.RLock()
+	conn := me.conn
+	isConnected := me.isConnected
+	me.lock.RUnlock()
 
 	if !isConnected || conn == nil {
 		return errors.New("not connected")
@@ -350,14 +355,14 @@ func (wc *webSocketCore) Publish(ctx context.Context, msg proto.Message) error {
 	// Use the provided context for this write operation
 	if err := conn.Write(ctx, websocket.MessageBinary, data); err != nil {
 		qlog.Error("WebSocket write error: %v", err)
-		wc.signalReconnect(ctx)
+		me.signalReconnect(ctx)
 		return fmt.Errorf("failed to send message: %w", err)
 	}
 
 	return nil
 }
 
-func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprotobufs.ApiMessage, error) {
+func (me *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprotobufs.ApiMessage, error) {
 	// Create message ID for correlation
 	msgID := uuid.New().String()
 
@@ -386,21 +391,21 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 
 	// Register the response channel before sending
 	respCh := make(chan *qprotobufs.ApiMessage, 1)
-	wc.reqLock.Lock()
-	wc.pendingReqs[msgID] = respCh
-	wc.reqLock.Unlock()
+	me.reqLock.Lock()
+	me.pendingReqs[msgID] = respCh
+	me.reqLock.Unlock()
 
 	// Clean up when done
 	defer func() {
-		wc.reqLock.Lock()
-		delete(wc.pendingReqs, msgID)
-		wc.reqLock.Unlock()
+		me.reqLock.Lock()
+		delete(me.pendingReqs, msgID)
+		me.reqLock.Unlock()
 	}()
 
-	wc.lock.RLock()
-	conn := wc.conn
-	isConnected := wc.isConnected
-	wc.lock.RUnlock()
+	me.lock.RLock()
+	conn := me.conn
+	isConnected := me.isConnected
+	me.lock.RUnlock()
 
 	if !isConnected || conn == nil {
 		return nil, errors.New("not connected")
@@ -408,7 +413,7 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 
 	// Use the provided context for the write operation
 	if err := conn.Write(ctx, websocket.MessageBinary, data); err != nil {
-		wc.signalReconnect(ctx)
+		me.signalReconnect(ctx)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -421,18 +426,22 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 	}
 }
 
-func (wc *webSocketCore) SetConfig(config WebSocketConfig) {
-	wc.config = config
+func (me *webSocketCore) SetConfig(config WebSocketConfig) {
+	me.config = config
 }
 
-func (wc *webSocketCore) GetConfig() WebSocketConfig {
-	return wc.config
+func (me *webSocketCore) GetConfig() WebSocketConfig {
+	return me.config
 }
 
-func (wc *webSocketCore) Connected() qss.Signal[qdata.ConnectedArgs] {
-	return wc.connected
+func (me *webSocketCore) Connected() qss.Signal[qdata.ConnectedArgs] {
+	return me.connected
 }
 
-func (wc *webSocketCore) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
-	return wc.disconnected
+func (me *webSocketCore) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return me.disconnected
+}
+
+func (me *webSocketCore) EventMsg() qss.Signal[*qprotobufs.ApiMessage] {
+	return me.eventMsg
 }

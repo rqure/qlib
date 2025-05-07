@@ -8,6 +8,7 @@ import (
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qnotify"
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,11 +44,25 @@ func (wsn *WebSocketStoreNotifier) onDisconnected(args qdata.DisconnectedArgs) {
 	wsn.callbacks = map[string][]qdata.NotificationCallback{}
 }
 
-func (wsn *WebSocketStoreNotifier) OnNotification(notifPb *qprotobufs.DatabaseNotification) {
-	if notifPb == nil {
+func (wsn *WebSocketStoreNotifier) OnEventMsg(msg *qprotobufs.ApiMessage) {
+	if msg == nil || msg.Payload == nil {
 		return
 	}
 
+	if !msg.Payload.MessageIs(&qprotobufs.DatabaseNotification{}) {
+		return
+	}
+
+	notifPb := &qprotobufs.DatabaseNotification{}
+	if err := proto.Unmarshal(msg.Payload.Value, notifPb); err != nil {
+		qlog.Error("failed to unmarshal notification: %v", err)
+		return
+	}
+
+	wsn.onNotification(notifPb)
+}
+
+func (wsn *WebSocketStoreNotifier) onNotification(notifPb *qprotobufs.DatabaseNotification) {
 	notif := qnotify.FromPb(notifPb)
 
 	wsn.handle.DoInMainThread(func(ctx context.Context) {
