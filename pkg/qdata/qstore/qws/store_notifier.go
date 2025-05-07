@@ -4,28 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
-	"time"
 
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qdata/qnotify"
-	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"google.golang.org/protobuf/proto"
 )
 
-const DefaultNotificationTimeout = 5 * time.Second
-
 // WebSocketStoreNotifier implements the StoreNotifier interface
 type WebSocketStoreNotifier struct {
-	core            WebSocketCore
-	handle          qcontext.Handle
-	appName         string
-	callbacks       map[string][]qdata.NotificationCallback
-	callbacksMutex  sync.RWMutex
-	keepAlive       *time.Ticker
-	cancelKeepAlive context.CancelFunc
+	core      WebSocketCore
+	handle    qcontext.Handle
+	appName   string
+	callbacks map[string][]qdata.NotificationCallback
 }
 
 // NewStoreNotifier creates a new WebSocketStoreNotifier
@@ -33,7 +25,6 @@ func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 	notifier := &WebSocketStoreNotifier{
 		core:      core,
 		callbacks: map[string][]qdata.NotificationCallback{},
-		keepAlive: time.NewTicker(30 * time.Second),
 	}
 
 	// Subscribe to connection events
@@ -46,39 +37,21 @@ func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 func (wsn *WebSocketStoreNotifier) onConnected(args qdata.ConnectedArgs) {
 	wsn.appName = qcontext.GetAppName(args.Ctx)
 	wsn.handle = qcontext.GetHandle(args.Ctx)
-
-	// Start keepAlive task using the context from the connection
-	ctx, cancel := context.WithCancel(args.Ctx)
-	wsn.cancelKeepAlive = cancel
-	go wsn.keepAliveTask(ctx)
 }
 
 func (wsn *WebSocketStoreNotifier) onDisconnected(args qdata.DisconnectedArgs) {
-	// Stop keepAliveTask
-	if wsn.cancelKeepAlive != nil {
-		wsn.cancelKeepAlive()
-		wsn.cancelKeepAlive = nil
-	}
+	wsn.callbacks = map[string][]qdata.NotificationCallback{}
 }
 
-// processNotification is called when a notification is received from the server
-// This will be called from the readLoop in WebSocketCore when it detects a notification message
-func (wsn *WebSocketStoreNotifier) processNotification(notifPb *qprotobufs.DatabaseNotification) {
+func (wsn *WebSocketStoreNotifier) OnNotification(notifPb *qprotobufs.DatabaseNotification) {
 	if notifPb == nil {
 		return
 	}
 
 	notif := qnotify.FromPb(notifPb)
 
-	if wsn.handle == nil {
-		qlog.Error("No handle available to process notification")
-		return
-	}
-
 	wsn.handle.DoInMainThread(func(ctx context.Context) {
-		wsn.callbacksMutex.RLock()
 		callbacks, ok := wsn.callbacks[notif.GetToken()]
-		wsn.callbacksMutex.RUnlock()
 
 		if ok {
 			for _, cb := range callbacks {
@@ -86,27 +59,6 @@ func (wsn *WebSocketStoreNotifier) processNotification(notifPb *qprotobufs.Datab
 			}
 		}
 	})
-}
-
-func (wsn *WebSocketStoreNotifier) keepAliveTask(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-wsn.keepAlive.C:
-			if wsn.handle == nil {
-				continue
-			}
-
-			wsn.handle.DoInMainThread(func(ctx context.Context) {
-				wsn.callbacksMutex.RLock()
-				for token := range wsn.callbacks {
-					wsn.sendNotify(ctx, qnotify.FromToken(token))
-				}
-				wsn.callbacksMutex.RUnlock()
-			})
-		}
-	}
 }
 
 func (wsn *WebSocketStoreNotifier) sendNotify(ctx context.Context, config qdata.NotificationConfig) error {
@@ -119,11 +71,7 @@ func (wsn *WebSocketStoreNotifier) sendNotify(ctx context.Context, config qdata.
 		Requests: []*qprotobufs.DatabaseNotificationConfig{qnotify.ToConfigPb(config)},
 	}
 
-	// Set an explicit timeout for notification registration
-	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultNotificationTimeout)
-	defer cancel()
-
-	resp, err := wsn.core.Request(timeoutCtx, msg)
+	resp, err := wsn.core.Request(ctx, msg)
 	if err != nil {
 		return err
 	}
@@ -149,17 +97,12 @@ func (wsn *WebSocketStoreNotifier) Notify(ctx context.Context, config qdata.Noti
 	tokenId := config.GetToken()
 	var err error
 
-	wsn.callbacksMutex.Lock()
 	if wsn.callbacks[tokenId] == nil {
 		err = wsn.sendNotify(ctx, config)
 	}
 
 	if err == nil {
 		wsn.callbacks[tokenId] = append(wsn.callbacks[tokenId], cb)
-	}
-	wsn.callbacksMutex.Unlock()
-
-	if err == nil {
 		return qnotify.NewToken(tokenId, wsn, cb), nil
 	}
 
@@ -172,11 +115,7 @@ func (wsn *WebSocketStoreNotifier) Unnotify(ctx context.Context, token string) e
 		Tokens: []string{token},
 	}
 
-	// Set an explicit timeout for notification unregistration
-	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultNotificationTimeout)
-	defer cancel()
-
-	resp, err := wsn.core.Request(timeoutCtx, msg)
+	resp, err := wsn.core.Request(ctx, msg)
 	if err != nil {
 		return fmt.Errorf("failed to unregister notification: %w", err)
 	}
@@ -190,18 +129,13 @@ func (wsn *WebSocketStoreNotifier) Unnotify(ctx context.Context, token string) e
 		return fmt.Errorf("unregister notification failed: %s", response.Status.String())
 	}
 
-	wsn.callbacksMutex.Lock()
 	delete(wsn.callbacks, token)
-	wsn.callbacksMutex.Unlock()
 
 	return nil
 }
 
 // UnnotifyCallback removes a specific callback from a notification
 func (wsn *WebSocketStoreNotifier) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) error {
-	wsn.callbacksMutex.Lock()
-	defer wsn.callbacksMutex.Unlock()
-
 	if wsn.callbacks[token] == nil {
 		return fmt.Errorf("no callbacks registered for token: %s", token)
 	}
@@ -213,10 +147,10 @@ func (wsn *WebSocketStoreNotifier) UnnotifyCallback(ctx context.Context, token s
 		}
 	}
 
+	wsn.callbacks[token] = callbacks
 	if len(callbacks) == 0 {
 		return wsn.Unnotify(ctx, token)
 	}
 
-	wsn.callbacks[token] = callbacks
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rqure/qlib/pkg/qlog"
+	"github.com/rqure/qlib/pkg/qprotobufs"
 	"github.com/rqure/qlib/pkg/qss"
 )
 
@@ -193,6 +194,7 @@ type StoreInteractor interface {
 }
 
 type StoreNotifier interface {
+	OnNotification(notifPb *qprotobufs.DatabaseNotification)
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) (NotificationToken, error)
 	Unnotify(ctx context.Context, subscriptionId string) error
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback) error
