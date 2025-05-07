@@ -31,6 +31,7 @@ func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 	// Subscribe to connection events
 	core.Connected().Connect(notifier.onConnected)
 	core.Disconnected().Connect(notifier.onDisconnected)
+	core.EventMsg().Connect(notifier.OnEventMsg)
 
 	return notifier
 }
