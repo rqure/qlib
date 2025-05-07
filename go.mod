@@ -7,6 +7,7 @@ require (
 	github.com/blastrain/vitess-sqlparser v0.0.0-20201030050434-a139afbb1aba
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/coder/websocket v1.8.13
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/expr-lang/expr v1.17.2
