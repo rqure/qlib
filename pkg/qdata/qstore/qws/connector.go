@@ -48,11 +48,6 @@ func (wc *WebSocketConnector) IsConnected() bool {
 	return wc.core.IsConnected()
 }
 
-// CheckConnection tests if the WebSocket connection is alive
-func (wc *WebSocketConnector) CheckConnection(ctx context.Context) bool {
-	return wc.core.CheckConnection(ctx)
-}
-
 // Connected returns the signal that is emitted when the connection is established
 func (wc *WebSocketConnector) Connected() qss.Signal[qdata.ConnectedArgs] {
 	return wc.connected

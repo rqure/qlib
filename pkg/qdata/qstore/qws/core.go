@@ -43,9 +43,7 @@ type WebSocketCore interface {
 	Connect(ctx context.Context)
 	Disconnect(ctx context.Context)
 	IsConnected() bool
-	CheckConnection(ctx context.Context) bool
 
-	BeforeConnected() qss.Signal[qdata.ConnectedArgs]
 	Connected() qss.Signal[qdata.ConnectedArgs]
 	Disconnected() qss.Signal[qdata.DisconnectedArgs]
 
@@ -66,9 +64,8 @@ type webSocketCore struct {
 	done        chan struct{}
 	reconnectCh chan struct{}
 
-	beforeConnected qss.Signal[qdata.ConnectedArgs]
-	connected       qss.Signal[qdata.ConnectedArgs]
-	disconnected    qss.Signal[qdata.DisconnectedArgs]
+	connected    qss.Signal[qdata.ConnectedArgs]
+	disconnected qss.Signal[qdata.DisconnectedArgs]
 }
 
 // NewCore creates a new WebSocketCore instance
@@ -82,17 +79,12 @@ func NewCore(config WebSocketConfig) WebSocketCore {
 	}
 
 	return &webSocketCore{
-		config:          config,
-		pendingReqs:     make(map[string]chan *qprotobufs.ApiMessage),
-		beforeConnected: qss.New[qdata.ConnectedArgs](),
-		connected:       qss.New[qdata.ConnectedArgs](),
-		disconnected:    qss.New[qdata.DisconnectedArgs](),
-		reconnectCh:     make(chan struct{}),
+		config:       config,
+		pendingReqs:  make(map[string]chan *qprotobufs.ApiMessage),
+		connected:    qss.New[qdata.ConnectedArgs](),
+		disconnected: qss.New[qdata.DisconnectedArgs](),
+		reconnectCh:  make(chan struct{}),
 	}
-}
-
-func (wc *webSocketCore) BeforeConnected() qss.Signal[qdata.ConnectedArgs] {
-	return wc.beforeConnected
 }
 
 func (wc *webSocketCore) Connect(ctx context.Context) {
@@ -165,7 +157,6 @@ func (wc *webSocketCore) doConnect(ctx context.Context) error {
 	// Emit the connected signal
 	handle := qcontext.GetHandle(ctx)
 	handle.DoInMainThread(func(ctx context.Context) {
-		wc.beforeConnected.Emit(qdata.ConnectedArgs{Ctx: ctx})
 		wc.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
 	})
 
@@ -198,13 +189,13 @@ func (wc *webSocketCore) readLoop(ctx context.Context) {
 
 			_, data, err := conn.Read(ctx)
 			if err != nil {
-				qlog.Error("WebSocket read error: %v", err)
+				qlog.Warn("WebSocket read error: %v", err)
 				return
 			}
 
 			var apiMsg qprotobufs.ApiMessage
 			if err := proto.Unmarshal(data, &apiMsg); err != nil {
-				qlog.Error("Failed to unmarshal WebSocket message: %v", err)
+				qlog.Warn("Failed to unmarshal WebSocket message: %v", err)
 				continue
 			}
 
@@ -305,31 +296,6 @@ func (wc *webSocketCore) IsConnected() bool {
 	wc.lock.RLock()
 	defer wc.lock.RUnlock()
 	return wc.isConnected
-}
-
-func (wc *webSocketCore) CheckConnection(ctx context.Context) bool {
-	if !wc.IsConnected() {
-		return false
-	}
-
-	wc.lock.RLock()
-	conn := wc.conn
-	wc.lock.RUnlock()
-
-	if conn == nil {
-		return false
-	}
-
-	pingCtx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-
-	if err := conn.Ping(pingCtx); err != nil {
-		qlog.Error("WebSocket connection check failed: %v", err)
-		wc.signalReconnect(ctx)
-		return false
-	}
-
-	return true
 }
 
 func (wc *webSocketCore) signalReconnect(ctx context.Context) {

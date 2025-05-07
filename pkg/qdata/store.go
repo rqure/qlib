@@ -23,11 +23,6 @@ type StoreConnector interface {
 	Disconnect(context.Context)
 	IsConnected() bool
 
-	// Checks if the connection is alive
-	// This may cause the IsConnected() state to change
-	// and emit the Connected/Disconnected signal
-	CheckConnection(context.Context) bool
-
 	Connected() qss.Signal[ConnectedArgs]
 	Disconnected() qss.Signal[DisconnectedArgs]
 }
