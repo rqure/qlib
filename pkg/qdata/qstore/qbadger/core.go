@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
+	"github.com/rqure/qlib/pkg/qss"
 )
 
 // contextKey type for context values
@@ -43,12 +46,20 @@ type BadgerCore interface {
 	StartBackgroundTasks(ctx context.Context)
 	StopBackgroundTasks()
 	Close() error
+	Connect(ctx context.Context)
+	Disconnect(ctx context.Context)
+	IsConnected() bool
+	Connected() qss.Signal[qdata.ConnectedArgs]
+	Disconnected() qss.Signal[qdata.DisconnectedArgs]
 }
 
 type badgerCore struct {
 	db              *badger.DB
 	config          BadgerConfig
 	cancelFunctions []context.CancelFunc
+	connected       qss.Signal[qdata.ConnectedArgs]
+	disconnected    qss.Signal[qdata.DisconnectedArgs]
+	isConnected     bool
 }
 
 // NewCore creates a new BadgerDB core with the given configuration
@@ -70,6 +81,8 @@ func NewCore(config BadgerConfig) BadgerCore {
 	return &badgerCore{
 		config:          config,
 		cancelFunctions: make([]context.CancelFunc, 0),
+		connected:       qss.New[qdata.ConnectedArgs](),
+		disconnected:    qss.New[qdata.DisconnectedArgs](),
 	}
 }
 
@@ -87,6 +100,177 @@ func (me *badgerCore) SetConfig(config BadgerConfig) {
 
 func (me *badgerCore) GetConfig() BadgerConfig {
 	return me.config
+}
+
+// Connected returns the signal that is emitted when connected
+func (me *badgerCore) Connected() qss.Signal[qdata.ConnectedArgs] {
+	return me.connected
+}
+
+// Disconnected returns the signal that is emitted when disconnected
+func (me *badgerCore) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return me.disconnected
+}
+
+// IsConnected returns whether the database is connected
+func (me *badgerCore) IsConnected() bool {
+	return me.isConnected
+}
+
+// Connect establishes a connection to the database
+func (me *badgerCore) Connect(ctx context.Context) {
+	if me.IsConnected() {
+		return
+	}
+
+	// Close any existing database connection
+	me.Close()
+
+	var options badger.Options
+
+	if me.config.InMemory {
+		options = badger.DefaultOptions("").WithInMemory(true)
+	} else {
+		options = badger.DefaultOptions(me.config.Path)
+		if me.config.ValueDir != "" {
+			options = options.WithValueDir(me.config.ValueDir)
+		}
+	}
+
+	if me.config.ValueSize > 0 {
+		options = options.WithValueLogFileSize(me.config.ValueSize)
+	}
+
+	if me.config.SnapshotDirectory != "" {
+		latestSnapshot := findLatestSnapshot(me.config.SnapshotDirectory)
+		if latestSnapshot != "" {
+			qlog.Info("Found database snapshot: %s", latestSnapshot)
+
+			// For disk-based DB, create directory if it doesn't exist
+			if !me.config.InMemory && me.config.Path != "" && !fileExists(me.config.Path) {
+				if err := os.MkdirAll(filepath.Dir(me.config.Path), 0755); err != nil {
+					qlog.Error("Failed to create database directory: %v", err)
+				}
+			}
+
+			// Open the database (either in memory or disk-based)
+			db, err := badger.Open(options)
+			if err == nil {
+				me.db = db
+
+				file, err := os.Open(latestSnapshot)
+				if err != nil {
+					qlog.Error("Failed to open snapshot file: %v", err)
+					_ = db.Close()
+					me.db = nil
+				} else {
+					qlog.Info("Loading database from snapshot: %s", latestSnapshot)
+					err = db.Load(file, 1) // 1 worker thread
+
+					if closeErr := file.Close(); closeErr != nil {
+						qlog.Warn("Error closing snapshot file: %v", closeErr)
+					}
+
+					if err != nil {
+						qlog.Error("Failed to load database from snapshot: %v", err)
+						_ = db.Close()
+						me.db = nil
+					} else {
+						qlog.Info("Database loaded successfully from snapshot")
+						me.isConnected = true
+						me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+						me.StartBackgroundTasks(ctx)
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Open the database normally
+	db, err := badger.Open(options)
+	if err != nil {
+		qlog.Error("Failed to connect to BadgerDB: %v", err)
+		me.isConnected = false
+		me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx, Err: err})
+		return
+	}
+
+	me.db = db
+	me.isConnected = true
+	me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+
+	// Start background tasks
+	me.StartBackgroundTasks(ctx)
+}
+
+// Disconnect closes the database connection
+func (me *badgerCore) Disconnect(ctx context.Context) {
+	if !me.IsConnected() {
+		return
+	}
+
+	// Take a final snapshot before disconnecting, but only if DB is initialized
+	// and we're not using in-memory mode
+	if me.db != nil {
+		if !me.config.InMemory && me.config.Path != "" && !me.config.DisableBackgroundTasks && me.config.SnapshotDirectory != "" {
+			qlog.Info("Taking final snapshot before disconnecting...")
+
+			if err := os.MkdirAll(me.config.SnapshotDirectory, 0755); err != nil {
+				qlog.Error("Failed to create snapshot directory: %v", err)
+			} else {
+				timestamp := time.Now().Format("20060102_150405")
+				snapshotFile := filepath.Join(me.config.SnapshotDirectory, fmt.Sprintf("badger_snapshot_%s.bak", timestamp))
+
+				file, err := os.Create(snapshotFile)
+				if err != nil {
+					qlog.Error("Failed to create final snapshot file: %v", err)
+				} else {
+					_, err = me.db.Backup(file, 0)
+
+					closeErr := file.Close()
+					if closeErr != nil {
+						qlog.Warn("Error closing snapshot file: %v", closeErr)
+					}
+
+					if err != nil {
+						qlog.Error("Failed to create final snapshot: %v", err)
+						os.Remove(snapshotFile)
+					} else {
+						qlog.Info("Final snapshot created successfully: %s", snapshotFile)
+					}
+				}
+			}
+		}
+	}
+
+	me.Close()
+	me.isConnected = false
+	me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx})
+}
+
+// findLatestSnapshot returns the path to the latest snapshot file
+func findLatestSnapshot(snapshotDir string) string {
+	if snapshotDir == "" {
+		return ""
+	}
+
+	files, err := filepath.Glob(filepath.Join(snapshotDir, "badger_snapshot_*.bak"))
+	if err != nil || len(files) == 0 {
+		return ""
+	}
+
+	// Sort files by name (which includes timestamp)
+	sort.Strings(files)
+
+	// Return the latest snapshot (last in sorted list)
+	return files[len(files)-1]
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // getTxnFromContext retrieves a transaction from context if it exists
@@ -295,7 +479,9 @@ func (me *badgerCore) Close() error {
 	me.StopBackgroundTasks()
 
 	if me.db != nil {
-		return me.db.Close()
+		err := me.db.Close()
+		me.db = nil
+		return err
 	}
 	return nil
 }

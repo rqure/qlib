@@ -2,15 +2,8 @@ package qbadger
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"time"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/rqure/qlib/pkg/qdata"
-	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
 
@@ -20,31 +13,21 @@ type BadgerConnector struct {
 
 	connected    qss.Signal[qdata.ConnectedArgs]
 	disconnected qss.Signal[qdata.DisconnectedArgs]
-
-	isConnected bool
 }
 
 // NewConnector creates a new BadgerDB connector
 func NewConnector(core BadgerCore) qdata.StoreConnector {
-	return &BadgerConnector{
+	connector := &BadgerConnector{
 		core:         core,
 		connected:    qss.New[qdata.ConnectedArgs](),
 		disconnected: qss.New[qdata.DisconnectedArgs](),
 	}
-}
 
-func (me *BadgerConnector) setConnected(ctx context.Context, connected bool, err error) {
-	if connected == me.isConnected {
-		return
-	}
+	// Subscribe to connection events from the core
+	core.Connected().Connect(connector.onConnected)
+	core.Disconnected().Connect(connector.onDisconnected)
 
-	me.isConnected = connected
-
-	if connected {
-		me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
-	} else {
-		me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx, Err: err})
-	}
+	return connector
 }
 
 func (me *BadgerConnector) closeDB() {
@@ -61,178 +44,17 @@ func (me *BadgerConnector) Connect(ctx context.Context) {
 		return
 	}
 
-	me.closeDB()
-
-	config := me.core.GetConfig()
-	var options badger.Options
-
-	if config.InMemory {
-		options = badger.DefaultOptions("").WithInMemory(true)
-	} else {
-		options = badger.DefaultOptions(config.Path)
-		if config.ValueDir != "" {
-			options = options.WithValueDir(config.ValueDir)
-		}
-	}
-
-	if config.ValueSize > 0 {
-		options = options.WithValueLogFileSize(config.ValueSize)
-	}
-
-	if config.SnapshotDirectory != "" {
-		latestSnapshot := findLatestSnapshot(config.SnapshotDirectory)
-		if latestSnapshot != "" {
-			qlog.Info("Found database snapshot: %s", latestSnapshot)
-
-			// For disk-based DB, create directory if it doesn't exist
-			if !config.InMemory && config.Path != "" && !fileExists(config.Path) {
-				if err := os.MkdirAll(filepath.Dir(config.Path), 0755); err != nil {
-					qlog.Error("Failed to create database directory: %v", err)
-				}
-			}
-
-			// Open the database (either in memory or disk-based)
-			db, err := badger.Open(options)
-			if err == nil {
-				me.core.SetDB(db)
-
-				file, err := os.Open(latestSnapshot)
-				if err != nil {
-					qlog.Error("Failed to open snapshot file: %v", err)
-					_ = db.Close()
-					me.core.SetDB(nil)
-				} else {
-					qlog.Info("Loading database from snapshot: %s", latestSnapshot)
-					err = db.Load(file, 1) // 1 worker thread
-
-					if closeErr := file.Close(); closeErr != nil {
-						qlog.Warn("Error closing snapshot file: %v", closeErr)
-					}
-
-					if err != nil {
-						qlog.Error("Failed to load database from snapshot: %v", err)
-						_ = db.Close()
-						me.core.SetDB(nil)
-					} else {
-						qlog.Info("Database loaded successfully from snapshot")
-						me.setConnected(ctx, true, nil)
-						me.core.StartBackgroundTasks(ctx)
-						return
-					}
-				}
-			}
-		}
-	}
-
-	// Open the database normally
-	db, err := badger.Open(options)
-	if err != nil {
-		qlog.Error("Failed to connect to BadgerDB: %v", err)
-		me.setConnected(ctx, false, err)
-		return
-	}
-
-	me.core.SetDB(db)
-	me.setConnected(ctx, true, nil)
-
-	// Start background tasks
-	me.core.StartBackgroundTasks(ctx)
-}
-
-// findLatestSnapshot returns the path to the latest snapshot file
-func findLatestSnapshot(snapshotDir string) string {
-	if snapshotDir == "" {
-		return ""
-	}
-
-	files, err := filepath.Glob(filepath.Join(snapshotDir, "badger_snapshot_*.bak"))
-	if err != nil || len(files) == 0 {
-		return ""
-	}
-
-	// Sort files by name (which includes timestamp)
-	sort.Strings(files)
-
-	// Return the latest snapshot (last in sorted list)
-	return files[len(files)-1]
-}
-
-// fileExists checks if a file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	me.core.Connect(ctx)
 }
 
 // Disconnect closes the BadgerDB connection
 func (me *BadgerConnector) Disconnect(ctx context.Context) {
-	// Take a final snapshot before disconnecting, but only if DB is initialized
-	// and we're not using in-memory mode
-	if me.core.GetDB() != nil {
-		config := me.core.GetConfig()
-		if !config.InMemory && config.Path != "" && !config.DisableBackgroundTasks && config.SnapshotDirectory != "" {
-			qlog.Info("Taking final snapshot before disconnecting...")
-
-			if err := os.MkdirAll(config.SnapshotDirectory, 0755); err != nil {
-				qlog.Error("Failed to create snapshot directory: %v", err)
-			} else {
-				timestamp := time.Now().Format("20060102_150405")
-				snapshotFile := filepath.Join(config.SnapshotDirectory, fmt.Sprintf("badger_snapshot_%s.bak", timestamp))
-
-				file, err := os.Create(snapshotFile)
-				if err != nil {
-					qlog.Error("Failed to create final snapshot file: %v", err)
-				} else {
-					_, err = me.core.GetDB().Backup(file, 0)
-
-					closeErr := file.Close()
-					if closeErr != nil {
-						qlog.Warn("Error closing snapshot file: %v", closeErr)
-					}
-
-					if err != nil {
-						qlog.Error("Failed to create final snapshot: %v", err)
-						os.Remove(snapshotFile)
-					} else {
-						qlog.Info("Final snapshot created successfully: %s", snapshotFile)
-					}
-				}
-			}
-		}
-	}
-
-	me.closeDB()
-	me.setConnected(ctx, false, nil)
+	me.core.Disconnect(ctx)
 }
 
 // IsConnected returns the connection status
 func (me *BadgerConnector) IsConnected() bool {
-	return me.isConnected
-}
-
-// CheckConnection verifies the BadgerDB connection is still alive
-func (me *BadgerConnector) CheckConnection(ctx context.Context) bool {
-	db := me.core.GetDB()
-
-	if db == nil {
-		return false
-	}
-
-	// Try a simple operation to verify the connection
-	err := db.View(func(txn *badger.Txn) error {
-		// Just using NewIterator as a check if the DB is responsive
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		it.Close()
-		return nil
-	})
-
-	if err != nil {
-		me.closeDB()
-		me.setConnected(ctx, false, err)
-		return false
-	}
-
-	me.setConnected(ctx, true, nil)
-	return true
+	return me.core.IsConnected()
 }
 
 // Connected returns the connected signal
@@ -243,4 +65,14 @@ func (me *BadgerConnector) Connected() qss.Signal[qdata.ConnectedArgs] {
 // Disconnected returns the disconnected signal
 func (me *BadgerConnector) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
 	return me.disconnected
+}
+
+// onConnected handles the connected event from the core
+func (me *BadgerConnector) onConnected(args qdata.ConnectedArgs) {
+	me.connected.Emit(args)
+}
+
+// onDisconnected handles the disconnected event from the core
+func (me *BadgerConnector) onDisconnected(args qdata.DisconnectedArgs) {
+	me.disconnected.Emit(args)
 }
