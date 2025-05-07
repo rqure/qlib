@@ -75,14 +75,11 @@ func (me *BadgerConnector) Connect(ctx context.Context) {
 		}
 	}
 
-	// Configure ValueLogFileSize if specified
 	if config.ValueSize > 0 {
 		options = options.WithValueLogFileSize(config.ValueSize)
 	}
 
-	// Check for existing snapshots when snapshot directory is specified
 	if config.SnapshotDirectory != "" {
-		// Try loading from latest snapshot if available
 		latestSnapshot := findLatestSnapshot(config.SnapshotDirectory)
 		if latestSnapshot != "" {
 			qlog.Info("Found database snapshot: %s", latestSnapshot)
@@ -99,18 +96,15 @@ func (me *BadgerConnector) Connect(ctx context.Context) {
 			if err == nil {
 				me.core.SetDB(db)
 
-				// Open the snapshot file for reading
 				file, err := os.Open(latestSnapshot)
 				if err != nil {
 					qlog.Error("Failed to open snapshot file: %v", err)
 					_ = db.Close()
 					me.core.SetDB(nil)
 				} else {
-					// Load from the snapshot file
 					qlog.Info("Loading database from snapshot: %s", latestSnapshot)
 					err = db.Load(file, 1) // 1 worker thread
 
-					// Close the file after loading
 					if closeErr := file.Close(); closeErr != nil {
 						qlog.Warn("Error closing snapshot file: %v", closeErr)
 					}
@@ -178,23 +172,18 @@ func (me *BadgerConnector) Disconnect(ctx context.Context) {
 		if !config.InMemory && config.Path != "" && !config.DisableBackgroundTasks && config.SnapshotDirectory != "" {
 			qlog.Info("Taking final snapshot before disconnecting...")
 
-			// Create snapshot directory if needed
 			if err := os.MkdirAll(config.SnapshotDirectory, 0755); err != nil {
 				qlog.Error("Failed to create snapshot directory: %v", err)
 			} else {
-				// Create snapshot filename with timestamp
 				timestamp := time.Now().Format("20060102_150405")
 				snapshotFile := filepath.Join(config.SnapshotDirectory, fmt.Sprintf("badger_snapshot_%s.bak", timestamp))
 
-				// Create the file for writing
 				file, err := os.Create(snapshotFile)
 				if err != nil {
 					qlog.Error("Failed to create final snapshot file: %v", err)
 				} else {
-					// Take the snapshot
 					_, err = me.core.GetDB().Backup(file, 0)
 
-					// Close the file regardless of backup success
 					closeErr := file.Close()
 					if closeErr != nil {
 						qlog.Warn("Error closing snapshot file: %v", closeErr)
@@ -202,7 +191,6 @@ func (me *BadgerConnector) Disconnect(ctx context.Context) {
 
 					if err != nil {
 						qlog.Error("Failed to create final snapshot: %v", err)
-						// Try to remove the incomplete snapshot file
 						os.Remove(snapshotFile)
 					} else {
 						qlog.Info("Final snapshot created successfully: %s", snapshotFile)
