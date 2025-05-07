@@ -211,34 +211,32 @@ func (me *badgerCore) Disconnect(ctx context.Context) {
 	}
 
 	// Take a final snapshot before disconnecting, but only if DB is initialized
-	// and we're not using in-memory mode
-	if me.db != nil {
-		if !me.config.InMemory && me.config.Path != "" && !me.config.DisableBackgroundTasks && me.config.SnapshotDirectory != "" {
-			qlog.Info("Taking final snapshot before disconnecting...")
+	// and we have a snapshot directory configured
+	if me.db != nil && !me.config.DisableBackgroundTasks && me.config.SnapshotDirectory != "" {
+		qlog.Info("Taking final snapshot before disconnecting...")
 
-			if err := os.MkdirAll(me.config.SnapshotDirectory, 0755); err != nil {
-				qlog.Error("Failed to create snapshot directory: %v", err)
+		if err := os.MkdirAll(me.config.SnapshotDirectory, 0755); err != nil {
+			qlog.Error("Failed to create snapshot directory: %v", err)
+		} else {
+			timestamp := time.Now().Format("20060102_150405")
+			snapshotFile := filepath.Join(me.config.SnapshotDirectory, fmt.Sprintf("badger_snapshot_%s.bak", timestamp))
+
+			file, err := os.Create(snapshotFile)
+			if err != nil {
+				qlog.Error("Failed to create final snapshot file: %v", err)
 			} else {
-				timestamp := time.Now().Format("20060102_150405")
-				snapshotFile := filepath.Join(me.config.SnapshotDirectory, fmt.Sprintf("badger_snapshot_%s.bak", timestamp))
+				_, err = me.db.Backup(file, 0)
 
-				file, err := os.Create(snapshotFile)
+				closeErr := file.Close()
+				if closeErr != nil {
+					qlog.Warn("Error closing snapshot file: %v", closeErr)
+				}
+
 				if err != nil {
-					qlog.Error("Failed to create final snapshot file: %v", err)
+					qlog.Error("Failed to create final snapshot: %v", err)
+					os.Remove(snapshotFile)
 				} else {
-					_, err = me.db.Backup(file, 0)
-
-					closeErr := file.Close()
-					if closeErr != nil {
-						qlog.Warn("Error closing snapshot file: %v", closeErr)
-					}
-
-					if err != nil {
-						qlog.Error("Failed to create final snapshot: %v", err)
-						os.Remove(snapshotFile)
-					} else {
-						qlog.Info("Final snapshot created successfully: %s", snapshotFile)
-					}
+					qlog.Info("Final snapshot created successfully: %s", snapshotFile)
 				}
 			}
 		}
