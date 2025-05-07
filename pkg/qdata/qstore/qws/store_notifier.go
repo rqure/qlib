@@ -15,6 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const DefaultNotificationTimeout = 5 * time.Second
+
 // WebSocketStoreNotifier implements the StoreNotifier interface
 type WebSocketStoreNotifier struct {
 	core            WebSocketCore
@@ -117,7 +119,11 @@ func (wsn *WebSocketStoreNotifier) sendNotify(ctx context.Context, config qdata.
 		Requests: []*qprotobufs.DatabaseNotificationConfig{qnotify.ToConfigPb(config)},
 	}
 
-	resp, err := wsn.core.Request(ctx, msg)
+	// Set an explicit timeout for notification registration
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultNotificationTimeout)
+	defer cancel()
+
+	resp, err := wsn.core.Request(timeoutCtx, msg)
 	if err != nil {
 		return err
 	}
@@ -166,7 +172,11 @@ func (wsn *WebSocketStoreNotifier) Unnotify(ctx context.Context, token string) e
 		Tokens: []string{token},
 	}
 
-	resp, err := wsn.core.Request(ctx, msg)
+	// Set an explicit timeout for notification unregistration
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultNotificationTimeout)
+	defer cancel()
+
+	resp, err := wsn.core.Request(timeoutCtx, msg)
 	if err != nil {
 		return fmt.Errorf("failed to unregister notification: %w", err)
 	}

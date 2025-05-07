@@ -41,8 +41,10 @@ func (si *WebSocketStoreInteractor) CreateEntity(ctx context.Context, entityType
 		Name:     name,
 	}
 
+	// Use explicit timeout for this operation
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
+
 	resp, err := si.core.Request(
 		timeoutCtx,
 		msg)
@@ -141,8 +143,10 @@ func (si *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdat
 				Engine:    string(queryEngine),
 			}
 
+			// Set an explicit timeout for query operations
 			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 			defer cancel()
+
 			startTime := time.Now()
 			resp, err := si.core.Request(
 				timeoutCtx,
@@ -466,8 +470,10 @@ func (si *WebSocketStoreInteractor) Read(ctx context.Context, requests ...*qdata
 		msg.Requests[i] = r.AsRequestPb()
 	}
 
+	// Set an explicit timeout for read operations
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
+
 	resp, err := si.core.Request(
 		timeoutCtx,
 		msg)
@@ -543,8 +549,10 @@ func (si *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 		msg.Requests[i] = r.AsRequestPb()
 	}
 
+	// Set an explicit timeout for write operations
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
+
 	resp, err := si.core.Request(
 		timeoutCtx,
 		msg)
@@ -588,7 +596,11 @@ func (si *WebSocketStoreInteractor) InitializeSchema(ctx context.Context) error 
 func (si *WebSocketStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error) {
 	msg := &qprotobufs.ApiConfigCreateSnapshotRequest{}
 
-	resp, err := si.core.Request(ctx, si.core.GetKeyGenerator().GetReadSubject(), msg)
+	// Set an explicit timeout for snapshot creation operations
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
+	defer cancel()
+
+	resp, err := si.core.Request(timeoutCtx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -611,7 +623,11 @@ func (si *WebSocketStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qda
 		Snapshot: ss.AsSnapshotPb(),
 	}
 
-	resp, err := si.core.Request(ctx, si.core.GetKeyGenerator().GetWriteSubject(), msg)
+	// Set an explicit timeout for snapshot restoration operations
+	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
+	defer cancel()
+
+	resp, err := si.core.Request(timeoutCtx, msg)
 	if err != nil {
 		return err
 	}

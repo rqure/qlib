@@ -24,9 +24,6 @@ const (
 	// DefaultDialTimeout is the default timeout for dialing a WebSocket connection
 	DefaultDialTimeout = 10 * time.Second
 
-	// DefaultResponseTimeout is the default timeout for waiting for a response
-	DefaultResponseTimeout = 10 * time.Second
-
 	// DefaultReconnectInterval is the default interval between reconnection attempts
 	DefaultReconnectInterval = 5 * time.Second
 
@@ -36,10 +33,9 @@ const (
 
 // WebSocketConfig holds the configuration for a WebSocket connection
 type WebSocketConfig struct {
-	URL             string
-	DialTimeout     time.Duration
-	ResponseTimeout time.Duration
-	PingInterval    time.Duration
+	URL          string
+	DialTimeout  time.Duration
+	PingInterval time.Duration
 }
 
 // WebSocketCore defines the interface for WebSocket-based communication
@@ -80,9 +76,6 @@ func NewCore(config WebSocketConfig) WebSocketCore {
 	// Set default values if not provided
 	if config.DialTimeout == 0 {
 		config.DialTimeout = DefaultDialTimeout
-	}
-	if config.ResponseTimeout == 0 {
-		config.ResponseTimeout = DefaultResponseTimeout
 	}
 	if config.PingInterval == 0 {
 		config.PingInterval = DefaultPingInterval
@@ -457,15 +450,10 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	// Wait for response with timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, wc.config.ResponseTimeout)
-	defer cancel()
-
+	// Wait for response with timeout controlled by the provided context
 	select {
 	case resp := <-respCh:
 		return resp, nil
-	case <-timeoutCtx.Done():
-		return nil, fmt.Errorf("request timeout after %s", wc.config.ResponseTimeout)
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
