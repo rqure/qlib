@@ -174,7 +174,7 @@ func (wc *webSocketCore) doConnect(ctx context.Context) error {
 
 func (wc *webSocketCore) readLoop(ctx context.Context) {
 	defer func() {
-		wc.signalReconnect()
+		wc.signalReconnect(ctx)
 	}()
 
 	for {
@@ -239,7 +239,7 @@ func (wc *webSocketCore) pingLoop(ctx context.Context) {
 
 			if err := conn.Ping(ctx); err != nil {
 				qlog.Error("WebSocket ping failed: %v", err)
-				wc.signalReconnect()
+				wc.signalReconnect(ctx)
 				return
 			}
 		}
@@ -325,24 +325,19 @@ func (wc *webSocketCore) CheckConnection(ctx context.Context) bool {
 
 	if err := conn.Ping(pingCtx); err != nil {
 		qlog.Error("WebSocket connection check failed: %v", err)
-		wc.signalReconnect()
+		wc.signalReconnect(ctx)
 		return false
 	}
 
 	return true
 }
 
-func (wc *webSocketCore) signalReconnect() {
+func (wc *webSocketCore) signalReconnect(ctx context.Context) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 
 	if wc.isConnected {
 		wc.isConnected = false
-
-		// This is a difficult situation because we don't have a context from the caller
-		// The best approach is to use a background context but make sure we don't do
-		// anything with it that would cause deadlocks
-		ctx := context.Background() // Can't avoid this in this disconnect scenario
 		handle := qcontext.GetHandle(ctx)
 		handle.DoInMainThread(func(ctx context.Context) {
 			wc.disconnected.Emit(qdata.DisconnectedArgs{
@@ -389,7 +384,7 @@ func (wc *webSocketCore) Publish(ctx context.Context, msg proto.Message) error {
 	// Use the provided context for this write operation
 	if err := conn.Write(ctx, websocket.MessageBinary, data); err != nil {
 		qlog.Error("WebSocket write error: %v", err)
-		wc.signalReconnect()
+		wc.signalReconnect(ctx)
 		return fmt.Errorf("failed to send message: %w", err)
 	}
 
@@ -406,12 +401,10 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 
 	// Add authentication if available
 	clientProvider := qcontext.GetClientProvider[qauthentication.Client](ctx)
-	if clientProvider != nil {
-		client := clientProvider.Client(ctx)
-		if client != nil {
-			session := client.GetSession(ctx)
-			apiMsg.Header.AccessToken = session.AccessToken()
-		}
+	client := clientProvider.Client(ctx)
+	if client != nil {
+		session := client.GetSession(ctx)
+		apiMsg.Header.AccessToken = session.AccessToken()
 	}
 
 	var err error
@@ -449,8 +442,7 @@ func (wc *webSocketCore) Request(ctx context.Context, msg proto.Message) (*qprot
 
 	// Use the provided context for the write operation
 	if err := conn.Write(ctx, websocket.MessageBinary, data); err != nil {
-		qlog.Error("WebSocket write error: %v", err)
-		wc.signalReconnect()
+		wc.signalReconnect(ctx)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 
