@@ -596,11 +596,7 @@ func (si *WebSocketStoreInteractor) InitializeSchema(ctx context.Context) error 
 func (si *WebSocketStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error) {
 	msg := &qprotobufs.ApiConfigCreateSnapshotRequest{}
 
-	// Set an explicit timeout for snapshot creation operations
-	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
-	defer cancel()
-
-	resp, err := si.core.Request(timeoutCtx, msg)
+	resp, err := si.core.Request(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -623,11 +619,7 @@ func (si *WebSocketStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qda
 		Snapshot: ss.AsSnapshotPb(),
 	}
 
-	// Set an explicit timeout for snapshot restoration operations
-	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
-	defer cancel()
-
-	resp, err := si.core.Request(timeoutCtx, msg)
+	resp, err := si.core.Request(ctx, msg)
 	if err != nil {
 		return err
 	}
