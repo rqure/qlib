@@ -20,6 +20,7 @@ type Session interface {
 	PastHalfLife(context.Context) bool
 	GetOwnerName(context.Context) (string, error)
 	IsValid() bool
+	CheckIsValid(context.Context) bool
 
 	AccessToken() string
 	RefreshToken() string
@@ -226,7 +227,7 @@ func (me *session) GetOwnerName(ctx context.Context) (string, error) {
 }
 
 // Decode the access token and check if it's still valid
-func (me *session) checkIsValid(ctx context.Context) bool {
+func (me *session) CheckIsValid(ctx context.Context) bool {
 	me.autoRefreshMutex.Lock()
 	defer me.autoRefreshMutex.Unlock()
 
@@ -364,7 +365,7 @@ func (me *session) refreshRoutine() {
 			me.autoRefreshMutex.Unlock()
 			cancel()
 
-			me.setIsValid(refreshCtx, me.checkIsValid(refreshCtx))
+			me.setIsValid(refreshCtx, me.CheckIsValid(refreshCtx))
 		}
 	}
 }
