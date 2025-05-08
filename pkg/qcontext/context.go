@@ -22,6 +22,7 @@ type ClientProvider[T any] interface {
 }
 
 type Handle interface {
+	Ctx() context.Context
 	BusyEvent() qss.Signal[time.Duration]
 	DoInMainThread(func(context.Context))
 	Exit()

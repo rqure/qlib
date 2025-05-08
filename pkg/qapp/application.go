@@ -35,6 +35,7 @@ type application struct {
 	busyDuration qss.Signal[time.Duration]
 
 	ctxKVs map[any]any
+	ctx    context.Context
 }
 
 type ApplicationOpts func(map[any]any)
@@ -72,13 +73,15 @@ func (me *application) AddWorker(w Worker) {
 	me.workers = append(me.workers, w)
 }
 
-func (a *application) Init() {
+func (me *application) Init() {
 	qlog.Info("Initializing workers")
 
-	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), a.ctxKVs), 10*time.Second)
+	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), me.ctxKVs), 10*time.Second)
 	defer cancel()
 
-	for _, w := range a.workers {
+	me.ctx = ctx
+
+	for _, w := range me.workers {
 		w.Init(ctx)
 	}
 
@@ -92,6 +95,7 @@ func (me *application) Deinit() {
 
 	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), me.ctxKVs), 10*time.Second)
 	defer cancel()
+	me.ctx = ctx
 
 	me.ticker.Stop()
 
@@ -129,6 +133,7 @@ func (me *application) Execute() {
 
 	ctx, cancel := context.WithCancel(makeContextWithKV(context.Background(), me.ctxKVs))
 	defer cancel()
+	me.ctx = ctx
 
 	go func() {
 		select {
@@ -178,4 +183,8 @@ func (me *application) Exit() {
 
 func (me *application) BusyEvent() qss.Signal[time.Duration] {
 	return me.busyDuration
+}
+
+func (me *application) Ctx() context.Context {
+	return me.ctx
 }
