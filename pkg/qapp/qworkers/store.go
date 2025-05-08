@@ -2,7 +2,6 @@ package qworkers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/rqure/qlib/pkg/qapp"
@@ -69,8 +68,7 @@ type storeWorker struct {
 
 	notificationTokens []qdata.NotificationToken
 
-	sessionRefreshTimer *time.Ticker
-	metricsTimer        *time.Ticker
+	metricsTimer *time.Ticker
 
 	readCount    int
 	writeCount   int
@@ -112,33 +110,52 @@ func (me *storeWorker) Init(ctx context.Context) {
 	me.handle = qcontext.GetHandle(ctx)
 	me.handle.BusyEvent().Connect(me.onBusyEvent)
 
-	me.sessionRefreshTimer = time.NewTicker(5 * time.Second)
 	me.metricsTimer = time.NewTicker(1 * time.Second)
 
 	me.store.Connected().Connect(me.onConnected)
 	me.store.Disconnected().Connect(me.onDisconnected)
 	me.store.ReadEvent().Connect(me.onRead)
 	me.store.WriteEvent().Connect(me.onWrite)
-
-	me.tryRefreshSession(ctx)
-
 	me.store.Connect(ctx)
+
+	clientProvider := qcontext.GetClientProvider[qauthentication.Client](ctx)
+	client := clientProvider.Client(ctx)
+	if client == nil {
+		me.setAuthReadiness(ctx, false, "Failed to get auth client")
+		return
+	}
+
+	session := client.GetSession(ctx)
+	session.StartAutoRefresh(ctx)
+
+	// Update below to properly set auth readiness
+	if session.IsValid(ctx) {
+		// If session is valid, ensure auto-refresh is running
+		err := session.StartAutoRefresh(ctx)
+		if err != nil {
+			qlog.Warn("Failed to ensure auto-refresh is running: %v", err)
+		}
+		me.setAuthReadiness(ctx, true, "")
+	} else {
+		me.setAuthReadiness(ctx, false, "Client auth session is not valid")
+	}
 }
 
 func (me *storeWorker) Deinit(ctx context.Context) {
-	me.sessionRefreshTimer.Stop()
 	me.metricsTimer.Stop()
+
+	// Stop any existing auto-refresh for the session
+	clientProvider := qcontext.GetClientProvider[qauthentication.Client](ctx)
+	if client := clientProvider.Client(ctx); client != nil {
+		if session := client.GetSession(ctx); session != nil {
+			session.StopAutoRefresh()
+		}
+	}
 
 	me.store.Disconnect(ctx)
 }
 
 func (me *storeWorker) DoWork(ctx context.Context) {
-	select {
-	case <-me.sessionRefreshTimer.C:
-		me.tryRefreshSession(ctx)
-	default:
-	}
-
 	select {
 	case <-me.metricsTimer.C:
 		if me.isReady && me.client != nil {
@@ -160,33 +177,6 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 			me.busyDuration = 0
 		}
 	default:
-	}
-}
-
-func (me *storeWorker) tryRefreshSession(ctx context.Context) {
-	clientProvider := qcontext.GetClientProvider[qauthentication.Client](ctx)
-	client := clientProvider.Client(ctx)
-
-	if client == nil {
-		me.setAuthReadiness(ctx, false, "Failed to get auth client")
-		return
-	}
-
-	session := client.GetSession(ctx)
-
-	if session.IsValid(ctx) {
-		if session.PastHalfLife(ctx) {
-			err := session.Refresh(ctx)
-			if err != nil {
-				me.setAuthReadiness(ctx, false, fmt.Sprintf("Failed to refresh session: %v", err))
-			} else {
-				me.setAuthReadiness(ctx, true, "")
-			}
-		} else {
-			me.setAuthReadiness(ctx, true, "")
-		}
-	} else {
-		me.setAuthReadiness(ctx, false, "Client auth session is not valid")
 	}
 }
 

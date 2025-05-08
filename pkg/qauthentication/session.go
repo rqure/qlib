@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/rqure/qlib/pkg/qlog"
 )
 
 type Session interface {
@@ -22,6 +24,10 @@ type Session interface {
 	Realm() string
 	ClientID() string
 	ClientSecret() string
+
+	// New methods for automatic refresh
+	StartAutoRefresh(ctx context.Context) error
+	StopAutoRefresh()
 }
 
 type session struct {
@@ -30,6 +36,12 @@ type session struct {
 	clientID     string
 	clientSecret string
 	realm        string
+
+	// Auto-refresh related fields
+	autoRefreshCtx    context.Context
+	autoRefreshCancel context.CancelFunc
+	autoRefreshActive bool
+	autoRefreshMutex  sync.Mutex
 }
 
 func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm string) Session {
@@ -222,4 +234,72 @@ func (me *session) PastHalfLife(ctx context.Context) bool {
 
 	// If current time is past the midpoint, we're in the second half of the token's lifetime
 	return time.Now().After(midpoint)
+}
+
+// StartAutoRefresh begins a background goroutine that automatically refreshes
+// the session token before it expires
+func (me *session) StartAutoRefresh(ctx context.Context) error {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
+	// Don't start a new refresh routine if one is already active
+	if me.autoRefreshActive {
+		return nil
+	}
+
+	// Create a new context with cancellation for the refresh routine
+	me.autoRefreshCtx, me.autoRefreshCancel = context.WithCancel(ctx)
+	me.autoRefreshActive = true
+
+	// Start the refresh goroutine
+	go me.refreshRoutine()
+
+	qlog.Trace("Session auto-refresh started for client %s", me.clientID)
+	return nil
+}
+
+// StopAutoRefresh stops the background refresh goroutine
+func (me *session) StopAutoRefresh() {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
+	if !me.autoRefreshActive {
+		return
+	}
+
+	// Cancel the context to stop the refresh routine
+	if me.autoRefreshCancel != nil {
+		me.autoRefreshCancel()
+		me.autoRefreshCancel = nil
+	}
+
+	me.autoRefreshActive = false
+	qlog.Trace("Session auto-refresh stopped for client %s", me.clientID)
+}
+
+// refreshRoutine runs in the background and refreshes the token when needed
+func (me *session) refreshRoutine() {
+	ticker := time.NewTicker(10 * time.Second) // Check every 10 seconds
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-me.autoRefreshCtx.Done():
+			return // Exit if the auto-refresh is cancelled
+		case <-ticker.C:
+			// Use a timeout context for each refresh attempt
+			refreshCtx, cancel := context.WithTimeout(me.autoRefreshCtx, 5*time.Second)
+
+			if me.token != nil && me.PastHalfLife(refreshCtx) {
+				err := me.Refresh(refreshCtx)
+				if err != nil {
+					qlog.Warn("Background session refresh failed: %v", err)
+				} else {
+					qlog.Trace("Background session refresh succeeded for client %s", me.clientID)
+				}
+			}
+
+			cancel() // Clean up the timeout context
+		}
+	}
 }
