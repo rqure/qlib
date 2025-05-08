@@ -41,8 +41,7 @@ func (me *client) GetSecret() string {
 }
 
 func (me *client) GetSession(ctx context.Context) Session {
-	// regenerate session if it is nil or not valid
-	if me.session == nil || !me.session.IsValid(ctx) {
+	if me.session == nil {
 		token, err := me.core.GetClient().GetToken(ctx, me.realm,
 			gocloak.TokenOptions{
 				ClientID:     &me.id,
@@ -56,7 +55,6 @@ func (me *client) GetSession(ctx context.Context) Session {
 		} else {
 			me.session = NewSession(me.core, token, me.id, me.secret, me.realm)
 		}
-
 	}
 
 	return me.session

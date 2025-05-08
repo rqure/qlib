@@ -126,19 +126,14 @@ func (me *storeWorker) Init(ctx context.Context) {
 	}
 
 	session := client.GetSession(ctx)
-	session.StartAutoRefresh(ctx)
-
-	// Update below to properly set auth readiness
-	if session.IsValid(ctx) {
-		// If session is valid, ensure auto-refresh is running
-		err := session.StartAutoRefresh(ctx)
-		if err != nil {
-			qlog.Warn("Failed to ensure auto-refresh is running: %v", err)
+	session.Valid().Connect(func(isValid bool) {
+		if isValid {
+			me.setAuthReadiness(ctx, true, "")
+		} else {
+			me.setAuthReadiness(ctx, false, "Client auth session is not valid")
 		}
-		me.setAuthReadiness(ctx, true, "")
-	} else {
-		me.setAuthReadiness(ctx, false, "Client auth session is not valid")
-	}
+	})
+	session.StartAutoRefresh(ctx)
 }
 
 func (me *storeWorker) Deinit(ctx context.Context) {

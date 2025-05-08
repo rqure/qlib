@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qlog"
+	"github.com/rqure/qlib/pkg/qss"
 )
 
 type Session interface {
@@ -17,7 +19,7 @@ type Session interface {
 
 	PastHalfLife(context.Context) bool
 	GetOwnerName(context.Context) (string, error)
-	IsValid(context.Context) bool
+	IsValid() bool
 
 	AccessToken() string
 	RefreshToken() string
@@ -28,6 +30,8 @@ type Session interface {
 	// New methods for automatic refresh
 	StartAutoRefresh(ctx context.Context) error
 	StopAutoRefresh()
+
+	Valid() qss.Signal[bool]
 }
 
 type session struct {
@@ -36,6 +40,9 @@ type session struct {
 	clientID     string
 	clientSecret string
 	realm        string
+
+	isValid     bool
+	validSignal qss.Signal[bool]
 
 	// Auto-refresh related fields
 	autoRefreshCtx    context.Context
@@ -51,10 +58,39 @@ func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm str
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		realm:        realm,
+		isValid:      false,
+		validSignal:  qss.New[bool](),
 	}
 }
 
+func (me *session) setIsValid(ctx context.Context, isValid bool) {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
+	if me.isValid != isValid {
+		me.isValid = isValid
+
+		handle := qcontext.GetHandle(ctx)
+		handle.DoInMainThread(func(ctx context.Context) {
+			me.validSignal.Emit(isValid)
+		})
+	}
+}
+
+func (me *session) Valid() qss.Signal[bool] {
+	return me.validSignal
+}
+
+func (me *session) IsValid() bool {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+	return me.isValid
+}
+
 func (me *session) Refresh(ctx context.Context) error {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
 	if me.token == nil {
 		return fmt.Errorf("no token to refresh")
 	}
@@ -89,6 +125,9 @@ func (me *session) Refresh(ctx context.Context) error {
 }
 
 func (me *session) Revoke(ctx context.Context) error {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
 	if me.token == nil {
 		return fmt.Errorf("no token to revoke")
 	}
@@ -113,6 +152,9 @@ func (me *session) Revoke(ctx context.Context) error {
 }
 
 func (me *session) AccessToken() string {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
 	if me.token == nil {
 		return ""
 	}
@@ -121,6 +163,9 @@ func (me *session) AccessToken() string {
 }
 
 func (me *session) RefreshToken() string {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
 	if me.token == nil {
 		return ""
 	}
@@ -143,13 +188,16 @@ func (me *session) ClientSecret() string {
 // Returns the name of the owner of the session
 // This is the user who owns the session or the client if it's a client session
 func (me *session) GetOwnerName(ctx context.Context) (string, error) {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
 	if me.token == nil {
 		return "", fmt.Errorf("no token to get owner name")
 	}
 
 	_, claims, err := me.core.GetClient().DecodeAccessToken(
 		ctx,
-		me.AccessToken(),
+		me.token.AccessToken,
 		me.realm,
 	)
 	if err != nil {
@@ -178,14 +226,17 @@ func (me *session) GetOwnerName(ctx context.Context) (string, error) {
 }
 
 // Decode the access token and check if it's still valid
-func (me *session) IsValid(ctx context.Context) bool {
+func (me *session) checkIsValid(ctx context.Context) bool {
+	me.autoRefreshMutex.Lock()
+	defer me.autoRefreshMutex.Unlock()
+
 	if me.token == nil {
 		return false
 	}
 
 	_, claims, err := me.core.GetClient().DecodeAccessToken(
 		ctx,
-		me.AccessToken(),
+		me.token.AccessToken,
 		me.realm,
 	)
 	if err != nil {
@@ -203,13 +254,16 @@ func (me *session) IsValid(ctx context.Context) bool {
 
 // Check if the token has passed the half-life time
 func (me *session) PastHalfLife(ctx context.Context) bool {
+	// No need to lock here since this is only called from already locked contexts
+	// or from refreshRoutine where we're already handling the locking
+
 	if me.token == nil {
 		return false
 	}
 
 	_, claims, err := me.core.GetClient().DecodeAccessToken(
 		ctx,
-		me.AccessToken(),
+		me.token.AccessToken,
 		me.realm,
 	)
 	if err != nil {
@@ -285,21 +339,32 @@ func (me *session) refreshRoutine() {
 	for {
 		select {
 		case <-me.autoRefreshCtx.Done():
-			return // Exit if the auto-refresh is cancelled
+			return
 		case <-ticker.C:
-			// Use a timeout context for each refresh attempt
 			refreshCtx, cancel := context.WithTimeout(me.autoRefreshCtx, 5*time.Second)
 
-			if me.token != nil && me.PastHalfLife(refreshCtx) {
-				err := me.Refresh(refreshCtx)
-				if err != nil {
-					qlog.Warn("Background session refresh failed: %v", err)
-				} else {
-					qlog.Trace("Background session refresh succeeded for client %s", me.clientID)
+			shouldRefresh := false
+
+			me.autoRefreshMutex.Lock()
+			if me.token != nil && me.autoRefreshActive {
+				shouldRefresh = me.PastHalfLife(refreshCtx)
+			}
+
+			if shouldRefresh {
+				if me.token != nil && me.autoRefreshActive {
+					err := me.Refresh(refreshCtx)
+					if err != nil {
+						qlog.Warn("Background session refresh failed: %v", err)
+					} else {
+						qlog.Trace("Background session refresh succeeded for client %s", me.clientID)
+					}
 				}
 			}
 
-			cancel() // Clean up the timeout context
+			me.autoRefreshMutex.Unlock()
+			cancel()
+
+			me.setIsValid(refreshCtx, me.checkIsValid(refreshCtx))
 		}
 	}
 }
