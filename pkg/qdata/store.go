@@ -163,6 +163,7 @@ type StoreInteractor interface {
 	DeleteEntity(context.Context, EntityId) error
 
 	PrepareQuery(sql string, args ...any) (*PageResult[QueryRow], error)
+	Find(ctx context.Context, entityType EntityType, fieldTypes []FieldType, conditionFns ...interface{}) ([]*Entity, error)
 	FindEntities(entityType EntityType, pageOpts ...PageOpts) (*PageResult[EntityId], error)
 	GetEntityTypes(pageOpts ...PageOpts) (*PageResult[EntityType], error)
 

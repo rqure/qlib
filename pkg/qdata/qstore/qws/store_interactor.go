@@ -3,8 +3,10 @@ package qws
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
+	"github.com/expr-lang/expr"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -42,24 +44,86 @@ func NewStoreInteractor(core WebSocketCore) qdata.StoreInteractor {
 	return ws
 }
 
-func (si *WebSocketStoreInteractor) onConnected(args qdata.ConnectedArgs) {
-	si.interactorConnected.Emit(args)
+func (me *WebSocketStoreInteractor) onConnected(args qdata.ConnectedArgs) {
+	me.interactorConnected.Emit(args)
 }
 
-func (si *WebSocketStoreInteractor) onDisconnected(args qdata.DisconnectedArgs) {
-	si.interactorDisconnected.Emit(args)
+func (me *WebSocketStoreInteractor) onDisconnected(args qdata.DisconnectedArgs) {
+	me.interactorDisconnected.Emit(args)
 }
 
-func (si *WebSocketStoreInteractor) InteractorConnected() qss.Signal[qdata.ConnectedArgs] {
-	return si.interactorConnected
+func (me *WebSocketStoreInteractor) InteractorConnected() qss.Signal[qdata.ConnectedArgs] {
+	return me.interactorConnected
 }
 
-func (si *WebSocketStoreInteractor) InteractorDisconnected() qss.Signal[qdata.DisconnectedArgs] {
-	return si.interactorDisconnected
+func (me *WebSocketStoreInteractor) InteractorDisconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return me.interactorDisconnected
+}
+
+func (me *WebSocketStoreInteractor) Find(ctx context.Context, entityType qdata.EntityType, fieldTypes []qdata.FieldType, conditionFns ...interface{}) ([]*qdata.Entity, error) {
+	results := make([]*qdata.Entity, 0)
+
+	iter, err := me.FindEntities(entityType)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	reqs := make([]*qdata.Request, 0)
+	iter.ForEach(ctx, func(entityId qdata.EntityId) bool {
+		entity := new(qdata.Entity).Init(entityId)
+		results = append(results, entity)
+
+		for _, fieldType := range fieldTypes {
+			reqs = append(reqs, entity.Field(fieldType).AsReadRequest())
+		}
+
+		return true
+	})
+
+	if len(reqs) > 0 {
+		err = me.Read(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, conditionFn := range conditionFns {
+		switch conditionFn := conditionFn.(type) {
+		case func(entity *qdata.Entity) bool:
+			results = slices.DeleteFunc(results, conditionFn)
+		case string:
+			program, err := expr.Compile(conditionFn)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile condition function: %v", err)
+			}
+			results = slices.DeleteFunc(results, func(entity *qdata.Entity) bool {
+				params := make(map[string]interface{})
+				for _, fieldType := range fieldTypes {
+					params[fieldType.AsString()] = entity.Field(fieldType).Value.GetRaw()
+				}
+				r, err := expr.Run(program, params)
+				if err != nil {
+					qlog.Warn("failed to run condition function '%s': %v", conditionFn, err)
+					return false
+				}
+				b, ok := r.(bool)
+				if !ok {
+					qlog.Warn("condition function '%s' did not return a boolean value", conditionFn)
+					return false
+				}
+				return b
+			})
+		default:
+			return nil, fmt.Errorf("unsupported condition function type: %T", conditionFn)
+		}
+	}
+
+	return results, nil
 }
 
 // CreateEntity creates a new entity
-func (si *WebSocketStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
+func (me *WebSocketStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
 	msg := &qprotobufs.ApiConfigCreateEntityRequest{
 		Type:     entityType.AsString(),
 		ParentId: parentId.AsString(),
@@ -70,7 +134,7 @@ func (si *WebSocketStoreInteractor) CreateEntity(ctx context.Context, entityType
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
 
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -90,14 +154,14 @@ func (si *WebSocketStoreInteractor) CreateEntity(ctx context.Context, entityType
 }
 
 // DeleteEntity deletes an entity
-func (si *WebSocketStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) error {
+func (me *WebSocketStoreInteractor) DeleteEntity(ctx context.Context, entityId qdata.EntityId) error {
 	msg := &qprotobufs.ApiConfigDeleteEntityRequest{
 		Id: entityId.AsString(),
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -117,7 +181,7 @@ func (si *WebSocketStoreInteractor) DeleteEntity(ctx context.Context, entityId q
 }
 
 // PrepareQuery prepares and executes a query
-func (si *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
+func (me *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
 	queryEngine := qdata.QEExprLang
@@ -173,7 +237,7 @@ func (si *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdat
 			defer cancel()
 
 			startTime := time.Now()
-			resp, err := si.core.Request(
+			resp, err := me.core.Request(
 				timeoutCtx,
 				msg)
 			if err != nil {
@@ -221,7 +285,7 @@ func (si *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdat
 					for _, typeHintOpt := range typeHintOpts {
 						newArgs = append(newArgs, typeHintOpt)
 					}
-					return si.PrepareQuery(sql, newArgs...)
+					return me.PrepareQuery(sql, newArgs...)
 				},
 			}, nil
 		},
@@ -230,7 +294,7 @@ func (si *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdat
 }
 
 // FindEntities finds entities of a specific type
-func (si *WebSocketStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityId], error) {
+func (me *WebSocketStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityId], error) {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	// Ensure we have a reasonable page size
@@ -250,7 +314,7 @@ func (si *WebSocketStoreInteractor) FindEntities(entityType qdata.EntityType, pa
 
 			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 			defer cancel()
-			resp, err := si.core.Request(
+			resp, err := me.core.Request(
 				timeoutCtx,
 				msg)
 			if err != nil {
@@ -286,7 +350,7 @@ func (si *WebSocketStoreInteractor) FindEntities(entityType qdata.EntityType, pa
 							NextPage: nil,
 						}, nil
 					}
-					return si.FindEntities(entityType,
+					return me.FindEntities(entityType,
 						qdata.POPageSize(pageConfig.PageSize),
 						qdata.POCursorId(nextCursor))
 				},
@@ -297,7 +361,7 @@ func (si *WebSocketStoreInteractor) FindEntities(entityType qdata.EntityType, pa
 }
 
 // GetEntityTypes gets all entity types
-func (si *WebSocketStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityType], error) {
+func (me *WebSocketStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdata.PageResult[qdata.EntityType], error) {
 	pageConfig := qdata.DefaultPageConfig().ApplyOpts(pageOpts...)
 
 	// Ensure we have a reasonable page size
@@ -316,7 +380,7 @@ func (si *WebSocketStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (
 
 			timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 			defer cancel()
-			resp, err := si.core.Request(
+			resp, err := me.core.Request(
 				timeoutCtx,
 				msg)
 			if err != nil {
@@ -343,7 +407,7 @@ func (si *WebSocketStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (
 				Items:    types,
 				CursorId: nextCursor,
 				NextPage: func(ctx context.Context) (*qdata.PageResult[qdata.EntityType], error) {
-					return si.GetEntityTypes(
+					return me.GetEntityTypes(
 						qdata.POPageSize(pageConfig.PageSize),
 						qdata.POCursorId(nextCursor))
 				},
@@ -354,14 +418,14 @@ func (si *WebSocketStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (
 }
 
 // EntityExists checks if an entity exists
-func (si *WebSocketStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) (bool, error) {
+func (me *WebSocketStoreInteractor) EntityExists(ctx context.Context, entityId qdata.EntityId) (bool, error) {
 	msg := &qprotobufs.ApiRuntimeEntityExistsRequest{
 		EntityId: entityId.AsString(),
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -381,7 +445,7 @@ func (si *WebSocketStoreInteractor) EntityExists(ctx context.Context, entityId q
 }
 
 // FieldExists checks if a field exists
-func (si *WebSocketStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (bool, error) {
+func (me *WebSocketStoreInteractor) FieldExists(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (bool, error) {
 	msg := &qprotobufs.ApiRuntimeFieldExistsRequest{
 		EntityType: entityType.AsString(),
 		FieldName:  fieldType.AsString(),
@@ -389,7 +453,7 @@ func (si *WebSocketStoreInteractor) FieldExists(ctx context.Context, entityType 
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -409,14 +473,14 @@ func (si *WebSocketStoreInteractor) FieldExists(ctx context.Context, entityType 
 }
 
 // GetEntitySchema gets the schema for an entity type
-func (si *WebSocketStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) (*qdata.EntitySchema, error) {
+func (me *WebSocketStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) (*qdata.EntitySchema, error) {
 	msg := &qprotobufs.ApiConfigGetEntitySchemaRequest{
 		Type: entityType.AsString(),
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -436,14 +500,14 @@ func (si *WebSocketStoreInteractor) GetEntitySchema(ctx context.Context, entityT
 }
 
 // SetEntitySchema sets the schema for an entity type
-func (si *WebSocketStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) error {
+func (me *WebSocketStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) error {
 	msg := &qprotobufs.ApiConfigSetEntitySchemaRequest{
 		Schema: schema.AsEntitySchemaPb(),
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -463,8 +527,8 @@ func (si *WebSocketStoreInteractor) SetEntitySchema(ctx context.Context, schema 
 }
 
 // GetFieldSchema gets the schema for a field
-func (si *WebSocketStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (*qdata.FieldSchema, error) {
-	schema, err := si.GetEntitySchema(ctx, entityType)
+func (me *WebSocketStoreInteractor) GetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType) (*qdata.FieldSchema, error) {
+	schema, err := me.GetEntitySchema(ctx, entityType)
 	if err != nil || schema == nil {
 		return nil, err
 	}
@@ -473,19 +537,19 @@ func (si *WebSocketStoreInteractor) GetFieldSchema(ctx context.Context, entityTy
 }
 
 // SetFieldSchema sets the schema for a field
-func (si *WebSocketStoreInteractor) SetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType, schema *qdata.FieldSchema) error {
-	entitySchema, err := si.GetEntitySchema(ctx, entityType)
+func (me *WebSocketStoreInteractor) SetFieldSchema(ctx context.Context, entityType qdata.EntityType, fieldType qdata.FieldType, schema *qdata.FieldSchema) error {
+	entitySchema, err := me.GetEntitySchema(ctx, entityType)
 	if err != nil || entitySchema == nil {
 		return fmt.Errorf("failed to get entity schema for type %s", entityType)
 	}
 
 	entitySchema.Fields[fieldType] = schema
 
-	return si.SetEntitySchema(ctx, entitySchema)
+	return me.SetEntitySchema(ctx, entitySchema)
 }
 
 // Read reads one or more fields
-func (si *WebSocketStoreInteractor) Read(ctx context.Context, requests ...*qdata.Request) error {
+func (me *WebSocketStoreInteractor) Read(ctx context.Context, requests ...*qdata.Request) error {
 	msg := &qprotobufs.ApiRuntimeDatabaseRequest{
 		RequestType: qprotobufs.ApiRuntimeDatabaseRequest_READ,
 		Requests:    make([]*qprotobufs.DatabaseRequest, len(requests)),
@@ -499,7 +563,7 @@ func (si *WebSocketStoreInteractor) Read(ctx context.Context, requests ...*qdata
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
 
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -529,7 +593,7 @@ func (si *WebSocketStoreInteractor) Read(ctx context.Context, requests ...*qdata
 		}
 
 		if r.Success {
-			si.readEventSig.Emit(qdata.ReadEventArgs{
+			me.readEventSig.Emit(qdata.ReadEventArgs{
 				Ctx: ctx,
 				Req: requests[i],
 			})
@@ -540,7 +604,7 @@ func (si *WebSocketStoreInteractor) Read(ctx context.Context, requests ...*qdata
 }
 
 // Write writes one or more fields
-func (si *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdata.Request) error {
+func (me *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdata.Request) error {
 	msg := &qprotobufs.ApiRuntimeDatabaseRequest{
 		RequestType: qprotobufs.ApiRuntimeDatabaseRequest_WRITE,
 		Requests:    make([]*qprotobufs.DatabaseRequest, len(requests)),
@@ -553,19 +617,19 @@ func (si *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 			wr := new(qdata.EntityId).FromString("")
 
 			appName := qcontext.GetAppName(ctx)
-			if si.clientId == nil && appName != "" {
-				page, err := si.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name == %q`, appName)
+			if me.clientId == nil && appName != "" {
+				page, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name == %q`, appName)
 				if err == nil {
 					page.ForEach(ctx, func(client qdata.QueryRow) bool {
 						entityId := client.AsEntity().EntityId
-						si.clientId = &entityId
+						me.clientId = &entityId
 						return false
 					})
 				}
 			}
 
-			if si.clientId != nil {
-				*wr = *si.clientId
+			if me.clientId != nil {
+				*wr = *me.clientId
 			}
 
 			r.WriterId = wr
@@ -578,7 +642,7 @@ func (si *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 	timeoutCtx, cancel := context.WithTimeout(ctx, DefaultOperationTimeout)
 	defer cancel()
 
-	resp, err := si.core.Request(
+	resp, err := me.core.Request(
 		timeoutCtx,
 		msg)
 	if err != nil {
@@ -601,7 +665,7 @@ func (si *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 		requests[i].Success = r.Success
 
 		if r.Success {
-			si.writeEventSig.Emit(qdata.WriteEventArgs{
+			me.writeEventSig.Emit(qdata.WriteEventArgs{
 				Ctx: ctx,
 				Req: requests[i],
 			})
@@ -612,16 +676,16 @@ func (si *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 }
 
 // InitializeSchema initializes the database schema
-func (si *WebSocketStoreInteractor) InitializeSchema(ctx context.Context) error {
+func (me *WebSocketStoreInteractor) InitializeSchema(ctx context.Context) error {
 	// No-op for WebSocket, similar to NATS implementation
 	return nil
 }
 
 // CreateSnapshot creates a database snapshot
-func (si *WebSocketStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error) {
+func (me *WebSocketStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error) {
 	msg := &qprotobufs.ApiConfigCreateSnapshotRequest{}
 
-	resp, err := si.core.Request(ctx, msg)
+	resp, err := me.core.Request(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -639,12 +703,12 @@ func (si *WebSocketStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.
 }
 
 // RestoreSnapshot restores a database from a snapshot
-func (si *WebSocketStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
+func (me *WebSocketStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
 	msg := &qprotobufs.ApiConfigRestoreSnapshotRequest{
 		Snapshot: ss.AsSnapshotPb(),
 	}
 
-	resp, err := si.core.Request(ctx, msg)
+	resp, err := me.core.Request(ctx, msg)
 	if err != nil {
 		return err
 	}
@@ -662,16 +726,16 @@ func (si *WebSocketStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qda
 }
 
 // PublishNotifications returns a signal for notification publications
-func (si *WebSocketStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
-	return si.publishSig
+func (me *WebSocketStoreInteractor) PublishNotifications() qss.Signal[qdata.PublishNotificationArgs] {
+	return me.publishSig
 }
 
 // ReadEvent returns a signal for read events
-func (si *WebSocketStoreInteractor) ReadEvent() qss.Signal[qdata.ReadEventArgs] {
-	return si.readEventSig
+func (me *WebSocketStoreInteractor) ReadEvent() qss.Signal[qdata.ReadEventArgs] {
+	return me.readEventSig
 }
 
 // WriteEvent returns a signal for write events
-func (si *WebSocketStoreInteractor) WriteEvent() qss.Signal[qdata.WriteEventArgs] {
-	return si.writeEventSig
+func (me *WebSocketStoreInteractor) WriteEvent() qss.Signal[qdata.WriteEventArgs] {
+	return me.writeEventSig
 }
