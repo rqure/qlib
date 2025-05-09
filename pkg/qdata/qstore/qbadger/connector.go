@@ -30,14 +30,6 @@ func NewConnector(core BadgerCore) qdata.StoreConnector {
 	return connector
 }
 
-func (me *BadgerConnector) closeDB() {
-	if me.core.GetDB() != nil {
-		me.core.StopBackgroundTasks()
-		_ = me.core.Close()
-		me.core.SetDB(nil)
-	}
-}
-
 // Connect establishes a connection to BadgerDB
 func (me *BadgerConnector) Connect(ctx context.Context) {
 	if me.IsConnected() {

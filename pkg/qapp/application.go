@@ -92,8 +92,20 @@ func (me *application) Deinit() {
 
 	me.ticker.Stop()
 
+	ctx, cancel := context.WithTimeout(me.ctx, 5*time.Second)
+	defer cancel()
+
 	for _, w := range me.workers {
-		w.Deinit(me.ctx)
+		w.Deinit(ctx)
+
+		// Flush the tasks channel
+		select {
+		case <-ctx.Done():
+			qlog.Panic("Failed to deinitialize worker")
+		case task := <-me.tasks:
+			task(ctx)
+		default:
+		}
 	}
 
 	done := make(chan struct{})
@@ -103,7 +115,7 @@ func (me *application) Deinit() {
 	}()
 
 	select {
-	case <-me.ctx.Done():
+	case <-ctx.Done():
 		qlog.Panic("Failed to wait for workers to deinitalize")
 	case <-done:
 		qlog.Info("All workers have deinitialized")

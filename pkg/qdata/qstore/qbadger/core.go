@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
@@ -117,6 +118,26 @@ func (me *badgerCore) IsConnected() bool {
 	return me.isConnected
 }
 
+func (me *badgerCore) setConnected(ctx context.Context, connected bool, err error) {
+	if connected == me.isConnected {
+		return
+	}
+
+	me.isConnected = connected
+
+	if connected {
+		handle := qcontext.GetHandle(ctx)
+		handle.DoInMainThread(func(ctx context.Context) {
+			me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+		})
+	} else {
+		handle := qcontext.GetHandle(ctx)
+		handle.DoInMainThread(func(ctx context.Context) {
+			me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx, Err: err})
+		})
+	}
+}
+
 // Connect establishes a connection to the database
 func (me *badgerCore) Connect(ctx context.Context) {
 	if me.IsConnected() {
@@ -177,8 +198,7 @@ func (me *badgerCore) Connect(ctx context.Context) {
 						me.db = nil
 					} else {
 						qlog.Info("Database loaded successfully from snapshot")
-						me.isConnected = true
-						me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+						me.setConnected(ctx, true, nil)
 						me.StartBackgroundTasks(ctx)
 						return
 					}
@@ -190,15 +210,12 @@ func (me *badgerCore) Connect(ctx context.Context) {
 	// Open the database normally
 	db, err := badger.Open(options)
 	if err != nil {
-		qlog.Error("Failed to connect to BadgerDB: %v", err)
-		me.isConnected = false
-		me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx, Err: err})
+		me.setConnected(ctx, false, fmt.Errorf("failed to connect to BadgerDB: %w", err))
 		return
 	}
 
 	me.db = db
-	me.isConnected = true
-	me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+	me.setConnected(ctx, true, nil)
 
 	// Start background tasks
 	me.StartBackgroundTasks(ctx)
@@ -243,8 +260,7 @@ func (me *badgerCore) Disconnect(ctx context.Context) {
 	}
 
 	me.Close()
-	me.isConnected = false
-	me.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx})
+	me.setConnected(ctx, false, nil)
 }
 
 // findLatestSnapshot returns the path to the latest snapshot file

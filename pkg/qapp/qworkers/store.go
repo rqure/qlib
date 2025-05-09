@@ -144,10 +144,12 @@ func (me *storeWorker) Deinit(ctx context.Context) {
 	if client := clientProvider.Client(ctx); client != nil {
 		if session := client.GetSession(ctx); session != nil {
 			session.StopAutoRefresh()
+			qlog.Info("Session auto-refresh stopped")
 		}
 	}
 
 	me.store.Disconnect(ctx)
+	qlog.Info("Disconnected from store")
 }
 
 func (me *storeWorker) DoWork(ctx context.Context) {

@@ -90,6 +90,28 @@ func NewCore(config WebSocketConfig) WebSocketCore {
 	}
 }
 
+func (me *webSocketCore) setConnected(ctx context.Context, connected bool, err error) {
+	if me.isConnected == connected {
+		return
+	}
+
+	me.isConnected = connected
+	if connected {
+		handle := qcontext.GetHandle(ctx)
+		handle.DoInMainThread(func(ctx context.Context) {
+			me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+		})
+	} else {
+		handle := qcontext.GetHandle(ctx)
+		handle.DoInMainThread(func(ctx context.Context) {
+			me.disconnected.Emit(qdata.DisconnectedArgs{
+				Ctx: ctx,
+				Err: err,
+			})
+		})
+	}
+}
+
 func (me *webSocketCore) Connect(ctx context.Context) {
 	me.lock.Lock()
 	if me.isConnected {
@@ -155,13 +177,7 @@ func (me *webSocketCore) doConnect(ctx context.Context) error {
 	}
 
 	me.conn = conn
-	me.isConnected = true
-
-	// Emit the connected signal
-	handle := qcontext.GetHandle(ctx)
-	handle.DoInMainThread(func(ctx context.Context) {
-		me.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
-	})
+	me.setConnected(ctx, true, nil)
 
 	return nil
 }
@@ -265,16 +281,7 @@ func (me *webSocketCore) Disconnect(ctx context.Context) {
 	defer me.lock.Unlock()
 
 	me.cleanupConnection()
-	me.isConnected = false
-
-	// Emit the disconnected signal
-	handle := qcontext.GetHandle(ctx)
-	handle.DoInMainThread(func(ctx context.Context) {
-		me.disconnected.Emit(qdata.DisconnectedArgs{
-			Ctx: ctx,
-			Err: nil,
-		})
-	})
+	me.setConnected(ctx, false, nil)
 }
 
 func (me *webSocketCore) cleanupConnection() {
@@ -308,14 +315,7 @@ func (me *webSocketCore) signalReconnect(ctx context.Context) {
 	defer me.lock.Unlock()
 
 	if me.isConnected {
-		me.isConnected = false
-		handle := qcontext.GetHandle(ctx)
-		handle.DoInMainThread(func(ctx context.Context) {
-			me.disconnected.Emit(qdata.DisconnectedArgs{
-				Ctx: ctx,
-				Err: errors.New("connection lost"),
-			})
-		})
+		me.setConnected(ctx, false, fmt.Errorf("connection lost"))
 
 		// Signal reconnection
 		select {
