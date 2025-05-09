@@ -34,8 +34,8 @@ type application struct {
 
 	busyDuration qss.Signal[time.Duration]
 
-	ctxKVs map[any]any
 	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type ApplicationOpts func(map[any]any)
@@ -44,26 +44,28 @@ func NewApplication(name string, opts ...ApplicationOpts) Application {
 	a := &application{
 		tasks:        make(chan func(context.Context), 10000),
 		wg:           &sync.WaitGroup{},
-		ctxKVs:       make(map[any]any),
 		exitCh:       make(chan struct{}, 1),
 		busyDuration: qss.New[time.Duration](),
 	}
 
-	a.ctxKVs[qcontext.KeyAppName] = name
-	a.ctxKVs[qcontext.KeyAppTickRate] = 100 * time.Millisecond
-	a.ctxKVs[qcontext.KeyAppHandle] = a
-	a.ctxKVs[qcontext.KeyClientProvider] = qauthentication.NewClientProvider()
+	ctxKVs := make(map[any]any)
+	ctxKVs[qcontext.KeyAppName] = name
+	ctxKVs[qcontext.KeyAppTickRate] = 100 * time.Millisecond
+	ctxKVs[qcontext.KeyAppHandle] = a
+	ctxKVs[qcontext.KeyClientProvider] = qauthentication.NewClientProvider()
 
-	a.ApplyOpts(opts...)
+	a.applyOpts(ctxKVs, opts...)
 
-	a.ticker = time.NewTicker(a.ctxKVs[qcontext.KeyAppTickRate].(time.Duration))
+	a.ticker = time.NewTicker(ctxKVs[qcontext.KeyAppTickRate].(time.Duration))
+
+	a.ctx, a.cancel = context.WithCancel(makeContextWithKV(context.Background(), ctxKVs))
 
 	return a
 }
 
-func (me *application) ApplyOpts(opts ...ApplicationOpts) Application {
+func (me *application) applyOpts(ctxKVs map[any]any, opts ...ApplicationOpts) Application {
 	for _, opt := range opts {
-		opt(me.ctxKVs)
+		opt(ctxKVs)
 	}
 
 	return me
@@ -76,16 +78,11 @@ func (me *application) AddWorker(w Worker) {
 func (me *application) Init() {
 	qlog.Info("Initializing workers")
 
-	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), me.ctxKVs), 10*time.Second)
-	defer cancel()
-
-	me.ctx = ctx
-
 	for _, w := range me.workers {
-		w.Init(ctx)
+		w.Init(me.ctx)
 	}
 
-	if ctx.Err() != nil {
+	if me.ctx.Err() != nil {
 		qlog.Panic("Failed to initialize workers")
 	}
 }
@@ -93,14 +90,10 @@ func (me *application) Init() {
 func (me *application) Deinit() {
 	qlog.Info("Deinitializing workers")
 
-	ctx, cancel := context.WithTimeout(makeContextWithKV(context.Background(), me.ctxKVs), 10*time.Second)
-	defer cancel()
-	me.ctx = ctx
-
 	me.ticker.Stop()
 
 	for _, w := range me.workers {
-		w.Deinit(ctx)
+		w.Deinit(me.ctx)
 	}
 
 	done := make(chan struct{})
@@ -110,7 +103,7 @@ func (me *application) Deinit() {
 	}()
 
 	select {
-	case <-ctx.Done():
+	case <-me.ctx.Done():
 		qlog.Panic("Failed to wait for workers to deinitalize")
 	case <-done:
 		qlog.Info("All workers have deinitialized")
@@ -131,9 +124,8 @@ func (me *application) Execute() {
 	defer signal.Stop(interrupt)
 	defer close(interrupt)
 
-	ctx, cancel := context.WithCancel(makeContextWithKV(context.Background(), me.ctxKVs))
+	ctx, cancel := context.WithCancel(me.ctx)
 	defer cancel()
-	me.ctx = ctx
 
 	go func() {
 		select {
