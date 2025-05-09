@@ -185,12 +185,18 @@ type StoreInteractor interface {
 
 	WriteEvent() qss.Signal[WriteEventArgs]
 	ReadEvent() qss.Signal[ReadEventArgs]
+
+	InteractorConnected() qss.Signal[ConnectedArgs]
+	InteractorDisconnected() qss.Signal[DisconnectedArgs]
 }
 
 type StoreNotifier interface {
 	Notify(ctx context.Context, config NotificationConfig, callback NotificationCallback) (NotificationToken, error)
 	Unnotify(ctx context.Context, subscriptionId string) error
 	UnnotifyCallback(ctx context.Context, subscriptionId string, callback NotificationCallback) error
+
+	NotifierConnected() qss.Signal[ConnectedArgs]
+	NotifierDisconnected() qss.Signal[DisconnectedArgs]
 }
 
 type StoreOpts func(*Store)

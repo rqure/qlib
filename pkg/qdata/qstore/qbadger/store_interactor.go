@@ -16,27 +16,49 @@ import (
 
 // BadgerStoreInteractor implements BadgerDB-specific storage mechanisms
 type BadgerStoreInteractor struct {
-	core          BadgerCore
-	keyBuilder    *KeyBuilder
-	publisherSig  qss.Signal[qdata.PublishNotificationArgs]
-	readEventSig  qss.Signal[qdata.ReadEventArgs]
-	writeEventSig qss.Signal[qdata.WriteEventArgs]
-	clientId      *qdata.EntityId
+	core                   BadgerCore
+	keyBuilder             *KeyBuilder
+	publisherSig           qss.Signal[qdata.PublishNotificationArgs]
+	readEventSig           qss.Signal[qdata.ReadEventArgs]
+	writeEventSig          qss.Signal[qdata.WriteEventArgs]
+	interactorConnected    qss.Signal[qdata.ConnectedArgs]
+	interactorDisconnected qss.Signal[qdata.DisconnectedArgs]
+	clientId               *qdata.EntityId
 }
 
 // NewStoreInteractor creates a new BadgerDB store interactor
 func NewStoreInteractor(core BadgerCore, opts ...func(*BadgerStoreInteractor)) qdata.StoreInteractor {
 	r := &BadgerStoreInteractor{
-		core:          core,
-		keyBuilder:    NewKeyBuilder("qos"),
-		publisherSig:  qss.New[qdata.PublishNotificationArgs](),
-		readEventSig:  qss.New[qdata.ReadEventArgs](),
-		writeEventSig: qss.New[qdata.WriteEventArgs](),
+		core:                   core,
+		keyBuilder:             NewKeyBuilder("qos"),
+		publisherSig:           qss.New[qdata.PublishNotificationArgs](),
+		readEventSig:           qss.New[qdata.ReadEventArgs](),
+		writeEventSig:          qss.New[qdata.WriteEventArgs](),
+		interactorConnected:    qss.New[qdata.ConnectedArgs](),
+		interactorDisconnected: qss.New[qdata.DisconnectedArgs](),
 	}
 	for _, opt := range opts {
 		opt(r)
 	}
+	r.core.Connected().Connect(r.onConnected)
+	r.core.Disconnected().Connect(r.onDisconnected)
 	return r
+}
+
+func (me *BadgerStoreInteractor) onConnected(args qdata.ConnectedArgs) {
+	me.interactorConnected.Emit(args)
+}
+
+func (me *BadgerStoreInteractor) onDisconnected(args qdata.DisconnectedArgs) {
+	me.interactorDisconnected.Emit(args)
+}
+
+func (me *BadgerStoreInteractor) InteractorConnected() qss.Signal[qdata.ConnectedArgs] {
+	return me.interactorConnected
+}
+
+func (me *BadgerStoreInteractor) InteractorDisconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return me.interactorDisconnected
 }
 
 func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {

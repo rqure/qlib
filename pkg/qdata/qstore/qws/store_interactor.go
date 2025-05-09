@@ -16,21 +16,46 @@ const DefaultOperationTimeout = 5 * time.Second
 
 // WebSocketStoreInteractor implements StoreInteractor using WebSocket
 type WebSocketStoreInteractor struct {
-	core          WebSocketCore
-	publishSig    qss.Signal[qdata.PublishNotificationArgs]
-	readEventSig  qss.Signal[qdata.ReadEventArgs]
-	writeEventSig qss.Signal[qdata.WriteEventArgs]
-	clientId      *qdata.EntityId
+	core                   WebSocketCore
+	publishSig             qss.Signal[qdata.PublishNotificationArgs]
+	readEventSig           qss.Signal[qdata.ReadEventArgs]
+	writeEventSig          qss.Signal[qdata.WriteEventArgs]
+	interactorConnected    qss.Signal[qdata.ConnectedArgs]
+	interactorDisconnected qss.Signal[qdata.DisconnectedArgs]
+	clientId               *qdata.EntityId
 }
 
 // NewStoreInteractor creates a new WebSocketStoreInteractor
 func NewStoreInteractor(core WebSocketCore) qdata.StoreInteractor {
-	return &WebSocketStoreInteractor{
-		core:          core,
-		publishSig:    qss.New[qdata.PublishNotificationArgs](),
-		readEventSig:  qss.New[qdata.ReadEventArgs](),
-		writeEventSig: qss.New[qdata.WriteEventArgs](),
+	ws := &WebSocketStoreInteractor{
+		core:                   core,
+		publishSig:             qss.New[qdata.PublishNotificationArgs](),
+		readEventSig:           qss.New[qdata.ReadEventArgs](),
+		writeEventSig:          qss.New[qdata.WriteEventArgs](),
+		interactorConnected:    qss.New[qdata.ConnectedArgs](),
+		interactorDisconnected: qss.New[qdata.DisconnectedArgs](),
 	}
+
+	ws.core.Connected().Connect(ws.onConnected)
+	ws.core.Disconnected().Connect(ws.onDisconnected)
+
+	return ws
+}
+
+func (si *WebSocketStoreInteractor) onConnected(args qdata.ConnectedArgs) {
+	si.interactorConnected.Emit(args)
+}
+
+func (si *WebSocketStoreInteractor) onDisconnected(args qdata.DisconnectedArgs) {
+	si.interactorDisconnected.Emit(args)
+}
+
+func (si *WebSocketStoreInteractor) InteractorConnected() qss.Signal[qdata.ConnectedArgs] {
+	return si.interactorConnected
+}
+
+func (si *WebSocketStoreInteractor) InteractorDisconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return si.interactorDisconnected
 }
 
 // CreateEntity creates a new entity

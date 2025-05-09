@@ -134,7 +134,7 @@ func (me *webSocketCore) connectLoop(ctx context.Context) {
 			return
 		default:
 			if err := me.doConnect(ctx); err != nil {
-				qlog.Error("WebSocket connection failed: %v, retrying in %s", err, DefaultReconnectInterval)
+				qlog.Warn("WebSocket connection failed: %v, retrying in %s", err, DefaultReconnectInterval)
 				time.Sleep(DefaultReconnectInterval)
 				continue
 			}

@@ -10,22 +10,27 @@ import (
 	"github.com/rqure/qlib/pkg/qdata/qnotify"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
+	"github.com/rqure/qlib/pkg/qss"
 	"google.golang.org/protobuf/proto"
 )
 
 // WebSocketStoreNotifier implements the StoreNotifier interface
 type WebSocketStoreNotifier struct {
-	core      WebSocketCore
-	handle    qcontext.Handle
-	appName   string
-	callbacks map[string][]qdata.NotificationCallback
+	core                 WebSocketCore
+	handle               qcontext.Handle
+	appName              string
+	callbacks            map[string][]qdata.NotificationCallback
+	notifierConnected    qss.Signal[qdata.ConnectedArgs]
+	notifierDisconnected qss.Signal[qdata.DisconnectedArgs]
 }
 
 // NewStoreNotifier creates a new WebSocketStoreNotifier
 func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 	notifier := &WebSocketStoreNotifier{
-		core:      core,
-		callbacks: map[string][]qdata.NotificationCallback{},
+		core:                 core,
+		callbacks:            map[string][]qdata.NotificationCallback{},
+		notifierConnected:    qss.New[qdata.ConnectedArgs](),
+		notifierDisconnected: qss.New[qdata.DisconnectedArgs](),
 	}
 
 	// Subscribe to connection events
@@ -39,10 +44,22 @@ func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 func (wsn *WebSocketStoreNotifier) onConnected(args qdata.ConnectedArgs) {
 	wsn.appName = qcontext.GetAppName(args.Ctx)
 	wsn.handle = qcontext.GetHandle(args.Ctx)
+
+	wsn.notifierConnected.Emit(args)
 }
 
 func (wsn *WebSocketStoreNotifier) onDisconnected(args qdata.DisconnectedArgs) {
 	wsn.callbacks = map[string][]qdata.NotificationCallback{}
+
+	wsn.notifierDisconnected.Emit(args)
+}
+
+func (wsn *WebSocketStoreNotifier) NotifierConnected() qss.Signal[qdata.ConnectedArgs] {
+	return wsn.notifierConnected
+}
+
+func (wsn *WebSocketStoreNotifier) NotifierDisconnected() qss.Signal[qdata.DisconnectedArgs] {
+	return wsn.notifierDisconnected
 }
 
 func (wsn *WebSocketStoreNotifier) OnEventMsg(msg *qprotobufs.ApiMessage) {
