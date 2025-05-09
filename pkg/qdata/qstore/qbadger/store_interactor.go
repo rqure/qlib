@@ -3,11 +3,13 @@ package qbadger
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/expr-lang/expr"
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
@@ -59,6 +61,68 @@ func (me *BadgerStoreInteractor) InteractorConnected() qss.Signal[qdata.Connecte
 
 func (me *BadgerStoreInteractor) InteractorDisconnected() qss.Signal[qdata.DisconnectedArgs] {
 	return me.interactorDisconnected
+}
+
+func (me *BadgerStoreInteractor) Find(ctx context.Context, entityType qdata.EntityType, fieldTypes []qdata.FieldType, conditionFns ...interface{}) ([]*qdata.Entity, error) {
+	results := make([]*qdata.Entity, 0)
+
+	iter, err := me.FindEntities(entityType)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	reqs := make([]*qdata.Request, 0)
+	iter.ForEach(ctx, func(entityId qdata.EntityId) bool {
+		entity := new(qdata.Entity).Init(entityId)
+		results = append(results, entity)
+
+		for _, fieldType := range fieldTypes {
+			reqs = append(reqs, entity.Field(fieldType).AsReadRequest())
+		}
+
+		return true
+	})
+
+	if len(reqs) > 0 {
+		err = me.Read(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, conditionFn := range conditionFns {
+		switch conditionFn := conditionFn.(type) {
+		case func(entity *qdata.Entity) bool:
+			results = slices.DeleteFunc(results, conditionFn)
+		case string:
+			program, err := expr.Compile(conditionFn)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile condition function: %v", err)
+			}
+			results = slices.DeleteFunc(results, func(entity *qdata.Entity) bool {
+				params := make(map[string]interface{})
+				for _, fieldType := range fieldTypes {
+					params[fieldType.AsString()] = entity.Field(fieldType).Value.GetRaw()
+				}
+				r, err := expr.Run(program, params)
+				if err != nil {
+					qlog.Warn("failed to run condition function '%s': %v", conditionFn, err)
+					return false
+				}
+				b, ok := r.(bool)
+				if !ok {
+					qlog.Warn("condition function '%s' did not return a boolean value", conditionFn)
+					return false
+				}
+				return b
+			})
+		default:
+			return nil, fmt.Errorf("unsupported condition function type: %T", conditionFn)
+		}
+	}
+
+	return results, nil
 }
 
 func (me *BadgerStoreInteractor) CreateEntity(ctx context.Context, entityType qdata.EntityType, parentId qdata.EntityId, name string) (*qdata.Entity, error) {
