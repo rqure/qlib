@@ -770,15 +770,11 @@ func (me *ExprEvaluator) TryCompile() bool {
 				return string(node.Val)
 			}
 		case *sqlparser.ColName:
-			// Map SQL column name to expr variable (use FinalName if possible)
-			col := node.Name.String()
-			qual := node.Qualifier.Name.String()
-			if qual != "" {
-				col = qual + "." + col
-			}
+			columnName := strings.Trim(node.Name.String(), "\"")
+
 			// Try to map to FinalName in parsed.Columns
 			for _, qc := range me.parsed.Columns {
-				if qc.ColumnName == col || qc.QualifiedName() == col {
+				if qc.ColumnName == columnName {
 					if qc.IsSelected {
 						return qc.SelectedName
 					}
@@ -786,7 +782,8 @@ func (me *ExprEvaluator) TryCompile() bool {
 					return qc.FinalName()
 				}
 			}
-			return col
+
+			return columnName
 		case *sqlparser.FuncExpr:
 			// Not supported for now, fallback to SQL string
 			return sqlparser.String(node)

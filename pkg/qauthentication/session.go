@@ -344,12 +344,7 @@ func (me *session) refreshRoutine() {
 		case <-ticker.C:
 			refreshCtx, cancel := context.WithTimeout(me.autoRefreshCtx, 5*time.Second)
 
-			shouldRefresh := false
-
-			me.autoRefreshMutex.Lock()
-			if me.token != nil && me.autoRefreshActive {
-				shouldRefresh = me.PastHalfLife(refreshCtx)
-			}
+			shouldRefresh := me.PastHalfLife(refreshCtx)
 
 			if shouldRefresh {
 				if me.token != nil && me.autoRefreshActive {
@@ -362,7 +357,6 @@ func (me *session) refreshRoutine() {
 				}
 			}
 
-			me.autoRefreshMutex.Unlock()
 			cancel()
 
 			me.setIsValid(refreshCtx, me.CheckIsValid(refreshCtx))
