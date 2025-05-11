@@ -94,7 +94,9 @@ func (me *BadgerStoreInteractor) Find(ctx context.Context, entityType qdata.Enti
 	for _, conditionFn := range conditionFns {
 		switch conditionFn := conditionFn.(type) {
 		case func(entity *qdata.Entity) bool:
-			results = slices.DeleteFunc(results, conditionFn)
+			results = slices.DeleteFunc(results, func(e *qdata.Entity) bool {
+				return !conditionFn(e)
+			})
 		case string:
 			program, err := expr.Compile(conditionFn)
 			if err != nil {
@@ -108,14 +110,14 @@ func (me *BadgerStoreInteractor) Find(ctx context.Context, entityType qdata.Enti
 				r, err := expr.Run(program, params)
 				if err != nil {
 					qlog.Warn("failed to run condition function '%s': %v", conditionFn, err)
-					return false
+					return true
 				}
 				b, ok := r.(bool)
 				if !ok {
 					qlog.Warn("condition function '%s' did not return a boolean value", conditionFn)
-					return false
+					return true
 				}
-				return b
+				return !b
 			})
 		default:
 			return nil, fmt.Errorf("unsupported condition function type: %T", conditionFn)
