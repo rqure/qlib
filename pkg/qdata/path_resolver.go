@@ -68,7 +68,7 @@ func (me *pathResolver) Resolve(ctx context.Context, path ...string) (*Entity, e
 		[]FieldType{FTName, FTChildren},
 		func(e *Entity) bool { return e.Field(FTName).Value.GetString() == rootName })
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare query: %w", err)
+		return nil, fmt.Errorf("failed to find root entity: %w", err)
 	}
 
 	var currentEntity *Entity
@@ -76,21 +76,21 @@ func (me *pathResolver) Resolve(ctx context.Context, path ...string) (*Entity, e
 		currentEntity = root
 	}
 	if currentEntity == nil {
-		return nil, fmt.Errorf("failed to find entity with name: %s", rootName)
+		return nil, fmt.Errorf("failed to find root entity with name: %s", rootName)
 	}
 
 	for _, name := range path[1:] {
 		found := false
 		// Find the child entity by name
-		for _, childId := range currentEntity.Field("Children").Value.GetEntityList() {
+		for _, childId := range currentEntity.Field(FTChildren).Value.GetEntityList() {
 			// Get the child entity
 			childEntity := new(Entity).Init(childId)
 			me.store.Read(ctx,
-				childEntity.Field("Name").AsReadRequest(),
-				childEntity.Field("Children").AsReadRequest(),
+				childEntity.Field(FTName).AsReadRequest(),
+				childEntity.Field(FTChildren).AsReadRequest(),
 			)
 
-			if childEntity.Field("Name").Value.GetString() == name {
+			if childEntity.Field(FTName).Value.GetString() == name {
 				currentEntity = childEntity
 				found = true
 				break
