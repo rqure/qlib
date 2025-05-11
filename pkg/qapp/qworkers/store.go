@@ -178,6 +178,10 @@ func (me *storeWorker) DoWork(ctx context.Context) {
 }
 
 func (me *storeWorker) onConnected(args qdata.ConnectedArgs) {
+	if me.isStoreConnected {
+		return
+	}
+
 	me.isStoreConnected = true
 
 	qlog.Info("Connection status changed to [CONNECTED]")
@@ -186,6 +190,10 @@ func (me *storeWorker) onConnected(args qdata.ConnectedArgs) {
 }
 
 func (me *storeWorker) onDisconnected(args qdata.DisconnectedArgs) {
+	if !me.isStoreConnected {
+		return
+	}
+
 	me.isStoreConnected = false
 
 	qlog.Info("Connection status changed to [DISCONNECTED] with reason: %v", args.Err)
