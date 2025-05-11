@@ -101,9 +101,12 @@ func (me *WebSocketStoreInteractor) Find(ctx context.Context, entityType qdata.E
 			}
 			results = slices.DeleteFunc(results, func(entity *qdata.Entity) bool {
 				params := make(map[string]interface{})
+				entityMap := make(map[string]interface{})
 				for _, fieldType := range fieldTypes {
 					params[fieldType.AsString()] = entity.Field(fieldType).Value.GetRaw()
+					entityMap[fieldType.AsString()] = entity.Field(fieldType).Value.GetRaw()
 				}
+				params[entity.EntityType.AsString()] = entityMap
 				r, err := expr.Run(program, params)
 				if err != nil {
 					qlog.Warn("failed to run condition function '%s': %v", conditionFn, err)
