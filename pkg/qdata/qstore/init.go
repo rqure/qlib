@@ -259,14 +259,13 @@ func ensureEntity(ctx context.Context, store qdata.StoreInteractor, entityType q
 		return nil, fmt.Errorf("path cannot be empty")
 	}
 
-	iter, err := store.PrepareQuery(`SELECT "$EntityId" FROM Root`)
+	roots, err := store.Find(ctx, qdata.ETRoot, []qdata.FieldType{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare query: %w", err)
+		return nil, fmt.Errorf("failed to find root: %w", err)
 	}
-	defer iter.Close()
 
 	var currentNode *qdata.Entity
-	if !iter.Next(ctx) {
+	if len(roots) == 0 {
 		if entityType == qdata.ETRoot {
 			root, err := store.CreateEntity(ctx, qdata.ETRoot, "", path[0])
 			if err != nil {
@@ -277,7 +276,7 @@ func ensureEntity(ctx context.Context, store qdata.StoreInteractor, entityType q
 			return nil, fmt.Errorf("root entity not found")
 		}
 	} else {
-		currentNode = iter.Get().AsEntity()
+		currentNode = roots[0]
 	}
 
 	// Create the last item in the path

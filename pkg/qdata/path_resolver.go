@@ -63,15 +63,18 @@ func (me *pathResolver) Resolve(ctx context.Context, path ...string) (*Entity, e
 
 	// Start with finding the root entity by name
 	rootName := path[0]
-	iter, err := me.store.PrepareQuery(`SELECT "$EntityId", Children FROM Root WHERE Name = %q`, rootName)
+	roots, err := me.store.Find(ctx,
+		ETRoot,
+		[]FieldType{FTName, FTChildren},
+		func(e *Entity) bool { return e.Field(FTName).Value.GetString() == rootName })
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare query: %w", err)
 	}
+
 	var currentEntity *Entity
-	iter.ForEach(ctx, func(row QueryRow) bool {
-		currentEntity = row.AsEntity()
-		return false // Stop after finding the first match
-	})
+	for _, root := range roots {
+		currentEntity = root
+	}
 	if currentEntity == nil {
 		return nil, fmt.Errorf("failed to find entity with name: %s", rootName)
 	}

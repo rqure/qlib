@@ -279,17 +279,14 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 	}
 
 	appName := qcontext.GetAppName(ctx)
-	iter, err := me.store.
-		PrepareQuery(`
-		SELECT "$EntityId", LogLevel, QLibLogLevel
-		FROM Client
-		WHERE Name = %q`,
-			appName)
+	clients, err := me.store.Find(ctx,
+		qdata.ETClient,
+		[]qdata.FieldType{qdata.FTName, qdata.FTLogLevel, qdata.FTQLibLogLevel},
+		func(e *qdata.Entity) bool { return e.Field(qdata.FTName).Value.GetString() == appName })
 	if err != nil {
 		qlog.Warn("Failed to prepare query: %v", err)
 	} else {
-		iter.ForEach(ctx, func(row qdata.QueryRow) bool {
-			client := row.AsEntity()
+		for _, client := range clients {
 			me.client = client
 
 			logLevel := client.Field(qdata.FTLogLevel).Value.GetChoice() + 1
@@ -325,9 +322,7 @@ func (me *storeWorker) OnReady(ctx context.Context) {
 			} else {
 				me.notificationTokens = append(me.notificationTokens, token)
 			}
-
-			return true
-		})
+		}
 	}
 }
 

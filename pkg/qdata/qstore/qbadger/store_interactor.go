@@ -833,14 +833,15 @@ func (me *BadgerStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Reque
 
 				appName := qcontext.GetAppName(ctx)
 				if me.clientId == nil && appName != "" {
-					iter, err := me.PrepareQuery(`SELECT "$EntityId" FROM Client WHERE Name = %q`, appName)
+					clients, err := me.Find(ctx,
+						qdata.ETClient,
+						[]qdata.FieldType{qdata.FTName},
+						func(e *qdata.Entity) bool { return e.Field(qdata.FTName).Value.GetString() == appName })
 
 					if err == nil {
-						iter.ForEach(ctx, func(client qdata.QueryRow) bool {
-							entityId := client.AsEntity().EntityId
-							me.clientId = &entityId
-							return false
-						})
+						for _, client := range clients {
+							me.clientId = &client.EntityId
+						}
 					}
 				}
 
