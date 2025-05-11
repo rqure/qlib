@@ -191,12 +191,17 @@ func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 
 	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qinitdb")
 	if err != nil {
-		return fmt.Errorf("failed to create initdb client: %v", err)
+		return fmt.Errorf("failed to create qinitdb client: %v", err)
 	}
 
 	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qsql")
 	if err != nil {
-		return fmt.Errorf("failed to create initdb client: %v", err)
+		return fmt.Errorf("failed to create qsql client: %v", err)
+	}
+
+	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qfind")
+	if err != nil {
+		return fmt.Errorf("failed to create qfind client: %v", err)
 	}
 
 	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qcore")
