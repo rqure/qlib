@@ -184,7 +184,7 @@ func (me *WebSocketStoreInteractor) DeleteEntity(ctx context.Context, entityId q
 func (me *WebSocketStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.PageResult[qdata.QueryRow], error) {
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
-	queryEngine := qdata.QEExprLang
+	queryEngine := qdata.QESqlite
 	otherArgs := []any{}
 
 	for _, arg := range args {

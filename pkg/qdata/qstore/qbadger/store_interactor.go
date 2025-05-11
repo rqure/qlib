@@ -251,7 +251,7 @@ func (me *BadgerStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.P
 	qlog.Trace("PrepareQuery called with SQL: %s, args: %v", sql, args)
 	pageOpts := []qdata.PageOpts{}
 	typeHintOpts := []qdata.TypeHintOpts{}
-	queryEngine := qdata.QEExprLang
+	queryEngine := qdata.QESqlite
 	otherArgs := []any{}
 
 	for _, arg := range args {
@@ -290,17 +290,6 @@ func (me *BadgerStoreInteractor) PrepareQuery(sql string, args ...any) (*qdata.P
 					CursorId: -1,
 					NextPage: nil,
 				}, err
-			}
-
-			// Try with ExprEvaluator first
-			if queryEngine == qdata.QEExprLang {
-				qlog.Trace("Using ExprEvaluator for query")
-				evaluator := qdata.NewExprEvaluator(me, parsedQuery)
-				if evaluator.TryCompile() {
-					return evaluator.ExecuteWithPagination(ctx, pageConfig.PageSize, pageConfig.CursorId, typeHintOpts...)
-				} else {
-					return nil, fmt.Errorf("query engine '%s' cannot evaluate this query", queryEngine)
-				}
 			}
 
 			if queryEngine == qdata.QESqlite {
