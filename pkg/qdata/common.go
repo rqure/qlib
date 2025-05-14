@@ -425,6 +425,7 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 		WriteTime: me.WriteTime.AsTimestampPb(),
 		WriterId:  me.WriterId.AsStringPb(),
 		Err:       err,
+		Success:   me.Success,
 	}
 }
 
