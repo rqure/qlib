@@ -757,7 +757,13 @@ func (me *BadgerStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Reques
 		}
 
 		req.Value.FromValue(field.Value)
+		if req.WriteTime == nil {
+			req.WriteTime = new(qdata.WriteTime)
+		}
 		req.WriteTime.FromTime(field.WriteTime.AsTime())
+		if req.WriterId == nil {
+			req.WriterId = new(qdata.EntityId)
+		}
 		req.WriterId.FromString(field.WriterId.AsString())
 		req.Success = true
 

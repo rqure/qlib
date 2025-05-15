@@ -400,6 +400,17 @@ func (me *badgerCore) runGarbageCollection(ctx context.Context) {
 				continue
 			}
 
+			if me.config.InMemory {
+				err := me.db.Flatten(1)
+				if err != nil {
+					qlog.Warn("BadgerDB flatten error: %v", err)
+				} else {
+					qlog.Trace("BadgerDB flatten completed successfully")
+				}
+
+				continue
+			}
+
 			// Run garbage collection
 			err := me.db.RunValueLogGC(0.5) // Run GC if space can be reclaimed
 			if err != nil && err != badger.ErrNoRewrite {
