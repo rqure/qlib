@@ -155,6 +155,9 @@ func (c *mapCore) Disconnect(ctx context.Context) {
 		return
 	}
 
+	// Stop any background tasks
+	c.StopBackgroundTasks()
+
 	// Take a final snapshot before disconnecting
 	if !c.config.DisablePersistence && c.config.SnapshotDirectory != "" {
 		qlog.Info("Taking final snapshot before disconnecting...")
@@ -162,10 +165,12 @@ func (c *mapCore) Disconnect(ctx context.Context) {
 		if err := os.MkdirAll(c.config.SnapshotDirectory, 0755); err != nil {
 			qlog.Error("Failed to create snapshot directory: %v", err)
 		} else {
+			c.mutex.RLock()
 			timestamp := time.Now().Format("20060102_150405")
 			snapshotFile := filepath.Join(c.config.SnapshotDirectory, fmt.Sprintf("qmap_snapshot_%s.gob", timestamp))
-
 			snapshot, err := c.CreateMapSnapshot()
+			c.mutex.RUnlock()
+
 			if err != nil {
 				qlog.Error("Failed to create map snapshot: %v", err)
 			} else {
@@ -178,9 +183,6 @@ func (c *mapCore) Disconnect(ctx context.Context) {
 			}
 		}
 	}
-
-	// Stop any background tasks
-	c.StopBackgroundTasks()
 
 	c.isConnected = false
 	c.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx})
