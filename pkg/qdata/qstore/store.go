@@ -32,7 +32,8 @@ func New(opts ...qdata.StoreOpts) *qdata.Store {
 
 func New2() *qdata.Store {
 	opts := []qdata.StoreOpts{
-		PersistInMemoryBadger(),
+		// Replace BadgerDB with our simple map implementation
+		PersistInMemoryMap(),
 		NotifyOverWebSocket(DefaultWebsocketAddress()),
 	}
 
