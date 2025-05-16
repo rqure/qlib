@@ -29,7 +29,7 @@ func NewCore(opts ...CoreOption) Core {
 	config := &coreConfig{}
 
 	defaultOpts := []CoreOption{
-		BaseURL(getEnvOrDefault("Q_KEYCLOAK_BASE_URL", "http://keycloak:8080/")),
+		BaseURL(getEnvOrDefault("Q_KEYCLOAK_BASE_URL", "http://keycloak:8080/auth")),
 	}
 
 	for _, opt := range defaultOpts {
