@@ -13,6 +13,7 @@ type Client interface {
 	GetSession(ctx context.Context) Session
 	CreateUserSession(ctx context.Context, username, password string) Session
 	AccessTokenToSession(ctx context.Context, accessToken string) Session
+	RefreshTokenToSession(ctx context.Context, refreshToken string) Session
 }
 
 type client struct {
