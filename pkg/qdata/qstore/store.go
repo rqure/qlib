@@ -15,7 +15,7 @@ func getFromEnvOrDefault(key string, defaultValue string) string {
 }
 
 func DefaultWebsocketAddress() string {
-	return getFromEnvOrDefault("Q_CORE_WS_URL", "ws://localhost:7860")
+	return getFromEnvOrDefault("Q_CORE_WS_URL", "ws://localhost:7860/core/")
 }
 
 func New(opts ...qdata.StoreOpts) *qdata.Store {
