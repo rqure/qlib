@@ -507,13 +507,12 @@ func (i *MapStoreInteractor) FieldExists(ctx context.Context, entityType qdata.E
 
 // GetEntitySchema retrieves an entity schema
 func (i *MapStoreInteractor) GetEntitySchema(ctx context.Context, entityType qdata.EntityType) (*qdata.EntitySchema, error) {
-	schema := new(qdata.EntitySchema).Init(entityType)
-
+	var schema *qdata.EntitySchema
 	var exists bool
-	var schemaBytes []byte
+
 	err := i.core.WithReadLock(ctx, func() error {
 		var err error
-		schemaBytes, exists = i.core.GetSchema(entityType)
+		schema, exists = i.core.GetSchema(entityType)
 		return err
 	})
 
@@ -523,10 +522,6 @@ func (i *MapStoreInteractor) GetEntitySchema(ctx context.Context, entityType qda
 
 	if !exists {
 		return nil, fmt.Errorf("schema not found for entity type %s", entityType)
-	}
-
-	if _, err := schema.FromBytes(schemaBytes); err != nil {
-		return nil, err
 	}
 
 	return schema, nil
@@ -545,14 +540,8 @@ func (i *MapStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.
 		removedFields := make(qdata.FieldTypeSlice, 0)
 		newFields := make(qdata.FieldTypeSlice, 0)
 
-		// Convert schema to bytes
-		schemaBytes, err := schema.AsBytes()
-		if err != nil {
-			return err
-		}
-
 		// Save the schema
-		err = i.core.SetSchema(schema.EntityType, schemaBytes)
+		err := i.core.SetSchema(schema.EntityType, schema)
 		if err != nil {
 			return err
 		}
@@ -671,11 +660,11 @@ func (i *MapStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request) e
 			}
 		}
 
-		var fieldBytes []byte
+		var field *qdata.Field
 		var exists bool
 
 		err = i.core.WithReadLock(ctx, func() error {
-			fieldBytes, exists = i.core.GetField(indirectEntity, indirectField)
+			field, exists = i.core.GetField(indirectEntity, indirectField)
 			return nil
 		})
 
@@ -687,13 +676,6 @@ func (i *MapStoreInteractor) Read(ctx context.Context, reqs ...*qdata.Request) e
 
 		if !exists {
 			req.Err = fmt.Errorf("field %s not found in entity %s", indirectField, entity.EntityId)
-			errs = append(errs, req.Err)
-			continue
-		}
-
-		field, err := new(qdata.Field).FromBytes(fieldBytes)
-		if err != nil {
-			req.Err = fmt.Errorf("failed to deserialize field %s in entity type %s: %v", indirectField, entity.EntityType, err)
 			errs = append(errs, req.Err)
 			continue
 		}
@@ -801,16 +783,11 @@ func (i *MapStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Request) 
 				req.WriterId = wr
 			}
 
-			// Convert the field to bytes
-			fieldBytes, err := req.AsField().AsBytes()
-			if err != nil {
-				req.Err = fmt.Errorf("failed to serialize field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
-				errs = append(errs, req.Err)
-				continue
-			}
+			// Create a field object from the request
+			field := req.AsField()
 
 			// Write the field to storage
-			err = i.core.SetField(indirectEntity, indirectField, fieldBytes)
+			err = i.core.SetField(indirectEntity, indirectField, field)
 			if err != nil {
 				req.Err = fmt.Errorf("failed to write field %s in entity type %s: %v", req.FieldType, req.EntityId.GetEntityType(), err)
 				errs = append(errs, req.Err)
@@ -918,7 +895,7 @@ func (i *MapStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapsho
 
 // RestoreSnapshot restores a database from a snapshot
 func (i *MapStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
-	// Clear all existing data
+	// Create a map snapshot before clearing data as a backup
 	mapSnapshot, err := i.core.CreateMapSnapshot()
 	if err != nil {
 		return fmt.Errorf("failed to create map snapshot: %w", err)
@@ -927,9 +904,9 @@ func (i *MapStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snap
 	// Clear the data by initializing an empty map
 	err = i.core.WithWriteLock(ctx, func() error {
 		err := i.core.RestoreMapSnapshot(&MapSnapshot{
-			Schemas:  make(map[string][]byte),
+			Schemas:  make(map[string]*qdata.EntitySchema),
 			Entities: make(map[string]bool),
-			Fields:   make(map[string]map[string][]byte),
+			Fields:   make(map[string]map[string]*qdata.Field),
 		})
 		return err
 	})

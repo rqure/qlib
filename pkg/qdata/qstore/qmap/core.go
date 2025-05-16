@@ -2,7 +2,6 @@ package qmap
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -31,8 +30,8 @@ type MapCore interface {
 	WithWriteLock(ctx context.Context, fn func() error) error
 
 	// Data access
-	GetField(entityId qdata.EntityId, fieldType qdata.FieldType) ([]byte, bool)
-	SetField(entityId qdata.EntityId, fieldType qdata.FieldType, data []byte) error
+	GetField(entityId qdata.EntityId, fieldType qdata.FieldType) (*qdata.Field, bool)
+	SetField(entityId qdata.EntityId, fieldType qdata.FieldType, field *qdata.Field) error
 	DeleteField(entityId qdata.EntityId, fieldType qdata.FieldType) error
 
 	// Entity management
@@ -41,8 +40,8 @@ type MapCore interface {
 	DeleteEntity(entityId qdata.EntityId) error
 
 	// Schema management
-	GetSchema(entityType qdata.EntityType) ([]byte, bool)
-	SetSchema(entityType qdata.EntityType, data []byte) error
+	GetSchema(entityType qdata.EntityType) (*qdata.EntitySchema, bool)
+	SetSchema(entityType qdata.EntityType, schema *qdata.EntitySchema) error
 	DeleteSchema(entityType qdata.EntityType) error
 
 	// Iteration helpers
@@ -60,17 +59,17 @@ type MapCore interface {
 
 // MapSnapshot represents the entire state of the storage
 type MapSnapshot struct {
-	Schemas  map[string][]byte            // Maps entity type string to schema data
-	Entities map[string]bool              // Maps entity ID to existence flag
-	Fields   map[string]map[string][]byte // Maps entity ID to a map of field type to field data
+	Schemas  map[string]*qdata.EntitySchema     // Maps entity type string to schema
+	Entities map[string]bool                    // Maps entity ID to existence flag
+	Fields   map[string]map[string]*qdata.Field // Maps entity ID to a map of field type to field
 }
 
 // mapCore implements the MapCore interface
 type mapCore struct {
-	schemas         map[string][]byte            // Maps entity type string to schema data
-	entities        map[string]bool              // Maps entity ID to existence flag
-	fields          map[string]map[string][]byte // Maps entity ID to a map of field type to field data
-	mutex           sync.RWMutex                 // Global lock for all maps
+	schemas         map[string]*qdata.EntitySchema     // Maps entity type string to schema
+	entities        map[string]bool                    // Maps entity ID to existence flag
+	fields          map[string]map[string]*qdata.Field // Maps entity ID to a map of field type to field
+	mutex           sync.RWMutex                       // Global lock for all maps
 	config          MapConfig
 	isConnected     bool
 	connected       qss.Signal[qdata.ConnectedArgs]
@@ -89,9 +88,9 @@ func NewCore(config MapConfig) MapCore {
 	}
 
 	return &mapCore{
-		schemas:         make(map[string][]byte),
+		schemas:         make(map[string]*qdata.EntitySchema),
 		entities:        make(map[string]bool),
-		fields:          make(map[string]map[string][]byte),
+		fields:          make(map[string]map[string]*qdata.Field),
 		config:          config,
 		connected:       qss.New[qdata.ConnectedArgs](),
 		disconnected:    qss.New[qdata.DisconnectedArgs](),
@@ -156,27 +155,28 @@ func (c *mapCore) WithWriteLock(ctx context.Context, fn func() error) error {
 }
 
 // GetField retrieves a field value
-func (c *mapCore) GetField(entityId qdata.EntityId, fieldType qdata.FieldType) ([]byte, bool) {
-	entityFields, exists := c.fields[entityId.AsString()]
+func (c *mapCore) GetField(entityId qdata.EntityId, fieldType qdata.FieldType) (*qdata.Field, bool) {
+	entityIdStr := entityId.AsString()
+	entityFields, exists := c.fields[entityIdStr]
 	if !exists {
 		return nil, false
 	}
 
-	value, exists := entityFields[fieldType.AsString()]
-	return value, exists
+	field, exists := entityFields[fieldType.AsString()]
+	return field, exists
 }
 
 // SetField sets a field value
-func (c *mapCore) SetField(entityId qdata.EntityId, fieldType qdata.FieldType, data []byte) error {
+func (c *mapCore) SetField(entityId qdata.EntityId, fieldType qdata.FieldType, field *qdata.Field) error {
 	entityIdStr := entityId.AsString()
 
 	// Ensure the entity exists in the fields map
 	if _, exists := c.fields[entityIdStr]; !exists {
-		c.fields[entityIdStr] = make(map[string][]byte)
+		c.fields[entityIdStr] = make(map[string]*qdata.Field)
 	}
 
-	// Store the field data
-	c.fields[entityIdStr][fieldType.AsString()] = data
+	// Store the field
+	c.fields[entityIdStr][fieldType.AsString()] = field.Clone() // Store a clone to prevent external modification
 
 	return nil
 }
@@ -207,7 +207,7 @@ func (c *mapCore) CreateEntity(entityId qdata.EntityId) error {
 
 	// Initialize the entity's fields map if it doesn't exist yet
 	if _, exists := c.fields[entityIdStr]; !exists {
-		c.fields[entityIdStr] = make(map[string][]byte)
+		c.fields[entityIdStr] = make(map[string]*qdata.Field)
 	}
 
 	return nil
@@ -227,14 +227,17 @@ func (c *mapCore) DeleteEntity(entityId qdata.EntityId) error {
 }
 
 // GetSchema retrieves a schema
-func (c *mapCore) GetSchema(entityType qdata.EntityType) ([]byte, bool) {
-	value, exists := c.schemas[entityType.AsString()]
-	return value, exists
+func (c *mapCore) GetSchema(entityType qdata.EntityType) (*qdata.EntitySchema, bool) {
+	schema, exists := c.schemas[entityType.AsString()]
+	if exists {
+		return schema.Clone(), exists // Return a clone to prevent external modification
+	}
+	return nil, false
 }
 
 // SetSchema sets a schema
-func (c *mapCore) SetSchema(entityType qdata.EntityType, data []byte) error {
-	c.schemas[entityType.AsString()] = data
+func (c *mapCore) SetSchema(entityType qdata.EntityType, schema *qdata.EntitySchema) error {
+	c.schemas[entityType.AsString()] = schema.Clone() // Store a clone to prevent external modification
 	return nil
 }
 
@@ -242,6 +245,19 @@ func (c *mapCore) SetSchema(entityType qdata.EntityType, data []byte) error {
 func (c *mapCore) DeleteSchema(entityType qdata.EntityType) error {
 	delete(c.schemas, entityType.AsString())
 	return nil
+}
+
+// hasPrefix checks if a string has the given prefix, considering the entity ID format (type$id)
+func hasPrefix(entityIdStr string, prefix string) bool {
+	// In entity IDs of format "type$id", check if the type part matches the prefix
+	typePart := ""
+	for i, char := range entityIdStr {
+		if char == '$' {
+			typePart = entityIdStr[:i]
+			break
+		}
+	}
+	return typePart == prefix
 }
 
 // ListEntities lists all entities with a specific prefix
@@ -256,19 +272,6 @@ func (c *mapCore) ListEntities(prefix string) ([]qdata.EntityId, error) {
 	}
 
 	return entities, nil
-}
-
-// hasPrefix checks if a string has the given prefix, considering the entity ID format (type$id)
-func hasPrefix(entityIdStr string, prefix string) bool {
-	// In entity IDs of format "type$id", check if the type part matches the prefix
-	typePart := ""
-	for i, char := range entityIdStr {
-		if char == '$' {
-			typePart = entityIdStr[:i]
-			break
-		}
-	}
-	return typePart == prefix
 }
 
 // ListSchemas lists all entity types
@@ -302,11 +305,9 @@ func (c *mapCore) ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, 
 // CreateMapSnapshot creates a copy of the current data state
 func (c *mapCore) CreateMapSnapshot() (*MapSnapshot, error) {
 	// Create deep copies of all maps
-	schemasCopy := make(map[string][]byte, len(c.schemas))
+	schemasCopy := make(map[string]*qdata.EntitySchema, len(c.schemas))
 	for k, v := range c.schemas {
-		dataCopy := make([]byte, len(v))
-		copy(dataCopy, v)
-		schemasCopy[k] = dataCopy
+		schemasCopy[k] = v.Clone()
 	}
 
 	entitiesCopy := make(map[string]bool, len(c.entities))
@@ -314,13 +315,11 @@ func (c *mapCore) CreateMapSnapshot() (*MapSnapshot, error) {
 		entitiesCopy[k] = v
 	}
 
-	fieldsCopy := make(map[string]map[string][]byte, len(c.fields))
+	fieldsCopy := make(map[string]map[string]*qdata.Field, len(c.fields))
 	for entityId, entityFields := range c.fields {
-		fieldsCopy[entityId] = make(map[string][]byte, len(entityFields))
-		for fieldType, fieldData := range entityFields {
-			dataCopy := make([]byte, len(fieldData))
-			copy(dataCopy, fieldData)
-			fieldsCopy[entityId][fieldType] = dataCopy
+		fieldsCopy[entityId] = make(map[string]*qdata.Field, len(entityFields))
+		for fieldType, field := range entityFields {
+			fieldsCopy[entityId][fieldType] = field.Clone()
 		}
 	}
 
@@ -337,12 +336,10 @@ func (c *mapCore) RestoreMapSnapshot(snapshot *MapSnapshot) error {
 		return fmt.Errorf("cannot restore from nil snapshot")
 	}
 
-	// Replace all maps with the snapshot data
-	c.schemas = make(map[string][]byte, len(snapshot.Schemas))
+	// Replace all maps with the snapshot data (deep copies)
+	c.schemas = make(map[string]*qdata.EntitySchema, len(snapshot.Schemas))
 	for k, v := range snapshot.Schemas {
-		dataCopy := make([]byte, len(v))
-		copy(dataCopy, v)
-		c.schemas[k] = dataCopy
+		c.schemas[k] = v.Clone()
 	}
 
 	c.entities = make(map[string]bool, len(snapshot.Entities))
@@ -350,13 +347,11 @@ func (c *mapCore) RestoreMapSnapshot(snapshot *MapSnapshot) error {
 		c.entities[k] = v
 	}
 
-	c.fields = make(map[string]map[string][]byte, len(snapshot.Fields))
+	c.fields = make(map[string]map[string]*qdata.Field, len(snapshot.Fields))
 	for entityId, entityFields := range snapshot.Fields {
-		c.fields[entityId] = make(map[string][]byte, len(entityFields))
-		for fieldType, fieldData := range entityFields {
-			dataCopy := make([]byte, len(fieldData))
-			copy(dataCopy, fieldData)
-			c.fields[entityId][fieldType] = dataCopy
+		c.fields[entityId] = make(map[string]*qdata.Field, len(entityFields))
+		for fieldType, field := range entityFields {
+			c.fields[entityId][fieldType] = field.Clone()
 		}
 	}
 
@@ -366,19 +361,4 @@ func (c *mapCore) RestoreMapSnapshot(snapshot *MapSnapshot) error {
 // GetConfig returns the core configuration
 func (c *mapCore) GetConfig() MapConfig {
 	return c.config
-}
-
-// SerializeSnapshot serializes snapshot to JSON
-func SerializeSnapshot(snapshot *MapSnapshot) ([]byte, error) {
-	return json.Marshal(snapshot)
-}
-
-// DeserializeSnapshot deserializes snapshot from JSON
-func DeserializeSnapshot(data []byte) (*MapSnapshot, error) {
-	snapshot := &MapSnapshot{}
-	err := json.Unmarshal(data, snapshot)
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize snapshot: %w", err)
-	}
-	return snapshot, nil
 }
