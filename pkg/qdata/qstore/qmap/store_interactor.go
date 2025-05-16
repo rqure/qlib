@@ -323,8 +323,8 @@ func (i *MapStoreInteractor) FindEntities(entityType qdata.EntityType, pageOpts 
 			var nextCursorId int64 = -1 // Default to no more results
 
 			err := i.core.WithReadLock(ctx, func() error {
-				// Get all entities of this type
-				allEntities, err := i.core.ListEntities(entityType.AsString())
+				// Get all entities of this type - now more efficient with nested map
+				allEntities, err := i.core.ListEntities(entityType)
 				if err != nil {
 					return err
 				}
@@ -412,8 +412,8 @@ func (i *MapStoreInteractor) GetEntityTypes(pageOpts ...qdata.PageOpts) (*qdata.
 			var nextCursorId int64 = -1
 
 			err := i.core.WithReadLock(ctx, func() error {
-				// Get all schema types
-				allTypes, err := i.core.ListSchemas()
+				// Get all schema types - now directly from schemas map
+				allTypes, err := i.core.ListEntityTypes()
 				if err != nil {
 					return err
 				}
@@ -511,9 +511,8 @@ func (i *MapStoreInteractor) GetEntitySchema(ctx context.Context, entityType qda
 	var exists bool
 
 	err := i.core.WithReadLock(ctx, func() error {
-		var err error
 		schema, exists = i.core.GetSchema(entityType)
-		return err
+		return nil
 	})
 
 	if err != nil {
@@ -905,7 +904,7 @@ func (i *MapStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snap
 	err = i.core.WithWriteLock(ctx, func() error {
 		err := i.core.RestoreMapSnapshot(&MapSnapshot{
 			Schemas:  make(map[string]*qdata.EntitySchema),
-			Entities: make(map[string]bool),
+			Entities: make(map[string]map[string]bool),
 			Fields:   make(map[string]map[string]*qdata.Field),
 		})
 		return err
