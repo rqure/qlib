@@ -152,12 +152,12 @@ func (me *admin) ensureQuiClient(ctx context.Context, accessToken string) error 
 
 	// Get redirect URIs from environment
 	redirectUrisStr := getEnvOrDefault("Q_KEYCLOAK_REDIRECT_URIS",
-		"http://localhost:5173/*,http://localhost:4173/*,http://localhost:8080/*,http://localhost/*")
+		"https://localhost/*")
 	redirectUris := strings.Split(redirectUrisStr, ",")
 
 	// Get web origins from environment
 	webOriginsStr := getEnvOrDefault("Q_KEYCLOAK_WEB_ORIGINS",
-		"http://localhost:5173,http://localhost:4173,http://localhost:8080,http://localhost,+")
+		"https://localhost,+")
 	webOrigins := strings.Split(webOriginsStr, ",")
 
 	// Client attributes for CORS and other settings
