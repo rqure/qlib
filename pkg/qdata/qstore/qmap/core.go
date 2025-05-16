@@ -2,18 +2,25 @@ package qmap
 
 import (
 	"context"
+	"encoding/gob"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
 
 // MapConfig holds the map store configuration
 type MapConfig struct {
-	SnapshotInterval  time.Duration // Interval for creating DB snapshots
-	SnapshotRetention int           // Number of snapshots to retain
+	SnapshotInterval   time.Duration // Interval for creating DB snapshots
+	SnapshotRetention  int           // Number of snapshots to retain
+	SnapshotDirectory  string        // Directory to store snapshots
+	DisablePersistence bool          // Set to true to disable all persistence
 }
 
 // MapCore provides the core map-based storage functionality
@@ -52,6 +59,10 @@ type MapCore interface {
 	// Snapshot
 	CreateMapSnapshot() (*MapSnapshot, error)
 	RestoreMapSnapshot(snapshot *MapSnapshot) error
+	SaveSnapshotToFile(snapshot *MapSnapshot, path string) error
+	LoadSnapshotFromFile(path string) (*MapSnapshot, error)
+	StartBackgroundTasks(ctx context.Context)
+	StopBackgroundTasks()
 
 	// Configuration
 	GetConfig() MapConfig
@@ -76,7 +87,7 @@ type mapCore struct {
 	isConnected     bool
 	connected       qss.Signal[qdata.ConnectedArgs]
 	disconnected    qss.Signal[qdata.DisconnectedArgs]
-	cancelFunctions []func()
+	cancelFunctions []context.CancelFunc
 }
 
 // NewCore creates a new map storage core
@@ -88,6 +99,10 @@ func NewCore(config MapConfig) MapCore {
 	if config.SnapshotRetention == 0 {
 		config.SnapshotRetention = 3
 	}
+	if config.SnapshotDirectory == "" {
+		// Default to current directory
+		config.SnapshotDirectory = "qmap_snapshots"
+	}
 
 	return &mapCore{
 		schemas:         make(map[string]*qdata.EntitySchema),
@@ -97,7 +112,7 @@ func NewCore(config MapConfig) MapCore {
 		config:          config,
 		connected:       qss.New[qdata.ConnectedArgs](),
 		disconnected:    qss.New[qdata.DisconnectedArgs](),
-		cancelFunctions: make([]func(), 0),
+		cancelFunctions: make([]context.CancelFunc, 0),
 	}
 }
 
@@ -107,9 +122,31 @@ func (c *mapCore) Connect(ctx context.Context) {
 		return
 	}
 
-	// No actual connection needed, just set flag and emit signal
+	// Try to load most recent snapshot if we have a directory configured
+	if !c.config.DisablePersistence && c.config.SnapshotDirectory != "" {
+		latestSnapshot := c.findLatestSnapshot()
+		if latestSnapshot != "" {
+			qlog.Info("Found map snapshot: %s", latestSnapshot)
+			snapshot, err := c.LoadSnapshotFromFile(latestSnapshot)
+			if err != nil {
+				qlog.Error("Failed to load snapshot file: %v", err)
+			} else {
+				err = c.RestoreMapSnapshot(snapshot)
+				if err != nil {
+					qlog.Error("Failed to restore from snapshot: %v", err)
+				} else {
+					qlog.Info("Successfully restored data from snapshot: %s", latestSnapshot)
+				}
+			}
+		}
+	}
+
+	// Set connected status and emit signal
 	c.isConnected = true
 	c.connected.Emit(qdata.ConnectedArgs{Ctx: ctx})
+
+	// Start background tasks (like snapshot creation)
+	c.StartBackgroundTasks(ctx)
 }
 
 // Disconnect closes the "connection" to the map store
@@ -118,14 +155,179 @@ func (c *mapCore) Disconnect(ctx context.Context) {
 		return
 	}
 
-	// Stop any background tasks
-	for _, cancel := range c.cancelFunctions {
-		cancel()
+	// Take a final snapshot before disconnecting
+	if !c.config.DisablePersistence && c.config.SnapshotDirectory != "" {
+		qlog.Info("Taking final snapshot before disconnecting...")
+
+		if err := os.MkdirAll(c.config.SnapshotDirectory, 0755); err != nil {
+			qlog.Error("Failed to create snapshot directory: %v", err)
+		} else {
+			timestamp := time.Now().Format("20060102_150405")
+			snapshotFile := filepath.Join(c.config.SnapshotDirectory, fmt.Sprintf("qmap_snapshot_%s.gob", timestamp))
+
+			snapshot, err := c.CreateMapSnapshot()
+			if err != nil {
+				qlog.Error("Failed to create map snapshot: %v", err)
+			} else {
+				err = c.SaveSnapshotToFile(snapshot, snapshotFile)
+				if err != nil {
+					qlog.Error("Failed to save snapshot to file: %v", err)
+				} else {
+					qlog.Info("Final snapshot created successfully: %s", snapshotFile)
+				}
+			}
+		}
 	}
-	c.cancelFunctions = make([]func(), 0)
+
+	// Stop any background tasks
+	c.StopBackgroundTasks()
 
 	c.isConnected = false
 	c.disconnected.Emit(qdata.DisconnectedArgs{Ctx: ctx})
+}
+
+// StartBackgroundTasks starts periodic tasks for snapshot creation
+func (c *mapCore) StartBackgroundTasks(ctx context.Context) {
+	c.StopBackgroundTasks()
+
+	// Skip if persistence is disabled
+	if c.config.DisablePersistence {
+		return
+	}
+
+	// Create snapshot directory if needed
+	if c.config.SnapshotDirectory != "" {
+		if err := os.MkdirAll(c.config.SnapshotDirectory, 0755); err != nil {
+			qlog.Error("Failed to create snapshot directory: %v", err)
+		}
+	}
+
+	// Start snapshot task
+	if c.config.SnapshotDirectory != "" && c.config.SnapshotInterval > 0 {
+		snapshotCtx, snapshotCancel := context.WithCancel(ctx)
+		c.cancelFunctions = append(c.cancelFunctions, snapshotCancel)
+		go c.runSnapshotTask(snapshotCtx)
+	}
+}
+
+// StopBackgroundTasks stops all background tasks
+func (c *mapCore) StopBackgroundTasks() {
+	for _, cancel := range c.cancelFunctions {
+		cancel()
+	}
+	c.cancelFunctions = make([]context.CancelFunc, 0)
+}
+
+// runSnapshotTask creates periodic snapshots of the data
+func (c *mapCore) runSnapshotTask(ctx context.Context) {
+	ticker := time.NewTicker(c.config.SnapshotInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.mutex.RLock()
+			timestamp := time.Now().Format("20060102_150405")
+			snapshotFile := filepath.Join(c.config.SnapshotDirectory, fmt.Sprintf("qmap_snapshot_%s.gob", timestamp))
+
+			snapshot, err := c.CreateMapSnapshot()
+			c.mutex.RUnlock()
+
+			if err != nil {
+				qlog.Error("Failed to create map snapshot: %v", err)
+				continue
+			}
+
+			err = c.SaveSnapshotToFile(snapshot, snapshotFile)
+			if err != nil {
+				qlog.Error("Failed to save snapshot to file: %v", err)
+				continue
+			}
+
+			qlog.Info("Map snapshot created: %s", snapshotFile)
+
+			// Cleanup old snapshots
+			c.cleanupOldSnapshots()
+		}
+	}
+}
+
+// cleanupOldSnapshots removes old snapshots beyond retention limit
+func (c *mapCore) cleanupOldSnapshots() {
+	if c.config.SnapshotRetention <= 0 || c.config.SnapshotDirectory == "" {
+		return
+	}
+
+	// List snapshot files
+	files, err := filepath.Glob(filepath.Join(c.config.SnapshotDirectory, "qmap_snapshot_*.gob"))
+	if err != nil {
+		qlog.Error("Failed to list snapshot files: %v", err)
+		return
+	}
+
+	// Sort by name (which includes timestamp)
+	sort.Strings(files)
+
+	// If we have more snapshots than retention limit, delete oldest
+	if len(files) > c.config.SnapshotRetention {
+		for i := 0; i < len(files)-c.config.SnapshotRetention; i++ {
+			if err := os.Remove(files[i]); err != nil {
+				qlog.Error("Failed to remove old snapshot %s: %v", files[i], err)
+			} else {
+				qlog.Info("Removed old snapshot: %s", files[i])
+			}
+		}
+	}
+}
+
+// findLatestSnapshot returns the path to the latest snapshot file
+func (c *mapCore) findLatestSnapshot() string {
+	if c.config.SnapshotDirectory == "" {
+		return ""
+	}
+
+	files, err := filepath.Glob(filepath.Join(c.config.SnapshotDirectory, "qmap_snapshot_*.gob"))
+	if err != nil || len(files) == 0 {
+		return ""
+	}
+
+	// Sort files by name (which includes timestamp)
+	sort.Strings(files)
+
+	// Return the latest snapshot (last in sorted list)
+	return files[len(files)-1]
+}
+
+// SaveSnapshotToFile saves a snapshot to a file using gob encoding
+func (c *mapCore) SaveSnapshotToFile(snapshot *MapSnapshot, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	return encoder.Encode(snapshot)
+}
+
+// LoadSnapshotFromFile loads a snapshot from a file using gob decoding
+func (c *mapCore) LoadSnapshotFromFile(path string) (*MapSnapshot, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var snapshot MapSnapshot
+	decoder := gob.NewDecoder(file)
+	err = decoder.Decode(&snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	return &snapshot, nil
 }
 
 // IsConnected returns whether the store is connected

@@ -68,6 +68,14 @@ func (me *client) AccessTokenToSession(ctx context.Context, accessToken string) 
 	return NewSession(me.core, token, me.id, me.secret, me.realm)
 }
 
+func (me *client) RefreshTokenToSession(ctx context.Context, refreshToken string) Session {
+	token := &gocloak.JWT{
+		RefreshToken: refreshToken,
+	}
+
+	return NewSession(me.core, token, me.id, me.secret, me.realm)
+}
+
 func (me *client) CreateUserSession(ctx context.Context, username, password string) Session {
 	token, err := me.core.GetClient().Login(ctx, me.id, me.secret, me.realm, username, password)
 	if err != nil {
