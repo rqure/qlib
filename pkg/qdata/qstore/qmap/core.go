@@ -26,8 +26,8 @@ type MapCore interface {
 	Disconnected() qss.Signal[qdata.DisconnectedArgs]
 
 	// Transaction handling
-	WithReadLock(ctx context.Context, fn func() error) error
-	WithWriteLock(ctx context.Context, fn func() error) error
+	WithReadLock(ctx context.Context, fn func(context.Context) error) error
+	WithWriteLock(ctx context.Context, fn func(context.Context) error) error
 
 	// Data access
 	GetField(entityId qdata.EntityId, fieldType qdata.FieldType) (*qdata.Field, bool)
@@ -143,18 +143,57 @@ func (c *mapCore) Disconnected() qss.Signal[qdata.DisconnectedArgs] {
 	return c.disconnected
 }
 
+// lockKey is a key for storing lock information in the context
+type lockKey struct{}
+
+// lockInfo contains information about an active lock
+type lockInfo struct {
+	hasReadLock  bool
+	hasWriteLock bool
+}
+
 // WithReadLock executes a function with a read lock
-func (c *mapCore) WithReadLock(ctx context.Context, fn func() error) error {
+func (c *mapCore) WithReadLock(ctx context.Context, fn func(context.Context) error) error {
+	// Check if we already have a lock from the context
+	info, ok := ctx.Value(lockKey{}).(lockInfo)
+
+	// If we already have a read or write lock, just execute the function
+	if ok && (info.hasReadLock || info.hasWriteLock) {
+		return fn(ctx)
+	}
+
+	// Otherwise, acquire a read lock
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	return fn()
+
+	// Create a new context with lock info
+	newInfo := lockInfo{hasReadLock: true, hasWriteLock: info.hasWriteLock}
+	newCtx := context.WithValue(ctx, lockKey{}, newInfo)
+
+	// Execute the function with the new context
+	return fn(newCtx)
 }
 
 // WithWriteLock executes a function with a write lock
-func (c *mapCore) WithWriteLock(ctx context.Context, fn func() error) error {
+func (c *mapCore) WithWriteLock(ctx context.Context, fn func(context.Context) error) error {
+	// Check if we already have a lock from the context
+	info, ok := ctx.Value(lockKey{}).(lockInfo)
+
+	// If we already have a write lock, just execute the function
+	if ok && info.hasWriteLock {
+		return fn(ctx)
+	}
+
+	// Otherwise, acquire a write lock
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return fn()
+
+	// Create a new context with lock info
+	newInfo := lockInfo{hasReadLock: true, hasWriteLock: true} // Write lock implies read lock
+	newCtx := context.WithValue(ctx, lockKey{}, newInfo)
+
+	// Execute the function with the new context
+	return fn(newCtx)
 }
 
 // GetField retrieves a field value
