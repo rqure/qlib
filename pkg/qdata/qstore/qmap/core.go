@@ -576,6 +576,11 @@ func (c *mapCore) ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, 
 
 // CreateMapSnapshot creates a copy of the current data state
 func (c *mapCore) CreateMapSnapshot() (*MapSnapshot, error) {
+	startTime := time.Now()
+	defer func() {
+		qlog.Trace("MapCore: CreateMapSnapshot took %v", time.Since(startTime))
+	}()
+
 	// Create deep copies of all maps and slices
 	schemasCopy := make(map[string]*qdata.EntitySchema, len(c.schemas))
 	for k, v := range c.schemas {
