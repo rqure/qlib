@@ -2,7 +2,6 @@ package qmap
 
 import (
 	"context"
-	"encoding/gob"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +13,11 @@ import (
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qss"
 )
+
+type SnapshotManager interface {
+	CreateSnapshot(ctx context.Context) (*qdata.Snapshot, error)
+	RestoreSnapshot(ctx context.Context, snapshot *qdata.Snapshot) error
+}
 
 // MapConfig holds the map store configuration
 type MapConfig struct {
@@ -56,24 +60,16 @@ type MapCore interface {
 	ListEntityTypes() ([]qdata.EntityType, error)
 	ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, error)
 
-	// Snapshot
-	CreateMapSnapshot() (*MapSnapshot, error)
-	RestoreMapSnapshot(snapshot *MapSnapshot) error
-	SaveSnapshotToFile(snapshot *MapSnapshot, path string) error
-	LoadSnapshotFromFile(path string) (*MapSnapshot, error)
+	SaveSnapshotToFile(snapshot *qdata.Snapshot, path string) error
+	LoadSnapshotFromFile(path string) (*qdata.Snapshot, error)
+
 	StartBackgroundTasks(ctx context.Context)
 	StopBackgroundTasks()
 
+	SetSnapshotManager(manager SnapshotManager)
+
 	// Configuration
 	GetConfig() MapConfig
-}
-
-// MapSnapshot represents the entire state of the storage
-type MapSnapshot struct {
-	Schemas     map[string]*qdata.EntitySchema     // Maps entity type string to schema
-	Entities    map[string][]qdata.EntityId        // Maps entity type string to slice of entity IDs
-	EntityTypes []qdata.EntityType                 // Ordered list of entity types for pagination
-	Fields      map[string]map[string]*qdata.Field // Maps entity ID to map of field type to field
 }
 
 // mapCore implements the MapCore interface
@@ -88,6 +84,8 @@ type mapCore struct {
 	connected       qss.Signal[qdata.ConnectedArgs]
 	disconnected    qss.Signal[qdata.DisconnectedArgs]
 	cancelFunctions []context.CancelFunc
+
+	snapshotManager SnapshotManager
 }
 
 // NewCore creates a new map storage core
@@ -116,6 +114,10 @@ func NewCore(config MapConfig) MapCore {
 	}
 }
 
+func (c *mapCore) SetSnapshotManager(manager SnapshotManager) {
+	c.snapshotManager = manager
+}
+
 // Connect establishes a "connection" to the map store
 func (c *mapCore) Connect(ctx context.Context) {
 	if c.isConnected {
@@ -131,7 +133,7 @@ func (c *mapCore) Connect(ctx context.Context) {
 			if err != nil {
 				qlog.Error("Failed to load snapshot file: %v", err)
 			} else {
-				err = c.RestoreMapSnapshot(snapshot)
+				err = c.snapshotManager.RestoreSnapshot(ctx, snapshot)
 				if err != nil {
 					qlog.Error("Failed to restore from snapshot: %v", err)
 				} else {
@@ -165,11 +167,9 @@ func (c *mapCore) Disconnect(ctx context.Context) {
 		if err := os.MkdirAll(c.config.SnapshotDirectory, 0755); err != nil {
 			qlog.Error("Failed to create snapshot directory: %v", err)
 		} else {
-			c.mutex.RLock()
 			timestamp := time.Now().Format("20060102_150405")
 			snapshotFile := filepath.Join(c.config.SnapshotDirectory, fmt.Sprintf("qmap_snapshot_%s.gob", timestamp))
-			snapshot, err := c.CreateMapSnapshot()
-			c.mutex.RUnlock()
+			snapshot, err := c.snapshotManager.CreateSnapshot(ctx)
 
 			if err != nil {
 				qlog.Error("Failed to create map snapshot: %v", err)
@@ -230,12 +230,10 @@ func (c *mapCore) runSnapshotTask(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			c.mutex.RLock()
 			timestamp := time.Now().Format("20060102_150405")
 			snapshotFile := filepath.Join(c.config.SnapshotDirectory, fmt.Sprintf("qmap_snapshot_%s.gob", timestamp))
 
-			snapshot, err := c.CreateMapSnapshot()
-			c.mutex.RUnlock()
+			snapshot, err := c.snapshotManager.CreateSnapshot(ctx)
 
 			if err != nil {
 				qlog.Error("Failed to create map snapshot: %v", err)
@@ -303,33 +301,28 @@ func (c *mapCore) findLatestSnapshot() string {
 }
 
 // SaveSnapshotToFile saves a snapshot to a file using gob encoding
-func (c *mapCore) SaveSnapshotToFile(snapshot *MapSnapshot, path string) error {
-	file, err := os.Create(path)
+func (c *mapCore) SaveSnapshotToFile(snapshot *qdata.Snapshot, path string) error {
+	b, err := snapshot.AsBytes()
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	encoder := gob.NewEncoder(file)
-	return encoder.Encode(snapshot)
+	return os.WriteFile(path, b, 0644) // Create or truncate the file
 }
 
 // LoadSnapshotFromFile loads a snapshot from a file using gob decoding
-func (c *mapCore) LoadSnapshotFromFile(path string) (*MapSnapshot, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var snapshot MapSnapshot
-	decoder := gob.NewDecoder(file)
-	err = decoder.Decode(&snapshot)
+func (c *mapCore) LoadSnapshotFromFile(path string) (*qdata.Snapshot, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	return &snapshot, nil
+	snapshot, err := new(qdata.Snapshot).FromBytes(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return snapshot, nil
 }
 
 // IsConnected returns whether the store is connected
@@ -572,78 +565,6 @@ func (c *mapCore) ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, 
 	}
 
 	return fields, nil
-}
-
-// CreateMapSnapshot creates a copy of the current data state
-func (c *mapCore) CreateMapSnapshot() (*MapSnapshot, error) {
-	startTime := time.Now()
-	defer func() {
-		qlog.Trace("MapCore: CreateMapSnapshot took %v", time.Since(startTime))
-	}()
-
-	// Create deep copies of all maps and slices
-	schemasCopy := make(map[string]*qdata.EntitySchema, len(c.schemas))
-	for k, v := range c.schemas {
-		schemasCopy[k] = v.Clone()
-	}
-
-	entityTypesCopy := make([]qdata.EntityType, len(c.entityTypes))
-	copy(entityTypesCopy, c.entityTypes)
-
-	entitiesCopy := make(map[string][]qdata.EntityId, len(c.entities))
-	for entityTypeStr, entitySlice := range c.entities {
-		sliceCopy := make([]qdata.EntityId, len(entitySlice))
-		copy(sliceCopy, entitySlice)
-		entitiesCopy[entityTypeStr] = sliceCopy
-	}
-
-	fieldsCopy := make(map[string]map[string]*qdata.Field, len(c.fields))
-	for entityId, entityFields := range c.fields {
-		fieldsCopy[entityId] = make(map[string]*qdata.Field, len(entityFields))
-		for fieldType, field := range entityFields {
-			fieldsCopy[entityId][fieldType] = field.Clone()
-		}
-	}
-
-	return &MapSnapshot{
-		Schemas:     schemasCopy,
-		Entities:    entitiesCopy,
-		EntityTypes: entityTypesCopy,
-		Fields:      fieldsCopy,
-	}, nil
-}
-
-// RestoreMapSnapshot restores data from a snapshot
-func (c *mapCore) RestoreMapSnapshot(snapshot *MapSnapshot) error {
-	if snapshot == nil {
-		return fmt.Errorf("cannot restore from nil snapshot")
-	}
-
-	// Replace all maps and slices with the snapshot data (deep copies)
-	c.schemas = make(map[string]*qdata.EntitySchema, len(snapshot.Schemas))
-	for k, v := range snapshot.Schemas {
-		c.schemas[k] = v.Clone()
-	}
-
-	c.entityTypes = make([]qdata.EntityType, len(snapshot.EntityTypes))
-	copy(c.entityTypes, snapshot.EntityTypes)
-
-	c.entities = make(map[string][]qdata.EntityId, len(snapshot.Entities))
-	for entityTypeStr, entitySlice := range snapshot.Entities {
-		sliceCopy := make([]qdata.EntityId, len(entitySlice))
-		copy(sliceCopy, entitySlice)
-		c.entities[entityTypeStr] = sliceCopy
-	}
-
-	c.fields = make(map[string]map[string]*qdata.Field, len(snapshot.Fields))
-	for entityId, entityFields := range snapshot.Fields {
-		c.fields[entityId] = make(map[string]*qdata.Field, len(entityFields))
-		for fieldType, field := range entityFields {
-			c.fields[entityId][fieldType] = field.Clone()
-		}
-	}
-
-	return nil
 }
 
 // GetConfig returns the core configuration

@@ -41,6 +41,8 @@ func NewStoreInteractor(core MapCore) qdata.StoreInteractor {
 	core.Connected().Connect(interactor.onConnected)
 	core.Disconnected().Connect(interactor.onDisconnected)
 
+	core.SetSnapshotManager(interactor)
+
 	return interactor
 }
 
@@ -939,84 +941,29 @@ func (i *MapStoreInteractor) CreateSnapshot(ctx context.Context) (*qdata.Snapsho
 
 // RestoreSnapshot restores a database from a snapshot
 func (i *MapStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snapshot) error {
-	// Create a map snapshot before clearing data as a backup
-	mapSnapshot, err := i.core.CreateMapSnapshot()
-	if err != nil {
-		return fmt.Errorf("failed to create map snapshot: %w", err)
-	}
-
 	return i.core.WithWriteLock(ctx, func(ctx context.Context) error {
-		// Create empty map structures with the correct types
-		err := i.core.RestoreMapSnapshot(&MapSnapshot{
-			Schemas:     make(map[string]*qdata.EntitySchema),
-			Entities:    make(map[string][]qdata.EntityId),
-			EntityTypes: make([]qdata.EntityType, 0),
-			Fields:      make(map[string]map[string]*qdata.Field),
-		})
+		errs := make([]error, 0)
 
-		if err != nil {
-			// Restore the original data if clearing failed
-			i.core.RestoreMapSnapshot(mapSnapshot)
-			return fmt.Errorf("failed to clear existing data: %w", err)
-		}
-
-		// Restore schemas first
 		for _, schema := range ss.Schemas {
 			err := i.SetEntitySchema(ctx, schema)
 			if err != nil {
-				// Attempt to restore original data on failure
-				i.core.RestoreMapSnapshot(mapSnapshot)
-				return fmt.Errorf("failed to restore schema %s: %w", schema.EntityType, err)
+				errs = append(errs, fmt.Errorf("failed to set schema for entity type %s: %w", schema.EntityType, err))
 			}
 		}
 
-		// Restore entities and their fields
 		for _, entity := range ss.Entities {
-			// First, create the entity key
-			err := i.core.CreateEntity(entity.EntityId)
+			reqs := make([]*qdata.Request, 0)
+			for _, field := range entity.Fields {
+				reqs = append(reqs, field.AsWriteRequest())
+			}
+
+			err := i.Write(ctx, reqs...)
 			if err != nil {
-				// Attempt to restore original data on failure
-				i.core.RestoreMapSnapshot(mapSnapshot)
-				return fmt.Errorf("failed to create entity key for %s: %w", entity.EntityId, err)
-			}
-
-			// Create write requests for each field
-			requests := make([]*qdata.Request, 0, len(entity.Fields))
-			for fieldType, field := range entity.Fields {
-				req := new(qdata.Request).Init(entity.EntityId, fieldType,
-					qdata.ROValuePtr(field.Value),
-					qdata.ROWriteTime(field.WriteTime),
-					qdata.ROWriterId(field.WriterId))
-				requests = append(requests, req)
-			}
-
-			// Write all fields
-			if len(requests) > 0 {
-				// Since we're already in a write lock, we can use the internal Write implementation
-				// which avoids acquiring another write lock
-				for _, req := range requests {
-					ir := qdata.NewIndirectionResolver(i)
-					indirectEntity, indirectField, err := ir.Resolve(ctx, req.EntityId, req.FieldType)
-					if err != nil {
-						i.core.RestoreMapSnapshot(mapSnapshot)
-						return fmt.Errorf("failed to resolve field: %w", err)
-					}
-
-					// Create a field object from the request
-					field := req.AsField()
-
-					// Write the field to storage directly
-					err = i.core.SetField(indirectEntity, indirectField, field)
-					if err != nil {
-						i.core.RestoreMapSnapshot(mapSnapshot)
-						return fmt.Errorf("failed to write field %s in entity %s: %w",
-							req.FieldType, req.EntityId, err)
-					}
-				}
+				errs = append(errs, fmt.Errorf("failed to write entity %s: %w", entity.EntityId, err))
 			}
 		}
 
-		return nil
+		return qdata.AccumulateErrors(errs...)
 	})
 }
 

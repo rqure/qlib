@@ -1,6 +1,9 @@
 package qdata
 
-import "github.com/rqure/qlib/pkg/qprotobufs"
+import (
+	"github.com/rqure/qlib/pkg/qprotobufs"
+	"google.golang.org/protobuf/proto"
+)
 
 type Snapshot struct {
 	Entities []*Entity
@@ -82,4 +85,17 @@ func (me *Snapshot) AsSnapshotPb() *qprotobufs.DatabaseSnapshot {
 	}
 
 	return pb
+}
+
+func (me *Snapshot) AsBytes() ([]byte, error) {
+	return proto.Marshal(me.AsSnapshotPb())
+}
+
+func (me *Snapshot) FromBytes(data []byte) (*Snapshot, error) {
+	pb := &qprotobufs.DatabaseSnapshot{}
+	if err := proto.Unmarshal(data, pb); err != nil {
+		return nil, err
+	}
+
+	return me.FromSnapshotPb(pb), nil
 }
