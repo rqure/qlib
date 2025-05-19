@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Nerzal/gocloak/v13"
@@ -48,25 +49,28 @@ type session struct {
 	// Auto-refresh related fields
 	autoRefreshCtx    context.Context
 	autoRefreshCancel context.CancelFunc
-	autoRefreshActive bool
-	autoRefreshMutex  sync.Mutex
+	autoRefreshActive atomic.Bool
+
+	mu sync.RWMutex
 }
 
 func NewSession(core Core, token *gocloak.JWT, clientID, clientSecret, realm string) Session {
 	return &session{
-		core:         core,
-		token:        token,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		realm:        realm,
-		isValid:      false,
-		validSignal:  qss.New[bool](),
+		core:              core,
+		token:             token,
+		clientID:          clientID,
+		clientSecret:      clientSecret,
+		realm:             realm,
+		isValid:           false,
+		validSignal:       qss.New[bool](),
+		autoRefreshActive: atomic.Bool{},
+		mu:                sync.RWMutex{},
 	}
 }
 
 func (me *session) setIsValid(ctx context.Context, isValid bool) {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.Lock()
+	defer me.mu.Unlock()
 
 	if me.isValid != isValid {
 		me.isValid = isValid
@@ -83,14 +87,39 @@ func (me *session) Valid() qss.Signal[bool] {
 }
 
 func (me *session) IsValid() bool {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.RLock()
+	defer me.mu.RUnlock()
 	return me.isValid
 }
 
+func (me *session) tryRenewToken(ctx context.Context) error {
+	me.mu.Lock()
+	defer me.mu.Unlock()
+
+	if me.token != nil {
+		return nil
+	}
+
+	token, err := me.core.GetClient().GetToken(
+		ctx,
+		me.realm,
+		gocloak.TokenOptions{
+			ClientID:     &me.clientID,
+			ClientSecret: &me.clientSecret,
+			GrantType:    gocloak.StringP("client_credentials"),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to renew token: %v", err)
+	}
+
+	me.token = token
+	return nil
+}
+
 func (me *session) Refresh(ctx context.Context) error {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.Lock()
+	defer me.mu.Unlock()
 
 	if me.token == nil {
 		return fmt.Errorf("no token to refresh")
@@ -126,8 +155,8 @@ func (me *session) Refresh(ctx context.Context) error {
 }
 
 func (me *session) Revoke(ctx context.Context) error {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.Lock()
+	defer me.mu.Unlock()
 
 	if me.token == nil {
 		return fmt.Errorf("no token to revoke")
@@ -153,8 +182,8 @@ func (me *session) Revoke(ctx context.Context) error {
 }
 
 func (me *session) AccessToken() string {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.RLock()
+	defer me.mu.RUnlock()
 
 	if me.token == nil {
 		return ""
@@ -164,8 +193,8 @@ func (me *session) AccessToken() string {
 }
 
 func (me *session) RefreshToken() string {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.RLock()
+	defer me.mu.RUnlock()
 
 	if me.token == nil {
 		return ""
@@ -189,8 +218,8 @@ func (me *session) ClientSecret() string {
 // Returns the name of the owner of the session
 // This is the user who owns the session or the client if it's a client session
 func (me *session) GetOwnerName(ctx context.Context) (string, error) {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.RLock()
+	defer me.mu.RUnlock()
 
 	if me.token == nil {
 		return "", fmt.Errorf("no token to get owner name")
@@ -228,8 +257,8 @@ func (me *session) GetOwnerName(ctx context.Context) (string, error) {
 
 // Decode the access token and check if it's still valid
 func (me *session) CheckIsValid(ctx context.Context) bool {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	me.mu.RLock()
+	defer me.mu.RUnlock()
 
 	if me.token == nil {
 		return false
@@ -255,8 +284,8 @@ func (me *session) CheckIsValid(ctx context.Context) bool {
 
 // Check if the token has passed the half-life time
 func (me *session) PastHalfLife(ctx context.Context) bool {
-	// No need to lock here since this is only called from already locked contexts
-	// or from refreshRoutine where we're already handling the locking
+	me.mu.RLock()
+	defer me.mu.RUnlock()
 
 	if me.token == nil {
 		return false
@@ -294,42 +323,37 @@ func (me *session) PastHalfLife(ctx context.Context) bool {
 // StartAutoRefresh begins a background goroutine that automatically refreshes
 // the session token before it expires
 func (me *session) StartAutoRefresh(ctx context.Context) error {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
-
 	// Don't start a new refresh routine if one is already active
-	if me.autoRefreshActive {
-		return nil
+	if me.autoRefreshActive.CompareAndSwap(false, true) {
+		me.mu.Lock()
+		defer me.mu.Unlock()
+
+		// Create a new context with cancellation for the refresh routine
+		me.autoRefreshCtx, me.autoRefreshCancel = context.WithCancel(ctx)
+
+		// Start the refresh goroutine
+		go me.refreshRoutine()
+
+		qlog.Trace("Session auto-refresh started for client %s", me.clientID)
 	}
 
-	// Create a new context with cancellation for the refresh routine
-	me.autoRefreshCtx, me.autoRefreshCancel = context.WithCancel(ctx)
-	me.autoRefreshActive = true
-
-	// Start the refresh goroutine
-	go me.refreshRoutine()
-
-	qlog.Trace("Session auto-refresh started for client %s", me.clientID)
 	return nil
 }
 
 // StopAutoRefresh stops the background refresh goroutine
 func (me *session) StopAutoRefresh() {
-	me.autoRefreshMutex.Lock()
-	defer me.autoRefreshMutex.Unlock()
+	if me.autoRefreshActive.CompareAndSwap(true, false) {
+		me.mu.Lock()
+		defer me.mu.Unlock()
 
-	if !me.autoRefreshActive {
-		return
+		// Cancel the context to stop the refresh routine
+		if me.autoRefreshCancel != nil {
+			me.autoRefreshCancel()
+			me.autoRefreshCancel = nil
+		}
+
+		qlog.Trace("Session auto-refresh stopped for client %s", me.clientID)
 	}
-
-	// Cancel the context to stop the refresh routine
-	if me.autoRefreshCancel != nil {
-		me.autoRefreshCancel()
-		me.autoRefreshCancel = nil
-	}
-
-	me.autoRefreshActive = false
-	qlog.Trace("Session auto-refresh stopped for client %s", me.clientID)
 }
 
 // refreshRoutine runs in the background and refreshes the token when needed
@@ -344,22 +368,24 @@ func (me *session) refreshRoutine() {
 		case <-ticker.C:
 			refreshCtx, cancel := context.WithTimeout(me.autoRefreshCtx, 5*time.Second)
 
-			shouldRefresh := me.PastHalfLife(refreshCtx)
+			err := me.tryRenewToken(refreshCtx)
+			if err != nil {
+				qlog.Warn("Failed to renew token: %v", err)
+				cancel()
+				continue
+			}
 
-			if shouldRefresh {
-				if me.token != nil && me.autoRefreshActive {
-					err := me.Refresh(refreshCtx)
-					if err != nil {
-						qlog.Warn("Background session refresh failed: %v", err)
-					} else {
-						qlog.Trace("Background session refresh succeeded for client %s", me.clientID)
-					}
+			if me.PastHalfLife(refreshCtx) {
+				err = me.Refresh(refreshCtx)
+				if err != nil {
+					qlog.Warn("Background session refresh failed: %v", err)
+				} else {
+					qlog.Trace("Background session refresh succeeded for client %s", me.clientID)
 				}
 			}
 
-			cancel()
-
 			me.setIsValid(refreshCtx, me.CheckIsValid(refreshCtx))
+			cancel()
 		}
 	}
 }
