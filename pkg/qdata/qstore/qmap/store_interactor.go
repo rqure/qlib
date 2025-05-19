@@ -944,24 +944,7 @@ func (i *MapStoreInteractor) RestoreSnapshot(ctx context.Context, ss *qdata.Snap
 	return i.core.WithWriteLock(ctx, func(ctx context.Context) error {
 		errs := make([]error, 0)
 
-		for _, schema := range ss.Schemas {
-			err := i.SetEntitySchema(ctx, schema)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to set schema for entity type %s: %w", schema.EntityType, err))
-			}
-		}
-
-		for _, entity := range ss.Entities {
-			reqs := make([]*qdata.Request, 0)
-			for _, field := range entity.Fields {
-				reqs = append(reqs, field.AsWriteRequest())
-			}
-
-			err := i.Write(ctx, reqs...)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to write entity %s: %w", entity.EntityId, err))
-			}
-		}
+		i.core.SetSnapshot(ss)
 
 		return qdata.AccumulateErrors(errs...)
 	})

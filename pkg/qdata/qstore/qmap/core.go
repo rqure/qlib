@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -60,6 +61,7 @@ type MapCore interface {
 	ListEntityTypes() ([]qdata.EntityType, error)
 	ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, error)
 
+	SetSnapshot(snapshot *qdata.Snapshot) error
 	SaveSnapshotToFile(snapshot *qdata.Snapshot, path string) error
 	LoadSnapshotFromFile(path string) (*qdata.Snapshot, error)
 
@@ -74,11 +76,11 @@ type MapCore interface {
 
 // mapCore implements the MapCore interface
 type mapCore struct {
-	schemas         map[string]*qdata.EntitySchema     // Maps entity type string to schema
-	entities        map[string][]qdata.EntityId        // Maps entity type string to slice of entity IDs
-	entityTypes     []qdata.EntityType                 // Ordered list of entity types for pagination
-	fields          map[string]map[string]*qdata.Field // Maps entity ID to map of field type to field
-	mutex           sync.RWMutex                       // Global lock for all maps
+	schemas         map[qdata.EntityType]*qdata.EntitySchema            // Maps entity type string to schema
+	entities        map[qdata.EntityType][]qdata.EntityId               // Maps entity type string to slice of entity IDs
+	entityTypes     []qdata.EntityType                                  // Ordered list of entity types for pagination
+	fields          map[qdata.EntityId]map[qdata.FieldType]*qdata.Field // Maps entity ID to map of field type to field
+	mutex           sync.RWMutex                                        // Global lock for all maps
 	config          MapConfig
 	isConnected     bool
 	connected       qss.Signal[qdata.ConnectedArgs]
@@ -103,10 +105,10 @@ func NewCore(config MapConfig) MapCore {
 	}
 
 	return &mapCore{
-		schemas:         make(map[string]*qdata.EntitySchema),
-		entities:        make(map[string][]qdata.EntityId),
+		schemas:         make(map[qdata.EntityType]*qdata.EntitySchema),
+		entities:        make(map[qdata.EntityType][]qdata.EntityId),
 		entityTypes:     make([]qdata.EntityType, 0),
-		fields:          make(map[string]map[string]*qdata.Field),
+		fields:          make(map[qdata.EntityId]map[qdata.FieldType]*qdata.Field),
 		config:          config,
 		connected:       qss.New[qdata.ConnectedArgs](),
 		disconnected:    qss.New[qdata.DisconnectedArgs](),
@@ -395,39 +397,32 @@ func (c *mapCore) WithWriteLock(ctx context.Context, fn func(context.Context) er
 
 // GetField retrieves a field value
 func (c *mapCore) GetField(entityId qdata.EntityId, fieldType qdata.FieldType) (*qdata.Field, bool) {
-	entityIdStr := entityId.AsString()
-	entityFields, exists := c.fields[entityIdStr]
+	entityFields, exists := c.fields[entityId]
 	if !exists {
 		return nil, false
 	}
 
-	field, exists := entityFields[fieldType.AsString()]
+	field, exists := entityFields[fieldType]
 	return field, exists
 }
 
 // SetField sets a field value
 func (c *mapCore) SetField(entityId qdata.EntityId, fieldType qdata.FieldType, field *qdata.Field) error {
-	entityIdStr := entityId.AsString()
-
 	// Ensure the entity exists in the fields map
-	if _, exists := c.fields[entityIdStr]; !exists {
-		c.fields[entityIdStr] = make(map[string]*qdata.Field)
+	if _, exists := c.fields[entityId]; !exists {
+		c.fields[entityId] = make(map[qdata.FieldType]*qdata.Field)
 	}
 
 	// Store the field
-	c.fields[entityIdStr][fieldType.AsString()] = field.Clone() // Store a clone to prevent external modification
+	c.fields[entityId][fieldType] = field.Clone() // Store a clone to prevent external modification
 
 	return nil
 }
 
 // DeleteField removes a field
 func (c *mapCore) DeleteField(entityId qdata.EntityId, fieldType qdata.FieldType) error {
-	entityIdStr := entityId.AsString()
-
-	// Check if the entity exists in the fields map
-	if entityFields, exists := c.fields[entityIdStr]; exists {
-		// Delete the field
-		delete(entityFields, fieldType.AsString())
+	if entityFields, exists := c.fields[entityId]; exists {
+		delete(entityFields, fieldType)
 	}
 
 	return nil
@@ -435,32 +430,22 @@ func (c *mapCore) DeleteField(entityId qdata.EntityId, fieldType qdata.FieldType
 
 // EntityExists checks if an entity exists
 func (c *mapCore) EntityExists(entityId qdata.EntityId) bool {
-	entityIdStr := entityId.AsString()
-	// Simply check if the entity has any fields map entry
-	_, exists := c.fields[entityIdStr]
+	_, exists := c.fields[entityId]
 	return exists
 }
 
 // CreateEntity creates an entity
 func (c *mapCore) CreateEntity(entityId qdata.EntityId) error {
 	entityType := entityId.GetEntityType()
-	entityTypeStr := entityType.AsString()
-	entityIdStr := entityId.AsString()
-
-	// Initialize entity type collections if they don't exist
-	if _, exists := c.entities[entityTypeStr]; !exists {
-		c.entities[entityTypeStr] = make([]qdata.EntityId, 0)
-		c.entityTypes = append(c.entityTypes, entityType)
+	if _, exists := c.fields[entityId]; exists {
+		return fmt.Errorf("entity %s already exists", entityId)
 	}
 
-	// Check if entity already exists to avoid duplicates
-	if _, exists := c.fields[entityIdStr]; !exists {
-		// Add the entity to the slice
-		c.entities[entityTypeStr] = append(c.entities[entityTypeStr], entityId)
+	// Add the entity to the slice
+	c.entities[entityType] = append(c.entities[entityType], entityId)
 
-		// Initialize the entity's fields map
-		c.fields[entityIdStr] = make(map[string]*qdata.Field)
-	}
+	// Initialize the entity's fields map
+	c.fields[entityId] = make(map[qdata.FieldType]*qdata.Field)
 
 	return nil
 }
@@ -468,30 +453,23 @@ func (c *mapCore) CreateEntity(entityId qdata.EntityId) error {
 // DeleteEntity removes an entity and all its fields
 func (c *mapCore) DeleteEntity(entityId qdata.EntityId) error {
 	entityType := entityId.GetEntityType()
-	entityTypeStr := entityType.AsString()
-	entityIdStr := entityId.AsString()
 
 	// Remove from entities slice
-	if entitySlice, exists := c.entities[entityTypeStr]; exists {
-		// Remove from slice
-		newEntitySlice := make([]qdata.EntityId, 0, len(entitySlice)-1)
-		for _, id := range entitySlice {
-			if id.AsString() != entityIdStr {
-				newEntitySlice = append(newEntitySlice, id)
-			}
-		}
-		c.entities[entityTypeStr] = newEntitySlice
+	if _, exists := c.entities[entityType]; exists {
+		c.entities[entityType] = slices.DeleteFunc(c.entities[entityType], func(id qdata.EntityId) bool {
+			return id == entityId
+		})
 	}
 
 	// Delete all fields for this entity
-	delete(c.fields, entityIdStr)
+	delete(c.fields, entityId)
 
 	return nil
 }
 
 // GetSchema retrieves a schema
 func (c *mapCore) GetSchema(entityType qdata.EntityType) (*qdata.EntitySchema, bool) {
-	schema, exists := c.schemas[entityType.AsString()]
+	schema, exists := c.schemas[entityType]
 	if exists {
 		return schema.Clone(), exists // Return a clone to prevent external modification
 	}
@@ -500,39 +478,37 @@ func (c *mapCore) GetSchema(entityType qdata.EntityType) (*qdata.EntitySchema, b
 
 // SetSchema sets a schema
 func (c *mapCore) SetSchema(entityType qdata.EntityType, schema *qdata.EntitySchema) error {
-	entityTypeStr := entityType.AsString()
-
 	// Check if this is a new entity type
-	if _, exists := c.schemas[entityTypeStr]; !exists {
+	if _, exists := c.schemas[entityType]; !exists {
 		c.entityTypes = append(c.entityTypes, entityType)
+		c.entities[entityType] = make([]qdata.EntityId, 0)
 	}
 
-	c.schemas[entityTypeStr] = schema.Clone() // Store a clone to prevent external modification
+	c.schemas[entityType] = schema.Clone() // Store a clone to prevent external modification
 	return nil
 }
 
 // DeleteSchema removes a schema
 func (c *mapCore) DeleteSchema(entityType qdata.EntityType) error {
-	entityTypeStr := entityType.AsString()
-	delete(c.schemas, entityTypeStr)
+	delete(c.schemas, entityType)
 
-	// Also remove from the entity types list
-	for i, et := range c.entityTypes {
-		if et.AsString() == entityTypeStr {
-			c.entityTypes = append(c.entityTypes[:i], c.entityTypes[i+1:]...)
-			break
-		}
+	c.entityTypes = slices.DeleteFunc(c.entityTypes, func(t qdata.EntityType) bool {
+		return t == entityType
+	})
+
+	for _, entityId := range c.entities[entityType] {
+		delete(c.fields, entityId)
 	}
+
+	delete(c.entities, entityType)
 
 	return nil
 }
 
 // ListEntities lists all entities of a specific type
 func (c *mapCore) ListEntities(entityType qdata.EntityType) ([]qdata.EntityId, error) {
-	entityTypeStr := entityType.AsString()
-
 	// If we have entities of this type, return a copy of the slice
-	if entitySlice, exists := c.entities[entityTypeStr]; exists {
+	if entitySlice, exists := c.entities[entityType]; exists {
 		result := make([]qdata.EntityId, len(entitySlice))
 		copy(result, entitySlice)
 		return result, nil
@@ -552,8 +528,7 @@ func (c *mapCore) ListEntityTypes() ([]qdata.EntityType, error) {
 
 // ListEntityFields lists all fields for an entity
 func (c *mapCore) ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, error) {
-	entityIdStr := entityId.AsString()
-	entityFields, exists := c.fields[entityIdStr]
+	entityFields, exists := c.fields[entityId]
 
 	if !exists {
 		return make([]qdata.FieldType, 0), nil
@@ -570,4 +545,32 @@ func (c *mapCore) ListEntityFields(entityId qdata.EntityId) ([]qdata.FieldType, 
 // GetConfig returns the core configuration
 func (c *mapCore) GetConfig() MapConfig {
 	return c.config
+}
+
+func (c *mapCore) SetSnapshot(snapshot *qdata.Snapshot) error {
+	// clear everything
+	c.schemas = make(map[qdata.EntityType]*qdata.EntitySchema)
+	c.entities = make(map[qdata.EntityType][]qdata.EntityId)
+	c.entityTypes = make([]qdata.EntityType, 0)
+	c.fields = make(map[qdata.EntityId]map[qdata.FieldType]*qdata.Field)
+
+	for _, schema := range snapshot.Schemas {
+		if err := c.SetSchema(schema.EntityType, schema); err != nil {
+			return err
+		}
+	}
+
+	for _, entity := range snapshot.Entities {
+		if err := c.CreateEntity(entity.EntityId); err != nil {
+			return err
+		}
+
+		for _, field := range entity.Fields {
+			if err := c.SetField(entity.EntityId, field.FieldType, field); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
