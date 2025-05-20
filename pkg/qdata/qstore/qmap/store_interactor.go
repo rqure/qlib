@@ -762,9 +762,8 @@ func (i *MapStoreInteractor) Write(ctx context.Context, reqs ...*qdata.Request) 
 			if req.Value == nil {
 				req.Value = schema.ValueType.NewValue()
 			} else if req.Value.Type() != schema.ValueType {
-				req.Err = fmt.Errorf("value type mismatch for field %s in entity type %s: expected %s, got %s", indirectField, indirectEntity.GetEntityType(), schema.ValueType, req.Value.Type())
-				errs = append(errs, req.Err)
-				continue
+				qlog.Warn("Type mismatch for field %s in entity type %s: expected %s, got %s", indirectField, indirectEntity.GetEntityType(), schema.ValueType, req.Value.Type())
+				req.Value = schema.ValueType.NewValue()
 			}
 
 			if req.Value.IsNil() {
