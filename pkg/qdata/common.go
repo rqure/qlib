@@ -882,6 +882,8 @@ func (me *FieldSchema) FromFieldSchemaPb(entityType EntityType, pb *qprotobufs.D
 	me.ValueType = ValueType(pb.Type)
 	me.ReadPermissions = CastStringSliceToEntityIdSlice(pb.ReadPermissions)
 	me.WritePermissions = CastStringSliceToEntityIdSlice(pb.WritePermissions)
+	me.Rank = int(pb.Rank)
+	me.Choices = pb.ChoiceOptions
 
 	return me
 }
