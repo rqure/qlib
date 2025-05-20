@@ -548,24 +548,33 @@ func (c *mapCore) GetConfig() MapConfig {
 }
 
 func (c *mapCore) SetSnapshot(snapshot *qdata.Snapshot) error {
-	// clear everything
+	qlog.Trace("Setting snapshot with %d entities and %d schemas", len(snapshot.Entities), len(snapshot.Schemas))
+
+	startTime := time.Now()
+	defer func() {
+		qlog.Trace("SetSnapshot took %s", time.Since(startTime))
+	}()
+
 	c.schemas = make(map[qdata.EntityType]*qdata.EntitySchema)
 	c.entities = make(map[qdata.EntityType][]qdata.EntityId)
 	c.entityTypes = make([]qdata.EntityType, 0)
 	c.fields = make(map[qdata.EntityId]map[qdata.FieldType]*qdata.Field)
 
 	for _, schema := range snapshot.Schemas {
+		qlog.Trace("Setting schema for entity type %s", schema.EntityType)
 		if err := c.SetSchema(schema.EntityType, schema); err != nil {
 			return err
 		}
 	}
 
 	for _, entity := range snapshot.Entities {
+		qlog.Trace("Setting entity %s", entity.EntityId)
 		if err := c.CreateEntity(entity.EntityId); err != nil {
 			return err
 		}
 
 		for _, field := range entity.Fields {
+			qlog.Trace("Setting field %s for entity %s", field.FieldType, entity.EntityId)
 			if err := c.SetField(entity.EntityId, field.FieldType, field); err != nil {
 				return err
 			}

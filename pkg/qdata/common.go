@@ -504,8 +504,10 @@ func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
 	return &qprotobufs.DatabaseFieldSchema{
 		Name:             string(me.FieldType),
 		Type:             me.ValueType.AsString(),
+		Rank:             int32(me.Rank),
 		ReadPermissions:  CastEntityIdSliceToStringSlice(me.ReadPermissions),
 		WritePermissions: CastEntityIdSliceToStringSlice(me.WritePermissions),
+		ChoiceOptions:    me.Choices,
 	}
 }
 
@@ -517,10 +519,19 @@ func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
 }
 
 func (me *Entity) AsEntityPb() *qprotobufs.DatabaseEntity {
-	return &qprotobufs.DatabaseEntity{
+	pb := &qprotobufs.DatabaseEntity{
 		Id:   string(me.EntityId),
 		Type: string(me.EntityType),
 	}
+
+	fields := make([]*qprotobufs.DatabaseField, 0, len(me.Fields))
+	for _, f := range me.Fields {
+		fields = append(fields, f.AsFieldPb())
+	}
+
+	pb.Fields = fields
+
+	return pb
 }
 
 func (me *Entity) Field(fieldType FieldType, opts ...FieldOpts) *Field {
