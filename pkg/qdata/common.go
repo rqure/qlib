@@ -514,6 +514,11 @@ func (me *FieldSchema) AsFieldSchemaPb() *qprotobufs.DatabaseFieldSchema {
 func (me *Entity) FromEntityPb(pb *qprotobufs.DatabaseEntity) *Entity {
 	me.EntityId = EntityId(pb.Id)
 	me.EntityType = EntityType(pb.Type)
+	me.Fields = make(map[FieldType]*Field)
+	for _, f := range pb.Fields {
+		field := new(Field).FromFieldPb(f)
+		me.Fields[field.FieldType] = field
+	}
 
 	return me
 }
