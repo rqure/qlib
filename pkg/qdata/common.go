@@ -364,7 +364,15 @@ func (me *Field) Clone() *Field {
 }
 
 func (me *FieldSchema) Clone() *FieldSchema {
-	return new(FieldSchema).Init(me.EntityType, me.FieldType, me.ValueType, FSOReadPermissions(CopySlice(me.ReadPermissions)), FSOWritePermissions(CopySlice(me.WritePermissions)))
+	return new(FieldSchema).Init(
+		me.EntityType,
+		me.FieldType,
+		me.ValueType,
+		FSOReadPermissions(CopySlice(me.ReadPermissions)),
+		FSOWritePermissions(CopySlice(me.WritePermissions)),
+		FSOChoices(CopySlice(me.Choices)...),
+		FSORank(me.Rank),
+	)
 }
 
 func (me *Request) Clone() *Request {
