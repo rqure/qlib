@@ -37,9 +37,9 @@ func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 	}
 
 	// Process schema updates (with write permissions that may reference created entities)
-	for _, schemaUpdate := range config.SchemaUpdates {
+	for _, schemaUpdate := range config.EntitySchemas {
 		// Convert entity name reference to the actual entity ID
-		schema := ConvertToEntitySchema(schemaUpdate)
+		schema := UpdateSchemaPermissions(s, schemaUpdate)
 		err := ensureEntitySchema(ctx, s, schema)
 		if err != nil {
 			return fmt.Errorf("failed to update schema for %s: %w", schemaUpdate.Name, err)
