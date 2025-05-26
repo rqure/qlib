@@ -12,7 +12,7 @@ import (
 
 func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 	// Load the schema configuration
-	configPath := filepath.Join(filepath.Dir(findCallerFile()), "schemas.yaml")
+	configPath := filepath.Join("schemas.yaml")
 	config, err := LoadSchemaConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load schema config: %w", err)
@@ -99,14 +99,6 @@ func processInitialEntity(ctx context.Context, s qdata.StoreInteractor, config I
 	}
 
 	return nil
-}
-
-// findCallerFile is a helper to find the directory of the current file
-// for locating the config file relative to the code
-func findCallerFile() string {
-	// This is a placeholder - in real implementation you would use runtime.Caller
-	// to get the file path of the caller
-	return "/workspace/qlib/pkg/qdata/qstore/init.go"
 }
 
 // Helper functions moved from init_store_worker
