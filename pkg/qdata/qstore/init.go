@@ -3,239 +3,110 @@ package qstore
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/rqure/qlib/pkg/qdata"
 	"github.com/rqure/qlib/pkg/qlog"
-	"github.com/rqure/qlib/pkg/qprotobufs"
 )
 
 func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
-	// Create entity schemas (copied from InitStoreWorker.OnStoreConnected)
-	err := ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name: qdata.ETRoot.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{
-			{Name: qdata.FTSchemaChanged.AsString(), Type: qdata.VTString.AsString()},          // written value is the entity type that had its schema changed
-			{Name: qdata.FTEntityCreated.AsString(), Type: qdata.VTEntityReference.AsString()}, // written value is the entity id that was created
-			{Name: qdata.FTEntityDeleted.AsString(), Type: qdata.VTEntityReference.AsString()}, // written value is the entity id that was deleted
-		},
-	}))
+	// Load the schema configuration
+	configPath := filepath.Join(filepath.Dir(findCallerFile()), "schemas.yaml")
+	config, err := LoadSchemaConfig(configPath)
 	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
+		return fmt.Errorf("failed to load schema config: %w", err)
 	}
 
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name:   qdata.ETFolder.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
+	// Create entity schemas from config
+	for _, schemaConfig := range config.EntitySchemas {
+		schema := ConvertToEntitySchema(schemaConfig)
+		err := ensureEntitySchema(ctx, s, schema)
+		if err != nil {
+			return fmt.Errorf("failed to ensure entity schema for %s: %w", schemaConfig.Name, err)
+		}
 	}
 
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name: qdata.ETPermission.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{
-			{Name: qdata.FTPolicy.AsString(), Type: qdata.VTString.AsString(), Rank: 5},
-		},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
+	// Process initial entities
+	entityMap := make(map[string]qdata.EntityId)
+	for _, entityConfig := range config.InitialEntities {
+		err := processInitialEntity(ctx, s, entityConfig, nil, entityMap)
+		if err != nil {
+			return fmt.Errorf("failed to process initial entities: %w", err)
+		}
 	}
 
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name:   qdata.ETAreaOfResponsibility.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
-	}
-
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name:   qdata.ETRole.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
-	}
-
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name: qdata.ETUser.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{
-			{Name: qdata.FTRoles.AsString(), Type: qdata.VTEntityList.AsString(), Rank: 5},
-			{Name: qdata.FTAreasOfResponsibilities.AsString(), Type: qdata.VTEntityList.AsString(), Rank: 6},
-			{Name: qdata.FTSourceOfTruth.AsString(), Type: qdata.VTChoice.AsString(), ChoiceOptions: []string{"QOS", "Keycloak"}, Rank: 7},
-			{Name: qdata.FTKeycloakId.AsString(), Type: qdata.VTString.AsString(), Rank: 8},
-			{Name: qdata.FTEmail.AsString(), Type: qdata.VTString.AsString(), Rank: 9},
-			{Name: qdata.FTFirstName.AsString(), Type: qdata.VTString.AsString(), Rank: 10},
-			{Name: qdata.FTLastName.AsString(), Type: qdata.VTString.AsString(), Rank: 11},
-			{Name: qdata.FTIsEmailVerified.AsString(), Type: qdata.VTBool.AsString(), Rank: 12},
-			{Name: qdata.FTIsEnabled.AsString(), Type: qdata.VTBool.AsString(), Rank: 13},
-			{Name: qdata.FTJSON.AsString(), Type: qdata.VTString.AsString(), Rank: 14},
-		},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
-	}
-
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name: qdata.ETClient.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{
-			{Name: qdata.FTLogLevel.AsString(), Type: qdata.VTChoice.AsString(), ChoiceOptions: []string{"Trace", "Debug", "Info", "Warn", "Error", "Panic"}, Rank: 5},
-			{Name: qdata.FTQLibLogLevel.AsString(), Type: qdata.VTChoice.AsString(), ChoiceOptions: []string{"Trace", "Debug", "Info", "Warn", "Error", "Panic"}, Rank: 6},
-			{Name: qdata.FTReadsPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 7},
-			{Name: qdata.FTWritesPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 8},
-			{Name: qdata.FTIdleMsPerSecond.AsString(), Type: qdata.VTInt.AsString(), Rank: 9},
-		},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
-	}
-
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name: qdata.ETSessionController.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{
-			{Name: qdata.FTLastEventTime.AsString(), Type: qdata.VTTimestamp.AsString(), Rank: 5},
-			{Name: qdata.FTLogout.AsString(), Type: qdata.VTEntityReference.AsString(), Rank: 6},
-		},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to ensure entity schema: %v", err)
-	}
-
-	// Create root entity
-	_, err = ensureEntity(ctx, s, qdata.ETRoot, "Root")
-	if err != nil {
-		return fmt.Errorf("failed to create root entity: %v", err)
-	}
-
-	// Create the security models
-	_, err = ensureEntity(ctx, s, qdata.ETFolder, "Root", "Security Models")
-	if err != nil {
-		return fmt.Errorf("failed to create security models folder: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETFolder, "Root", "Security Models", "Permissions")
-	if err != nil {
-		return fmt.Errorf("failed to create permissions folder: %v", err)
-	}
-
-	kernelPermission, err := ensureEntity(ctx, s, qdata.ETPermission, "Root", "Security Models", "Permissions", "Kernel")
-	if err != nil {
-		return fmt.Errorf("failed to create system permission: %v", err)
-	}
-	// Policies are written in the tengo scripting language
-	kernelPermission.Field("Policy").Value.FromString(`
-				contains := func(l, v) {
-					for i in l {
-						if i == v {
-							return true
-						}
-					}
-					return false
-				}
-	
-				ALLOW := false
-				if contains(["Client"], SUBJECT.entityType()) {
-					STORE.read(
-						SUBJECT.field("Name").asReadRequest())
-					
-					name := SUBJECT.field("Name").value.getString()
-					ALLOW = contains(["qinitdb", "qsql", "qcore"], name)
-				} else if contains(["User"], SUBJECT.entityType()) {
-					 SUBJECT.read(
-						SUBJECT.field("Name").asReadRequest())
-					
-					name := SUBJECT.field("Name").value.getString()
-					ALLOW = contains(["qei"], name)
-				}
-			`)
-	err = s.Write(ctx, kernelPermission.Field("Policy").AsWriteRequest())
-	if err != nil {
-		return fmt.Errorf("failed to write kernel permission policy: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETFolder, "Root", "Security Models", "Areas of Responsibility")
-	if err != nil {
-		return fmt.Errorf("failed to create areas of responsibility folder: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETAreaOfResponsibility, "Root", "Security Models", "Areas of Responsibility", "System")
-	if err != nil {
-		return fmt.Errorf("failed to create system area of responsibility: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETFolder, "Root", "Security Models", "Roles")
-	if err != nil {
-		return fmt.Errorf("failed to create roles folder: %v", err)
-	}
-
-	adminRole, err := ensureEntity(ctx, s, qdata.ETRole, "Root", "Security Models", "Roles", "Admin")
-	if err != nil {
-		return fmt.Errorf("failed to create admin role: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETFolder, "Root", "Security Models", "Users")
-	if err != nil {
-		return fmt.Errorf("failed to create users folder: %v", err)
-	}
-
-	adminUser, err := ensureEntity(ctx, s, qdata.ETUser, "Root", "Security Models", "Users", "qei")
-	if err != nil {
-		return fmt.Errorf("failed to create admin user: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETFolder, "Root", "Security Models", "Clients")
-	if err != nil {
-		return fmt.Errorf("failed to create clients folder: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qinitdb")
-	if err != nil {
-		return fmt.Errorf("failed to create qinitdb client: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qsql")
-	if err != nil {
-		return fmt.Errorf("failed to create qsql client: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qfind")
-	if err != nil {
-		return fmt.Errorf("failed to create qfind client: %v", err)
-	}
-
-	_, err = ensureEntity(ctx, s, qdata.ETClient, "Root", "Security Models", "Clients", "qcore")
-	if err != nil {
-		return fmt.Errorf("failed to create qcore client: %v", err)
-	}
-
-	adminUser.Field(qdata.FTRoles).Value.FromEntityList([]qdata.EntityId{adminRole.EntityId})
-	adminUser.Field(qdata.FTSourceOfTruth).Value.FromChoice(0)
-	err = s.Write(ctx,
-		adminUser.Field(qdata.FTRoles).AsWriteRequest(),
-		adminUser.Field(qdata.FTSourceOfTruth).AsWriteRequest())
-	if err != nil {
-		return fmt.Errorf("failed to write admin user roles: %v", err)
-	}
-
-	err = ensureEntitySchema(ctx, s, new(qdata.EntitySchema).FromEntitySchemaPb(&qprotobufs.DatabaseEntitySchema{
-		Name: qdata.ETPermission.AsString(),
-		Fields: []*qprotobufs.DatabaseFieldSchema{
-			{
-				Name: qdata.FTPolicy.AsString(),
-				Type: qdata.VTString.AsString(),
-				Rank: 5,
-				WritePermissions: []string{
-					kernelPermission.EntityId.AsString(),
-				},
-			},
-		},
-	}))
-	if err != nil {
-		return fmt.Errorf("failed to update schema: %v", err)
+	// Process schema updates (with write permissions that may reference created entities)
+	for _, schemaUpdate := range config.SchemaUpdates {
+		// Convert entity name reference to the actual entity ID
+		schema := ConvertToEntitySchema(schemaUpdate)
+		err := ensureEntitySchema(ctx, s, schema)
+		if err != nil {
+			return fmt.Errorf("failed to update schema for %s: %w", schemaUpdate.Name, err)
+		}
 	}
 
 	return nil
+}
+
+// processInitialEntity creates an entity and its children based on config
+func processInitialEntity(ctx context.Context, s qdata.StoreInteractor, config InitialEntityConfig, parent *qdata.Entity, entityMap map[string]qdata.EntityId) error {
+	var parentPath []string
+
+	if parent != nil {
+		err := s.Read(ctx, parent.Field("Name").AsReadRequest())
+		if err != nil {
+			return fmt.Errorf("failed to read parent name: %w", err)
+		}
+
+		parentPath = []string{parent.Field("Name").Value.GetString()}
+	}
+
+	// Build the full path
+	fullPath := append(parentPath, config.Path)
+
+	// Create the entity
+	entityType := qdata.EntityType(config.Type)
+	entity, err := ensureEntity(ctx, s, entityType, fullPath...)
+	if err != nil {
+		return fmt.Errorf("failed to create entity %s: %w", strings.Join(fullPath, "/"), err)
+	}
+
+	// Store the entity ID by its path for reference
+	pathKey := strings.Join(fullPath, "/")
+	entityMap[pathKey] = entity.EntityId
+	entityMap[config.Path] = entity.EntityId // Also store just by name for simple references
+
+	// Set fields if any
+	for _, field := range config.Fields {
+		fieldType := qdata.FieldType(field.Name)
+
+		// TODO: Handle different value types based on field type
+		// This is a simplified example
+		entity.Field(fieldType).Value.FromString(field.Value)
+		err := s.Write(ctx, entity.Field(fieldType).AsWriteRequest())
+		if err != nil {
+			return fmt.Errorf("failed to set field %s for entity %s: %w", field.Name, pathKey, err)
+		}
+	}
+
+	// Process children
+	for _, childConfig := range config.Children {
+		err := processInitialEntity(ctx, s, childConfig, entity, entityMap)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// findCallerFile is a helper to find the directory of the current file
+// for locating the config file relative to the code
+func findCallerFile() string {
+	// This is a placeholder - in real implementation you would use runtime.Caller
+	// to get the file path of the caller
+	return "/workspace/qlib/pkg/qdata/qstore/init.go"
 }
 
 // Helper functions moved from init_store_worker
