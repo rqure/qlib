@@ -567,18 +567,18 @@ func (i *MapStoreInteractor) GetEntitySchema(ctx context.Context, entityType qda
 // SetEntitySchema stores an entity schema
 func (i *MapStoreInteractor) SetEntitySchema(ctx context.Context, schema *qdata.EntitySchema) error {
 	return i.core.WithWriteLock(ctx, func(ctx context.Context) error {
-		// Ensure default fields are set
-		schema.Field(qdata.FTName, qdata.FSOValueType(qdata.VTString), qdata.FSORank(0))
-		schema.Field(qdata.FTDescription, qdata.FSOValueType(qdata.VTString), qdata.FSORank(1))
-		schema.Field(qdata.FTParent, qdata.FSOValueType(qdata.VTEntityReference), qdata.FSORank(2))
-		schema.Field(qdata.FTChildren, qdata.FSOValueType(qdata.VTEntityList), qdata.FSORank(3))
+		// Apply default fields from configuration
+		err := ApplyDefaultFields(schema)
+		if err != nil {
+			qlog.Warn("Using fallback defaults: %v", err)
+		}
 
 		oldSchema, oldSchemaErr := i.GetEntitySchema(ctx, schema.EntityType)
 		removedFields := make(qdata.FieldTypeSlice, 0)
 		newFields := make(qdata.FieldTypeSlice, 0)
 
 		// Save the schema
-		err := i.core.SetSchema(schema.EntityType, schema)
+		err = i.core.SetSchema(schema.EntityType, schema)
 		if err != nil {
 			return err
 		}
