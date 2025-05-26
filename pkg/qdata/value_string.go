@@ -45,6 +45,8 @@ func (me *ValueString) GetRaw() any {
 
 func (me *ValueString) SetRaw(value any) {
 	switch v := value.(type) {
+	case []byte:
+		me.Value = string(v)
 	case string:
 		me.Value = v
 	default:

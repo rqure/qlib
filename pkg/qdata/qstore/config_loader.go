@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/rqure/qlib/pkg/qdata"
+	"github.com/rqure/qlib/pkg/qdata/qstore/qmap"
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
 	"gopkg.in/yaml.v3"
@@ -64,26 +64,13 @@ func LoadSchemaConfig(filePath string) (*SchemaConfig, error) {
 	return &config, nil
 }
 
-func findClosestValueType(valueType string) (qdata.ValueType, error) {
-	valueTypeMap := map[string]qdata.ValueType{}
-	for _, vt := range qdata.ValueTypes {
-		valueTypeMap[strings.ToLower(vt.AsString())] = vt
-	}
-
-	if vt, ok := valueTypeMap[strings.ToLower(valueType)]; ok {
-		return vt, nil
-	}
-
-	return "", fmt.Errorf("unknown value type: %s", valueType)
-}
-
 // ConvertToEntitySchema converts a config to a qdata.EntitySchema
 func ConvertToEntitySchema(config EntitySchemaConfig) *qdata.EntitySchema {
 	entityType := qdata.EntityType(config.Name)
 	fields := make([]*qprotobufs.DatabaseFieldSchema, 0, len(config.Fields))
 
 	for _, fieldConfig := range config.Fields {
-		vt, err := findClosestValueType(fieldConfig.Type)
+		vt, err := qmap.FindClosestValueType(fieldConfig.Type)
 		if err != nil {
 			qlog.Error("Invalid value type '%s' for field '%s' in entity '%s': %v", fieldConfig.Type, fieldConfig.Name, config.Name, err)
 			continue // Skip this field if the type is invalid
@@ -108,12 +95,12 @@ func ConvertToEntitySchema(config EntitySchemaConfig) *qdata.EntitySchema {
 	})
 }
 
-func UpdateSchemaPermissions(s qdata.StoreInteractor, config EntitySchemaConfig) *qdata.EntitySchema {
+func UpdateSchemaPermissions(ctx context.Context, s qdata.StoreInteractor, config EntitySchemaConfig) *qdata.EntitySchema {
 	entityType := qdata.EntityType(config.Name)
 	fields := make([]*qprotobufs.DatabaseFieldSchema, 0, len(config.Fields))
 
 	for _, fieldConfig := range config.Fields {
-		vt, err := findClosestValueType(fieldConfig.Type)
+		vt, err := qmap.FindClosestValueType(fieldConfig.Type)
 		if err != nil {
 			qlog.Error("Invalid value type '%s' for field '%s' in entity '%s': %v", fieldConfig.Type, fieldConfig.Name, config.Name, err)
 			continue // Skip this field if the type is invalid
@@ -131,7 +118,7 @@ func UpdateSchemaPermissions(s qdata.StoreInteractor, config EntitySchemaConfig)
 
 		for _, permName := range fieldConfig.WritePermissions {
 			permissions, err := s.Find(
-				context.Background(),
+				ctx,
 				qdata.ETPermission,
 				[]qdata.FieldType{qdata.FTName},
 				fmt.Sprintf("Name == %q", permName),
@@ -149,7 +136,7 @@ func UpdateSchemaPermissions(s qdata.StoreInteractor, config EntitySchemaConfig)
 
 		for _, permName := range fieldConfig.ReadPermissions {
 			permissions, err := s.Find(
-				context.Background(),
+				ctx,
 				qdata.ETPermission,
 				[]qdata.FieldType{qdata.FTName},
 				fmt.Sprintf("Name == %q", permName),

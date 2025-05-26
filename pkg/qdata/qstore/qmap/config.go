@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/rqure/qlib/pkg/qdata"
@@ -66,6 +67,19 @@ func GetDefaultConfig() (*ConfigDefaults, error) {
 	return defaultConfig, defaultConfigErr
 }
 
+func FindClosestValueType(valueType string) (qdata.ValueType, error) {
+	valueTypeMap := map[string]qdata.ValueType{}
+	for _, vt := range qdata.ValueTypes {
+		valueTypeMap[strings.ToLower(vt.AsString())] = vt
+	}
+
+	if vt, ok := valueTypeMap[strings.ToLower(valueType)]; ok {
+		return vt, nil
+	}
+
+	return "", fmt.Errorf("unknown value type: %s", valueType)
+}
+
 // ApplyDefaultFields applies the default fields from config to a schema
 func ApplyDefaultFields(schema *qdata.EntitySchema) error {
 	config, err := GetDefaultConfig()
@@ -81,7 +95,10 @@ func ApplyDefaultFields(schema *qdata.EntitySchema) error {
 	// Apply defaults from config
 	for _, field := range config.DefaultFields {
 		fieldType := qdata.FieldType(field.Name)
-		valueType := qdata.ValueType(field.Type)
+		valueType, err := FindClosestValueType(field.Type)
+		if err != nil {
+			return fmt.Errorf("invalid value type '%s' for field '%s': %w", field.Type, field.Name, err)
+		}
 		schema.Field(fieldType, qdata.FSOValueType(valueType), qdata.FSORank(field.Rank))
 	}
 

@@ -47,6 +47,29 @@ func (me *ValueBool) SetRaw(value any) {
 	switch v := value.(type) {
 	case bool:
 		me.Value = v
+	case int:
+		me.Value = v != 0
+	case int8:
+		me.Value = v != 0
+	case int16:
+		me.Value = v != 0
+	case int32:
+		me.Value = v != 0
+	case int64:
+		me.Value = v != 0
+	case float32:
+		me.Value = v != 0.0
+	case float64:
+		me.Value = v != 0.0
+	case string:
+		if v == "true" || v == "1" {
+			me.Value = true
+		} else if v == "false" || v == "0" {
+			me.Value = false
+		} else {
+			qlog.Error("Invalid string for SetRaw: %s", v)
+			me.Value = false // Default to false on invalid string
+		}
 	default:
 		qlog.Error("Invalid type for SetRaw: %T", v)
 	}

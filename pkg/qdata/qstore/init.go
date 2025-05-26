@@ -39,7 +39,7 @@ func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 	// Process schema updates (with write permissions that may reference created entities)
 	for _, schemaUpdate := range config.EntitySchemas {
 		// Convert entity name reference to the actual entity ID
-		schema := UpdateSchemaPermissions(s, schemaUpdate)
+		schema := UpdateSchemaPermissions(ctx, s, schemaUpdate)
 		err := ensureEntitySchema(ctx, s, schema)
 		if err != nil {
 			return fmt.Errorf("failed to update schema for %s: %w", schemaUpdate.Name, err)
@@ -80,11 +80,13 @@ func processInitialEntity(ctx context.Context, s qdata.StoreInteractor, config I
 	// Set fields if any
 	for _, field := range config.Fields {
 		fieldType := qdata.FieldType(field.Name)
+		fieldSchema, err := s.GetFieldSchema(ctx, entityType, fieldType)
+		if err != nil {
+			return fmt.Errorf("failed to get field schema for %s.%s: %w", entityType, fieldType, err)
+		}
 
-		// TODO: Handle different value types based on field type
-		// This is a simplified example
-		entity.Field(fieldType).Value.FromString(field.Value)
-		err := s.Write(ctx, entity.Field(fieldType).AsWriteRequest())
+		entity.Field(fieldType).Value.FromValue(fieldSchema.ValueType.NewValue(field.Value))
+		err = s.Write(ctx, entity.Field(fieldType).AsWriteRequest())
 		if err != nil {
 			return fmt.Errorf("failed to set field %s for entity %s: %w", field.Name, pathKey, err)
 		}

@@ -2,6 +2,7 @@ package qdata
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/rqure/qlib/pkg/qlog"
 	"github.com/rqure/qlib/pkg/qprotobufs"
@@ -67,6 +68,17 @@ func (me *ValueInt) SetRaw(value any) {
 		me.Value = int(v)
 	case uint64:
 		me.Value = int(v)
+	case float32:
+		me.Value = int(v)
+	case float64:
+		me.Value = int(v)
+	case string:
+		var err error
+		me.Value, err = strconv.Atoi(v)
+		if err != nil {
+			qlog.Error("Failed to convert string to int: %v", err)
+			return
+		}
 	default:
 		qlog.Error("Invalid type for SetRaw: %T", v)
 	}
