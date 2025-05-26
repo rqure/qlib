@@ -33,9 +33,9 @@ func GetDefaultConfig() (*ConfigDefaults, error) {
 	defaultConfigOnce.Do(func() {
 		// Try to find configuration file in several locations
 		locations := []string{
-			"config_defaults.yaml", // Current directory
-			filepath.Join("qdata", "qstore", "config_defaults.yaml"), // Relative path
-			"/workspace/qlib/pkg/qdata/qstore/config_defaults.yaml",  // Absolute path
+			"schemas.yaml", // Current directory
+			filepath.Join("qdata", "qstore", "schemas.yaml"), // Relative path
+			"/workspace/qlib/pkg/qdata/qstore/schemas.yaml",  // Absolute path
 		}
 
 		var configData []byte
@@ -49,7 +49,7 @@ func GetDefaultConfig() (*ConfigDefaults, error) {
 		}
 
 		if err != nil {
-			defaultConfigErr = fmt.Errorf("could not find config_defaults.yaml: %w", err)
+			defaultConfigErr = fmt.Errorf("could not find schemas.yaml: %w", err)
 			return
 		}
 
