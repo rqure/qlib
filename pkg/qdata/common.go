@@ -422,7 +422,7 @@ func (me *Request) AsRequestPb() *qprotobufs.DatabaseRequest {
 	}
 
 	var anyValue *anypb.Any
-	if !me.Value.IsNil() {
+	if me.Value != nil && !me.Value.IsNil() {
 		anyValue = me.Value.AsAnyPb()
 	}
 

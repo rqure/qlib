@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/expr-lang/expr"
@@ -24,7 +25,9 @@ type WebSocketStoreInteractor struct {
 	writeEventSig          qss.Signal[qdata.WriteEventArgs]
 	interactorConnected    qss.Signal[qdata.ConnectedArgs]
 	interactorDisconnected qss.Signal[qdata.DisconnectedArgs]
-	clientId               *qdata.EntityId
+
+	clientId *qdata.EntityId
+	mu       sync.RWMutex
 }
 
 // NewStoreInteractor creates a new WebSocketStoreInteractor
@@ -36,6 +39,8 @@ func NewStoreInteractor(core WebSocketCore) qdata.StoreInteractor {
 		writeEventSig:          qss.New[qdata.WriteEventArgs](),
 		interactorConnected:    qss.New[qdata.ConnectedArgs](),
 		interactorDisconnected: qss.New[qdata.DisconnectedArgs](),
+		clientId:               nil,
+		mu:                     sync.RWMutex{},
 	}
 
 	ws.core.Connected().Connect(ws.onConnected)
@@ -622,6 +627,7 @@ func (me *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 			wr := new(qdata.EntityId).FromString("")
 
 			appName := qcontext.GetAppName(ctx)
+			me.mu.Lock()
 			if me.clientId == nil && appName != "" {
 				clients, err := me.Find(ctx,
 					qdata.ETClient,
@@ -638,6 +644,7 @@ func (me *WebSocketStoreInteractor) Write(ctx context.Context, requests ...*qdat
 			if me.clientId != nil {
 				*wr = *me.clientId
 			}
+			me.mu.Unlock()
 
 			r.WriterId = wr
 		}

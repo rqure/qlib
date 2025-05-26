@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/rqure/qlib/pkg/qcontext"
 	"github.com/rqure/qlib/pkg/qdata"
@@ -22,6 +23,8 @@ type WebSocketStoreNotifier struct {
 	callbacks            map[string][]qdata.NotificationCallback
 	notifierConnected    qss.Signal[qdata.ConnectedArgs]
 	notifierDisconnected qss.Signal[qdata.DisconnectedArgs]
+
+	mu sync.RWMutex
 }
 
 // NewStoreNotifier creates a new WebSocketStoreNotifier
@@ -31,6 +34,7 @@ func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 		callbacks:            map[string][]qdata.NotificationCallback{},
 		notifierConnected:    qss.New[qdata.ConnectedArgs](),
 		notifierDisconnected: qss.New[qdata.DisconnectedArgs](),
+		mu:                   sync.RWMutex{},
 	}
 
 	// Subscribe to connection events
@@ -42,14 +46,18 @@ func NewStoreNotifier(core WebSocketCore) qdata.StoreNotifier {
 }
 
 func (wsn *WebSocketStoreNotifier) onConnected(args qdata.ConnectedArgs) {
+	wsn.mu.Lock()
 	wsn.appName = qcontext.GetAppName(args.Ctx)
 	wsn.handle = qcontext.GetHandle(args.Ctx)
+	wsn.mu.Unlock()
 
 	wsn.notifierConnected.Emit(args)
 }
 
 func (wsn *WebSocketStoreNotifier) onDisconnected(args qdata.DisconnectedArgs) {
+	wsn.mu.Lock()
 	wsn.callbacks = map[string][]qdata.NotificationCallback{}
+	wsn.mu.Unlock()
 
 	wsn.notifierDisconnected.Emit(args)
 }
@@ -84,7 +92,9 @@ func (wsn *WebSocketStoreNotifier) onNotification(notifPb *qprotobufs.DatabaseNo
 	notif := qnotify.FromPb(notifPb)
 
 	wsn.handle.DoInMainThread(func(ctx context.Context) {
+		wsn.mu.RLock()
 		callbacks, ok := wsn.callbacks[notif.GetToken()]
+		wsn.mu.RUnlock()
 
 		if ok {
 			for _, cb := range callbacks {
@@ -130,6 +140,8 @@ func (wsn *WebSocketStoreNotifier) Notify(ctx context.Context, config qdata.Noti
 	tokenId := config.GetToken()
 	var err error
 
+	wsn.mu.Lock()
+	defer wsn.mu.Unlock()
 	if wsn.callbacks[tokenId] == nil {
 		err = wsn.sendNotify(ctx, config)
 	}
@@ -162,6 +174,8 @@ func (wsn *WebSocketStoreNotifier) Unnotify(ctx context.Context, token string) e
 		return fmt.Errorf("unregister notification failed: %s", response.Status.String())
 	}
 
+	wsn.mu.Lock()
+	defer wsn.mu.Unlock()
 	delete(wsn.callbacks, token)
 
 	return nil
@@ -169,6 +183,8 @@ func (wsn *WebSocketStoreNotifier) Unnotify(ctx context.Context, token string) e
 
 // UnnotifyCallback removes a specific callback from a notification
 func (wsn *WebSocketStoreNotifier) UnnotifyCallback(ctx context.Context, token string, cb qdata.NotificationCallback) error {
+	wsn.mu.Lock()
+	defer wsn.mu.Unlock()
 	if wsn.callbacks[token] == nil {
 		return fmt.Errorf("no callbacks registered for token: %s", token)
 	}
