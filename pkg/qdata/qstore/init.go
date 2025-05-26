@@ -50,20 +50,10 @@ func Initialize(ctx context.Context, s qdata.StoreInteractor) error {
 }
 
 // processInitialEntity creates an entity and its children based on config
-func processInitialEntity(ctx context.Context, s qdata.StoreInteractor, config InitialEntityConfig, parent *qdata.Entity, entityMap map[string]qdata.EntityId) error {
-	var parentPath []string
-
-	if parent != nil {
-		err := s.Read(ctx, parent.Field("Name").AsReadRequest())
-		if err != nil {
-			return fmt.Errorf("failed to read parent name: %w", err)
-		}
-
-		parentPath = []string{parent.Field("Name").Value.GetString()}
-	}
-
+func processInitialEntity(ctx context.Context, s qdata.StoreInteractor, config InitialEntityConfig, parentPath []string, entityMap map[string]qdata.EntityId) error {
 	// Build the full path
-	fullPath := append(parentPath, config.Path)
+	fullPath := append([]string{}, parentPath...)
+	fullPath = append(fullPath, config.Path)
 
 	// Create the entity
 	entityType := qdata.EntityType(config.Type)
@@ -94,7 +84,7 @@ func processInitialEntity(ctx context.Context, s qdata.StoreInteractor, config I
 
 	// Process children
 	for _, childConfig := range config.Children {
-		err := processInitialEntity(ctx, s, childConfig, entity, entityMap)
+		err := processInitialEntity(ctx, s, childConfig, fullPath, entityMap)
 		if err != nil {
 			return err
 		}
